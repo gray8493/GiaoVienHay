@@ -1,0 +1,100 @@
+@startuml
+skinparam defaultTextAlignment center
+skinparam roundCorner 8
+skinparam BoxPadding 10
+skinparam conditionStyle insidediamond
+
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor #1E88E5
+    ArrowColor #2E7D32
+    FontSize 11
+}
+
+skinparam note {
+    BackgroundColor #FFF9C4
+    BorderColor #FBC02D
+    FontSize 10
+}
+
+title Sơ Đồ Hoạt Động Quy Trình Điểm Danh & Bắn Thông Báo Vắng Học (Activity Diagram)\nGiaoVienHay (EduConnect) - React Native, NestJS, RabbitMQ & FCM
+
+' ==============================================================================
+' ĐỊNH NGHĨA CÁC PHÂN VÙNG (SWIMLANES)
+' ==============================================================================
+
+|#E1F5FE|Giáo viên (Teacher)|
+|#EDE7F6|Client App (React Native / Next.js)|
+|#FFF3E0|Backend NestJS (API & Controller)|
+|#E8F5E9|Hạ tầng Dữ liệu (PostgreSQL & RabbitMQ)|
+|#FCE4EC|Dịch vụ Đẩy Thông báo (FCM Worker)|
+|#F3E5F5|Phụ huynh (Parent Mobile App)|
+
+' ==============================================================================
+' LUỒNG HOẠT ĐỘNG (FLOW)
+' ==============================================================================
+
+|Giáo viên (Teacher)|
+start
+:Mở tính năng "Điểm danh";
+:Chọn Lớp học, Ngày học và Buổi/Tiết học;
+
+|Client App (React Native / Next.js)|
+:Gửi GET /api/v1/classes/:id/students;
+
+|Backend NestJS (API & Controller)|
+:Xác thực quyền giảng dạy của Giáo viên (RolesGuard);
+:Truy vấn danh sách học sinh kèm trạng thái điểm danh trước (nếu có);
+
+|Hạ tầng Dữ liệu (PostgreSQL & RabbitMQ)|
+:Trả về dữ liệu từ PostgreSQL;
+
+|Client App (React Native / Next.js)|
+:Hiển thị danh sách học sinh với mặc định "Có mặt";
+
+|Giáo viên (Teacher)|
+:Kiểm diện và chuyển trạng thái học sinh vắng\n("Vắng có phép" hoặc "Vắng không phép");
+:Nhập ghi chú/lý do vắng (nếu có);
+:Nhấn nút "Lưu Điểm Danh";
+
+|Client App (React Native / Next.js)|
+:Kiểm tra tính hợp lệ dữ liệu (Form validation);
+:Gửi POST /api/v1/attendance/submit (JWT Token);
+
+|Backend NestJS (API & Controller)|
+:Xác thực token JWT;
+:Mở Database Transaction;
+
+|Hạ tầng Dữ liệu (PostgreSQL & RabbitMQ)|
+:Ghi nhận các bản ghi điểm danh vào PostgreSQL;
+if (Có học sinh vắng mặt?) then (Có)
+    :Phát sự kiện 'StudentAbsentEvent' vào RabbitMQ;
+else (Không)
+endif
+
+|Backend NestJS (API & Controller)|
+:Commit Transaction;
+:Trả về response thành công (HTTP 201 Created);
+
+|Client App (React Native / Next.js)|
+:Hiển thị thông báo "Điểm danh hoàn tất";
+
+|Hạ tầng Dữ liệu (PostgreSQL & RabbitMQ)|
+if (Có sự kiện 'StudentAbsentEvent' trong Queue?) then (Có)
+    :RabbitMQ chuyển giao Event cho Notification Worker;
+    
+    |Dịch vụ Đẩy Thông báo (FCM Worker)|
+    :Đọc Event, tra cứu tài khoản Phụ huynh liên kết;
+    :Lấy Device Token từ Redis Cache;
+    :Tạo payload thông báo với nội dung:\n"Học sinh [Tên] vắng mặt tiết [X] ngày [Y]";
+    :Gửi yêu cầu Push Notification qua Firebase FCM;
+    
+    |Phụ huynh (Parent Mobile App)|
+    :Nhận âm thanh và banner thông báo đẩy trên điện thoại;
+    :Chạm vào thông báo để mở xem chi tiết chuyên cần của con;
+    stop
+else (Không có vắng)
+    stop
+endif
+
+@enduml

@@ -1,0 +1,120 @@
+@startuml
+skinparam defaultTextAlignment center
+skinparam roundCorner 8
+skinparam BoxPadding 10
+skinparam packageStyle rectangle
+
+skinparam actor {
+    BackgroundColor #FFFFFF
+    BorderColor #1E88E5
+    FontSize 11
+    FontStyle bold
+}
+
+skinparam usecase {
+    BackgroundColor #F8F9FA
+    BorderColor #1565C0
+    ArrowColor #2E7D32
+    FontSize 11
+}
+
+skinparam note {
+    BackgroundColor #FFF9C4
+    BorderColor #FBC02D
+    FontSize 10
+}
+
+title Sơ Đồ Use Case Toàn Hệ Thống (System Use Case Diagram) - GiaoVienHay (EduConnect)\n(Next.js Web Admin, React Native Mobile App & NestJS Backend)
+
+' ==============================================================================
+' 1. ĐỊNH NGHĨA CÁC TÁC NHÂN (ACTORS)
+' ==============================================================================
+
+actor "Quản trị viên / BGH\n(Admin)" as Admin
+actor "Giáo viên\n(Teacher)" as Teacher
+actor "Phụ huynh\n(Parent)" as Parent
+
+actor "Firebase FCM\n(SYS-01)" as FCM <<System>>
+actor "Cổng Thanh Toán\n(SYS-02)" as Payment <<System>>
+
+' ==============================================================================
+' 2. DANH MỤC USE CASE THEO PHÂN HỆ
+' ==============================================================================
+
+rectangle "Hệ Thống GiaoVienHay (EduConnect)" {
+
+    package "Phân hệ Xác thực & Tài khoản" {
+        usecase "UC-AUTH-01\nĐăng nhập hệ thống" as UC_Login
+        usecase "UC-AUTH-02\nĐăng xuất & Thu hồi Token" as UC_Logout
+        usecase "UC-AUTH-03\nĐổi mật khẩu & Xem hồ sơ" as UC_Profile
+    }
+
+    package "Phân hệ Quản trị Trường học (Admin Portal)" {
+        usecase "UC-ADM-01\nQuản lý Niên khóa & Lớp học" as UC_ManageClasses
+        usecase "UC-ADM-02\nQuản lý Giáo viên & Phân công" as UC_ManageTeachers
+        usecase "UC-ADM-03\nQuản lý Học sinh & Liên kết Phụ huynh" as UC_ManageStudents
+        usecase "UC-ADM-04\nQuản lý Biểu phí & Đợt thu" as UC_ManageFees
+    }
+
+    package "Phân hệ Nghiệp vụ Giảng dạy (Teacher)" {
+        usecase "UC-ACA-01\nXem Thời khóa biểu dạy" as UC_Timetable
+        usecase "UC-ACA-02\nĐiểm danh Chuyên cần" as UC_Attendance
+        usecase "UC-ACA-03\nNhập & Phê duyệt Điểm số" as UC_Grades
+        usecase "UC-ACA-04\nNhập Nhận xét Học sinh" as UC_Comments
+    }
+
+    package "Phân hệ Phụ huynh (Parent Portal - Mobile)" {
+        usecase "UC-PAR-01\nTra cứu Điểm & Học bạ" as UC_ViewGrades
+        usecase "UC-PAR-02\nTheo dõi Chuyên cần của con" as UC_ViewAttendance
+        usecase "UC-PAR-03\nNhận Thông báo Đẩy tức thì" as UC_ReceiveNoti
+        usecase "UC-PAR-04\nThanh toán Học phí Online" as UC_PayFees
+    }
+
+    package "Phân hệ Bảng tin & Thông báo" {
+        usecase "UC-FED-01\nĐăng bài viết Bảng tin" as UC_PostFeed
+        usecase "UC-FED-02\nXem Bảng tin & Tin tức" as UC_ViewFeed
+    }
+}
+
+' ==============================================================================
+' 3. LIÊN KẾT TÁC NHÂN VỚI USE CASE
+' ==============================================================================
+
+' Admin
+Admin --> UC_Login
+Admin --> UC_Logout
+Admin --> UC_Profile
+Admin --> UC_ManageClasses
+Admin --> UC_ManageTeachers
+Admin --> UC_ManageStudents
+Admin --> UC_ManageFees
+Admin --> UC_PostFeed
+Admin --> UC_ViewFeed
+
+' Teacher
+Teacher --> UC_Login
+Teacher --> UC_Logout
+Teacher --> UC_Profile
+Teacher --> UC_Timetable
+Teacher --> UC_Attendance
+Teacher --> UC_Grades
+Teacher --> UC_Comments
+Teacher --> UC_ViewFeed
+
+' Parent
+Parent --> UC_Login
+Parent --> UC_Logout
+Parent --> UC_Profile
+Parent --> UC_ViewGrades
+Parent --> UC_ViewAttendance
+Parent --> UC_ReceiveNoti
+Parent --> UC_PayFees
+Parent --> UC_ViewFeed
+
+' System Actors
+UC_Attendance ..> FCM : <<trigger>>\nThông báo vắng
+UC_Grades ..> FCM : <<trigger>>\nThông báo điểm mới
+UC_ReceiveNoti <-- FCM
+UC_PayFees ..> Payment : <<delegate>>
+
+@enduml

@@ -1,0 +1,54 @@
+@startuml
+skinparam defaultTextAlignment center
+skinparam roundCorner 8
+skinparam BoxPadding 10
+skinparam object {
+    BackgroundColor #FFFFFF
+    BorderColor #1E88E5
+    ArrowColor #2E7D32
+    FontSize 11
+    FontStyle bold
+}
+
+title Sơ Đồ Giao Tiếp Toàn Hệ Thống (Communication Diagram) - GiaoVienHay (EduConnect)\nMô Tả Luồng Tương Tác Giữa Các Đối Tượng Khi Nhập Điểm & Bắn Thông Báo
+
+' --- 1. Tác Nhân Người Dùng (Human Actors) ---
+object "<u>:Teacher</u>\n(Giáo viên)" as Teacher
+object "<u>:Parent</u>\n(Phụ huynh)" as Parent
+
+' --- 2. Giao Diện Người Dùng (UI Layer) ---
+object "<u>:WebNextjsUI</u>\n(Web Quản trị Next.js)" as WebUI
+object "<u>:MobileReactNativeUI</u>\n(Mobile App Phụ huynh)" as MobileUI
+
+' --- 3. Backend Chung (NestJS Platform) ---
+object "<u>:APIGateway</u>\n(Routing & RateLimit)" as Gateway
+object "<u>:AcademicService</u>\n(NestJS Module)" as AcademicSvc
+object "<u>:NotificationService</u>\n(NestJS Module)" as NotiSvc
+
+' --- 4. Tầng Dữ Liệu & Hàng Đợi (Storage Layer) ---
+object "<u>:PostgreSQL</u>\n(RDBMS)" as Postgres
+object "<u>:RabbitMQ</u>\n(Message Broker)" as RabbitMQ
+object "<u>:RedisCache</u>\n(Session & FCM Tokens)" as Redis
+
+' --- 5. Dịch Vụ Ngoài (External Cloud) ---
+object "<u>:FirebaseFCM</u>\n(Cloud Messaging)" as FCM
+
+' --- 6. CÁC TƯƠNG TÁC ĐÁNH SỐ (NUMBERED INTERACTIONS) ---
+
+Teacher -- WebUI : 1: Nhập điểm & nhấn 'Phê duyệt' >
+WebUI -- Gateway : 2: POST /api/v1/grades/publish >
+Gateway -- AcademicSvc : 3: Forward validated request >
+
+AcademicSvc -- Postgres : 4: Lưu dữ liệu điểm & tính điểm TB >
+AcademicSvc -- RabbitMQ : 5: Phát 'GradePublishedEvent' >
+AcademicSvc .. WebUI : 6: Phản hồi kết quả thành công >
+
+RabbitMQ -- NotiSvc : 7: Giao nhận 'GradePublishedEvent' >
+NotiSvc -- Postgres : 8: Truy vấn danh sách phụ huynh liên quan >
+NotiSvc -- Redis : 9: Lấy Device FCM Token của phụ huynh >
+NotiSvc -- FCM : 10: Gửi push notification request >
+
+FCM -- MobileUI : 11: Đẩy thông báo tức thì tới app >
+MobileUI -- Parent : 12: Hiển thị banner thông báo điểm mới >
+
+@enduml
