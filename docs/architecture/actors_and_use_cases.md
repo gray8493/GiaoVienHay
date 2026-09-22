@@ -1,5 +1,5 @@
-# Tài Liệu Đặc Tả Tác Nhân & Trường Hợp Sử Dụng (Actors & Use Cases Specification)
-# Hệ Thống GiaoVienHay (EduConnect) – Quản Lý Học Sinh Cấp 1 & Cấp 2
+﻿# Tài Liệu Đặc Tả Tác Nhân & Trường Hợp Sử Dụng (Actors & Use Cases Specification)
+# Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
 
@@ -78,3 +78,4 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 - Áp dụng cho cả **GVCN** và **GVBM** đầu mỗi tiết học.
 - Thuật toán tự động đọc bảng `attendances` và **chỉ nạp các học sinh CÓ MẶT (`status = 'PRESENT'`)** vào vòng quay, đảm bảo không bao giờ quay trúng học sinh đang vắng.
 - Kết hợp hiển thị câu hỏi do AI tạo ra để học sinh trả lời, giáo viên cho điểm trực tiếp tại chỗ.
+

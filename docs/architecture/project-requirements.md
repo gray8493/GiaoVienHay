@@ -1,11 +1,11 @@
-# Tài Liệu Yêu Cầu Dự Án (Project Requirements Specification)
-# Hệ Thống GiaoVienHay (EduConnect) – Quản Lý Học Sinh Cấp 1 & Cấp 2
+﻿# Tài Liệu Yêu Cầu Dự Án (Project Requirements Specification)
+# Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
 
 ## 1. Tổng quan & Định vị sản phẩm
 
-**GiaoVienHay (EduConnect)** là giải pháp phần mềm chuyên biệt phục vụ công tác quản trị và giảng dạy tại các trường Tiểu học (Cấp 1) và THCS (Cấp 2). Hệ thống tập trung tối ưu năng suất cho **Giáo viên chủ nhiệm (GVCN)** và **Giáo viên bộ môn (GVBM)** trong các nghiệp vụ hàng ngày: dò bài cũ, tạo mini-game tương tác lớp học bằng AI, điểm danh chuyên cần, đôn đốc BHYT/học phí và kết nối trực tiếp với phụ huynh.
+**GiaoVienHay** là giải pháp phần mềm chuyên biệt phục vụ công tác quản trị và giảng dạy tại các trường Tiểu học (Cấp 1) và THCS (Cấp 2). Hệ thống tập trung tối ưu năng suất cho **Giáo viên chủ nhiệm (GVCN)** và **Giáo viên bộ môn (GVBM)** trong các nghiệp vụ hàng ngày: dò bài cũ, tạo mini-game tương tác lớp học bằng AI, điểm danh chuyên cần, đôn đốc BHYT/học phí và kết nối trực tiếp với phụ huynh.
 
 ---
 
@@ -51,3 +51,4 @@
 ### FR-07: Sổ Điểm Điện Tử & Tính Điểm Trung Bình
 - **FR-07.1:** Nhập điểm thành phần theo thang điểm 10 (bước nhảy 0.1).
 - **FR-07.2:** Tự động tính điểm trung bình môn và điểm trung bình học kỳ theo quy chế đánh giá của Bộ Giáo Dục.
+

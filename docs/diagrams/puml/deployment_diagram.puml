@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -29,7 +29,7 @@ skinparam cloud {
     FontStyle bold
 }
 
-title Sơ Đồ Triển Khai Hạ Tầng (Deployment Diagram) - GiaoVienHay (EduConnect)\nMô Hình PaaS Tối Ưu: Vercel, Railway/Render, Firebase Cloud & Mobile Stores
+title Sơ Đồ Triển Khai Hạ Tầng (Deployment Diagram) - GiaoVienHay\nMô Hình PaaS Tối Ưu: Vercel, Railway/Render, Firebase Cloud & Mobile Stores
 
 ' ==============================================================================
 ' 1. THIẾT BỊ ĐẦU CUỐI (CLIENT DEVICES)
@@ -125,3 +125,4 @@ NestjsApp --> PaymentEndpoint : HTTPS REST (:443)\n(Tạo giao dịch thanh toá
 PaymentEndpoint --> NestjsApp : HTTPS POST Webhook IPN\n(Cập nhật cờ is_paid_tuition)
 
 @enduml
+

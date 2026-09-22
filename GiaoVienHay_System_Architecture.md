@@ -1,11 +1,11 @@
-# EduConnect (GiaoVienHay) – Master System Architecture Document
+﻿# GiaoVienHay – Master System Architecture Document
 ## Hệ Thống Quản Lý & Tương Tác Học Sinh Cấp 1 & Cấp 2
 
 ---
 
 ## 1. Tổng Quan Hệ Thống (System Overview)
 
-- **Tên dự án:** **EduConnect (GiaoVienHay)** – Hệ thống Quản lý & Tương tác Học sinh Cấp 1 & Cấp 2 (Tiểu học & THCS).
+- **Tên dự án:** **GiaoVienHay** – Hệ thống Quản lý & Tương tác Học sinh Cấp 1 & Cấp 2 (Tiểu học & THCS).
 - **Mục tiêu:** Số hóa toàn diện quy trình chấm điểm, điểm danh chuyên cần, quản lý lớp học và kết nối với phụ huynh. Cung cấp bộ công cụ trợ giảng đột phá đầu giờ cho giáo viên: **Dò bài cũ, Vòng quay Random học sinh có mặt, Sinh câu hỏi AI từ Docs/PDF và Tạo Mini-game lớp học tương tác**.
 - **Tech Stack Cốt Lõi:**
   - **Web Quản trị & Trợ giảng:** Next.js 14+ (App Router, TypeScript).
@@ -71,3 +71,4 @@
 ### 4.3. Kiến Trúc Frontend (`docs/fe/`)
 - 🌐 **[fe-web-architecture.md](file:///e:/GiaoVienHay/docs/fe/web/fe-web-architecture.md)**: Kiến trúc Web Next.js có module UI 4 Mini-games (Golden Bell, Racing, Mystery Box, Smartboard Match).
 - 📱 **[fe-mobile-architecture.md](file:///e:/GiaoVienHay/docs/fe/mobile/fe-mobile-architecture.md)**: Kiến trúc Mobile App React Native.
+

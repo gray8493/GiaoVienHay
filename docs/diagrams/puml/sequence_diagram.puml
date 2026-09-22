@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 autonumber "<b>[00]</b>"
 skinparam BoxPadding 10
 skinparam ParticipantPadding 10
@@ -6,7 +6,7 @@ skinparam SequenceArrowThickness 1.2
 skinparam RoundCorner 8
 skinparam defaultFontSize 11
 
-title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - GiaoVienHay (EduConnect)\nBao Quát Toàn Diện 3 Nhóm Tác Nhân & Các Phân Hệ Chức Năng Cốt Lõi
+title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - GiaoVienHay\nBao Quát Toàn Diện 3 Nhóm Tác Nhân & Các Phân Hệ Chức Năng Cốt Lõi
 
 ' ==============================================================================
 ' 1. ĐỊNH NGHĨA CÁC THÀNH PHẦN THEO TẦNG KIẾN TRÚC
@@ -124,3 +124,4 @@ NotiModule -> FCM: Bắn thông báo đẩy xác nhận đã đóng học phí
 FCM -> ParentApp: Hiển thị thông báo "Thanh toán học phí thành công"
 
 @enduml
+

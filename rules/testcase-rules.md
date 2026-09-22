@@ -1,7 +1,7 @@
-# Quy Tắc Đặt Mã & Soạn Thảo Testcase (Testcase Specification Rules)
-# Dự Án GiaoVienHay (EduConnect)
+﻿# Quy Tắc Đặt Mã & Soạn Thảo Testcase (Testcase Specification Rules)
+# Dự Án GiaoVienHay
 
-Tài liệu này quy định chuẩn bắt buộc khi đặt mã định danh, phân loại và trình bày kịch bản kiểm thử (Testcase) cho toàn bộ dự án **GiaoVienHay (EduConnect)**.
+Tài liệu này quy định chuẩn bắt buộc khi đặt mã định danh, phân loại và trình bày kịch bản kiểm thử (Testcase) cho toàn bộ dự án **GiaoVienHay**.
 
 ---
 
@@ -44,3 +44,4 @@ Mọi testcase trong dự án bắt buộc phải tuân theo cấu trúc chuẩn
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
 | **UT01_Auth_TC01** | Đăng nhập với mật khẩu đúng | Tài khoản đã kích hoạt | 1. Gọi `authService.login()` | `email: "teacher@school.edu.vn"`, `password: "ValidPass123@"` | Trả về Access Token JWT hợp lệ chứa role TEACHER | **PASS** |
 | **UT01_Auth_TC02** | Đăng nhập với mật khẩu sai | Tài khoản đã kích hoạt | 1. Gọi `authService.login()` | `email: "teacher@school.edu.vn"`, `password: "WrongPassword"` | Ném ngoại lệ `UnauthorizedException` (401) | **PASS** |
+

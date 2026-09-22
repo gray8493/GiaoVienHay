@@ -1,5 +1,5 @@
-# Tài Liệu Đặc Tả Chi Tiết Trường Hợp Sử Dụng (Use Case Descriptions)
-# Hệ Thống GiaoVienHay (EduConnect) – Quản Lý Học Sinh Cấp 1 & Cấp 2
+﻿# Tài Liệu Đặc Tả Chi Tiết Trường Hợp Sử Dụng (Use Case Descriptions)
+# Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
 
@@ -86,3 +86,4 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
   3. Khi phụ huynh nộp tiền mặt: GVCN tích chọn vào ô tương ứng. Khi phụ huynh nộp online: Hệ thống tự động tích `true`.
   4. GVCN lọc danh sách các em "Chưa nộp BHYT" và nhấn nút "Gửi nhắc nhở phụ huynh".
   5. Backend gửi thông báo đẩy (Push Notification) qua FCM tới phụ huynh của các học sinh đó.
+

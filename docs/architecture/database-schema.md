@@ -1,7 +1,7 @@
-# Tài Liệu Thiết Kế Cơ Sở Dữ Liệu (Database Schema Specification)
-# Hệ Thống GiaoVienHay (EduConnect) – PostgreSQL 15 & Firebase Storage
+﻿# Tài Liệu Thiết Kế Cơ Sở Dữ Liệu (Database Schema Specification)
+# Hệ Thống GiaoVienHay – PostgreSQL 15 & Firebase Storage
 
-Tài liệu này đặc tả chi tiết cấu trúc bảng, kiểu dữ liệu, các ràng buộc toàn vẹn (Constraints), chỉ mục (Indexes) và mối quan hệ giữa 10 bảng dữ liệu cốt lõi của hệ thống **GiaoVienHay (EduConnect)**.
+Tài liệu này đặc tả chi tiết cấu trúc bảng, kiểu dữ liệu, các ràng buộc toàn vẹn (Constraints), chỉ mục (Indexes) và mối quan hệ giữa 10 bảng dữ liệu cốt lõi của hệ thống **GiaoVienHay**.
 
 ---
 
@@ -302,3 +302,4 @@ Lưu nhật ký các thông báo đẩy đã phát tới phụ huynh qua Firebas
 | `idx_fees_insurance_filter` | `fees_and_insurance` | `student_id, is_paid_insurance, is_paid_tuition` | **Tối ưu bộ lọc học sinh chưa nộp BHYT để phát tin nhắc nhở** |
 | `idx_questions_quiz_id` | `questions` | `quiz_id, question_index` | Tối ưu tải nhanh bộ câu hỏi khi bắt đầu trò chơi lớp học |
 | `idx_notifications_user` | `notifications` | `recipient_user_id, is_read, created_at` | Tối ưu tải trang thông báo trên Mobile App Phụ huynh |
+

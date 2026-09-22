@@ -1,7 +1,7 @@
-# Kiến Trúc Tầng Giao Diện Người Dùng (Frontend Architecture Overview)
-# Dự Án GiaoVienHay (EduConnect)
+﻿# Kiến Trúc Tầng Giao Diện Người Dùng (Frontend Architecture Overview)
+# Dự Án GiaoVienHay
 
-Tài liệu này tổng hợp cấu trúc, phân chia trách nhiệm và tiêu chuẩn kỹ thuật cho toàn bộ tầng Frontend của hệ thống **GiaoVienHay (EduConnect)**.
+Tài liệu này tổng hợp cấu trúc, phân chia trách nhiệm và tiêu chuẩn kỹ thuật cho toàn bộ tầng Frontend của hệ thống **GiaoVienHay**.
 
 ---
 
@@ -39,3 +39,4 @@ Hệ thống cung cấp 2 giải pháp giao diện độc lập nhằm tối ưu
    - Tự động gắn header `Authorization: Bearer <access_token>`.
    - Bắt lỗi `401 Unauthorized` để tự động gọi refresh token hoặc điều hướng về trang đăng nhập.
 4. **Quản lý Form & Validation:** Sử dụng `React Hook Form` kết hợp thư viện `Zod` để validate dữ liệu ngay tại client trước khi gửi lên API.
+

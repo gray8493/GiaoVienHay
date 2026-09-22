@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -24,7 +24,7 @@ skinparam database {
     FontSize 11
 }
 
-title Sơ Đồ Thành Phần Hệ Thống (Component Diagram) - GiaoVienHay (EduConnect)\nKiến Trúc Modular Monolith (NestJS), Next.js Web, React Native Mobile & Firebase Services
+title Sơ Đồ Thành Phần Hệ Thống (Component Diagram) - GiaoVienHay\nKiến Trúc Modular Monolith (NestJS), Next.js Web, React Native Mobile & Firebase Services
 
 ' ==============================================================================
 ' 1. TẦNG CLIENT (PRESENTATION LAYER)
@@ -144,3 +144,4 @@ FBMessaging -.-> MobileClient : Đẩy thông báo tức thì
 BillingMod --> PaymentGateway : Tạo giao dịch & Nhận Webhook
 
 @enduml
+

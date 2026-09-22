@@ -1,5 +1,5 @@
-# Quy Chuẩn Mã Phản Hồi & Cấu Trúc Dữ Liệu API (API Status & Response Codes Specification)
-# Dự Án GiaoVienHay (EduConnect)
+﻿# Quy Chuẩn Mã Phản Hồi & Cấu Trúc Dữ Liệu API (API Status & Response Codes Specification)
+# Dự Án GiaoVienHay
 
 Tài liệu này định nghĩa chuẩn mực cấu trúc phản hồi (**Response Envelope**) và danh mục toàn bộ mã trạng thái HTTP cùng mã lỗi nghiệp vụ (**Business Error Codes**) áp dụng cho Backend NestJS, Web Quản trị Next.js và Mobile App React Native.
 
@@ -111,3 +111,4 @@ Tất cả các API của hệ thống GiaoVienHay đều trả về dữ liệu
 | `PAY_INVOICE_NOT_FOUND` | 404 | Không tìm thấy hóa đơn học phí. |
 | `PAY_INVOICE_ALREADY_PAID` | 409 | Hóa đơn này đã được thanh toán thành công trước đó. |
 | `PAY_SIGNATURE_INVALID` | 400 | Chữ ký số giao dịch từ cổng thanh toán không khớp. |
+

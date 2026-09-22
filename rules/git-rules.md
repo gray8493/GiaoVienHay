@@ -1,7 +1,7 @@
-# Bộ Quy Tắc Chung Khi Làm Việc Với Git (General Git & Workflow Rules)
-# Dự Án GiaoVienHay (EduConnect)
+﻿# Bộ Quy Tắc Chung Khi Làm Việc Với Git (General Git & Workflow Rules)
+# Dự Án GiaoVienHay
 
-Tài liệu này quy định toàn bộ chuẩn mực và quy trình bắt buộc khi làm việc với Git (đặt tên nhánh, commit message, quy trình Pull Request và bảo vệ nhánh chính) cho các thành viên dự án **GiaoVienHay (EduConnect)**.
+Tài liệu này quy định toàn bộ chuẩn mực và quy trình bắt buộc khi làm việc với Git (đặt tên nhánh, commit message, quy trình Pull Request và bảo vệ nhánh chính) cho các thành viên dự án **GiaoVienHay**.
 
 ---
 
@@ -61,3 +61,4 @@ Tất cả các commit bắt buộc tuân theo định dạng:
   1. Build pass (Next.js build, NestJS build, TypeScript compile không có lỗi).
   2. Vượt qua toàn bộ Unit & Integration tests tự động.
   3. Có ít nhất 01 thành viên khác review và phê duyệt (Approve) trước khi merge.
+

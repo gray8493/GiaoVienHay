@@ -1,5 +1,5 @@
-# Tài Liệu Tổng Quan Hệ Thống (System Overview)
-# GiaoVienHay (EduConnect) – Hệ Thống Quản Lý & Tương Tác Học Sinh Cấp 1 & Cấp 2
+﻿# Tài Liệu Tổng Quan Hệ Thống (System Overview)
+# GiaoVienHay – Hệ Thống Quản Lý & Tương Tác Học Sinh Cấp 1 & Cấp 2
 
 ---
 
@@ -11,7 +11,7 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 - Học sinh Cấp 1 và Cấp 2 có tâm lý hiếu động, thích khám phá và dễ tiếp thu qua các hoạt động tương tác thị giác. Các hình thức kiểm tra bài cũ truyền thống (gọi tên khô khan, trả lời miệng thụ động) dễ gây căng thẳng, áp lực.
 - Nhu cầu cấp thiết về **Game hóa lớp học (Classroom Gamification)**: Giáo viên mong muốn chỉ với 1 cú click chuột từ tài liệu giáo án có sẵn, AI có thể tự động biến hóa thành các **Mini-game tương tác sinh động** (Rung chuông vàng, Vượt chướng ngại vật, Mở hộp quà bí mật, Ghép nối từ) để chiếu lên bảng tương tác/máy chiếu cho cả lớp cùng tham gia hào hứng đầu giờ.
 
-### 1.2. Mục tiêu hệ thống GiaoVienHay (EduConnect)
+### 1.2. Mục tiêu hệ thống GiaoVienHay
 **GiaoVienHay** là nền tảng quản lý và trợ giảng thông minh chuyên biệt cho Cấp 1 & Cấp 2:
 1. **Admin (Ban Giám Hiệu):** Quản trị cơ cấu trường, năm học, phân công giảng dạy và giám sát chất lượng học vụ, tài chính toàn trường.
 2. **Giáo viên (Bao gồm GVCN & GV Bộ môn):**
@@ -61,3 +61,4 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 8. `quizzes`: Bộ đề kiểm tra/trò chơi tạo từ tài liệu bài giảng.
 9. `questions`: Câu hỏi, 4 phương án, đáp án đúng, gợi ý, thời gian làm bài, cấu hình mini-game (`game_type`, `game_config`).
 10. `notifications`: Lịch sử thông báo đẩy gửi tới phụ huynh.
+

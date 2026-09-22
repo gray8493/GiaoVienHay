@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -24,7 +24,7 @@ skinparam note {
     FontSize 10
 }
 
-title Sơ Đồ Use Case Toàn Hệ Thống (System Use Case Diagram) - GiaoVienHay (EduConnect)\nQuản Lý Học Sinh Cấp 1 & 2: Dò Bài Cũ, AI Quiz & Tạo Game Tương Tác Lớp Học
+title Sơ Đồ Use Case Toàn Hệ Thống (System Use Case Diagram) - GiaoVienHay\nQuản Lý Học Sinh Cấp 1 & 2: Dò Bài Cũ, AI Quiz & Tạo Game Tương Tác Lớp Học
 
 ' ==============================================================================
 ' 1. ĐỊNH NGHĨA CÁC TÁC NHÂN (ACTORS)
@@ -45,7 +45,7 @@ GVBM <|-- GVCN : <<kế thừa quyền giảng dạy>>
 ' 2. DANH MỤC USE CASE THEO PHÂN HỆ
 ' ==============================================================================
 
-rectangle "Hệ Thống GiaoVienHay (EduConnect) - Cấp 1 & Cấp 2" {
+rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
 
     package "Phân hệ Quản trị Trường học (Admin Portal)" {
         usecase "UC-ADM-01\nQuản lý Niên khóa & Khối 1-9" as UC_Classes
@@ -111,3 +111,4 @@ UC_FeesInsurance ..> FCM : <<trigger>>\nNhắc nộp BHYT/Học phí
 UC_ReceiveNoti <-- FCM
 
 @enduml
+

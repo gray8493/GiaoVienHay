@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -10,7 +10,7 @@ skinparam object {
     FontStyle bold
 }
 
-title Sơ Đồ Giao Tiếp Toàn Hệ Thống (System-Wide Communication Diagram) - GiaoVienHay (EduConnect)\nBao Quát Toàn Diện 3 Nhóm Tác Nhân & Các Phân Hệ Chức Năng Cốt Lõi
+title Sơ Đồ Giao Tiếp Toàn Hệ Thống (System-Wide Communication Diagram) - GiaoVienHay\nBao Quát Toàn Diện 3 Nhóm Tác Nhân & Các Phân Hệ Chức Năng Cốt Lõi
 
 ' ==============================================================================
 ' 1. CÁC TÁC NHÂN NGƯỜI DÙNG (ACTORS)
@@ -98,3 +98,4 @@ FCM -- MobileParentUI : 4.5: pushBackgroundNotification(alertTitle, alertBody)
 MobileParentUI -- Parent : 4.6: renderPushBannerNotification()
 
 @enduml
+

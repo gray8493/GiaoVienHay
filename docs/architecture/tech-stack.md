@@ -1,5 +1,5 @@
-# Tài Liệu Ngăn Xếp Công Nghệ & Sơ Đồ CSDL (Tech Stack & Database Schema)
-# Hệ Thống GiaoVienHay (EduConnect) – Quản Lý Học Sinh Cấp 1 & Cấp 2
+﻿# Tài Liệu Ngăn Xếp Công Nghệ & Sơ Đồ CSDL (Tech Stack & Database Schema)
+# Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
 
@@ -155,3 +155,4 @@ erDiagram
                         ▼ (Trả về JSON Schema câu hỏi)
 [NestJS: Lưu bảng quizzes & questions] ──► [Web Next.js: Trình chiếu lên bảng lớp]
 ```
+

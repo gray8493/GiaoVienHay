@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -17,7 +17,7 @@ skinparam note {
     FontSize 10
 }
 
-title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to-End System Activity Diagram)\nGiaoVienHay (EduConnect) - Bao Quát Cả 3 Nhóm Tác Nhân & Các Nghiệp Vụ Cốt Lõi
+title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to-End System Activity Diagram)\nGiaoVienHay - Bao Quát Cả 3 Nhóm Tác Nhân & Các Nghiệp Vụ Cốt Lõi
 
 ' ==============================================================================
 ' ĐỊNH NGHĨA CÁC PHÂN VÙNG LÀN BƠI (SWIMLANES)
@@ -148,3 +148,4 @@ else ([Thông báo học phí mới])
 endif
 
 @enduml
+
