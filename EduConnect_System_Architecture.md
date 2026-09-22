@@ -1,99 +1,76 @@
 # EduConnect (GiaoVienHay) – Master System Architecture Document
-
-> **Lưu ý:** Hệ thống tài liệu kiến trúc dự án đã được chuẩn hóa và tổ chức thành các thư mục chuyên biệt tương tự mô hình chuẩn của `E:\AITA` (bao gồm `docs/architecture/`, `docs/diagrams/puml/`, `docs/apis/`, `docs/testcases/`, `rules/`). Phiên bản kiến trúc này loại bỏ hoàn toàn module AI Prompt/LLM theo yêu cầu.
-
----
-
-## 1. Mục lục Tài liệu Dự án (Documentation Index)
-
-### 1.1. Tài liệu Kiến trúc & Yêu cầu (`docs/architecture/`)
-- 📄 **[system-overview.md](file:///e:/GiaoVienHay/docs/architecture/system-overview.md)**: Tổng quan hệ thống, bối cảnh, 3 nhóm đối tượng người dùng, tiêu chuẩn chất lượng.
-- 📄 **[tech-stack.md](file:///e:/GiaoVienHay/docs/architecture/tech-stack.md)**: Đặc tả ngăn xếp công nghệ (Next.js, React Native, NestJS, PostgreSQL, MongoDB, Redis, RabbitMQ, FCM).
-- 📄 **[actors_and_use_cases.md](file:///e:/GiaoVienHay/docs/architecture/actors_and_use_cases.md)**: Danh mục 3 tác nhân chính (`Admin`, `Teacher`, `Parent`) và ma trận Use Cases.
-- 📄 **[use_case_descriptions.md](file:///e:/GiaoVienHay/docs/architecture/use_case_descriptions.md)**: Đặc tả chi tiết từng bước (Main Flow, Exceptions) cho các Use Cases cốt lõi.
-- 📄 **[project-requirements.md](file:///e:/GiaoVienHay/docs/architecture/project-requirements.md)**: Yêu cầu chức năng (FR) và phi chức năng (NFR).
-- 📄 **[api-response-codes.md](file:///e:/GiaoVienHay/docs/architecture/api-response-codes.md)**: Quy chuẩn Envelope Schema, HTTP Status Codes và từ điển mã lỗi nghiệp vụ (`AUTH_*`, `ACAD_*`,...).
-
-### 1.2. Sơ đồ Thiết kế PlantUML (`docs/diagrams/puml/`)
-- 📊 **[use_case_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/use_case_diagram.puml)**: Sơ đồ Use Case toàn hệ thống phân theo phân hệ.
-- 📊 **[activity_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/activity_diagram.puml)**: Sơ đồ hoạt động quy trình điểm danh và bắn thông báo vắng học (Swimlanes).
-- 📊 **[sequence_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/sequence_diagram.puml)**: Sơ đồ tuần tự từ lúc Đăng nhập, Nhập điểm đến lúc Phụ huynh nhận push notification.
-- 📊 **[communication_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/communication_diagram.puml)**: Sơ đồ giao tiếp tương tác giữa các đối tượng.
-
-### 1.3. Đặc tả API Endpoints (`docs/apis/`)
-- 🔌 **[api-auth-spec.md](file:///e:/GiaoVienHay/docs/apis/auth/api-auth-spec.md)**: Đặc tả API xác thực, JWT, refresh token, logout.
-- 🔌 **[api-academic-spec.md](file:///e:/GiaoVienHay/docs/apis/academic/api-academic-spec.md)**: Đặc tả API điểm danh và phê duyệt điểm số.
-- 🔌 **[api-notification-spec.md](file:///e:/GiaoVienHay/docs/apis/notifications/api-notification-spec.md)**: Đặc tả API đăng ký Device Token FCM và lịch sử thông báo.
-
-### 1.4. Kịch bản Kiểm thử (`docs/testcases/`)
-- 🧪 **[unit-test-template.md](file:///e:/GiaoVienHay/docs/testcases/1-unit/unit-test-template.md)**: Mẫu kịch bản kiểm thử đơn vị (Unit Test - Jest).
-- 🧪 **[integration-test-template.md](file:///e:/GiaoVienHay/docs/testcases/2-integration/integration-test-template.md)**: Mẫu kịch bản kiểm thử tích hợp (Integration Test - Testcontainers).
-- 🧪 **[system-test-template.md](file:///e:/GiaoVienHay/docs/testcases/3-system/system-test-template.md)**: Mẫu kịch bản kiểm thử toàn hệ thống E2E (System Test).
-- 🧪 **[acceptance-test-template.md](file:///e:/GiaoVienHay/docs/testcases/4-acceptance/acceptance-test-template.md)**: Mẫu kịch bản kiểm thử chấp nhận người dùng (UAT).
-
-### 1.5. Quy tắc Dự án (`rules/`)
-- 📋 **[git-rules.md](file:///e:/GiaoVienHay/rules/git-rules.md)**: Quy tắc đặt tên nhánh, conventional commits và bảo vệ nhánh `main`.
-- 📋 **[testcase-rules.md](file:///e:/GiaoVienHay/rules/testcase-rules.md)**: Quy tắc đặt mã định danh testcase (`UT*`, `IT*`, `ST*`, `AT*`).
+## Hệ Thống Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
 
-## 2. Mô hình kiến trúc tổng thể (High-Level Architecture)
+## 1. Tổng Quan Hệ Thống (System Overview)
 
-```mermaid
-graph TD
-    subgraph Clients ["Presentation Layer (Clients - 3 Đối tượng Người dùng)"]
-        Web["Web Quản trị (Next.js)\nAdmin & Giáo viên"]
-        Mobile["Mobile App (React Native)\nGiáo viên & Phụ huynh"]
-    end
-
-    Gateway["API Gateway (Kong / Reverse Proxy)\nRouting, Rate Limiting, Auth Check"]
-
-    subgraph Backend ["Backend Chung (NestJS Framework)"]
-        AuthSvc["Auth Module / Service\n(JWT, RBAC Guards)"]
-        UserSvc["User Module / Service\n(Profiles, Linkages)"]
-        AcademicSvc["Academic Module / Service\n(Grades, Classes, Attendance)"]
-        NotiSvc["Notification Module / Service\n(BullMQ, FCM, SMS, Email)"]
-    end
-
-    subgraph Storage ["Database & Storage Layer"]
-        DB_Auth[(PostgreSQL\nAuth, Users, Grades)]
-        Cache_Redis[(Redis Cache & BullMQ\nSession & Queue)]
-        DB_Mongo[(MongoDB\nLogs, Feeds & News)]
-    end
-
-    Broker["Message Broker (RabbitMQ)"]
-    FCM_Service["Firebase FCM\nPush Notification Service"]
-
-    Web -->|HTTPS| Gateway
-    Mobile -->|HTTPS| Gateway
-
-    Gateway --> AuthSvc
-    Gateway --> UserSvc
-    Gateway --> AcademicSvc
-    Gateway --> NotiSvc
-
-    AuthSvc --> DB_Auth
-    UserSvc --> DB_Auth
-    AcademicSvc --> DB_Auth
-    AcademicSvc -.-> Cache_Redis
-    NotiSvc --> DB_Mongo
-    NotiSvc -.-> Cache_Redis
-
-    AcademicSvc -->|Publish Events| Broker
-    Broker -->|Consume Events| NotiSvc
-    NotiSvc -->|Push Request| FCM_Service
-    FCM_Service -.->|Push Alert| Mobile
-```
+- **Tên dự án:** **EduConnect (GiaoVienHay)** – Hệ thống Quản lý Học sinh Cấp 1 & Cấp 2 (Tiểu học & THCS).
+- **Mục tiêu:** Số hóa quy trình chấm điểm, điểm danh chuyên cần, quản lý lớp học và gửi thông báo nhận xét định kỳ đến phụ huynh. Tối ưu năng suất giảng dạy đầu giờ cho giáo viên (kiểm tra bài cũ AI, gọi học sinh ngẫu nhiên) và quản lý chặt chẽ BHYT/học phí.
+- **Tech Stack Cốt Lõi:**
+  - **Web Quản trị:** Next.js 14+ (App Router, TypeScript).
+  - **Mobile App:** React Native (iOS & Android).
+  - **Backend API:** NestJS (TypeScript, Modular Architecture).
+  - **AI Engine:** Google Gemini API (`gemini-1.5-flash`) bóc tách tài liệu bài giảng.
+  - **Cơ sở dữ liệu:** PostgreSQL (10 bảng cốt lõi), Redis (Caching & Queue), MongoDB (Bảng tin trường học).
+  - **Message Broker & Push:** RabbitMQ, Firebase Cloud Messaging (FCM).
 
 ---
 
-## 3. Tóm lược các quyết định kiến trúc cốt lõi
+## 2. Chi Tiết Các Tính Năng Đặc Thù
 
-1. **3 Nhóm đối tượng duy nhất:**
-   - **Admin (Ban giám hiệu/Quản trị viên):** Sử dụng Web Next.js.
-   - **Teacher (Giáo viên):** Sử dụng Web Next.js (nhập điểm lớn, quản trị) và Mobile React Native (điểm danh, nhận xét nhanh).
-   - **Parent (Phụ huynh):** Sử dụng Mobile App React Native (nhận thông báo đẩy FCM, tra cứu điểm và chuyên cần, đóng học phí).
-2. **Không có tính năng Chat:**
-   - Giao tiếp giữa trường/giáo viên và phụ huynh là giao tiếp một chiều thông qua **Thông báo đẩy (FCM)** và **Bảng tin trường học (Feed)**.
-3. **Không sử dụng AI Prompt / LLM:**
-   - Tập trung vào sự ổn định, chính xác và hiệu năng cao của các nghiệp vụ quản lý giáo dục cốt lõi (điểm danh, sổ điểm, liên lạc phụ huynh, học phí).
+1. **Import Docs/PDF bằng AI (Gemini API):**
+   - Giáo viên tải lên tài liệu bài học (`.docx`, `.pdf`).
+   - AI tự động bóc tách và sinh câu hỏi kiểm tra bài cũ 5-10 phút đầu giờ kèm đáp án và lời giải thích.
+   - Hỗ trợ **Classroom Presentation Mode** toàn màn hình, có đồng hồ đếm ngược để chiếu lên bảng thông minh/máy chiếu tại lớp.
+2. **Vòng Quay / Random Học Sinh Lên Bảng:**
+   - Thuật toán lọc danh sách học sinh **CÓ MẶT HÔM NAY** (dựa trên dữ liệu điểm danh thực tế, tự động loại trừ học sinh vắng học).
+   - Vòng quay may mắn sinh động trên Web Next.js để gọi ngẫu nhiên học sinh lên bảng trả lời câu hỏi bài cũ.
+   - Cho phép giáo viên nhập điểm miệng trực tiếp vào sổ điểm ngay tại vòng quay.
+3. **Quản Lý Học Phí & Bảo Hiểm Y Tế (BHYT):**
+   - Quản lý trạng thái bằng 2 cờ Boolean trực tiếp trong CSDL:
+     - `is_paid_tuition`: Trạng thái đã hoàn thành nộp học phí.
+     - `is_paid_insurance`: Trạng thái đã tham gia và nộp tiền BHYT học sinh.
+   - GVCN có checklist nhanh 1-chạm và công cụ lọc các em chưa nộp để gửi tin nhắn nhắc nhở phụ huynh qua FCM.
+
+---
+
+## 3. Phân Quyền Chi Tiết (RBAC Guard in NestJS)
+
+Phân biệt rõ rệt 4 nhóm quyền:
+- **`ADMIN` (Ban Giám Hiệu):** Toàn quyền cấu hình niên khóa, khối 1-9, phân công GVCN và GVBM, giám sát thu chi toàn trường.
+- **`TEACHER_HOMEROOM` (GVCN):** Điểm danh lớp chủ nhiệm, theo dõi & cập nhật cờ `is_paid_tuition` và `is_paid_insurance`, nhập nhận xét hạnh kiểm định kỳ.
+- **`TEACHER_SUBJECT` (GVBM):** Nhập điểm số môn học phụ trách, upload docs/pdf sinh câu hỏi AI, quay random học sinh có mặt hôm nay lên bảng.
+- **`PARENT` (Phụ huynh):** Tra cứu sổ điểm, chuyên cần, trạng thái BHYT & học phí của đúng học sinh liên kết.
+
+---
+
+## 4. Kiến Trúc Sơ Đồ CSDL (10 Bảng Cốt Lõi PostgreSQL)
+
+1. `users`: Tài khoản, hash mật khẩu, email, SĐT, `role`.
+2. `classes`: Tên lớp (1A, 6B), khối 1-9, năm học, `homeroom_teacher_id`.
+3. `students`: Mã học sinh, họ tên, ngày sinh, giới tính, `class_id`.
+4. `student_parent_relations`: Quan hệ ràng buộc phụ huynh - học sinh.
+5. `scores`: Điểm miệng, 15p, 1 tiết, giữa kỳ, cuối kỳ, môn học, giáo viên chấm.
+6. `attendances`: Điểm danh ngày, tiết, trạng thái (`PRESENT`, `ABSENT_EXCUSED`, `ABSENT_UNEXCUSED`), lý do vắng.
+7. `fees_and_insurance`: Đợt thu, số tiền, cờ `is_paid_tuition` (bool), cờ `is_paid_insurance` (bool), ngày nộp.
+8. `quizzes`: Bộ đề kiểm tra bài cũ (tên bài học, giáo viên tạo, link tài liệu gốc).
+9. `questions`: Câu hỏi, 4 phương án A-B-C-D, đáp án đúng, lời giải thích, thời gian đếm ngược.
+10. `notifications`: Lịch sử thông báo đẩy gửi tới thiết bị di động của phụ huynh.
+
+---
+
+## 5. Mục Lục Toàn Bộ Hệ Thống Tài Liệu (`docs/`)
+
+- 📄 **[system-overview.md](file:///e:/GiaoVienHay/docs/architecture/system-overview.md)**: Tổng quan hệ thống Cấp 1 & 2 và các tính năng đặc thù.
+- 📄 **[tech-stack.md](file:///e:/GiaoVienHay/docs/architecture/tech-stack.md)**: Đặc tả ngăn xếp công nghệ và sơ đồ Mermaid ERD 10 bảng CSDL.
+- 📄 **[actors_and_use_cases.md](file:///e:/GiaoVienHay/docs/architecture/actors_and_use_cases.md)**: Phân quyền chi tiết Admin, GVCN, GVBM, Phụ huynh.
+- 📄 **[use_case_descriptions.md](file:///e:/GiaoVienHay/docs/architecture/use_case_descriptions.md)**: Đặc tả chi tiết AI Quiz, Random học sinh và quản lý BHYT.
+- 📄 **[project-requirements.md](file:///e:/GiaoVienHay/docs/architecture/project-requirements.md)**: Yêu cầu chức năng FR và phi chức năng NFR.
+- 📄 **[api-response-codes.md](file:///e:/GiaoVienHay/docs/architecture/api-response-codes.md)**: Quy chuẩn mã phản hồi API và mã lỗi nghiệp vụ.
+- 📊 **[use_case_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/use_case_diagram.puml)**: Sơ đồ Use Case phân cấp GVCN và GVBM.
+- 📊 **[activity_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/activity_diagram.puml)**: Sơ đồ hoạt động toàn chu trình vận hành.
+- 📊 **[sequence_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/sequence_diagram.puml)**: Sơ đồ tuần tự các giai đoạn nghiệp vụ.
+- 📊 **[communication_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/communication_diagram.puml)**: Sơ đồ giao tiếp giữa các đối tượng.
+- 🌐 **[fe-web-architecture.md](file:///e:/GiaoVienHay/docs/fe/web/fe-web-architecture.md)**: Kiến trúc Web Next.js có màn hình Vòng quay & Trình chiếu AI Quiz.
+- 📱 **[fe-mobile-architecture.md](file:///e:/GiaoVienHay/docs/fe/mobile/fe-mobile-architecture.md)**: Kiến trúc Mobile App React Native.

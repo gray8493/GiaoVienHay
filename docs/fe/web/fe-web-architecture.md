@@ -1,94 +1,65 @@
 # Kiến Trúc Web Quản Trị Next.js (Web Frontend Architecture)
 # Nền tảng: Next.js 14+ (App Router / TypeScript)
+# Hệ thống Quản lý Học sinh Cấp 1 & Cấp 2
 
-Tài liệu này đặc tả chi tiết cấu trúc, quy ước và nguyên lý phát triển cho ứng dụng **Web Quản trị (Admin & Giáo viên)** thuộc hệ thống GiaoVienHay (EduConnect).
+Tài liệu này đặc tả chi tiết cấu trúc, giao diện và tính năng đặc thù trên ứng dụng **Web Quản trị Next.js** phục vụ Admin, Giáo viên Chủ nhiệm (GVCN) và Giáo viên Bộ môn (GVBM).
 
 ---
 
-## 1. Mục Tiêu & Nhóm Người Dùng (Target Audience)
+## 1. Các Tính Năng Giao Diện Đặc Thù
 
-- **Admin (Ban Giám Hiệu / Quản trị viên trường):**
-  - Quản trị cơ cấu trường, năm học, khối lớp, phân lớp học sinh.
-  - Quản lý danh sách giáo viên, phân công chuyên môn và thời khóa biểu.
-  - Cấu hình biểu phí, xuất báo cáo thống kê toàn trường.
-- **Giáo viên (Teacher):**
-  - Quản lý sổ điểm chi tiết (nhập hàng loạt bằng bảng tính hoặc import Excel).
-  - Phê duyệt và công bố bảng điểm học kỳ.
-  - Xem thời khóa biểu giảng dạy và lịch tuần của trường.
+### 1.1. Chế Độ Trình Chiếu Lớp Học & AI Quiz Generator
+- **Import Giáo án/Docs/PDF:** Giáo viên kéo thả file bài giảng vào khu vực upload, hệ thống hiển thị tiến trình bóc tách AI (Google Gemini API).
+- **Xem trước & Tinh chỉnh câu hỏi:** Bảng hiển thị danh sách câu hỏi trắc nghiệm A-B-C-D kèm lời giải thích, cho phép chỉnh sửa trực tiếp.
+- **Classroom Presentation Mode (Toàn màn hình):**
+  - Giao diện Fullscreen, nền tối hoặc tương phản cao, font chữ to rõ nét phục vụ máy chiếu và TV/Bảng thông minh trong lớp.
+  - Tích hợp bộ đếm giờ (Timer) đếm ngược 30s/45s/60s.
+  - Nút bấm ẩn/hiện đáp án từng bước.
+
+### 1.2. Vòng Quay May Mắn / Random Học Sinh Lên Bảng
+- **Giao diện Vòng quay Canvas / CSS Animation:** Mô phỏng vòng quay bánh xe may mắn rực rỡ sắc màu kèm âm thanh quay số hồi hộp.
+- **Dữ liệu thời gian thực:** Tự động gọi API lấy danh sách học sinh **có mặt hôm nay** (dựa vào dữ liệu điểm danh thực tế vừa lưu, tự động loại bỏ học sinh vắng).
+- **Pop-up Chấm điểm nhanh:** Khi kim dừng lại ở học sinh nào, pop-up hiển thị ngay tên học sinh kèm ô nhập điểm miệng và nút "Lưu vào sổ điểm".
+
+### 1.3. Bảng Quản Lý Học Phí & Bảo Hiểm Y Tế (BHYT) của GVCN
+- Bảng danh sách học sinh của lớp chủ nhiệm với 2 cột checkbox trạng thái nhanh:
+  - Cột `Học phí` (cờ boolean `is_paid_tuition`).
+  - Cột `BHYT` (cờ boolean `is_paid_insurance`).
+- Bộ lọc 1-chạm: "Xem các em chưa nộp BHYT", "Xem các em chưa nộp Học phí".
+- Nút "Gửi thông báo nhắc nhở": Tự động mở hộp thoại gửi push notification tới riêng phụ huynh của các học sinh được lọc.
 
 ---
 
 ## 2. Cấu Trúc Thư Mục Chuẩn (Project Folder Structure)
 
-Dự án Web Next.js được tổ chức theo cấu trúc App Router chuẩn:
-
 ```text
 web-admin/
 ├── src/
-│   ├── app/                                # Next.js App Router (File-based Routing)
-│   │   ├── (auth)/                         # Route Group cho luồng xác thực (không có sidebar)
-│   │   │   ├── login/                      # Trang đăng nhập
-│   │   │   │   └── page.tsx
-│   │   │   ├── forgot-password/            # Quên mật khẩu
-│   │   │   │   └── page.tsx
-│   │   │   └── layout.tsx
-│   │   ├── (dashboard)/                    # Route Group trang nghiệp vụ chính (có Sidebar & Header)
-│   │   │   ├── admin/                      # Khu vực dành riêng cho ADMIN
-│   │   │   │   ├── classes/                # Quản lý lớp học
-│   │   │   │   ├── teachers/               # Quản lý giáo viên & phân công
-│   │   │   │   ├── students/               # Quản lý học sinh
-│   │   │   │   ├── billing/                # Quản lý học phí
-│   │   │   │   └── page.tsx                # Dashboard tổng quan Admin
-│   │   │   ├── teacher/                    # Khu vực dành riêng cho TEACHER
-│   │   │   │   ├── gradebook/              # Nhập & phê duyệt sổ điểm
-│   │   │   │   ├── attendance/             # Điểm danh học sinh
-│   │   │   │   ├── timetable/              # Thời khóa biểu
-│   │   │   │   └── page.tsx                # Dashboard Giáo viên
-│   │   │   └── layout.tsx                  # Layout chung (Sidebar, Header, Auth Guard)
-│   │   ├── layout.tsx                      # Root Layout
-│   │   └── globals.css                     # Global Styles & Design System Tokens
-│   ├── components/                         # Các UI Components dùng chung
-│   │   ├── ui/                             # Button, Input, Modal, Table, Dropdown, Toast
-│   │   ├── forms/                          # Form components kết hợp Zod validation
-│   │   ├── tables/                         # Datatable với pagination, sorting, search
-│   │   └── layout/                         # Sidebar, Header, Breadcrumbs, UserDropdown
-│   ├── hooks/                              # Custom React Hooks (useAuth, useDebounce, usePagination)
-│   ├── services/                           # Tầng gọi API Backend (Axios Instances)
-│   │   ├── auth.service.ts
-│   │   ├── academic.service.ts
-│   │   └── user.service.ts
-│   ├── stores/                             # Zustand Stores (Client state: sidebar toggle, user session)
-│   ├── types/                              # TypeScript Interfaces & DTO Types
-│   ├── lib/                                # Utilities, formatters (date, currency), axios client
-│   └── middleware.ts                       # Next.js Edge Middleware (Route Protection & RBAC Check)
-├── public/                                 # Static Assets (Images, Icons, Fonts)
-├── next.config.mjs
-├── tsconfig.json
-└── package.json
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   └── login/
+│   │   ├── (dashboard)/
+│   │   │   ├── admin/                      # Dành cho Ban Giám Hiệu
+│   │   │   │   ├── classes/                # Quản lý lớp, khối 1-9
+│   │   │   │   ├── assignments/            # Phân công GVCN & GVBM
+│   │   │   │   └── fee-config/             # Cấu hình biểu phí & BHYT
+│   │   │   ├── homeroom/                   # Dành cho GVCN
+│   │   │   │   ├── attendance/             # Điểm danh lớp chủ nhiệm
+│   │   │   │   ├── fees-insurance/         # Quản lý cờ thu Học phí & BHYT
+│   │   │   │   └── conduct/                # Nhận xét hạnh kiểm
+│   │   │   └── subject/                    # Dành cho GVBM
+│   │   │       ├── gradebook/              # Sổ điểm bộ môn
+│   │   │       ├── ai-quiz/                # Import Docs/PDF & Sinh câu hỏi bằng Gemini
+│   │   │       │   ├── upload/             # Tải tài liệu
+│   │   │       │   └── presentation/       # Chế độ trình chiếu lên bảng
+│   │   │       └── random-student/         # Vòng quay học sinh có mặt hôm nay
+│   │   │           └── page.tsx
+│   ├── components/
+│   │   ├── classroom/                      # LuckyWheel, QuizSlide, CountdownTimer
+│   │   ├── fees/                           # FeeStatusBadge, FeeChecklistTable
+│   │   └── ui/                             # Table, Modal, Button, Checkbox
+│   └── services/
+│       ├── gemini-quiz.service.ts          # Gọi API trích xuất và sinh câu hỏi
+│       ├── attendance.service.ts
+│       └── fees.service.ts
 ```
-
----
-
-## 3. Quản Lý Trạng Thái & Dữ Liệu (State Management)
-
-1. **Server State (Dữ liệu từ Backend API):**
-   - Sử dụng **TanStack Query (React Query v5)**.
-   - Cơ chế tự động Caching, Background Refetching khi chuyển tab, quản lý trạng thái `isLoading`, `isError`.
-   - Mutation tự động invalidate query cache sau khi tạo/sửa/xóa thành công.
-2. **Client State (Trạng thái UI):**
-   - Sử dụng **Zustand** cho các trạng thái nhẹ, không cần lưu trữ vĩnh viễn:
-     - Trạng thái đóng/mở Sidebar.
-     - Lựa chọn bộ lọc hiện tại trên bảng dữ liệu.
-3. **Quản lý Xác thực & Bảo mật Token:**
-   - Access Token được lưu trữ an toàn trong bộ nhớ hoặc HttpOnly Cookie.
-   - `middleware.ts` chặn các request truy cập trái phép trước khi page được render:
-     - Nếu chưa đăng nhập $\rightarrow$ Điều hướng về `/login`.
-     - Nếu Role là `TEACHER` cố truy cập `/admin/*` $\rightarrow$ Điều hướng về `/teacher` hoặc trang `403 Forbidden`.
-
----
-
-## 4. Tối Ưu Hiệu Năng & Trải Nghiệm (Performance & UX)
-
-- **Server-Side Rendering (SSR) & Server Components:** Tải trước dữ liệu cơ bản ở phía server giúp FCP (First Contentful Paint) < 1.2s.
-- **Streaming & Suspense:** Tận dụng file `loading.tsx` và React Suspense để hiển thị Skeleton Screens mượt mà trong khi dữ liệu bảng điểm lớn đang tải.
-- **Tối ưu Bảng Sổ Điểm Lớn:** Áp dụng Virtual Scrolling (React Virtualized hoặc TanStack Virtual) đối với bảng danh sách học sinh từ 50-100 hàng có nhiều cột điểm thành phần.

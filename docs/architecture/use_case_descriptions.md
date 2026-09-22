@@ -1,113 +1,72 @@
 # Tài Liệu Đặc Tả Chi Tiết Trường Hợp Sử Dụng (Use Case Descriptions)
-# Dự Án GiaoVienHay (EduConnect)
+# Hệ Thống GiaoVienHay (EduConnect) – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
 
-## 1. Giới thiệu & Mục đích tài liệu
+## 1. Giới thiệu
 
-Tài liệu này cung cấp bản đặc tả chi tiết từng bước (**Use Case Descriptions / Specifications**) cho các Use Cases cốt lõi của nền tảng **GiaoVienHay (EduConnect)**.
-
-Mỗi trường hợp sử dụng được đặc tả theo cấu trúc chuẩn quốc tế (RUP / IEEE 830 Template) bao gồm:
-1. **Mã & Tên Use Case**.
-2. **Tác nhân chính & Hỗ trợ**.
-3. **Mô tả tóm tắt**.
-4. **Tiền điều kiện (Preconditions)** & **Hậu điều kiện (Postconditions)**.
-5. **Luồng sự kiện chính (Main Flow)**.
-6. **Luồng rẽ nhánh & Ngoại lệ (Alternative & Exception Flows)**.
+Tài liệu này đặc tả chi tiết từng bước cho các trường hợp sử dụng trọng tâm của hệ thống quản lý học sinh Cấp 1 & Cấp 2, đặc biệt là các nghiệp vụ của **Giáo viên chủ nhiệm (GVCN)** và **Giáo viên bộ môn (GVBM)**.
 
 ---
 
 ## 2. Chi tiết các Use Case Cốt Lõi
 
-### UC-AUTH-01: Đăng nhập & Xác thực hệ thống (Login & Authentication)
-- **Tác nhân chính:** Admin, Giáo viên, Phụ huynh.
-- **Tác nhân hỗ trợ:** Backend NestJS (Auth Module), Redis.
-- **Mô tả:** Người dùng nhập thông tin định danh (Email hoặc Số điện thoại) và Mật khẩu để truy cập vào hệ thống trên Web Quản trị (Next.js) hoặc Mobile App (React Native).
-- **Tiền điều kiện:** Tài khoản người dùng đã được kích hoạt trong cơ sở dữ liệu PostgreSQL.
-- **Hậu điều kiện:** Người dùng nhận được Access Token (JWT) và Refresh Token, được điều hướng về đúng trang chủ tương ứng với vai trò (Role).
+### UC-ACA-04: Import Docs/PDF bằng AI (Gemini API) Sinh Câu Hỏi Kiểm Tra Bài Cũ
+- **Mã Use Case:** `UC-ACA-04`
+- **Tác nhân chính:** Giáo viên (GVBM / GVCN).
+- **Tác nhân hỗ trợ:** Google Gemini API, Backend NestJS.
+- **Mô tả:** Giáo viên tải lên tài liệu bài học (Word `.docx`, `.pdf`), hệ thống bóc tách văn bản và gọi Google Gemini API để tự động tạo bộ câu hỏi kiểm tra bài cũ 5-10 phút đầu giờ.
+- **Tiền điều kiện:** Giáo viên đã đăng nhập và chọn đúng lớp/môn giảng dạy.
+- **Hậu điều kiện:** Bộ câu hỏi được tạo trong bảng `quizzes` và `questions`, sẵn sàng trình chiếu lên bảng.
 - **Luồng sự kiện chính (Main Flow):**
-  1. Người dùng mở giao diện Đăng nhập trên Web Next.js hoặc App React Native.
-  2. Người dùng nhập Email/SĐT và Mật khẩu, nhấn "Đăng nhập".
-  3. Client gửi request `POST /api/v1/auth/login` tới API Gateway và chuyển tiếp vào Backend NestJS.
-  4. Backend NestJS tìm kiếm tài khoản trong PostgreSQL, xác thực mật khẩu băm (Argon2/Bcrypt).
-  5. Backend tạo JWT Access Token (chứa `userId`, `role`, `schoolId`) và Refresh Token.
-  6. Backend trả về payload token cho Client.
-  7. Client lưu token an toàn (HttpOnly Cookie trên Web, SecureStorage trên Mobile) và chuyển hướng vào Dashboard theo quyền.
-- **Luồng ngoại lệ (Exceptions):**
-  - *4a. Sai tài khoản hoặc mật khẩu:* Hệ thống trả về lỗi `401 Unauthorized`. Client hiển thị thông báo "Email hoặc mật khẩu không chính xác".
-  - *4b. Tài khoản bị vô hiệu hóa:* Hệ thống trả về `403 Forbidden`, thông báo tài khoản đang bị khóa.
+  1. Giáo viên mở màn hình "Kiểm tra bài cũ" trên Web Next.js.
+  2. Chọn tệp tài liệu giáo án bài giảng (`.docx` hoặc `.pdf`) và tải lên.
+  3. Chọn cấu hình: Số lượng câu hỏi (ví dụ: 3 câu trắc nghiệm), độ khó (nhận biết, thông hiểu), thời gian làm bài (30s/câu).
+  4. Nhấn nút "Tạo câu hỏi bằng AI".
+  5. Backend NestJS tiếp nhận file, dùng thư viện trích xuất văn bản (Text Extraction).
+  6. Backend gửi prompt tối ưu tới Google Gemini API (`gemini-1.5-flash`) yêu cầu trả về cấu trúc JSON câu hỏi.
+  7. Gemini API phản hồi mảng câu hỏi (nội dung, 4 đáp án, đáp án đúng, lời giải thích).
+  8. Backend lưu vào CSDL (bảng `quizzes` và `questions`).
+  9. Web Next.js hiển thị danh sách câu hỏi để giáo viên duyệt, chỉnh sửa nếu cần.
+  10. Giáo viên bấm "Bật chế độ trình chiếu lớp học" (Fullscreen) để chiếu lên bảng tương tác / máy chiếu.
 
 ---
 
-### UC-ACA-02: Điểm danh chuyên cần lớp học (Class Attendance)
-- **Tác nhân chính:** Giáo viên (Teacher).
-- **Tác nhân hỗ trợ:** Backend NestJS (Academic Module, Notification Module), RabbitMQ, FCM.
-- **Mô tả:** Giáo viên thực hiện điểm danh học sinh của lớp theo buổi học/tiết học trên Web Next.js hoặc Mobile App React Native.
-- **Tiền điều kiện:** Giáo viên đã đăng nhập và được phân công phụ trách lớp học trong thời khóa biểu hiện tại.
-- **Hậu điều kiện:** Dữ liệu điểm danh được ghi nhận vào PostgreSQL; hệ thống tự động bắn thông báo đẩy (Push Notification) đến phụ huynh của các học sinh vắng mặt.
+### UC-ACA-05: Vòng Quay / Random Học Sinh Có Mặt Hôm Nay Lên Bảng
+- **Mã Use Case:** `UC-ACA-05`
+- **Tác nhân chính:** Giáo viên (GVBM / GVCN).
+- **Tác nhân hỗ trợ:** Backend NestJS, PostgreSQL (Bảng `attendances` và `students`).
+- **Mô tả:** Giáo viên sử dụng công cụ quay số / bốc thăm ngẫu nhiên để chọn học sinh lên bảng kiểm tra bài cũ, thuật toán tự động loại bỏ các học sinh vắng mặt hôm nay.
+- **Tiền điều kiện:** Lớp học đã được điểm danh trong ngày hiện tại.
+- **Hậu điều kiện:** Một học sinh có mặt được chọn ngẫu nhiên, điểm kiểm tra bài cũ có thể nhập trực tiếp vào sổ điểm.
 - **Luồng sự kiện chính (Main Flow):**
-  1. Giáo viên mở màn hình "Điểm danh", chọn lớp học và ngày/tiết học.
-  2. Hệ thống hiển thị danh sách học sinh của lớp với trạng thái mặc định là "Có mặt".
-  3. Giáo viên chuyển đổi trạng thái của các học sinh vắng mặt ("Vắng có phép" hoặc "Vắng không phép") và nhập lý do (nếu có).
-  4. Giáo viên nhấn "Lưu điểm danh".
-  5. Client gửi `POST /api/v1/attendance/submit` tới Backend NestJS.
-  6. Backend NestJS lưu bản ghi điểm danh vào PostgreSQL trong một Database Transaction.
-  7. Nếu có học sinh vắng mặt, Academic Module phát sự kiện `StudentAbsentEvent` vào RabbitMQ.
-  8. Notification Module tiêu thụ event từ RabbitMQ, tra cứu thiết bị phụ huynh tương ứng và gọi FCM đẩy cảnh báo tới điện thoại phụ huynh.
-  9. Hệ thống phản hồi thành công về giao diện của Giáo viên.
-- **Luồng rẽ nhánh (Alternative Flows):**
-  - *3a. Giáo viên chỉnh sửa lại điểm danh:* Nếu buổi điểm danh đã tồn tại trong ngày, hệ thống cho phép cập nhật lại trạng thái và ghi log vào MongoDB Audit Log.
+  1. Tại màn hình trình chiếu kiểm tra bài cũ trên Web Next.js, giáo viên bấm "Gọi học sinh lên bảng".
+  2. Web gửi request `GET /api/v1/classes/:id/present-students-today` tới Backend NestJS.
+  3. Backend truy vấn bảng `attendances` với điều kiện: `class_id = :id AND attendance_date = CURRENT_DATE AND status = 'PRESENT'`.
+  4. Backend trả về danh sách chỉ gồm các học sinh ĐANG CÓ MẶT trong lớp.
+  5. Web Next.js hiển thị giao diện Vòng quay may mắn (Lucky Wheel) hoặc Hiệu ứng rút thẻ bài sinh động.
+  6. Giáo viên bấm "Quay số", vòng quay khởi chạy kèm âm thanh hồi hộp.
+  7. Vòng quay dừng lại tại học sinh trúng thưởng (Ví dụ: "Em Trần Thị Bình - STT 08").
+  8. Học sinh lên bảng trả lời câu hỏi bài cũ đang chiếu.
+  9. Giáo viên nhập điểm trực tiếp tại pop-up (cột điểm miệng) và nhấn "Lưu điểm".
+  10. Điểm số được lưu ngay vào bảng `scores`.
 
 ---
 
-### UC-ACA-03: Nhập & Phê duyệt điểm số môn học (Grade Entry & Approval)
-- **Tác nhân chính:** Giáo viên (Teacher).
-- **Tác nhân hỗ trợ:** Backend NestJS (Academic Module), PostgreSQL, RabbitMQ.
-- **Mô tả:** Giáo viên bộ môn nhập các đầu điểm thành phần (miệng, 15 phút, 1 tiết, giữa kỳ, cuối kỳ) cho học sinh trong lớp phụ trách.
-- **Tiền điều kiện:** Môn học và danh sách học sinh của lớp đã được phân công cho giáo viên.
-- **Hậu điều kiện:** Điểm số được lưu trữ toàn vẹn, điểm trung bình môn được tự động tính toán lại, thông báo điểm mới được gửi tới phụ huynh khi được duyệt.
+### UC-FEE-01: Quản Lý Thu Học Phí & Bảo Hiểm Y Tế (BHYT)
+- **Mã Use Case:** `UC-FEE-01`
+- **Tác nhân chính:** Giáo viên Chủ nhiệm (GVCN) & Admin.
+- **Tác nhân hỗ trợ:** Backend NestJS, PostgreSQL (Bảng `fees_and_insurance`), Firebase FCM.
+- **Mô tả:** GVCN theo dõi và quản lý danh sách học sinh của lớp đã hoặc chưa hoàn thành nộp Học phí và Bảo hiểm Y tế thông qua 2 cờ boolean `is_paid_tuition` và `is_paid_insurance`.
+- **Tiền điều kiện:** Admin đã khởi tạo đợt thu học phí/BHYT cho khối lớp.
+- **Hậu điều kiện:** Dữ liệu nộp tiền được cập nhật chuẩn xác, phụ huynh nhận được thông báo biên lai hoặc tin nhắn nhắc nhở.
 - **Luồng sự kiện chính (Main Flow):**
-  1. Giáo viên chọn Lớp, Môn học, Học kỳ và Cột điểm cần nhập trên Web Next.js.
-  2. Bảng nhập điểm hiển thị danh sách học sinh theo số thứ tự và họ tên.
-  3. Giáo viên nhập điểm (thang điểm từ 0 đến 10 với bước nhảy 0.1).
-  4. Giáo viên nhấn "Lưu tạm" hoặc "Phê duyệt công bố".
-  5. Backend NestJS kiểm tra hợp lệ dữ liệu (giá trị điểm hợp lệ từ 0 đến 10).
-  6. Backend cập nhật bảng `grades` trong PostgreSQL và tự động tính lại điểm trung bình môn.
-  7. Khi chọn "Phê duyệt công bố", sự kiện `GradePublishedEvent` được gửi vào RabbitMQ để thông báo phụ huynh.
-  8. Hệ thống hiển thị thông báo "Cập nhật điểm thành công".
-
----
-
-### UC-PAR-01: Tra cứu học tập & Chuyên cần của con (Student Progress Inquiry)
-- **Tác nhân chính:** Phụ huynh (Parent).
-- **Tác nhân hỗ trợ:** Mobile App React Native, Backend NestJS, Redis Cache, PostgreSQL.
-- **Mô tả:** Phụ huynh theo dõi kết quả học tập, điểm số chi tiết từng môn, lịch sử điểm danh và nhận xét của giáo viên.
-- **Tiền điều kiện:** Phụ huynh đã đăng nhập vào ứng dụng React Native và tài khoản đã được liên kết với ít nhất một học sinh.
-- **Hậu điều kiện:** Thông tin kết quả học tập được hiển thị trực quan, có biểu đồ đánh giá xu hướng tiến bộ.
-- **Luồng sự kiện chính (Main Flow):**
-  1. Phụ huynh mở ứng dụng React Native trên điện thoại.
-  2. Nếu có nhiều con đang theo học, phụ huynh chọn hồ sơ con em cần theo dõi từ thanh chọn.
-  3. Ứng dụng gửi `GET /api/v1/students/:id/academic-summary` tới Backend NestJS.
-  4. Backend kiểm tra quyền truy cập (đảm bảo phụ huynh sở hữu học sinh này qua liên kết `student_parent_relations`).
-  5. Backend trả về dữ liệu điểm trung bình, bảng điểm các môn, số buổi vắng học và nhận xét mới nhất.
-  6. Ứng dụng hiển thị giao diện báo cáo học tập rõ ràng, trực quan.
-
----
-
-### UC-PAR-04: Tra cứu biểu phí & Thanh toán học phí trực tuyến (Tuition Payment)
-- **Tác nhân chính:** Phụ huynh (Parent).
-- **Tác nhân hỗ trợ:** Payment Gateway (VNPAY / MoMo), Backend NestJS, PostgreSQL.
-- **Mô tả:** Phụ huynh xem thông báo học phí của học sinh và thanh toán trực tiếp qua cổng thanh toán liên kết.
-- **Tiền điều kiện:** Nhà trường (Admin) đã tạo hóa đơn học phí cho học sinh.
-- **Hậu điều kiện:** Trạng thái hóa đơn chuyển sang "Đã thanh toán" (Paid), hệ thống ghi nhận biên lai và gửi thông báo xác nhận.
-- **Luồng sự kiện chính (Main Flow):**
-  1. Phụ huynh vào tab "Học phí" trên Mobile App React Native.
-  2. Hệ thống hiển thị các khoản phí cần nộp (học phí chính khóa, tiền bán trú, đồng phục...).
-  3. Phụ huynh chọn các khoản phí cần nộp và nhấn "Thanh toán ngay".
-  4. Phụ huynh chọn phương thức thanh toán (VNPAY / MoMo / Thẻ ngân hàng).
-  5. Backend NestJS tạo mã giao dịch và gọi API của Cổng thanh toán để tạo URL thanh toán.
-  6. Ứng dụng điều hướng sang cổng thanh toán hoặc mở App thanh toán ngân hàng.
-  7. Phụ huynh thực hiện xác thực thanh toán thành công (OTP / Biometric).
-  8. Cổng thanh toán gọi Webhook `POST /api/v1/payments/webhook` về Backend NestJS.
-  9. Backend kiểm tra chữ ký số (Checksum), cập nhật trạng thái hóa đơn sang `PAID` trong PostgreSQL.
-  10. Hệ thống gửi thông báo đẩy xác nhận thanh toán thành công về điện thoại phụ huynh.
+  1. GVCN mở tab "Quản lý Thu phí & BHYT" của lớp chủ nhiệm trên Web Next.js hoặc Mobile App.
+  2. Hệ thống hiển thị bảng danh sách học sinh với 2 cột checkbox:
+     - `Học phí` (tương ứng cờ `is_paid_tuition`).
+     - `BHYT` (tương ứng cờ `is_paid_insurance`).
+  3. Khi phụ huynh nộp tiền mặt trực tiếp tại lớp: GVCN tích chọn vào ô tương ứng của học sinh.
+  4. Nếu phụ huynh thanh toán online qua App: Hệ thống tự động gán cờ thành `true` và hiển thị thời gian thanh toán.
+  5. GVCN có thể bấm nút lọc "Chưa nộp BHYT" $\rightarrow$ danh sách lập tức chỉ hiện các học sinh chưa hoàn thành.
+  6. GVCN nhấn nút "Gửi nhắc nhở phụ huynh":
+  7. Backend gửi thông báo đẩy (Push Notification) qua FCM tới riêng các phụ huynh chưa nộp: *"Nhà trường xin nhắc Phụ huynh hạn nộp BHYT học sinh năm học 2026-2027 là ngày 30/09."*
