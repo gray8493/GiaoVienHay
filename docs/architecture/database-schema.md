@@ -58,6 +58,9 @@ erDiagram
         int grade_level "Khối lớp (1 đến 9)"
         string academic_year "Niên khóa (2026-2027)"
         string homeroom_teacher_id "UID Giáo viên chủ nhiệm"
+        string invite_code UK "Mã mời 6-8 ký tự ngẫu nhiên duy nhất"
+        string invite_link "Đường dẫn liên kết mời phụ huynh vào lớp"
+        string created_by "UID Giáo viên tạo lớp"
         timestamp created_at
     }
 
@@ -179,12 +182,15 @@ Quản lý tài khoản đăng nhập chung cho cả 4 nhóm vai trò. Document 
 ---
 
 ### 3.2. Collection `/classes`
-Quản lý danh mục lớp học thuộc khối 1 đến khối 9.
+Quản lý danh mục lớp học thuộc khối 1 đến khối 9 do Giáo viên tạo.
 - **`id`** (`string`, Document ID): Mã tự sinh Firestore.
 - **`name`** (`string`): Tên lớp học (Ví dụ: `1A`, `3C`, `6A1`, `9B`).
 - **`grade_level`** (`number`): Khối lớp từ `1` đến `9`.
 - **`academic_year`** (`string`): Niên khóa (Ví dụ: `2026-2027`).
 - **`homeroom_teacher_id`** (`string`, Nullable): UID Giáo viên chủ nhiệm phụ trách lớp.
+- **`created_by`** (`string`): UID Giáo viên trực tiếp tạo lớp.
+- **`invite_code`** (`string`, Unique): Mã mời ngắn (6-8 ký tự) để phụ huynh nhập khi vào lớp.
+- **`invite_link`** (`string`): Đường dẫn liên kết mời phụ huynh (Ví dụ: `https://giaovienhay.vn/join?code=ABC123XYZ`).
 - **`created_at`** (`timestamp`): Thời điểm tạo lớp.
 
 ---

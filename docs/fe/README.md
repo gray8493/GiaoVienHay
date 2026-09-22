@@ -1,4 +1,4 @@
-﻿# Kiến Trúc Tầng Giao Diện Người Dùng (Frontend Architecture Overview)
+# Kiến Trúc Tầng Giao Diện Người Dùng (Frontend Architecture Overview)
 # Dự Án GiaoVienHay
 
 Tài liệu này tổng hợp cấu trúc, phân chia trách nhiệm và tiêu chuẩn kỹ thuật cho toàn bộ tầng Frontend của hệ thống **GiaoVienHay**.
@@ -16,9 +16,9 @@ Hệ thống cung cấp 2 giải pháp giao diện độc lập nhằm tối ưu
 | 1. WEB QUẢN TRỊ (Admin & Giáo viên)                | 2. MOBILE APP (Giáo viên & Phụ huynh)       |
 |    - Framework: Next.js 14+ (App Router)           |    - Framework: React Native (CLI / Expo)   |
 |    - Ngôn ngữ: TypeScript                          |    - Ngôn ngữ: TypeScript                   |
-|    - Đối tượng: Admin BGH, Giáo viên bộ môn        |    - Đối tượng: Giáo viên, Phụ huynh        |
-|    - Mục đích: Quản trị trường, nhập điểm số lớn,  |    - Mục đích: Điểm danh nhanh, nhận thông  |
-|      thời khóa biểu, cấu hình hệ thống.            |      báo đẩy tức thì, tra cứu học bạ, phí.  |
+|    - Đối tượng: Platform Admin, Giáo viên           |    - Đối tượng: Giáo viên, Phụ huynh        |
+|    - Mục đích: CRUD, Ban, Limit tài nguyên, tạo     |    - Mục đích: Điểm danh nhanh, nhận thông  |
+|      lớp, nhập điểm, trình chiếu tương tác.         |      báo đẩy tức thì, tra cứu học bạ, phí.  |
 +----------------------------------------------------+---------------------------------------------+
 ```
 

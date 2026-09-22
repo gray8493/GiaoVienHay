@@ -41,15 +41,18 @@ object "<u>:FirebaseStorage</u>\n(Lưu trữ tài liệu giáo án)" as FBStorag
 ' CÁC LUỒNG GIAO TIẾP & THÔNG ĐIỆP ĐƯỢC ĐÁNH SỐ THEO PHÂN HỆ
 ' ==============================================================================
 
-' --- NHÓM 1: Quản trị Trường học & Cấu hình Hệ thống (Admin -> Web Next.js) ---
-Admin -- WebAdminUI : 1.1: login(credentials)\n1.2: manageSchoolStructure(classes, subjects)\n1.3: assignTeachers(homeroom, subjects)\n1.4: manageStudentParentLink(records)\n1.5: configureFeeAndInsuranceTerms(terms)
+' --- NHÓM 1: Tạo Lớp Học & Kết Nối Phụ Huynh Bằng Link Mời ---
+Teacher -- WebTeacherUI : 1.1: createClass(name, grade, year)\n1.2: addStudentsList(students)\n1.3: getInviteLinkAndQR()
+WebTeacherUI -- Gateway : 1.4: HTTP POST /api/v1/classes (name, grade, students)\n1.5: HTTP GET /api/v1/classes/:id/invite-link
+Gateway -- AcademicSvc : 1.6: handleCreateClassWithInvite(token, payload)
+AcademicSvc -- Firestore : 1.7: saveClassAndStudents(/classes, /students, invite_code)
+AcademicSvc -- FeeSvc : 1.8: initClassFeeRecords(classId)
+FeeSvc -- Firestore : 1.9: initFeeRecords(/fees_and_insurance)
 
-WebAdminUI -- Gateway : 1.6: HTTP POST /api/v1/auth/login\n1.7: HTTP REST /api/v1/admin/* (CRUD)\n1.8: HTTP POST /api/v1/fees/config
-
-Gateway -- AdminSvc : 1.9: forwardAdminRequest(validatedToken)
-Gateway -- FeeSvc : 1.10: forwardFeeConfigRequest(token)
-AdminSvc -- Firestore : 1.11: saveSchoolData(/classes, /users, /students)
-FeeSvc -- Firestore : 1.12: initFeeRecords(/fees_and_insurance)
+Parent -- MobileParentUI : 1.10: openInviteLink(link)\n1.11: login(phone/email)\n1.12: selectAndConfirmChild(studentId)
+MobileParentUI -- Gateway : 1.13: HTTP POST /api/v1/classes/join (inviteCode, studentId)
+Gateway -- AcademicSvc : 1.14: linkParentToStudent(token, studentId)
+AcademicSvc -- Firestore : 1.15: updateParentUids(/students, /users)
 
 ' --- NHÓM 2: Nghiệp vụ Sư phạm & Lớp học (Giáo viên -> Web & Mobile App) ---
 Teacher -- WebTeacherUI : 2.1: login(credentials)\n2.2: importDocsAndGenerateGame(file)\n2.3: runClassroomMiniGame(gameType)\n2.4: inputInClassGrades(classId, scores)\n2.5: viewClassLeaderboard()\n2.6: checkFeesInsuranceList(homeroomClassId)\n2.7: togglePaidFlag(studentId, isPaidTuition, isPaidInsurance)

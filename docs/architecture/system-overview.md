@@ -13,13 +13,19 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 
 ### 1.2. Mục tiêu hệ thống GiaoVienHay
 **GiaoVienHay** là nền tảng quản lý và trợ giảng thông minh chuyên biệt cho Cấp 1 & Cấp 2:
-1. **Admin (Ban Giám Hiệu):** Quản trị cơ cấu trường, năm học, phân công giảng dạy và giám sát chất lượng học vụ, tài chính toàn trường.
+1. **Admin (Quản trị viên Nền tảng / Platform Admin):** Đội ngũ phát triển & quản trị hệ thống, phụ trách vận hành kỹ thuật với 3 quyền hạn chính:
+   - **CRUD:** Quản lý tài nguyên dữ liệu, tài khoản người dùng và thông số hệ thống.
+   - **Ban (Khóa tài khoản):** Khóa hoặc mở khóa tài khoản người dùng khi vi phạm chính sách hoặc có dấu hiệu bất thường.
+   - **Limit (Hạn ngạch & Giới hạn):** Cấu hình hạn mức tài nguyên (số lớp học tối đa mỗi giáo viên, số học sinh tối đa/lớp, hạn ngạch lượt gọi AI Gemini hàng ngày/tháng, dung lượng lưu trữ).
 2. **Giáo viên (Bao gồm GVCN & GV Bộ môn):**
+   - **Chủ động quản lý lớp học:** Tự tạo lớp học mới, thêm danh sách học sinh và sinh **Link mời vào lớp (Class Invite Link)** gửi phụ huynh.
    - Đầy đủ quyền sư phạm: dò bài cũ, nhập điểm số, điểm danh chuyên cần.
    - **Tận dụng AI (Google Gemini API):** Tự động bóc tách giáo trình `.docx`/`.pdf` để sinh ngân hàng câu hỏi và **tự động chuyển đổi thành các Trò chơi tương tác lớp học (Gamification)** để Giáo viên trình chiếu lên bảng/máy chiếu.
    - Sử dụng công cụ **Random Học sinh có mặt hôm nay** kèm Vòng quay may mắn / Rút thẻ bài.
    - GVCN có thêm quyền quản trị lớp chủ nhiệm: theo dõi danh sách đóng Học phí & BHYT (cờ boolean), nhận xét hạnh kiểm.
-3. **Phụ huynh (Parent):** Nhận thông báo đẩy tức thì (vắng học, điểm số, nhắc nộp BHYT), theo dõi sát sao sự tiến bộ của con qua ứng dụng di động.
+3. **Phụ huynh (Parent):**
+   - Tham gia vào lớp học dễ dàng bằng cách **bấm vào Link mời của Giáo viên**, đăng nhập và xác nhận con em mình.
+   - Nhận thông báo đẩy tức thì (vắng học, điểm số, nhắc nộp BHYT), theo dõi sát sao sự tiến bộ của con qua ứng dụng di động.
 
 > **NGUYÊN TẮC THIẾT KẾ & GIỚI HẠN PHẠM VI (SCOPE BOUNDARY):**  
 > Hệ thống **hoàn toàn KHÔNG CUNG CẤP tính năng cho học sinh làm bài kiểm tra trực tuyến** (Không có tài khoản học sinh, không có cổng thi/làm trắc nghiệm online). Toàn bộ hoạt động kiểm tra bài cũ, hỏi đáp và mini-game đều do **Giáo viên trực tiếp tổ chức và trình chiếu trên bảng tại lớp học**. Sau đó, **Giáo viên là người trực tiếp chấm và nhập điểm số** của học sinh vào hệ thống.
@@ -50,14 +56,21 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
   - `is_paid_insurance`: Đã nộp tiền BHYT học sinh.
 - GVCN theo dõi bằng checklist 1-chạm, lọc nhanh danh sách chưa nộp để gửi tin nhắn thông báo tự động (Push Notification FCM) đến phụ huynh.
 
+### 2.4. Giáo Viên Tự Tạo Lớp & Mời Phụ Huynh Tham Gia Qua Link (Class Invite Link)
+- **Tạo lớp linh hoạt & thêm học sinh nhanh chóng:** Giáo viên chủ động tạo lớp học của mình (Tên lớp, Khối 1-9, Năm học), thêm danh sách học sinh (nhập trực tiếp hoặc dán danh sách tên/ngày sinh).
+- **Cơ chế vào lớp 1-chạm qua Link mời:**
+  - Hệ thống tự động sinh **Mã mời (`invite_code`)** và **Đường dẫn mời tham gia lớp học (`invite_link`)** kèm mã QR.
+  - Giáo viên sao chép link và gửi vào nhóm Phụ huynh (Zalo, tin nhắn SMS).
+  - Phụ huynh mở link, đăng nhập nhanh (bằng SĐT nhận OTP), chọn đúng con mình trong danh sách học sinh của lớp để hoàn tất kết nối với giáo viên và nhà trường.
+
 ---
 
 ## 3. Kiến trúc CSDL Cốt Lõi (Firebase Cloud Firestore)
 Hệ thống sử dụng **Google Cloud Firestore (NoSQL Document Store)** làm cơ sở dữ liệu duy nhất toàn diện:
 
 1. `/users/{userId}`: Tài khoản, email, SĐT, vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`), FCM Device Tokens.
-2. `/classes/{classId}`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`.
-3. `/students/{studentId}`: Hồ sơ học sinh, mã số định danh, `classId`, danh sách phụ huynh liên kết.
+2. `/classes/{classId}`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`, `invite_code`, `invite_link`.
+3. `/students/{studentId}`: Hồ sơ học sinh, họ tên, ngày sinh, `classId`, danh sách phụ huynh liên kết (`parent_uids`).
 4. `/attendances/{attendanceId}`: Điểm danh chuyên cần theo ngày (`classId`, `studentId`, `date`, `status = PRESENT/ABSENT_EXCUSED/ABSENT_UNEXCUSED`).
 5. `/scores/{scoreId}`: Sổ điểm thành phần (`studentId`, `subjectCode`, `semester`, `scoreType`, `scoreValue`, `teacherId`, `isPublished`).
 6. `/fees_and_insurance/{recordId}`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi chú thu nộp.

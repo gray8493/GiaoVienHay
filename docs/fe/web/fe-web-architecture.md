@@ -38,11 +38,12 @@ web-admin/
 │   │   ├── (auth)/
 │   │   │   └── login/
 │   │   ├── (dashboard)/
-│   │   │   ├── admin/                      # Dành cho Ban Giám Hiệu
-│   │   │   │   ├── classes/                # Quản lý lớp, khối 1-9
-│   │   │   │   ├── assignments/            # Phân công GVCN & GVBM
-│   │   │   │   └── fee-config/             # Cấu hình biểu phí & BHYT
+│   │   │   ├── admin/                      # Dành cho Platform Admin (CRUD, Ban, Limit)
+│   │   │   │   ├── users/                  # CRUD & Ban/Unban tài khoản người dùng
+│   │   │   │   ├── classes/                # Tra cứu/xử lý dữ liệu lớp học hệ thống
+│   │   │   │   └── limits/                 # Cấu hình hạn mức (Số lớp, Học sinh, AI Quota)
 │   │   │   ├── teacher/                    # Dành cho Giáo viên (Cả GVCN & GVBM đều truy cập)
+│   │   │   │   ├── my-classes/             # Tự tạo lớp, thêm học sinh, lấy Invite Link & QR
 │   │   │   │   ├── gradebook/              # Sổ điểm môn học
 │   │   │   │   ├── attendance/             # Điểm danh lớp học
 │   │   │   │   ├── fees-insurance/         # Quản lý cờ thu Học phí & BHYT (chỉ lớp chủ nhiệm)

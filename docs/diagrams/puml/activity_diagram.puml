@@ -31,25 +31,45 @@ title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to
 |#F3E5F5|Phụ huynh (Parent)|
 
 ' ==============================================================================
-' GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & DANH MỤC THU NỘP BHYT/HỌC PHÍ (ADMIN)
+' GIAI ĐOẠN 1: GIÁO VIÊN TỰ TẠO LỚP, THÊM HỌC SINH & PHỤ HUYNH VÀO LỚP BẰNG LINK
 ' ==============================================================================
 
-|Quản trị viên (Admin)|
+|Giáo viên (GVCN & GVBM)|
 start
-:Đăng nhập Web Quản trị Next.js;
-:Thiết lập Khối lớp 1-9, Phân công GVCN & GV Bộ môn;
-:Tạo danh sách Học sinh và thiết lập Liên kết với Phụ huynh;
-:Cấu hình danh mục thu Học phí & BHYT theo năm học;
+:Đăng nhập ứng dụng (Web hoặc Mobile App);
+:Tự tạo Lớp học mới (Tên lớp, Khối 1-9, Năm học);
+:Thêm danh sách Học sinh vào lớp (nhập trực tiếp hoặc tải file danh sách);
 
 |Client App (Next.js / React Native)|
-:Gửi yêu cầu khởi tạo cấu trúc và danh mục;
+:Gửi yêu cầu tạo lớp & danh sách học sinh lên Backend;
 
 |Backend NestJS (API & Services)|
-:Xác thực quyền Admin (Firebase Auth RBAC);
-:Xử lý nghiệp vụ và ghi nhận vào Firestore;
+:Khởi tạo Lớp học & tự động sinh **Mã mời & Link mời vào lớp (Invite Link)**;
+:Lưu thông tin Lớp học và danh sách Học sinh;
+:Khởi tạo các bản ghi theo dõi Học phí & BHYT (cờ mặc định FALSE);
 
 |Cơ Sở Dữ Liệu (Cloud Firestore)|
-:Lưu vào /classes, /users, /students và /fees_and_insurance (cờ mặc định FALSE);
+:Lưu vào /classes (kèm invite_code, invite_link), /students và /fees_and_insurance;
+
+|Client App (Next.js / React Native)|
+:Hiển thị Link mời tham gia lớp học kèm mã QR / nút Sao chép;
+
+|Giáo viên (GVCN & GVBM)|
+:Sao chép Link mời & gửi vào nhóm Phụ huynh (Zalo / Tin nhắn);
+
+|Phụ huynh (Parent)|
+:Nhấp vào **Link mời vào lớp** được Giáo viên chia sẻ;
+:Đăng nhập ứng dụng (bằng SĐT nhận OTP hoặc Email);
+:Xem danh sách học sinh lớp & chọn/xác nhận học sinh là con mình;
+
+|Backend NestJS (API & Services)|
+:Xác thực ID Token & cập nhật liên kết Phụ huynh - Học sinh;
+
+|Cơ Sở Dữ Liệu (Cloud Firestore)|
+:Cập nhật parent_uids trong /students và gán classId cho tài khoản Phụ huynh;
+
+|Phụ huynh (Parent)|
+:Nhận thông báo "Tham gia lớp học thành công" và sẵn sàng kết nối;
 
 ' ==============================================================================
 ' GIAI ĐOẠN 2: NGHIỆP VỤ SƯ PHẠM, ĐIỂM DANH & QUẢN LÝ BHYT (GIÁO VIÊN)

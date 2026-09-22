@@ -30,7 +30,7 @@ title Sơ Đồ Use Case Toàn Hệ Thống (System Use Case Diagram) - GiaoVien
 ' 1. ĐỊNH NGHĨA CÁC TÁC NHÂN (ACTORS)
 ' ==============================================================================
 
-actor "Quản trị viên / BGH\n(Admin)" as Admin
+actor "Quản trị viên Nền tảng\n(Platform Admin)" as Admin
 actor "Giáo viên Bộ môn\n(GVBM)" as GVBM
 actor "Giáo viên Chủ nhiệm\n(GVCN)" as GVCN
 actor "Phụ huynh Học sinh\n(Parent)" as Parent
@@ -41,7 +41,7 @@ actor "Firebase FCM\n(SYS-02)" as FCM <<System>>
 ' GVCN kế thừa toàn bộ năng lực sư phạm của GVBM
 GVBM <|-- GVCN : <<kế thừa quyền giảng dạy>>
 
-note "<b>PHẠM VI HỆ THỐNG:</b>\n- KHÔNG có Tác nhân Học sinh (Student)\n- KHÔNG có tính năng học sinh làm bài kiểm tra trực tuyến\n- Giáo viên trình chiếu Mini-game/câu hỏi tại lớp\n- Giáo viên trực tiếp chấm và nhập điểm" as ScopeNote
+note "<b>PHẠM VI HỆ THỐNG:</b>\n- KHÔNG có Tác nhân Học sinh (Student)\n- KHÔNG có tính năng học sinh làm bài kiểm tra trực tuyến\n- Giáo viên tự tạo lớp, mời PH qua link\n- Admin chỉ quản trị: CRUD, Ban, Limit" as ScopeNote
 ScopeNote .. GVBM
 ScopeNote .. GVCN
 
@@ -51,11 +51,10 @@ ScopeNote .. GVCN
 
 rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
 
-    package "Phân hệ Quản trị Trường học (Admin Portal)" {
-        usecase "UC-ADM-01\nQuản lý Niên khóa & Khối 1-9" as UC_Classes
-        usecase "UC-ADM-02\nPhân công GVCN & GV Bộ môn" as UC_Assign
-        usecase "UC-ADM-03\nQuản lý Hồ sơ Học sinh & Phụ huynh" as UC_Students
-        usecase "UC-ADM-04\nCấu hình Biểu phí & BHYT" as UC_ConfigFee
+    package "Phân hệ Quản trị Nền tảng (Platform Admin)" {
+        usecase "UC-ADM-01\nCRUD Tài khoản & Dữ liệu Hệ thống" as UC_AdminCRUD
+        usecase "UC-ADM-02\nKhóa & Mở khóa Tài khoản (Ban/Unban)" as UC_AdminBan
+        usecase "UC-ADM-03\nCấu hình Hạn mức Tài nguyên (Limit/Quota)\n(Lớp học, Học sinh, Lượt gọi AI)" as UC_AdminLimit
     }
 
     package "Phân hệ Nghiệp vụ Sư phạm & Lớp học (GVBM & GVCN)" {
@@ -67,12 +66,14 @@ rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
     }
 
     package "Phân hệ Quản trị Lớp chủ nhiệm (Dành riêng cho GVCN)" {
+        usecase "UC-CLS-01\nTự tạo Lớp học & Thêm Học sinh\n(Sinh Invite Link & QR)" as UC_CreateClass
         usecase "UC-ACA-01\nĐiểm danh Chuyên cần Lớp chủ nhiệm" as UC_Attendance
         usecase "UC-ACA-03\nNhận xét Hạnh kiểm & Rèn luyện định kỳ" as UC_Remarks
         usecase "UC-FEE-01\nQuản lý Thu Học phí & BHYT\n(Cờ boolean: is_paid_tuition, is_paid_insurance)" as UC_FeesInsurance
     }
 
     package "Phân hệ Phụ huynh (Parent Portal)" {
+        usecase "UC-PAR-00\nTham gia Lớp bằng Link mời &\nXác nhận liên kết con em" as UC_JoinByLink
         usecase "UC-PAR-01\nTra cứu Điểm & Học bạ điện tử" as UC_ViewGrades
         usecase "UC-PAR-02\nTheo dõi Chuyên cần & Cảnh báo vắng" as UC_ViewAttendance
         usecase "UC-PAR-03\nTra cứu Tình trạng Học phí & BHYT" as UC_ViewFees
@@ -84,11 +85,10 @@ rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
 ' 3. LIÊN KẾT TÁC NHÂN VỚI USE CASE
 ' ==============================================================================
 
-' Admin
-Admin --> UC_Classes
-Admin --> UC_Assign
-Admin --> UC_Students
-Admin --> UC_ConfigFee
+' Admin (Platform)
+Admin --> UC_AdminCRUD
+Admin --> UC_AdminBan
+Admin --> UC_AdminLimit
 
 ' GVBM (và GVCN qua kế thừa)
 GVBM --> UC_Grades
@@ -98,11 +98,13 @@ GVBM --> UC_ClassroomGame
 GVBM --> UC_Leaderboard
 
 ' Quyền đặc thù của GVCN
+GVCN --> UC_CreateClass
 GVCN --> UC_Attendance
 GVCN --> UC_Remarks
 GVCN --> UC_FeesInsurance
 
 ' Phụ huynh
+Parent --> UC_JoinByLink
 Parent --> UC_ViewGrades
 Parent --> UC_ViewAttendance
 Parent --> UC_ViewFees

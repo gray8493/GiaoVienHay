@@ -13,10 +13,16 @@
 
 ### FR-01: Quản lý Phân quyền Chi tiết (RBAC Guard in NestJS)
 - **FR-01.1:** Phân quyền chuẩn xác giữa 4 nhóm vai trò:
-  - `ADMIN`: Ban giám hiệu, quản lý toàn trường, danh mục khối lớp 1-9.
-  - `TEACHER_HOMEROOM` (GVCN): **Sở hữu toàn bộ quyền giảng dạy (dò bài, nhập điểm, tạo game AI, quay random học sinh)** + Quản lý điểm danh nề nếp, BHYT & học phí, nhận xét hạnh kiểm lớp chủ nhiệm.
-  - `TEACHER_SUBJECT` (GVBM): Nhập điểm bộ môn, tạo đề kiểm tra bài cũ bằng AI, quay random học sinh, tạo game lớp học.
-  - `PARENT`: Tra cứu sổ điểm, chuyên cần, tình trạng BHYT/học phí của đúng học sinh liên kết.
+  - `ADMIN`: Quản trị viên nền tảng (Platform Admin), chỉ đảm nhiệm CRUD dữ liệu/tài khoản, Ban (khóa/mở khóa tài khoản) và cấu hình Limit (hạn mức tạo lớp, số học sinh, hạn ngạch AI).
+  - `TEACHER_HOMEROOM` (GVCN): **Tự tạo lớp, thêm học sinh, chia sẻ link mời vào lớp** + Toàn bộ quyền giảng dạy (dò bài, nhập điểm, tạo game AI, quay random) + Quản lý điểm danh nề nếp, BHYT & học phí, nhận xét hạnh kiểm lớp chủ nhiệm.
+  - `TEACHER_SUBJECT` (GVBM): Nhập điểm bộ môn, tạo câu hỏi bằng AI, quay random học sinh, tạo game lớp học.
+  - `PARENT`: Nhận link mời của giáo viên, đăng nhập và xác nhận con em mình; Tra cứu sổ điểm, chuyên cần, tình trạng BHYT/học phí.
+- **FR-01.2 (Giáo viên tự tạo lớp & danh sách học sinh):**
+  - Cho phép Giáo viên chủ động tạo lớp học mới (Tên lớp, Khối 1-9, Năm học).
+  - Thêm danh sách học sinh nhanh chóng bằng cách nhập trực tiếp hoặc dán danh sách họ tên, ngày sinh.
+- **FR-01.3 (Link mời tham gia lớp & Onboarding Phụ huynh):**
+  - Hệ thống tự động sinh `invite_code` và `invite_link` (kèm mã QR) cho mỗi lớp học.
+  - Phụ huynh nhấp vào link mời, đăng nhập ứng dụng qua SMS OTP/Email, chọn đúng tên con em mình trong danh sách lớp để hoàn tất liên kết.
 
 ### FR-02: Import Docs/PDF bằng AI (Gemini API) Sinh Câu Hỏi Kiểm Tra Bài Cũ
 - **FR-02.1:** Cho phép giáo viên (cả GVCN và GVBM) tải lên tài liệu giáo trình bài học (`.docx`, `.pdf`).

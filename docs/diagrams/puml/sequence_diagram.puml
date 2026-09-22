@@ -42,25 +42,32 @@ boundary "Google Gemini AI\n(GenAI API)" as Gemini
 end box
 
 ' ==============================================================================
-' GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & ĐỢT THU NỘP BHYT/HỌC PHÍ (ADMIN)
+' GIAI ĐOẠN 1: GIÁO VIÊN TỰ TẠO LỚP, THÊM HỌC SINH & PHỤ HUYNH VÀO LỚP QUA LINK
 ' ==============================================================================
 
-== GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & ĐỢT THU NỘP BHYT/HỌC PHÍ (ADMIN) ==
+== GIAI ĐOẠN 1: GIÁO VIÊN TỰ TẠO LỚP, THÊM HỌC SINH & PHỤ HUYNH VÀO LỚP QUA LINK ==
 
-Admin -> WebAdminUI: Đăng nhập & thiết lập lớp học, phân công giảng dạy
-WebAdminUI -> Gateway: POST /api/v1/admin/classes/assign (kèm Firebase ID Token)
-Gateway -> FBAuth: Verify ID Token & kiểm tra Custom Claim 'role == ADMIN'
+Teacher -> TeacherUI: Đăng nhập & Tạo lớp mới (Tên lớp, Khối 1-9) kèm danh sách Học sinh
+TeacherUI -> Gateway: POST /api/v1/classes (kèm Firebase ID Token)
+Gateway -> FBAuth: Verify ID Token (kiểm tra quyền TEACHER)
 FBAuth --> Gateway: Token hợp lệ
-Gateway -> AdminModule: Forward request
-AdminModule -> Firestore: Lưu thông tin phân công vào /classes và /users
-Firestore --> AdminModule: Ghi nhận thành công
-AdminModule --> WebAdminUI: Phản hồi "Thiết lập thành công"
+Gateway -> AcadModule: Forward request (Tạo lớp & sinh Invite Link)
+AcadModule -> Firestore: Lưu lớp học vào /classes (sinh invite_code, invite_link)
+AcadModule -> Firestore: Lưu danh sách học sinh vào /students
+AcadModule -> FeeModule: Khởi tạo danh mục theo dõi Học phí & BHYT
+FeeModule -> Firestore: Khởi tạo bản ghi trong /fees_and_insurance (cờ mặc định FALSE)
+Firestore --> AcadModule: Ghi nhận thành công
+AcadModule --> TeacherUI: Phản hồi thành công kèm **Link mời tham gia lớp (Invite Link)**
 
-Admin -> WebAdminUI: Cấu hình danh mục thu Học phí & BHYT theo năm
-WebAdminUI -> Gateway: POST /api/v1/fees-insurance/terms
-Gateway -> FeeModule: Forward request
-FeeModule -> Firestore: Khởi tạo các bản ghi trong /fees_and_insurance với cờ FALSE
-Firestore --> FeeModule: Khởi tạo danh sách theo dõi thành công
+Teacher -> Parent: Sao chép & Gửi Link mời vào nhóm lớp (Zalo / Tin nhắn)
+Parent -> ParentApp: Nhấp vào Link mời tham gia lớp học
+ParentApp -> FBAuth: Đăng nhập bằng SĐT (SMS OTP) hoặc Email
+FBAuth --> ParentApp: Đăng nhập thành công, nhận Firebase ID Token
+ParentApp -> Gateway: POST /api/v1/classes/join (invite_code, studentId được chọn)
+Gateway -> AcadModule: Xác thực và liên kết Phụ huynh với Học sinh
+AcadModule -> Firestore: Cập nhật parent_uids trong /students và gán classId cho /users
+Firestore --> AcadModule: Cập nhật liên kết thành công
+AcadModule --> ParentApp: Phản hồi "Tham gia lớp học thành công"
 
 ' ==============================================================================
 ' GIAI ĐOẠN 2: NGHIỆP VỤ SƯ PHẠM - ĐIỂM DANH, CÔNG BỐ ĐIỂM & THEO DÕI BHYT (GV)

@@ -31,7 +31,7 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 
 | Mã Tác nhân | Tên Tác nhân | Vai trò chi tiết | Quyền hạn nghiệp vụ |
 | :--- | :--- | :--- | :--- |
-| **ACT-01** | **Admin** | Ban Giám Hiệu / Quản trị viên trường | Quản lý niên khóa, khối lớp 1-9, phân công chuyên môn, cấu hình biểu phí & BHYT, giám sát toàn trường. |
+| **ACT-01** | **Admin** | Quản trị viên Nền tảng (Platform Admin) | Quản trị kỹ thuật hệ thống: CRUD người dùng & dữ liệu, Ban (khóa/mở khóa tài khoản), Limit (cấu hình hạn mức lớp học, học sinh, lượt gọi AI). |
 | **ACT-02A** | **GVCN** (Teacher Homeroom) | Giáo viên Chủ nhiệm | **Toàn quyền giảng dạy (dò bài, chấm điểm, tạo game AI, random học sinh)** + Quản lý nề nếp, điểm danh, theo dõi cờ nộp Học phí & BHYT (`fees_and_insurance`), nhận xét rèn luyện. |
 | **ACT-02B** | **GVBM** (Teacher Subject) | Giáo viên Bộ môn | Nhập điểm môn học phụ trách, upload tài liệu Docs/PDF để AI sinh câu hỏi kiểm tra bài cũ, quay random học sinh có mặt hôm nay, tổ chức mini-game lớp học. |
 | **ACT-03** | **Parent** (Phụ huynh) | Phụ huynh học sinh | Nhận thông báo đẩy (vắng học, điểm mới, nhắc BHYT), theo dõi sổ liên lạc, tra cứu tình trạng đóng Học phí & BHYT của con em. |
@@ -49,10 +49,12 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | **UC-AUTH-01** | Đăng nhập hệ thống (Web / Mobile App) | ✔ | ✔ | ✔ | ✔ |
 | **UC-AUTH-02** | Đổi mật khẩu & Xem hồ sơ cá nhân | ✔ | ✔ | ✔ | ✔ |
-| **UC-ADM-01** | Quản lý Niên khóa, Khối lớp (Cấp 1 & 2), Môn học | ✔ | ✖ | ✖ | ✖ |
-| **UC-ADM-02** | Phân công chuyên môn (Gán GVCN & GVBM) | ✔ | ✖ | ✖ | ✖ |
-| **UC-ADM-03** | Quản lý hồ sơ học sinh & Liên kết phụ huynh | ✔ | Xem | ✖ | ✖ |
-| **UC-ADM-04** | Cấu hình mức thu Học phí & BHYT theo năm | ✔ | ✖ | ✖ | ✖ |
+| **UC-ADM-01** | CRUD Tài khoản & Dữ liệu Hệ thống | ✔ | ✖ | ✖ | ✖ |
+| **UC-ADM-02** | Khóa & Mở khóa Tài khoản (Ban / Unban) | ✔ | ✖ | ✖ | ✖ |
+| **UC-ADM-03** | Cấu hình Hạn mức Tài nguyên (Limit / Quota) | ✔ | ✖ | ✖ | ✖ |
+| **UC-CLS-01** | Tự tạo Lớp học mới & Thêm danh sách Học sinh | Xem | ✔ | ✖ | ✖ |
+| **UC-CLS-02** | Sinh & Chia sẻ Link mời vào lớp (Invite Link & QR) | ✖ | ✔ | ✖ | ✖ |
+| **UC-PAR-00** | Tham gia Lớp bằng Link mời & Xác nhận liên kết con em | ✖ | ✖ | ✖ | ✔ |
 | **UC-ACA-01** | Điểm danh chuyên cần lớp chủ nhiệm | ✖ | ✔ | ✖ | ✖ |
 | **UC-ACA-02** | Nhập & Phê duyệt điểm số môn học phụ trách | ✖ | ✔ | ✔ | ✖ |
 | **UC-ACA-03** | Nhập nhận xét rèn luyện, hạnh kiểm định kỳ | ✖ | ✔ | ✖ | ✖ |

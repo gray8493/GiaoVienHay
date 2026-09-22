@@ -11,6 +11,42 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ## 2. Chi tiết các Use Case Cốt Lõi
 
+### UC-CLS-01: Giáo Viên Tự Tạo Lớp & Thêm Danh Sách Học Sinh
+- **Mã Use Case:** `UC-CLS-01`
+- **Tác nhân chính:** Giáo viên (GVCN & GVBM).
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/classes`, `/students`, `/fees_and_insurance`).
+- **Mô tả:** Giáo viên chủ động tạo lớp học mới trên hệ thống, thêm học sinh vào lớp và hệ thống tự động sinh Mã mời (Invite Code) cùng Link mời (Invite Link) để chia sẻ cho Phụ huynh.
+- **Tiền điều kiện:** Giáo viên đã đăng nhập thành công vào hệ thống.
+- **Hậu điều kiện:** Lớp học được khởi tạo, danh sách học sinh được lưu, link mời sẵn sàng để chia sẻ.
+- **Luồng sự kiện chính (Main Flow):**
+  1. Giáo viên mở màn hình "Quản lý lớp học" trên Web hoặc Mobile App, chọn "Tạo lớp học mới".
+  2. Giáo viên nhập thông tin lớp: Tên lớp (ví dụ: `2A`), Khối (`2`), Niên khóa (`2026-2027`).
+  3. Giáo viên thêm danh sách học sinh (nhập trực tiếp họ tên/ngày sinh hoặc dán danh sách từ bảng tính).
+  4. Giáo viên nhấn "Hoàn tất tạo lớp".
+  5. Backend NestJS sinh mã mời ngẫu nhiên 6-8 ký tự (`invite_code`) và đường dẫn mời (`invite_link`), lưu vào collection `/classes`.
+  6. Backend lưu thông tin từng học sinh vào collection `/students` và khởi tạo bản ghi `/fees_and_insurance` với cờ FALSE.
+  7. Hệ thống hiển thị thông tin lớp học thành công kèm nút "Sao chép Link mời" và "Mã QR" để gửi vào nhóm Phụ huynh (Zalo, tin nhắn).
+
+---
+
+### UC-PAR-00: Phụ Huynh Tham Gia Lớp Bằng Link Mời & Xác Nhận Con Em
+- **Mã Use Case:** `UC-PAR-00`
+- **Tác nhân chính:** Phụ huynh (Parent).
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/classes`, `/students`, `/users`).
+- **Mô tả:** Phụ huynh nhấp vào Link mời do Giáo viên chia sẻ, đăng nhập ứng dụng và chọn xác nhận học sinh là con của mình để kết nối vào lớp học.
+- **Tiền điều kiện:** Giáo viên đã tạo lớp và chia sẻ Link mời; Phụ huynh có điện thoại thông minh.
+- **Hậu điều kiện:** Tài khoản Phụ huynh được liên kết với học sinh (`parent_uids`), nhận được các thông báo và theo dõi học tập của con.
+- **Luồng sự kiện chính (Main Flow):**
+  1. Phụ huynh nhấp vào **Link mời tham gia lớp học** nhận được qua Zalo hoặc tin nhắn SMS.
+  2. Ứng dụng (Web hoặc Mobile App React Native) mở ra với thông tin Lớp học (Tên lớp, Tên giáo viên chủ nhiệm).
+  3. Phụ huynh thực hiện đăng nhập nhanh bằng Số điện thoại (xác thực mã OTP gửi về máy) hoặc Email.
+  4. Sau khi đăng nhập, màn hình hiển thị danh sách học sinh của lớp.
+  5. Phụ huynh tìm và tích chọn đúng tên con em mình trong danh sách, sau đó bấm "Xác nhận kết nối".
+  6. Backend NestJS ghi nhận UID của phụ huynh vào mảng `parent_uids` của document học sinh trong `/students`, đồng thời gán `classId` vào thông tin tài khoản phụ huynh trong `/users`.
+  7. Ứng dụng thông báo "Kết nối lớp học thành công", chuyển hướng Phụ huynh vào màn hình trang chủ của lớp để xem thông tin học vụ, chuyên cần và học phí của con.
+
+---
+
 ### UC-ACA-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
 - **Mã Use Case:** `UC-ACA-04`
 - **Tác nhân chính:** Giáo viên (Cả GVCN và GVBM).
@@ -102,4 +138,48 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
   3. Khi phụ huynh nộp tiền tại trường/lớp: GVCN tích chọn vào ô checkbox tương ứng để xác nhận hoàn thành (hệ thống không có tính năng thanh toán trực tuyến).
   4. GVCN lọc danh sách các em "Chưa nộp BHYT" và nhấn nút "Gửi nhắc nhở phụ huynh".
   5. Backend gửi thông báo đẩy (Push Notification) qua FCM tới phụ huynh của các học sinh đó.
+
+---
+
+### UC-ADM-01: CRUD Tài khoản & Dữ liệu Hệ thống
+- **Mã Use Case:** `UC-ADM-01`
+- **Tác nhân chính:** Quản trị viên Nền tảng (Platform Admin).
+- **Tác nhân hỗ trợ:** Backend NestJS, Firebase Auth, Google Cloud Firestore.
+- **Mô tả:** Admin thực hiện tra cứu danh sách, xem chi tiết, tạo mới hoặc cập nhật thông tin tài khoản người dùng (Giáo viên, Phụ huynh) và các danh mục dữ liệu khi cần hỗ trợ kỹ thuật.
+- **Luồng sự kiện chính:**
+  1. Admin đăng nhập vào Web Quản trị Nền tảng.
+  2. Mở mục Quản lý Người dùng / Dữ liệu.
+  3. Thực hiện tìm kiếm, lọc theo vai trò (`TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`).
+  4. Xem chi tiết thông tin, chỉnh sửa hoặc cập nhật trạng thái khi có yêu cầu hỗ trợ.
+
+---
+
+### UC-ADM-02: Khóa & Mở khóa Tài khoản (Ban / Unban User)
+- **Mã Use Case:** `UC-ADM-02`
+- **Tác nhân chính:** Quản trị viên Nền tảng (Platform Admin).
+- **Tác nhân hỗ trợ:** Backend NestJS, Firebase Auth, Google Cloud Firestore (`/users`).
+- **Mô tả:** Admin tiến hành cấm/khóa tài khoản (`Ban`) đối với các tài khoản vi phạm điều khoản sử dụng hoặc có hành vi bất thường, và mở khóa (`Unban`) khi đã giải quyết.
+- **Luồng sự kiện chính:**
+  1. Admin mở hồ sơ tài khoản người dùng cần xử lý.
+  2. Nhấn nút "Khóa tài khoản (Ban User)", nhập lý do khóa.
+  3. Backend cập nhật `is_active = false` trong Firestore và vô hiệu hóa tài khoản trên Firebase Auth (`disabled = true`).
+  4. Mọi token phiên đăng nhập hiện tại của người dùng bị thu hồi tức thì; người dùng không thể thực hiện thêm bất kỳ thao tác nào.
+  5. Khi cần mở khóa: Admin nhấn "Mở khóa tài khoản (Unban User)", trạng thái tài khoản chuyển lại `is_active = true`.
+
+---
+
+### UC-ADM-03: Cấu hình Hạn mức Tài nguyên (Limit / Quota)
+- **Mã Use Case:** `UC-ADM-03`
+- **Tác nhân chính:** Quản trị viên Nền tảng (Platform Admin).
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (`/system_configs`).
+- **Mô tả:** Admin thiết lập các ngưỡng giới hạn sử dụng tài nguyên hệ thống nhằm kiểm soát chi phí hạ tầng và chống lạm dụng dịch vụ.
+- **Luồng sự kiện chính:**
+  1. Admin mở màn hình "Cấu hình Hạn mức & Giới hạn (System Limits)".
+  2. Cấu hình các tham số hạn mức:
+     - Số lớp học tối đa mỗi Giáo viên được tạo (ví dụ: tối đa 5 lớp/GV).
+     - Số học sinh tối đa trong 1 lớp (ví dụ: tối đa 55 học sinh/lớp).
+     - Hạn ngạch gọi AI Gemini sinh câu hỏi bài giảng (ví dụ: 20 lượt gọi/ngày/GV).
+     - Dung lượng upload tài liệu giáo án tối đa (ví dụ: 10MB/file).
+  3. Nhấn "Lưu cấu hình".
+  4. Backend lưu thông số vào `/system_configs` và áp dụng ngay lập tức qua các Middleware / Guards kiểm soát hạn mức trên toàn bộ API.
 
