@@ -1,0 +1,127 @@
+@startuml
+skinparam defaultTextAlignment center
+skinparam roundCorner 8
+skinparam BoxPadding 10
+
+skinparam node {
+    BackgroundColor #FFFFFF
+    BorderColor #1E88E5
+    FontSize 11
+    FontStyle bold
+}
+
+skinparam artifact {
+    BackgroundColor #F8F9FA
+    BorderColor #1565C0
+    FontSize 10
+}
+
+skinparam database {
+    BackgroundColor #E8F5E9
+    BorderColor #2E7D32
+    FontSize 11
+}
+
+skinparam cloud {
+    BackgroundColor #FFF3E0
+    BorderColor #EF6C00
+    FontSize 11
+    FontStyle bold
+}
+
+title Sơ Đồ Triển Khai Hạ Tầng (Deployment Diagram) - GiaoVienHay (EduConnect)\nMô Hình PaaS Tối Ưu: Vercel, Railway/Render, Firebase Cloud & Mobile Stores
+
+' ==============================================================================
+' 1. THIẾT BỊ ĐẦU CUỐI (CLIENT DEVICES)
+' ==============================================================================
+
+node "Thiết Bị Lớp Học & Văn Phòng\n(PC / Laptop / Smartboard Bảng Tương Tác)" as Device_Desktop {
+    artifact "Trình duyệt Web Hiện đại\n(Google Chrome / MS Edge)" as Browser
+}
+
+node "Thiết Bị Di Động\n(Smartphone Android / iOS)" as Device_Mobile {
+    artifact "Ứng dụng Di động Native\n(React Native App Bundle)" as MobileApp
+}
+
+' ==============================================================================
+' 2. NỀN TẢNG CLOUD PAAS (VERCEL & RAILWAY / RENDER)
+' ==============================================================================
+
+cloud "Vercel Global Edge Network (PaaS)" as VercelCloud {
+    node "Vercel Serverless & Edge Cluster" {
+        artifact "Web Quản trị & Trợ giảng\n(Next.js 14 Standalone App)" as NextjsApp
+    }
+}
+
+cloud "PaaS Cloud Platform (Railway / Render)" as PaasCloud {
+    node "Compute Service (Docker Container)" as ApiNode {
+        artifact "Backend API Server\n(NestJS Modular Monolith Runtime\nNode.js v20 LTS)" as NestjsApp
+    }
+
+    node "Managed Database Cluster" as DbNode {
+        database "PostgreSQL 15 (Managed DB)\n(10 Bảng cốt lõi, ACID)" as PostgresInstance
+    }
+
+    node "In-Memory & Cache Cluster" as CacheNode {
+        database "Redis 7 (Managed Service)\n(Session, Token Blacklist, BullMQ)" as RedisInstance
+    }
+
+    node "Message Queue Service" as QueueNode {
+        queue "RabbitMQ Instance\n(AMQP 0-9-1 Event Exchange)" as RabbitInstance
+    }
+}
+
+' ==============================================================================
+' 3. HỆ SINH THÁI GOOGLE FIREBASE & EXTERNAL APIS
+' ==============================================================================
+
+cloud "Google Firebase Cloud Platform" as FirebaseCloud {
+    node "Firebase Cloud Storage" {
+        artifact "File Lưu trữ Giáo án & Tài liệu\n(.docx, .pdf, avatar)" as StorageBucket
+    }
+    
+    node "Firebase Cloud Messaging (FCM)" {
+        artifact "FCM Push Gateway Service" as FcmGateway
+    }
+}
+
+cloud "Google Cloud AI" as GoogleAI {
+    node "Gemini AI Engine Endpoint" {
+        artifact "Gemini 1.5 Flash API" as GeminiEndpoint
+    }
+}
+
+cloud "Cổng Thanh Toán Trực Tuyến" as PaymentCloud {
+    node "VNPAY / MoMo Payment Gateway" {
+        artifact "Payment & IPN Webhook API" as PaymentEndpoint
+    }
+}
+
+' ==============================================================================
+' CÁC KẾT NỐI MẠNG & GIAO THỨC (NETWORK CONNECTIONS)
+' ==============================================================================
+
+' Client tương tác với Web và API
+Browser --> NextjsApp : HTTPS / TLS 1.3 (:443)\n(Truy cập Web Quản trị & Bảng tương tác)
+Browser --> NestjsApp : HTTPS REST API (:443)\n(Gọi API dữ liệu, bốc thăm, quiz)
+MobileApp --> NestjsApp : HTTPS REST API (:443)\n(Gửi điểm danh, tra cứu điểm số)
+
+' Vercel Next.js giao tiếp với Backend
+NextjsApp --> NestjsApp : HTTPS RESTful Calls / Server Actions
+
+' Backend nội bộ trong PaaS Platform (Private Network siêu nhanh)
+NestjsApp --> PostgresInstance : TCP / Prisma Driver (:5432)
+NestjsApp --> RedisInstance : TCP / Redis Protocol (:6379)
+NestjsApp --> RabbitInstance : AMQP Protocol (:5672)
+
+' Backend kết nối Firebase Cloud
+NestjsApp --> StorageBucket : HTTPS Firebase Admin SDK\n(Upload & đọc tài liệu giáo án)
+NestjsApp --> FcmGateway : HTTPS FCM HTTP v1 API\n(Gửi thông báo đẩy vắng học, điểm mới)
+FcmGateway -.-> MobileApp : Push Alert Notifications (APNs / FCM Native)
+
+' Backend kết nối AI & Payment
+NestjsApp --> GeminiEndpoint : HTTPS API (@google/genai)\n(Gửi văn bản sinh câu hỏi & Game)
+NestjsApp --> PaymentEndpoint : HTTPS REST (:443)\n(Tạo giao dịch thanh toán)
+PaymentEndpoint --> NestjsApp : HTTPS POST Webhook IPN\n(Cập nhật cờ is_paid_tuition)
+
+@enduml

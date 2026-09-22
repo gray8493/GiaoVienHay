@@ -1,0 +1,146 @@
+@startuml
+skinparam defaultTextAlignment center
+skinparam roundCorner 8
+skinparam BoxPadding 10
+skinparam componentStyle uml2
+
+skinparam component {
+    BackgroundColor #FFFFFF
+    BorderColor #1E88E5
+    ArrowColor #2E7D32
+    FontSize 11
+}
+
+skinparam package {
+    BackgroundColor #F8F9FA
+    BorderColor #1565C0
+    FontSize 12
+    FontStyle bold
+}
+
+skinparam database {
+    BackgroundColor #E8F5E9
+    BorderColor #2E7D32
+    FontSize 11
+}
+
+title Sơ Đồ Thành Phần Hệ Thống (Component Diagram) - GiaoVienHay (EduConnect)\nKiến Trúc Modular Monolith (NestJS), Next.js Web, React Native Mobile & Firebase Services
+
+' ==============================================================================
+' 1. TẦNG CLIENT (PRESENTATION LAYER)
+' ==============================================================================
+
+package "Client Components (Frontend)" {
+    component [Web Admin & Giáo viên\n(Next.js 14 App Router)] as WebClient {
+        portin " " as WebPort
+        [Auth & Session UI]
+        [Quản Trị Trường & Khối Lớp]
+        [Sổ Điểm & Nhập Điểm Bộ Môn]
+        [Điểm Danh & Nề Nếp GVCN]
+        [Quản Lý Học Phí & BHYT]
+        [Classroom Presentation Mode]
+        [Bộ 4 Mini-games Tương Tác]
+        [Vòng Quay May Mắn (Lucky Wheel)]
+    }
+
+    component [Mobile App\n(React Native iOS/Android)] as MobileClient {
+        portin " " as MobilePort
+        [Auth & Keychain Storage]
+        [GV: Điểm Danh Nhanh]
+        [PH: Tra Cứu Điểm & Học Bạ]
+        [PH: Theo Dõi Chuyên Cần]
+        [PH: Xem Tình Trạng BHYT/Học Phí]
+        [FCM Push Notification Receiver]
+    }
+}
+
+' ==============================================================================
+' 2. TẦNG BACKEND (NESTJS MODULAR MONOLITH)
+' ==============================================================================
+
+package "Backend Server Platform (NestJS Modular Monolith)" {
+    portin "HTTP REST API\n(HTTPS :443)" as HttpEntry
+    
+    component [API Gateway / Routing Layer\n(NestJS Controllers, Interceptors, Pipes)] as Gateway
+    component [RBAC & Auth Guard\n(Passport-JWT, @Roles Decorator)] as AuthGuard
+    
+    package "Core Business Modules (NestJS)" {
+        component [Auth Module\n(JWT, Refresh Token, Password Hash)] as AuthMod
+        component [School & Admin Module\n(Classes 1-9, Teachers, Assignments)] as AdminMod
+        component [Academic & Attendance Module\n(Grades, Daily Attendance Check)] as AcadMod
+        component [Gamification & Quiz Module\n(Doc Parser, Question Generator, Game Engine)] as GameMod
+        component [Billing & Insurance Module\n(Tuition, BHYT Boolean Flags)] as BillingMod
+        component [Notification Module\n(Message Dispatcher, FCM Worker)] as NotiMod
+    }
+    
+    component [Prisma ORM Data Access Layer] as PrismaDAL
+    component [Mongoose ODM Layer] as MongoDAL
+    component [BullMQ Job Queue Layer] as BullMQ
+}
+
+' ==============================================================================
+' 3. TẦNG DỮ LIỆU & LƯU TRỮ (DATA & STORAGE)
+' ==============================================================================
+
+package "Storage & Cloud Infrastructure" {
+    database "PostgreSQL 15 (Managed)\n(users, classes, students, scores,\nattendances, fees_and_insurance,\nquizzes, questions, notifications)" as PostgresDB
+    database "MongoDB 6\n(News Feeds, Audit Logs)" as MongoDB
+    database "Redis 7\n(Session, Token Blacklist, BullMQ)" as RedisDB
+    queue "RabbitMQ\n(Event Exchange: Attendance, Grade, Fee)" as RabbitBroker
+}
+
+' ==============================================================================
+' 4. DỊCH VỤ NGOÀI (EXTERNAL CLOUD SERVICES)
+' ==============================================================================
+
+package "External Cloud Services" {
+    cloud "Firebase Cloud Platform" as FirebaseCloud {
+        [Firebase Storage\n(Lưu trữ file giáo án .docx, .pdf)] as FBStorage
+        [Firebase Cloud Messaging (FCM)\n(Push Notification Gateway)] as FBMessaging
+    }
+    cloud "Google Gemini API\n(gemini-1.5-flash)" as GeminiAI
+    cloud "Cổng Thanh Toán\n(VNPAY / MoMo)" as PaymentGateway
+}
+
+' ==============================================================================
+' CÁC LIÊN KẾT & GIAO TIẾP (CONNECTIONS)
+' ==============================================================================
+
+WebClient --> HttpEntry : HTTPS / RESTful
+MobileClient --> HttpEntry : HTTPS / RESTful
+
+HttpEntry --> Gateway
+Gateway --> AuthGuard
+AuthGuard --> AuthMod
+AuthGuard --> AdminMod
+AuthGuard --> AcadMod
+AuthGuard --> GameMod
+AuthGuard --> BillingMod
+AuthGuard --> NotiMod
+
+' Modules liên kết Data Access Layer
+AuthMod --> PrismaDAL
+AdminMod --> PrismaDAL
+AcadMod --> PrismaDAL
+BillingMod --> PrismaDAL
+GameMod --> PrismaDAL
+
+PrismaDAL --> PostgresDB
+AdminMod --> MongoDAL
+MongoDAL --> MongoDB
+
+' Background Jobs & Cache
+AuthMod --> RedisDB : Caching session & Blacklist
+AcadMod --> RabbitBroker : Publish 'StudentAbsentEvent',\n'GradePublishedEvent'
+RabbitBroker --> NotiMod : Consume Events
+NotiMod --> BullMQ
+BullMQ --> RedisDB
+
+' Kết nối Third-Party
+GameMod --> FBStorage : Upload & đọc file .docx / .pdf
+GameMod --> GeminiAI : Gửi văn bản trích xuất sinh câu hỏi & Game
+NotiMod --> FBMessaging : Gửi Multicast Push Notification
+FBMessaging -.-> MobileClient : Đẩy thông báo tức thì
+BillingMod --> PaymentGateway : Tạo giao dịch & Nhận Webhook
+
+@enduml
