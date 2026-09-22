@@ -8,13 +8,12 @@ Tài liệu này đặc tả chi tiết cấu trúc, giao diện và tính năng
 
 ## 1. Các Tính Năng Giao Diện Đặc Thù
 
-### 1.1. AI Quiz Generator & Bộ 4 Mini-Game Tương Tác Lớp Học
+### 1.1. AI Quiz Generator & Bộ 3 Mini-Game Tương Tác Lớp Học
 - **Import Giáo án/Docs/PDF:** Giáo viên kéo thả file bài giảng vào khu vực upload, hệ thống hiển thị tiến trình bóc tách AI (Google Gemini API).
-- **Bộ 4 Chế Độ Mini-Game Trình Chiếu Lớp Học (Fullscreen Canvas/Animation):**
+- **Bộ 3 Chế Độ Mini-Game Trình Chiếu Lớp Học (Fullscreen Canvas/Animation):**
   1. **Golden Bell (Rung chuông vàng):** Hiển thị câu hỏi đếm ngược 30s, âm thanh kịch tính, hiển thị tỉ lệ chọn đáp án và loại trực tiếp học sinh trả lời sai.
   2. **Class Racing (Vượt chướng ngại vật / Đua xe):** Chia lớp thành các tổ (Tổ 1 -> Tổ 4), tổ trả lời đúng xe sẽ tăng tốc về đích.
   3. **Mystery Box (Hộp quà bí mật):** Màn hình hiển thị các hộp quà nhiều màu sắc, học sinh trả lời đúng câu hỏi bài cũ được mở hộp quà may mắn (điểm cộng, tràng pháo tay).
-  4. **Smartboard Match (Chạm nối đáp án):** Giao diện cảm ứng cho phép học sinh Cấp 1 lên bảng kéo thả nối từ/hình ảnh trực tiếp bằng tay/bút tương tác.
 
 ### 1.2. Dò Bài Cũ & Vòng Quay May Mắn (Lucky Wheel)
 - **Giao diện Vòng quay Canvas / CSS Animation:** Mô phỏng vòng quay bánh xe may mắn rực rỡ sắc màu kèm âm thanh quay số hồi hộp.
@@ -50,11 +49,11 @@ web-admin/
 │   │   │   │   ├── oral-test/              # Dò bài cũ & Vòng quay Random học sinh có mặt
 │   │   │   │   ├── ai-quiz/                # Import Docs/PDF sinh câu hỏi AI
 │   │   │   │   │   ├── upload/
-│   │   │   │   │   └── games/              # 4 Mini-games: GoldenBell, Racing, MysteryBox, Matching
+│   │   │   │   │   └── games/              # 3 Mini-games: GoldenBell, Racing, MysteryBox
 │   │   │   │   └── conduct/                # Nhận xét hạnh kiểm
 │   │   │   └── layout.tsx
 │   ├── components/
-│   │   ├── games/                          # GoldenBellBoard, RacingTrack, MysteryBoxes, MatchBoard
+│   │   ├── games/                          # GoldenBellBoard, RacingTrack, MysteryBoxes
 │   │   ├── classroom/                      # LuckyWheel, CountdownTimer, ScoreCelebration
 │   │   ├── fees/                           # FeeStatusBadge, FeeChecklistTable
 │   │   └── ui/                             # Table, Modal, Button, Checkbox

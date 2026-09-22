@@ -9,13 +9,13 @@ Hệ thống **GiaoVienHay** chuẩn hóa toàn bộ hạ tầng dữ liệu và
 
 | Tầng kiến trúc | Công nghệ chính | Mục đích & Chi tiết ứng dụng |
 | :--- | :--- | :--- |
-| **Web Frontend** | **Next.js 14+ (App Router)** | Web Quản trị cho Admin, GVCN & GVBM. Tích hợp màn hình Vòng quay Random học sinh và Chế độ trình chiếu bài kiểm tra cũ lên bảng lớp. |
+| **Web Frontend** | **Next.js 14+ (App Router)** | Web Quản trị cho Admin, GVCN & GVBM. Tích hợp màn hình Vòng quay Random học sinh và Chế độ trình chiếu Mini-game/câu hỏi tương tác lên bảng lớp. |
 | **Mobile Frontend** | **React Native (TypeScript)** | Mobile App cho Giáo viên (điểm danh nhanh) & Phụ huynh (xem điểm, xem chuyên cần, tra cứu tình trạng đóng Học phí & BHYT). |
 | **Backend API** | **NestJS 10+ (TypeScript)** | Modular backend, tích hợp **Firebase Admin SDK** (`firebase-admin`) để xử lý nghiệp vụ, phân quyền RBAC và kiểm soát dữ liệu. |
 | **Database (Duy nhất)** | **Google Cloud Firestore** | **Cơ sở dữ liệu NoSQL Document Store thời gian thực**, lưu trữ toàn bộ hồ sơ, lớp học, điểm danh, sổ điểm, cờ BHYT/học phí. |
 | **Authentication** | **Firebase Authentication** | Quản lý đăng nhập an toàn đa phương thức: Số điện thoại (SMS OTP), Email & Mật khẩu. |
 | **File Storage** | **Firebase Cloud Storage** | Lưu trữ tài liệu giáo án bài giảng (`.docx`, `.pdf`) và ảnh đại diện người dùng. |
-| **AI Integration** | **Google Gemini API** (`@google/genai`) | Bóc tách tài liệu giáo án (.docx, .pdf) và tự động sinh câu hỏi kiểm tra bài cũ 5-10 phút đầu giờ. |
+| **AI Integration** | **Google Gemini API** (`@google/genai`) | Bóc tách tài liệu giáo án (.docx, .pdf) và tự động sinh câu hỏi/mini-game tương tác đầu giờ cho Giáo viên trình chiếu tại lớp. |
 | **Push Notification** | **Firebase Cloud Messaging (FCM)** | Đẩy thông báo tức thì (Cảnh báo vắng học, Điểm số mới, Nhắc đóng BHYT) tới thiết bị di động của Phụ huynh. |
 | **Realtime Sync** | **Firestore Snapshot Listeners** | Lắng nghe thay đổi dữ liệu thời gian thực (điểm danh lớp học, cập nhật điểm, bảng xếp hạng). |
 
@@ -109,7 +109,7 @@ erDiagram
         string class_id "Ref -> classes"
         string teacher_id "Ref -> users"
         string source_doc_url "Link Firebase Storage lưu giáo án"
-        string game_type "GOLDEN_BELL, RACING, MYSTERY_BOX, MATCHING"
+        string game_type "GOLDEN_BELL, RACING, MYSTERY_BOX"
         timestamp created_at
     }
 

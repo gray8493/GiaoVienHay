@@ -25,11 +25,10 @@
 
 ### FR-03: Tạo & Vận Hành Mini-Game Tương Tác Lớp Học (Classroom Gamification)
 - **FR-03.1:** Hỗ trợ tính năng 1-chạm: Chuyển đổi bộ câu hỏi AI thành trò chơi lớp học sinh động chiếu lên bảng tương tác / máy chiếu.
-- **FR-03.2:** Cung cấp 4 chế độ game phổ biến cho học sinh Cấp 1 & Cấp 2:
+- **FR-03.2:** Cung cấp 3 chế độ game phổ biến cho học sinh Cấp 1 & Cấp 2:
   1. *Rung chuông vàng / Đấu trí:* Đếm ngược thời gian, học sinh giơ bảng chọn đáp án, loại trực tiếp hoặc tính điểm tích lũy.
   2. *Vượt chướng ngại vật / Đua xe:* Chia tổ thi đua, tổ trả lời đúng sẽ tiến về đích.
   3. *Hộp quà may mắn (Mystery Box):* Trả lời câu hỏi mở quà trúng sticker/điểm cộng.
-  4. *Chạm nối ghép cặp trên bảng thông minh:* Kéo thả nối câu hỏi với đáp án đúng bằng cảm ứng chạm.
 - **FR-03.3:** Hiệu ứng đồ họa bắt mắt, âm thanh reo hò kịch tính, tự động vinh danh bảng vàng cuối trò chơi.
 - **FR-03.4:** **Nhập điểm kiểm tra tại lớp & Bảng xếp hạng (Leaderboard) cho Giáo viên:**
   - Ứng dụng không có chức năng cho học sinh làm bài kiểm tra trực tuyến. Giáo viên tổ chức kiểm tra tại lớp (kiểm tra bài cũ, làm bài tập, mini-game trên bảng) và trực tiếp nhập điểm số cho học sinh.

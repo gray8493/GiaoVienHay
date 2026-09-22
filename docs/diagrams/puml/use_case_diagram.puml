@@ -41,6 +41,10 @@ actor "Firebase FCM\n(SYS-02)" as FCM <<System>>
 ' GVCN kế thừa toàn bộ năng lực sư phạm của GVBM
 GVBM <|-- GVCN : <<kế thừa quyền giảng dạy>>
 
+note "<b>PHẠM VI HỆ THỐNG:</b>\n- KHÔNG có Tác nhân Học sinh (Student)\n- KHÔNG có tính năng học sinh làm bài kiểm tra trực tuyến\n- Giáo viên trình chiếu Mini-game/câu hỏi tại lớp\n- Giáo viên trực tiếp chấm và nhập điểm" as ScopeNote
+ScopeNote .. GVBM
+ScopeNote .. GVCN
+
 ' ==============================================================================
 ' 2. DANH MỤC USE CASE THEO PHÂN HỆ
 ' ==============================================================================

@@ -38,6 +38,9 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 | **SYS-01** | **Gemini AI Engine** | Dịch vụ AI (Google Gemini API) | Trích xuất văn bản từ Docs/PDF, tự động tạo câu hỏi trắc nghiệm/tự luận ngắn và cấu hình luật chơi mini-game tương tác. |
 | **SYS-02** | **Firebase FCM** | Dịch vụ Push Notification | Gửi thông báo tức thì tới ứng dụng di động React Native của Phụ huynh. |
 
+> **LƯU Ý VỀ PHẠM VI TÁC NHÂN (ACTOR SCOPE):**  
+> Hệ thống GiaoVienHay **KHÔNG CÓ TÁC NHÂN HỌC SINH (Student)**. Học sinh không được cấp tài khoản và không có chức năng/giao diện làm bài kiểm tra trực tuyến. Mọi hoạt động khởi động, ôn tập, mini-game diễn ra trực tiếp tại phòng học (chiếu bảng, giơ bảng đáp án, thao tác bảng thông minh); Giáo viên là người duy nhất thực hiện chấm và nhập điểm lên hệ thống.
+
 ---
 
 ## 3. Ma Trận Phân Quyền Use Case Toàn Diện
@@ -73,7 +76,6 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
   - **Game 1 - Rung Chuông Vàng:** Học sinh trong lớp cùng giơ bảng chọn A/B/C/D, giáo viên bấm đáp án trên màn hình để kiểm tra ai ở lại sàn thi đấu.
   - **Game 2 - Vượt Chướng Ngại Vật (Đua xe):** Chia lớp thành các tổ thi đua, trả lời đúng câu hỏi thì xe của đội tiến 1 ô.
   - **Game 3 - Mở Hộp Quà May Mắn:** Chọn câu hỏi bất kỳ, trả lời đúng mở được phần thưởng điểm số hoặc sticker khen thưởng.
-  - **Game 4 - Chạm Nối Ghép Cặp:** Học sinh Cấp 1 lên chạm trực tiếp trên bảng thông minh để nối khái niệm với hình minh họa.
 
 ### 4.2. Dò Bài Cũ & Vòng Quay Random Học Sinh (UC-ACA-04)
 - Áp dụng cho cả **GVCN** và **GVBM** đầu mỗi tiết học.

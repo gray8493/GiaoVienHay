@@ -61,15 +61,14 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 - **Hậu điều kiện:** Trò chơi được khởi chạy toàn màn hình, học sinh tham gia và được cộng điểm thưởng.
 - **Luồng sự kiện chính (Main Flow):**
   1. Từ bộ câu hỏi đã duyệt, giáo viên nhấn "Biến thành Trò chơi (Gamify)".
-  2. Hệ thống cung cấp 4 chế độ game:
+  2. Hệ thống cung cấp 3 chế độ game:
      - *Chế độ 1: Rung chuông vàng (Đấu trí cả lớp).*
      - *Chế độ 2: Đua xe / Vượt chướng ngại vật (Chia tổ thi đua).*
      - *Chế độ 3: Hộp quà bí mật (Mystery Box - Trả lời trúng quà).*
-     - *Chế độ 4: Ghép cặp trên bảng thông minh (Chạm nối đáp án).*
   3. Giáo viên chọn chế độ chơi và bấm "Bắt đầu Game".
   4. Màn hình Next.js chuyển sang chế độ Fullscreen với đồ họa game bắt mắt, nhạc nền sôi động.
   5. Giáo viên điều khiển câu hỏi hiển thị, bấm bắt đầu đếm ngược thời gian (30s).
-  6. Học sinh trong lớp tham gia trả lời (bằng cách giơ bảng hoặc cử đại diện lên chạm bảng).
+  6. Học sinh trong lớp tham gia trả lời (bằng cách giơ bảng chọn đáp án hoặc cử đại diện trả lời miệng).
   7. Giáo viên click hiển thị đáp án đúng $\rightarrow$ hệ thống kích hoạt hiệu ứng pháo hoa, âm thanh reo hò và cập nhật điểm số cho đội/học sinh.
   8. Khi kết thúc game, bảng xếp hạng vinh danh học sinh/tổ xuất sắc nhất được trình chiếu.
 

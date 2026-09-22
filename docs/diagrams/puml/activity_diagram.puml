@@ -84,10 +84,10 @@ else if ([Kiểm tra bài cũ / Mini-game bằng AI])
     :Lưu bộ câu hỏi vào /quizzes và subcollection /questions;
     
     |Giáo viên (GVCN & GVBM)|
-    :Tổ chức kiểm tra bài cũ / Mini-game tại lớp:
-    - Vòng quay Random học sinh lên bảng kiểm tra
-    - Hoặc cho học sinh làm bài tập/trả lời câu hỏi trên lớp;
-    :Giáo viên trực tiếp nhập điểm kiểm tra cho học sinh trên App;
+    :Tổ chức tương tác bài cũ / Mini-game tại lớp (chiếu lên bảng):
+    - Vòng quay Random học sinh lên bảng
+    - Hoặc học sinh giơ bảng trả lời mini-game (không làm bài online);
+    :Giáo viên trực tiếp chấm & nhập điểm số cho học sinh trên App;
     
     |Client App (Next.js / React Native)|
     :Gửi dữ liệu điểm kiểm tra vừa nhập lên Backend;

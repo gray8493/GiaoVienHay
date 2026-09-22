@@ -76,16 +76,22 @@ Firestore --> AcadModule: Lưu thành công
 AcadModule -> NotiModule: Kích hoạt thông báo vắng học (kèm studentId vắng)
 AcadModule --> TeacherUI: Phản hồi "Điểm danh hoàn tất"
 
-Teacher -> TeacherUI: Tải giáo án (.docx/.pdf) & yêu cầu AI tạo bộ câu hỏi kiểm tra
+Teacher -> TeacherUI: Tải giáo án (.docx/.pdf) & yêu cầu AI tạo câu hỏi mini-game
 TeacherUI -> Gateway: POST /api/v1/quizzes/generate-ai (Multipart file)
 Gateway -> GameModule: Forward request
 GameModule -> FBStorage: Upload và lưu tệp giáo án an toàn
 GameModule -> Gemini: Gửi prompt bóc tách tài liệu bài giảng
 Gemini --> GameModule: Trả về danh sách câu hỏi trắc nghiệm kèm đáp án
 GameModule -> Firestore: Lưu bộ câu hỏi vào /quizzes & subcollection /questions
-GameModule --> TeacherUI: Trả về giao diện Mini-game sẵn sàng
+GameModule --> TeacherUI: Trả về giao diện Mini-game sẵn sàng trình chiếu
 
-Teacher -> TeacherUI: Tổ chức kiểm tra bài cũ / Mini-game trên lớp, sau đó trực tiếp nhập điểm học sinh
+note over Teacher, TeacherUI #FFF9C4
+  <b>Lưu ý phạm vi:</b> Hệ thống KHÔNG có chức năng học sinh làm bài kiểm tra online.
+  Học sinh tương tác trực tiếp tại lớp (bảng con, giơ tay, chạm bảng).
+  Giáo viên tổ chức tại lớp và trực tiếp nhập điểm số của học sinh.
+end note
+
+Teacher -> TeacherUI: Trình chiếu Mini-game/dò bài tại lớp, sau đó trực tiếp nhập điểm học sinh
 TeacherUI -> Gateway: POST /api/v1/academic/in-class-scores (Lớp, môn, danh sách điểm HS)
 Gateway -> AcadModule: Forward request (kèm danh sách điểm GV vừa nhập)
 AcadModule -> Firestore: Lưu điểm kiểm tra vào /quiz_results và sổ điểm /scores

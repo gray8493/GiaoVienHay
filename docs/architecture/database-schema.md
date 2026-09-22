@@ -120,7 +120,7 @@ erDiagram
         string class_id "Lớp áp dụng"
         string teacher_id "UID Giáo viên tạo đề"
         string source_doc_url "Link tệp giáo án .docx/.pdf trên Firebase Storage"
-        string game_type "GOLDEN_BELL, RACING, MYSTERY_BOX, MATCHING"
+        string game_type "GOLDEN_BELL, RACING, MYSTERY_BOX"
         timestamp created_at
     }
 
@@ -268,7 +268,7 @@ Quản lý các bộ câu hỏi kiểm tra bài cũ sinh ra từ tài liệu gi�
 - **`class_id`** (`string`): Lớp học được áp dụng.
 - **`teacher_id`** (`string`): UID Giáo viên tạo bộ quiz.
 - **`source_doc_url`** (`string`, Nullable): **Đường dẫn tệp tài liệu giáo án gốc (`.docx`, `.pdf`) lưu trên Firebase Cloud Storage**.
-- **`game_type`** (`string`, Default: `'GOLDEN_BELL'`): Kiểu mini-game hiển thị (`GOLDEN_BELL` - Rung chuông vàng, `RACING` - Đua xe, `MYSTERY_BOX` - Hộp quà, `MATCHING` - Chạm nối bảng thông minh).
+- **`game_type`** (`string`, Default: `'GOLDEN_BELL'`): Kiểu mini-game hiển thị (`GOLDEN_BELL` - Rung chuông vàng, `RACING` - Đua xe, `MYSTERY_BOX` - Hộp quà bí mật).
 - **`created_at`** (`timestamp`): Ngày tạo.
 
 **Subcollection `/quizzes/{quizId}/questions/{questionId}`**:
