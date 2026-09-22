@@ -1,4 +1,5 @@
 # Tài Liệu Thiết Kế Cơ Sở Dữ Liệu NoSQL (Firestore Schema Specification)
+
 # Hệ Thống GiaoVienHay – 100% Nền Tảng Google Cloud Firestore
 
 Tài liệu này đặc tả chi tiết cấu trúc Collections, Subcollections, Document Fields, kiểu dữ liệu Firestore, Composite Indexes và Security Rules của hệ thống **GiaoVienHay** trên nền tảng **Google Cloud Firestore**.
@@ -122,9 +123,11 @@ erDiagram
         string term_name "Tên đợt thu (Học kỳ 1 năm học 2026-2027)"
         number tuition_amount "Số tiền học phí"
         boolean is_paid_tuition "Cờ nộp học phí (TRUE = Đã nộp)"
+        string tuition_paid_date "Ngày nộp học phí (YYYY-MM-DD)"
         timestamp tuition_paid_at "Thời điểm ghi nhận nộp học phí"
         number insurance_amount "Số tiền BHYT"
         boolean is_paid_insurance "Cờ nộp BHYT (TRUE = Đã nộp)"
+        string insurance_paid_date "Ngày nộp BHYT (YYYY-MM-DD)"
         timestamp insurance_paid_at "Thời điểm ghi nhận nộp BHYT"
         string note "Ghi chú thu nộp của GVCN"
         timestamp created_at
@@ -180,7 +183,9 @@ erDiagram
 ## 3. Đặc Tả Chi Tiết Từng Collection Firestore
 
 ### 3.1. Collection `/users`
+
 Quản lý tài khoản đăng nhập chung cho cả 4 nhóm vai trò. Document ID chính là **Firebase Auth UID**.
+
 - **`uid`** (`string`, Document ID): UID do Firebase Auth tạo ra.
 - **`email`** (`string`, Nullable): Email xác thực và nhận thông báo.
 - **`phone`** (`string`, Nullable): Số điện thoại dùng để đăng nhập OTP.
@@ -199,7 +204,9 @@ Quản lý tài khoản đăng nhập chung cho cả 4 nhóm vai trò. Document 
 ---
 
 ### 3.2. Collection `/classes`
+
 Quản lý danh mục lớp học thuộc khối 1 đến khối 9 do Giáo viên tạo.
+
 - **`id`** (`string`, Document ID): Mã tự sinh Firestore.
 - **`name`** (`string`): Tên lớp học (Ví dụ: `1A`, `3C`, `6A1`, `9B`).
 - **`grade_level`** (`number`): Khối lớp từ `1` đến `9`.
@@ -216,7 +223,9 @@ Quản lý danh mục lớp học thuộc khối 1 đến khối 9 do Giáo viê
 ---
 
 ### 3.3. Collection `/students`
+
 Lưu trữ hồ sơ học sinh thuộc các khối lớp.
+
 - **`id`** (`string`, Document ID): Mã tự sinh Firestore.
 - **`student_code`** (`string`): Mã số định danh học sinh duy nhất toàn trường.
 - **`full_name`** (`string`): Họ và tên học sinh.
@@ -229,7 +238,9 @@ Lưu trữ hồ sơ học sinh thuộc các khối lớp.
 ---
 
 ### 3.4. Collection `/attendances`
+
 Lưu vết trạng thái có mặt/vắng học của học sinh từng ngày.
+
 - **`id`** (`string`, Document ID): Mã tự sinh Firestore.
 - **`student_id`** (`string`): ID học sinh được điểm danh.
 - **`class_id`** (`string`): Lớp học tại thời điểm điểm danh.
@@ -241,18 +252,23 @@ Lưu vết trạng thái có mặt/vắng học của học sinh từng ngày.
 - **`created_at`** (`timestamp`): Thời gian ghi nhận điểm danh.
 
 > **Cơ chế Vòng quay kiểm tra bài cũ thông minh:**
+>
 > - Vòng quay chọn ngẫu nhiên học sinh trong lớp.
 > - Nếu quay trúng bạn nào nghỉ học hoặc vắng mặt/không thể lên bảng, Giáo viên chỉ cần bấm nút **"Bỏ qua (Skip)"**, hệ thống tự động quay ngay vòng mới để chọn bạn khác.
 >   .where('attendance_date', '==', todayStr)
 >   .where('status', '==', 'PRESENT')
 >   .get();
+>
 > ```
 > Kết hợp **Firestore Composite Index** `(class_id ASC, attendance_date ASC, status ASC)` giúp trả về danh sách học sinh CÓ MẶT cực nhanh dưới 5ms để nạp ngay vào Vòng quay may mắn trên Web Next.js.
+> ```
 
 ---
 
 ### 3.5. Collection `/scores`
+
 Lưu trữ sổ điểm điện tử đa môn học toàn diện theo học sinh với nhiều đầu điểm thành phần.
+
 - **`id`** (`string`, Document ID): Mã tự sinh.
 - **`student_id`** (`string`): ID học sinh nhận điểm.
 - **`class_id`** (`string`): ID lớp học.
@@ -286,7 +302,9 @@ Lưu trữ sổ điểm điện tử đa môn học toàn diện theo học sinh
 ---
 
 ### 3.6. Collection `/remarks`
+
 Lưu trữ sổ nhận xét, đánh giá học sinh của Giáo viên gửi tới Phụ huynh (dưới dạng đoạn text ngắn).
+
 - **`id`** (`string`, Document ID): Mã tự sinh Firestore.
 - **`student_id`** (`string`): ID học sinh được nhận xét.
 - **`class_id`** (`string`): ID lớp học.
@@ -301,24 +319,30 @@ Lưu trữ sổ nhận xét, đánh giá học sinh của Giáo viên gửi tớ
 ---
 
 ### 3.7. Collection `/fees_and_insurance`
-Sổ theo dõi trạng thái hoàn thành nghĩa vụ tài chính của từng học sinh bằng 2 cờ boolean. **Hệ thống hoàn toàn không có tính năng thanh toán trực tuyến**. Phụ huynh và học sinh hoàn thành nghĩa vụ trực tiếp tại trường/lớp; GVCN hoặc Quản trị viên chỉ tích chọn cờ boolean để theo dõi.
+
+Sổ theo dõi trạng thái hoàn thành nghĩa vụ tài chính của từng học sinh bằng 2 cờ boolean kèm ngày nộp cụ thể. **Hệ thống hoàn toàn không có tính năng thanh toán trực tuyến**. Phụ huynh và học sinh hoàn thành nghĩa vụ trực tiếp tại trường/lớp; GVCN hoặc Quản trị viên chỉ tích chọn cờ boolean và hệ thống tự động ghi nhận (hoặc cho phép chọn) ngày nộp.
+
 - **`id`** (`string`, Document ID): Mã tự sinh.
 - **`student_id`** (`string`): ID học sinh.
 - **`class_id`** (`string`): ID lớp chủ nhiệm.
 - **`term_name`** (`string`): Tên đợt thu (Ví dụ: `Học phí & BHYT Học kỳ 1 năm 2026-2027`).
 - **`tuition_amount`** (`number`, Default: `0`): Số tiền học phí phải nộp.
 - **`is_paid_tuition`** (`boolean`, Default: `false`): **Cờ nộp học phí** (`true` = Đã nộp).
-- **`tuition_paid_at`** (`timestamp`, Nullable): Thời điểm ghi nhận hoàn thành nộp học phí.
+- **`tuition_paid_date`** (`string`, Format: `YYYY-MM-DD`, Nullable): **Ngày nộp học phí** (Ví dụ: `2026-09-15`). Khi GVCN tích chọn đã nộp, hệ thống mặc định gán ngày hiện tại hoặc cho phép GVCN điều chỉnh ngày thực tế học sinh đóng.
+- **`tuition_paid_at`** (`timestamp`, Nullable): Thời điểm hệ thống ghi nhận hoàn thành nộp học phí.
 - **`insurance_amount`** (`number`, Default: `0`): Số tiền Bảo hiểm Y tế học sinh.
 - **`is_paid_insurance`** (`boolean`, Default: `false`): **Cờ nộp BHYT** (`true` = Đã nộp).
-- **`insurance_paid_at`** (`timestamp`, Nullable): Thời điểm ghi nhận hoàn thành nộp BHYT.
-- **`note`** (`string`, Nullable): Ghi chú thu nộp của GVCN/Nhà trường.
+- **`insurance_paid_date`** (`string`, Format: `YYYY-MM-DD`, Nullable): **Ngày nộp BHYT** (Ví dụ: `2026-09-18`). Lưu trữ ngày phụ huynh/học sinh hoàn tất đóng tiền BHYT tại lớp cho GVCN.
+- **`insurance_paid_at`** (`timestamp`, Nullable): Thời điểm hệ thống ghi nhận hoàn thành nộp BHYT.
+- **`note`** (`string`, Nullable): Ghi chú thu nộp của GVCN/Nhà trường (Ví dụ: *"Đã nộp kèm biên lai số 45"*).
 - **`created_at`** (`timestamp`): Ngày tạo bản ghi.
 
 ---
 
 ### 3.8. Collection `/quizzes` & Subcollection `/questions`
+
 Quản lý các bộ câu hỏi kiểm tra bài cũ sinh ra từ tài liệu giáo án bài giảng.
+
 - **`id`** (`string`, Document ID): Mã tự sinh bộ đề.
 - **`title`** (`string`): Tên bộ kiểm tra (Ví dụ: `Bài 12 - Phép cộng phân số`).
 - **`subject_code`** (`string`): Môn học.
@@ -329,6 +353,7 @@ Quản lý các bộ câu hỏi kiểm tra bài cũ sinh ra từ tài liệu gi�
 - **`created_at`** (`timestamp`): Ngày tạo.
 
 **Subcollection `/quizzes/{quizId}/questions/{questionId}`**:
+
 - **`question_index`** (`number`): Số thứ tự câu hỏi trong game (1, 2, 3...).
 - **`content`** (`string`): Nội dung câu hỏi kiểm tra.
 - **`options`** (`array of string`): Mảng 4 đáp án lựa chọn: `["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"]`.
@@ -339,7 +364,9 @@ Quản lý các bộ câu hỏi kiểm tra bài cũ sinh ra từ tài liệu gi�
 ---
 
 ### 3.9. Collection `/quiz_results`
+
 Lưu trữ điểm số kiểm tra bài cũ hoặc kết quả tham gia mini-game tại lớp **do Giáo viên trực tiếp nhập** cho từng học sinh (Ứng dụng hoàn toàn không cho học sinh làm bài thi hay tự động chấm bài trực tuyến). Bảng xếp hạng (Leaderboard) vinh danh tại lớp được lấy từ Sổ điểm môn học (`/scores`), hệ thống không xếp hạng điểm mini-game.
+
 - **`id`** (`string`, Document ID): Mã tự sinh.
 - **`quiz_id`** (`string`): Thuộc bài kiểm tra bài cũ / mini-game nào.
 - **`class_id`** (`string`): Lớp học sinh tham gia.
@@ -353,7 +380,9 @@ Lưu trữ điểm số kiểm tra bài cũ hoặc kết quả tham gia mini-gam
 ---
 
 ### 3.10. Collection `/notifications`
+
 Lưu nhật ký các thông báo đẩy đã phát tới phụ huynh qua Firebase Cloud Messaging.
+
 - **`id`** (`string`, Document ID): Mã tự sinh.
 - **`recipient_user_id`** (`string`): UID phụ huynh nhận thông báo trỏ đến `/users/{uid}`.
 - **`title`** (`string`): Tiêu đề thông báo.
@@ -372,7 +401,9 @@ Lưu nhật ký các thông báo đẩy đã phát tới phụ huynh qua Firebas
 ---
 
 ### 3.11. Collection `/exam_reminders`
+
 Lưu trữ các thông báo lời nhắc về lịch kiểm tra sắp tới do Giáo viên (cả GVBM và GVCN) tạo để phát thông báo tới Phụ huynh dặn dò học sinh ôn bài.
+
 - **`id`** (`string`, Document ID): Mã tự sinh Firestore.
 - **`class_id`** (`string`): ID lớp học.
 - **`teacher_id`** (`string`): UID Giáo viên tạo lời nhắc (GVBM hoặc GVCN).
@@ -389,15 +420,15 @@ Lưu trữ các thông báo lời nhắc về lịch kiểm tra sắp tới do G
 
 Trong Google Cloud Firestore, các truy vấn đơn trường được lập chỉ mục tự động. Dưới đây là danh sách **Composite Indexes** bắt buộc cấu hình trong file `firestore.indexes.json` để tối ưu các truy vấn lọc phức hợp:
 
-| Collection ID | Các Trường Chỉ Mục Phức Hợp (Fields & Orders) | Mục Đích Tối Ưu Hóa |
-| :--- | :--- | :--- |
-| `attendances` | `class_id` (ASC), `attendance_date` (ASC), `status` (ASC) | **Lọc siêu tốc (< 5ms) danh sách học sinh CÓ MẶT cho Vòng quay Random** |
-| `scores` | `student_id` (ASC), `subject_code` (ASC), `semester` (ASC) | Tối ưu hiển thị sổ điểm môn học và tính điểm trung bình cho học bạ |
-| `scores` | `class_id` (ASC), `subject_code` (ASC), `is_published` (ASC) | Tối ưu tải bảng điểm lớp học theo môn học cho giáo viên |
-| `scores` | `class_id` (ASC), `subject_code` (ASC), `score_value` (DESC) | **Truy xuất Bảng xếp hạng (Leaderboard) Điểm Môn Học vinh danh tại lớp** |
-| `fees_and_insurance`| `class_id` (ASC), `is_paid_insurance` (ASC), `is_paid_tuition` (ASC) | **Tối ưu bộ lọc học sinh chưa nộp BHYT để phát tin nhắc nhở tức thì** |
-| `notifications` | `recipient_user_id` (ASC), `created_at` (DESC) | Tải danh sách thông báo mới nhất trên Mobile App Phụ huynh |
-| `students` | `parent_uids` (Arrays), `full_name` (ASC) | Tối ưu hiển thị danh sách các con thuộc cùng một tài khoản phụ huynh |
+| Collection ID          | Các Trường Chỉ Mục Phức Hợp (Fields & Orders)                       | Mục Đích Tối Ưu Hóa                                                                 |
+| :--------------------- | :------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
+| `attendances`        | `class_id` (ASC), `attendance_date` (ASC), `status` (ASC)            | **Lọc siêu tốc (< 5ms) danh sách học sinh CÓ MẶT cho Vòng quay Random**     |
+| `scores`             | `student_id` (ASC), `subject_code` (ASC), `semester` (ASC)           | Tối ưu hiển thị sổ điểm môn học và tính điểm trung bình cho học bạ        |
+| `scores`             | `class_id` (ASC), `subject_code` (ASC), `is_published` (ASC)         | Tối ưu tải bảng điểm lớp học theo môn học cho giáo viên                       |
+| `scores`             | `class_id` (ASC), `subject_code` (ASC), `score_value` (DESC)         | **Truy xuất Bảng xếp hạng (Leaderboard) Điểm Môn Học vinh danh tại lớp**  |
+| `fees_and_insurance` | `class_id` (ASC), `is_paid_insurance` (ASC), `is_paid_tuition` (ASC) | **Tối ưu bộ lọc học sinh chưa nộp BHYT để phát tin nhắc nhở tức thì** |
+| `notifications`      | `recipient_user_id` (ASC), `created_at` (DESC)                         | Tải danh sách thông báo mới nhất trên Mobile App Phụ huynh                        |
+| `students`           | `parent_uids` (Arrays), `full_name` (ASC)                              | Tối ưu hiển thị danh sách các con thuộc cùng một tài khoản phụ huynh          |
 
 ---
 
@@ -409,20 +440,20 @@ Quy tắc bảo mật được định nghĩa chặt chẽ theo vai trò (RBAC) 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+  
     // Hàm trợ giúp kiểm tra xác thực và vai trò
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+  
     function isAdmin() {
       return isAuthenticated() && request.auth.token.role == 'ADMIN';
     }
-    
+  
     function isTeacher() {
       return isAuthenticated() && (request.auth.token.role == 'TEACHER_HOMEROOM' || request.auth.token.role == 'TEACHER_SUBJECT');
     }
-    
+  
     function isParent() {
       return isAuthenticated() && request.auth.token.role == 'PARENT';
     }
@@ -464,7 +495,7 @@ service cloud.firestore {
     // 5. Quizzes & Quiz Results: Giáo viên & Admin toàn quyền
     match /quizzes/{quizId} {
       allow read, write: if isTeacher() || isAdmin();
-      
+    
       match /questions/{questionId} {
         allow read, write: if isTeacher() || isAdmin();
       }

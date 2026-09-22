@@ -86,7 +86,7 @@ Hệ thống sử dụng **Google Cloud Firestore (NoSQL Document Store)** làm 
 4. `/attendances/{attendanceId}`: Điểm danh chuyên cần theo ngày (`classId`, `studentId`, `date`, `status = PRESENT/ABSENT_EXCUSED/ABSENT_UNEXCUSED`).
 5. `/scores/{scoreId}`: Sổ điểm các môn học theo từng học sinh (`studentId`, `classId`, `subjectCode`, `semester`, `scoreType`, `scoreValue`, `teacherId`, `teacher_comment`, `isPublished`). Lưu trữ các cột điểm do giáo viên nhập, không tự động tính GPA môn.
 6. `/remarks/{remarkId}`: Sổ nhận xét học sinh (đoạn text ngắn gọn gửi phụ huynh, không dùng nhãn tags).
-7. `/fees_and_insurance/{recordId}`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi chú thu nộp.
+7. `/fees_and_insurance/{recordId}`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi nhận ngày nộp `tuition_paid_date`, `insurance_paid_date` (kèm mốc thời gian `tuition_paid_at`, `insurance_paid_at`) và ghi chú thu nộp.
 8. `/quizzes/{quizId}`: Bộ câu hỏi / mini-game tạo từ giáo án phục vụ Giáo viên trình chiếu tương tác tại lớp.
    - Subcollection `/questions/{questionId}`: Câu hỏi, 4 lựa chọn, đáp án đúng, giải thích, thời gian đếm ngược.
 9. `/quiz_results/{resultId}`: Điểm kiểm tra bài cũ / kết quả tham gia mini-game do Giáo viên trực tiếp nhập tại lớp (Bảng xếp hạng vinh danh tại lớp được lấy từ Sổ điểm môn học `/scores`).

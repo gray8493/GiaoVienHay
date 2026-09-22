@@ -47,15 +47,15 @@
   - Giáo viên có quyền điều chỉnh điểm và phê duyệt công bố điểm vào sổ điểm chính thức (`/scores`) để phụ huynh xem được.
 
 ### FR-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
-- **FR-04.1:** Giao diện Vòng quay may mắn (Lucky Wheel) sinh động trên Web Next.js có hiệu ứng âm thanh, tối ưu chiếu lên máy chiếu/bảng thông minh.
+- **FR-04.1:** Giao diện Vòng quay may mắn (Lucky Wheel) sinh động trên App React Native (hỗ trợ Máy tính bảng / Điện thoại) có hiệu ứng âm thanh, tối ưu chiếu lên máy chiếu/bảng thông minh phòng học.
 - **FR-04.2 (Nút Bỏ qua thông minh):** Nếu quay trúng bạn nào nghỉ học hoặc vắng mặt/không thể lên bảng, Giáo viên chỉ cần bấm nút **"Bỏ qua (Skip)"**, hệ thống lập tức quay vòng mới để chọn học sinh khác.
 - **FR-04.3:** Cho phép giáo viên chấm điểm trực tiếp tại chỗ và lưu vào collection `/scores` của môn học đang dạy.
 
 ### FR-05: Quản lý Học Phí & Bảo Hiểm Y Tế (BHYT) - Không có cổng thanh toán online
-- **FR-05.1:** Quản lý theo dõi trực tiếp trong collection `/fees_and_insurance` với 2 cờ boolean:
-  - `is_paid_tuition`: Trạng thái đã nộp học phí.
-  - `is_paid_insurance`: Trạng thái đã nộp tiền BHYT học sinh.
-- **FR-05.2:** Giao diện tích chọn 1-chạm (checkbox) cho GVCN/Nhà trường khi phụ huynh nộp trực tiếp tại trường/lớp. Hệ thống hoàn toàn không tích hợp cổng thanh toán trực tuyến.
+- **FR-05.1:** Quản lý theo dõi trực tiếp trong collection `/fees_and_insurance` với 2 cờ boolean kèm ngày nộp cụ thể:
+  - `is_paid_tuition`: Trạng thái đã nộp học phí kèm ngày nộp `tuition_paid_date` (YYYY-MM-DD) và mốc thời gian `tuition_paid_at`.
+  - `is_paid_insurance`: Trạng thái đã nộp tiền BHYT học sinh kèm ngày nộp `insurance_paid_date` (YYYY-MM-DD) và mốc thời gian `insurance_paid_at`.
+- **FR-05.2:** Giao diện tích chọn 1-chạm (checkbox) cho GVCN/Nhà trường khi phụ huynh nộp trực tiếp tại trường/lớp (hệ thống tự động ghi nhận ngày nộp hiện tại hoặc cho phép GVCN điều chỉnh ngày thực tế). Hệ thống hoàn toàn không tích hợp cổng thanh toán trực tuyến.
 - **FR-05.3:** Hỗ trợ tính năng lọc nhanh danh sách chưa nộp BHYT và phát thông báo nhắc nhở tức thời (Push Notification FCM) đến phụ huynh.
 
 ### FR-06: Điểm Danh Chuyên Cần & Báo Cáo Sĩ Số

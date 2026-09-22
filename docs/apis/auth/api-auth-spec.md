@@ -1,4 +1,5 @@
 # Đặc Tả API Phân Hệ Xác Thực & Phân Quyền (Auth API Specification)
+
 # Module: Auth & Users (`/api/v1/auth`)
 
 ---
@@ -10,6 +11,7 @@
 - **Rate Limit:** Tối đa 5 lần thử trong 1 phút trên mỗi IP.
 
 ### Request Body
+
 ```json
 {
   "email": "teacher.an@school.edu.vn",
@@ -18,6 +20,7 @@
 ```
 
 ### Response Thành Công (HTTP 200 OK)
+
 ```json
 {
   "success": true,
@@ -40,6 +43,7 @@
 ```
 
 ### Response Thất Bại (HTTP 401 Unauthorized)
+
 ```json
 {
   "success": false,
@@ -59,6 +63,7 @@
 - **Quyền truy cập:** Public (Kèm Refresh Token hợp lệ).
 
 ### Request Body
+
 ```json
 {
   "refresh_token": "d98f7e2a-1b4c-45a8-9d32-8f921ab07e81"
@@ -66,6 +71,7 @@
 ```
 
 ### Response Thành Công (HTTP 200 OK)
+
 ```json
 {
   "success": true,
@@ -87,11 +93,13 @@
 - **Quyền truy cập:** Đã đăng nhập (`Bearer <access_token>`).
 
 ### Header
+
 ```text
 Authorization: Bearer <access_token>
 ```
 
 ### Response Thành Công (HTTP 200 OK)
+
 ```json
 {
   "success": true,

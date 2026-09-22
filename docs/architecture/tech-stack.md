@@ -95,9 +95,11 @@ erDiagram
         string term_name "Học kỳ 1 - 2026"
         decimal tuition_amount
         boolean is_paid_tuition "Cờ trạng thái đã nộp học phí"
+        string tuition_paid_date "Ngày nộp học phí (YYYY-MM-DD)"
         timestamp tuition_paid_at
         decimal insurance_amount
         boolean is_paid_insurance "Cờ trạng thái đã nộp BHYT"
+        string insurance_paid_date "Ngày nộp BHYT (YYYY-MM-DD)"
         timestamp insurance_paid_at
         string note "Ghi chú thu nộp của GVCN"
     }
