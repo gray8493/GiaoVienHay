@@ -47,6 +47,31 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ---
 
+### UC-ACA-02: Nhập & Phê Duyệt Sổ Điểm Đa Môn Học & Đa Cột Điểm
+- **Mã Use Case:** `UC-ACA-02`
+- **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/scores`), Firebase FCM.
+- **Mô tả:** Giáo viên mở sổ điểm điện tử, lựa chọn Môn học phụ trách (Toán, Tiếng Việt, Tiếng Anh, Khoa học, Sử - Địa, Tin học...), Học kỳ và loại điểm thành phần (Miệng, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ) để nhập điểm cho học sinh. Hệ thống tự động tính Điểm trung bình môn (GPA môn) và hỗ trợ công bố điểm cho phụ huynh.
+- **Tiền điều kiện:** Lớp học đã có danh sách học sinh; Giáo viên có quyền giảng dạy môn học tại lớp.
+- **Hậu điều kiện:** Điểm số các môn được lưu an toàn vào `/scores`, điểm trung bình môn được tự động tính toán, thông báo điểm mới được gửi tới phụ huynh.
+- **Luồng sự kiện chính (Main Flow):**
+  1. Giáo viên mở tab "Sổ điểm điện tử" trên Web Next.js hoặc Mobile App.
+  2. Chọn Lớp học cần nhập điểm và chọn **Môn học phụ trách** (Ví dụ: `Toán`, `Tiếng Việt`, `Tiếng Anh`, `Khoa học`...).
+  3. Chọn **Học kỳ** (`Học kỳ 1` hoặc `Học kỳ 2`).
+  4. Chọn **Cột điểm thành phần** cần nhập:
+     - Điểm kiểm tra miệng / Dò bài cũ (`ORAL_TEST` - hệ số 1)
+     - Điểm kiểm tra 15 phút thường xuyên (`TEST_15P` - hệ số 1)
+     - Điểm kiểm tra 1 tiết / Định kỳ (`TEST_1P` - hệ số 2)
+     - Điểm thi Giữa học kỳ (`MID_TERM` - hệ số 2)
+     - Điểm thi Cuối học kỳ (`FINAL` - hệ số 3).
+  5. Màn hình hiển thị bảng danh sách học sinh; Giáo viên nhập điểm số (thang điểm 10, bước nhảy 0.1) cho từng học sinh hoặc nhập hàng loạt từ bàn phím.
+  6. Giáo viên bấm "Lưu bảng điểm".
+  7. Backend NestJS lưu trữ các document điểm vào collection `/scores`, tự động tổng hợp tính **Điểm trung bình môn (GPA môn)** theo công thức hệ số quy định.
+  8. Giáo viên kiểm tra lại bảng tổng hợp điểm; khi sẵn sàng, bấm nút **"Công bố điểm môn học"**.
+  9. Backend cập nhật cờ `is_published = true` trong `/scores` và kích hoạt FCM phát thông báo điểm mới kèm tên môn học và loại điểm đến ứng dụng của Phụ huynh.
+
+---
+
 ### UC-ACA-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
 - **Mã Use Case:** `UC-ACA-04`
 - **Tác nhân chính:** Giáo viên (Cả GVCN và GVBM).

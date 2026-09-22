@@ -58,7 +58,7 @@ rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
     }
 
     package "Phân hệ Nghiệp vụ Sư phạm & Lớp học (GVBM & GVCN)" {
-        usecase "UC-ACA-02\nNhập & Phê duyệt Điểm số môn học" as UC_Grades
+        usecase "UC-ACA-02\nNhập Sổ Điểm Đa Môn Học\n(Nhiều môn & Nhiều loại điểm:\nMiệng, 15p, 1 tiết, Giữa kỳ, Cuối kỳ)" as UC_Grades
         usecase "UC-ACA-04\nDò bài cũ & Quay Random Học sinh\n(Lọc học sinh có mặt hôm nay)" as UC_RandomStudent
         usecase "UC-ACA-05\nImport Docs/PDF bằng AI (Gemini)\nSinh câu hỏi kiểm tra bài cũ" as UC_AIQuiz
         usecase "UC-ACA-06\nTạo & Khởi chạy Mini-game Lớp học\n(Rung chuông vàng, Đua xe, Hộp quà)" as UC_ClassroomGame
@@ -74,7 +74,7 @@ rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
 
     package "Phân hệ Phụ huynh (Parent Portal)" {
         usecase "UC-PAR-00\nTham gia Lớp bằng Link mời &\nXác nhận liên kết con em" as UC_JoinByLink
-        usecase "UC-PAR-01\nTra cứu Điểm & Học bạ điện tử" as UC_ViewGrades
+        usecase "UC-PAR-01\nTra cứu Bảng Điểm Đa Môn\n& Học bạ điện tử của con" as UC_ViewGrades
         usecase "UC-PAR-02\nTheo dõi Chuyên cần & Cảnh báo vắng" as UC_ViewAttendance
         usecase "UC-PAR-03\nTra cứu Tình trạng Học phí & BHYT" as UC_ViewFees
         usecase "UC-PAR-04\nNhận Thông báo Đẩy tức thời (FCM)" as UC_ReceiveNoti

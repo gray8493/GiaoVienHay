@@ -234,16 +234,32 @@ Lưu vết trạng thái có mặt/vắng học của học sinh từng ngày.
 ---
 
 ### 3.5. Collection `/scores`
-Lưu trữ sổ điểm điện tử các đầu điểm kiểm tra thành phần theo môn học.
+Lưu trữ sổ điểm điện tử đa môn học toàn diện theo học sinh với nhiều đầu điểm thành phần.
 - **`id`** (`string`, Document ID): Mã tự sinh.
 - **`student_id`** (`string`): ID học sinh nhận điểm.
 - **`class_id`** (`string`): ID lớp học.
-- **`subject_code`** (`string`): Mã môn học (`MATH`, `LIT`, `ENG`,...).
+- **`subject_code`** (`string`): Mã môn học đa dạng theo chương trình GDPT:
+  - `MATH`: Toán học
+  - `LIT`: Tiếng Việt (Cấp 1) / Ngữ văn (Cấp 2)
+  - `ENG`: Tiếng Anh / Ngoại ngữ
+  - `SCI`: Tự nhiên & Xã hội / Khoa học tự nhiên
+  - `HIS_GEO`: Lịch sử & Địa lý
+  - `IT`: Tin học
+  - `ETHICS`: Đạo đức (Cấp 1) / Giáo dục công dân (Cấp 2)
+  - `ART_MUSIC`: Nghệ thuật (Âm nhạc, Mỹ thuật)
+  - `PE`: Giáo dục thể chất
 - **`semester`** (`number`): Học kỳ `1` hoặc `2`.
-- **`score_type`** (`string`): Loại điểm (`ORAL_TEST` - kiểm tra bài cũ/miệng, `TEST_15P`, `TEST_1P`, `MID_TERM`, `FINAL`).
-- **`score_value`** (`number`): Điểm số từ `0.0` đến `10.0`.
-- **`teacher_id`** (`string`): UID Giáo viên nhập điểm.
-- **`is_published`** (`boolean`, Default: `false`): Cờ xác nhận đã công bố cho phụ huynh xem.
+- **`score_type`** (`string`): Các đầu điểm thành phần phong phú:
+  - `ORAL_TEST`: Điểm kiểm tra bài cũ / kiểm tra miệng đầu giờ (hệ số 1)
+  - `QUIZ`: Điểm mini-game / trả lời câu hỏi tương tác trên lớp (hệ số 1)
+  - `TEST_15P`: Điểm kiểm tra thường xuyên 15 phút (hệ số 1)
+  - `TEST_1P`: Điểm kiểm tra 1 tiết / định kỳ (hệ số 2)
+  - `MID_TERM`: Điểm thi Giữa học kỳ (hệ số 2)
+  - `FINAL`: Điểm thi Cuối học kỳ (hệ số 3)
+- **`score_value`** (`number`): Điểm số từ `0.0` đến `10.0` (bước nhảy 0.1).
+- **`weight`** (`number`, Default: `1`): Hệ số tính điểm trung bình môn.
+- **`teacher_id`** (`string`): UID Giáo viên trực tiếp nhập điểm.
+- **`is_published`** (`boolean`, Default: `false`): Cờ xác nhận đã công bố cho phụ huynh xem trên app.
 - **`published_at`** (`timestamp`, Nullable): Thời điểm phê duyệt công bố điểm.
 - **`created_at`** (`timestamp`): Ngày nhập điểm.
 

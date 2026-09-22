@@ -72,7 +72,7 @@ Hệ thống sử dụng **Google Cloud Firestore (NoSQL Document Store)** làm 
 2. `/classes/{classId}`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`, `invite_code`, `invite_link`.
 3. `/students/{studentId}`: Hồ sơ học sinh, họ tên, ngày sinh, `classId`, danh sách phụ huynh liên kết (`parent_uids`).
 4. `/attendances/{attendanceId}`: Điểm danh chuyên cần theo ngày (`classId`, `studentId`, `date`, `status = PRESENT/ABSENT_EXCUSED/ABSENT_UNEXCUSED`).
-5. `/scores/{scoreId}`: Sổ điểm thành phần (`studentId`, `subjectCode`, `semester`, `scoreType`, `scoreValue`, `teacherId`, `isPublished`).
+5. `/scores/{scoreId}`: Sổ điểm đa môn học toàn diện theo học sinh (`studentId`, `classId`, `subjectCode` [Toán, Tiếng Việt/Ngữ văn, Tiếng Anh, KHTN...], `semester` [HK1, HK2], `scoreType` [Điểm miệng/dò bài, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ], `scoreValue` [thang 10], hệ số điểm, `teacherId`, `isPublished`).
 6. `/fees_and_insurance/{recordId}`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi chú thu nộp.
 7. `/quizzes/{quizId}`: Bộ câu hỏi / mini-game tạo từ giáo án phục vụ Giáo viên trình chiếu tương tác tại lớp.
    - Subcollection `/questions/{questionId}`: Câu hỏi, 4 lựa chọn, đáp án đúng, giải thích, thời gian đếm ngược.

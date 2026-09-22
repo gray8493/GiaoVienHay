@@ -99,19 +99,28 @@ note over Teacher, TeacherUI #FFF9C4
 end note
 
 Teacher -> TeacherUI: Trình chiếu Mini-game/dò bài tại lớp, sau đó trực tiếp nhập điểm học sinh
-TeacherUI -> Gateway: POST /api/v1/academic/in-class-scores (Lớp, môn, danh sách điểm HS)
+TeacherUI -> Gateway: POST /api/v1/academic/in-class-scores (classId, subjectCode, danh sách điểm)
 Gateway -> AcadModule: Forward request (kèm danh sách điểm GV vừa nhập)
-AcadModule -> Firestore: Lưu điểm kiểm tra vào /quiz_results và sổ điểm /scores
+AcadModule -> Firestore: Lưu điểm vào /quiz_results và sổ điểm /scores của môn học
 Firestore --> AcadModule: Đã cập nhật
 AcadModule -> AcadModule: Sắp xếp thứ hạng lớp học từ cao xuống thấp
 AcadModule --> TeacherUI: Trả về **BẢNG XẾP HẠNG (LEADERBOARD)** lớp học cho Giáo viên xem
 
-Teacher -> TeacherUI: Xem bảng xếp hạng lớp, điều chỉnh nếu cần & bấm "Công bố điểm"
-TeacherUI -> Gateway: POST /api/v1/grades/publish
+== QUẢN LÝ SỔ ĐIỂM ĐA MÔN & ĐA CỘT ĐIỂM (NHIỀU MÔN, NHIỀU LOẠI ĐIỂM) ==
+
+Teacher -> TeacherUI: Mở Sổ điểm, chọn Môn học (Toán/Văn/Anh...), Học kỳ (HK1/HK2) & Cột điểm (Miệng, 15p, 1 tiết, Giữa kỳ, Cuối kỳ)
+TeacherUI -> Gateway: POST /api/v1/grades/batch (classId, subjectCode, semester, scoreType, studentScores)
+Gateway -> AcadModule: Forward request (xác thực quyền giảng dạy môn học)
+AcadModule -> Firestore: Lưu các đầu điểm vào /scores & tự động tính Điểm trung bình môn (GPA)
+Firestore --> AcadModule: Cập nhật sổ điểm thành công
+AcadModule --> TeacherUI: Trả về bảng điểm tổng hợp môn học
+
+Teacher -> TeacherUI: Kiểm tra bảng điểm môn học & bấm "Công bố điểm"
+TeacherUI -> Gateway: POST /api/v1/grades/publish (classId, subjectCode, scoreType)
 Gateway -> AcadModule: Forward request
 AcadModule -> Firestore: Cập nhật cờ is_published = TRUE trong /scores
-AcadModule -> NotiModule: Kích hoạt thông báo điểm mới (classId, subjectCode)
-AcadModule --> TeacherUI: Thông báo "Đã công bố điểm cho phụ huynh"
+AcadModule -> NotiModule: Kích hoạt thông báo điểm mới (kèm tên môn và loại điểm)
+AcadModule --> TeacherUI: Thông báo "Đã công bố điểm môn học cho phụ huynh"
 
 Teacher -> TeacherUI: Thu tiền BHYT trực tiếp tại lớp & tích chọn cờ đã nộp
 TeacherUI -> Gateway: PATCH /api/v1/fees-insurance/toggle

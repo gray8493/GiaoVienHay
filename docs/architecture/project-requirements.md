@@ -57,7 +57,15 @@
 - **FR-06.1:** Điểm danh nhanh trên Mobile App React Native theo các trạng thái: Có mặt, Vắng có phép, Vắng không phép.
 - **FR-06.2:** Tự động gửi cảnh báo vắng học ngay lập tức đến điện thoại của phụ huynh qua FCM.
 
-### FR-07: Sổ Điểm Điện Tử & Tính Điểm Trung Bình
-- **FR-07.1:** Nhập điểm thành phần theo thang điểm 10 (bước nhảy 0.1).
-- **FR-07.2:** Tự động tính điểm trung bình môn và điểm trung bình học kỳ theo quy chế đánh giá của Bộ Giáo Dục.
+### FR-07: Sổ Điểm Điện Tử Đa Môn Học & Đa Cột Điểm Thành Phần
+- **FR-07.1 (Quản lý đa môn học Cấp 1 & 2):** Quản lý sổ điểm theo từng môn học trong chương trình: Toán, Tiếng Việt/Ngữ văn, Tiếng Anh, Tự nhiên - Xã hội / KHTN, Lịch sử - Địa lý, Tin học, Đạo đức/GDCD, Nghệ thuật, Thể dục.
+- **FR-07.2 (Đa dạng các đầu điểm thành phần):** Cung cấp giao diện nhập điểm linh hoạt cho nhiều loại điểm khác nhau theo thang điểm 10 (bước nhảy 0.1):
+  - Điểm kiểm tra miệng / Dò bài cũ đầu giờ (hệ số 1).
+  - Điểm trả lời câu hỏi tương tác / Mini-game trên lớp (hệ số 1).
+  - Điểm kiểm tra 15 phút thường xuyên (hệ số 1).
+  - Điểm kiểm tra 1 tiết / Định kỳ (hệ số 2).
+  - Điểm thi Giữa học kỳ (hệ số 2).
+  - Điểm thi Cuối học kỳ (hệ số 3).
+- **FR-07.3 (Tự động tính Điểm Trung Bình):** Hệ thống tự động tính Điểm trung bình môn (GPA môn) theo trọng số hệ số điểm và tổng hợp Điểm trung bình các môn của học kỳ (HK1, HK2, Cả năm) theo quy chế của Bộ Giáo Dục.
+- **FR-07.4 (Công bố điểm có kiểm soát):** Giáo viên chủ động kiểm tra và bấm "Công bố điểm" (theo từng môn học hoặc theo đợt kiểm tra) để gửi thông báo tức thời qua FCM cho phụ huynh tra cứu.
 

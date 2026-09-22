@@ -56,14 +56,14 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 | **UC-CLS-02** | Sinh & Chia sẻ Link mời vào lớp (Invite Link & QR) | ✖ | ✔ | ✖ | ✖ |
 | **UC-PAR-00** | Tham gia Lớp bằng Link mời & Xác nhận liên kết con em | ✖ | ✖ | ✖ | ✔ |
 | **UC-ACA-01** | Điểm danh chuyên cần lớp chủ nhiệm | ✖ | ✔ | ✖ | ✖ |
-| **UC-ACA-02** | Nhập & Phê duyệt điểm số môn học phụ trách | ✖ | ✔ | ✔ | ✖ |
+| **UC-ACA-02** | Nhập & Phê duyệt sổ điểm đa môn học & đa cột điểm | ✖ | ✔ | ✔ | ✖ |
 | **UC-ACA-03** | Nhập nhận xét rèn luyện, hạnh kiểm định kỳ | ✖ | ✔ | ✖ | ✖ |
 | **UC-ACA-04** | Dò bài cũ & Quay Random học sinh có mặt hôm nay | ✖ | ✔ | ✔ | ✖ |
 | **UC-ACA-05** | Import Docs/PDF bằng AI (Gemini) sinh câu hỏi bài cũ | ✖ | ✔ | ✔ | ✖ |
 | **UC-ACA-06** | Tạo & Khởi chạy Mini-game tương tác lớp học | ✖ | ✔ | ✔ | ✖ |
 | **UC-ACA-07** | Nhập điểm kiểm tra tại lớp & Xem Bảng xếp hạng | ✖ | ✔ | ✔ | ✖ |
 | **UC-FEE-01** | Quản lý cờ thu Học phí & BHYT (`fees_and_insurance`)| Xem | ✔ | ✖ | ✖ |
-| **UC-PAR-01** | Tra cứu điểm số & Học bạ điện tử của con | ✖ | ✖ | ✖ | ✔ |
+| **UC-PAR-01** | Tra cứu bảng điểm đa môn & Học bạ điện tử của con | ✖ | ✖ | ✖ | ✔ |
 | **UC-PAR-02** | Theo dõi lịch sử chuyên cần & Cảnh báo vắng | ✖ | ✖ | ✖ | ✔ |
 | **UC-PAR-03** | Xem trạng thái đóng Học phí & BHYT của con | ✖ | ✖ | ✖ | ✔ |
 | **UC-PAR-04** | Nhận thông báo đẩy thời gian thực từ nhà trường | ✖ | ✖ | ✖ | ✔ |

@@ -92,9 +92,38 @@ if (Nghiệp vụ thực hiện tại lớp?) then ([Điểm danh chuyên cần 
     |Backend NestJS (API & Services)|
     :Xác định danh sách học sinh vắng để kích hoạt thông báo;
 
-else if ([Kiểm tra bài cũ / Mini-game bằng AI])
+else if ([Quản lý Sổ điểm Đa môn & Đa cột điểm])
     |Giáo viên (GVCN & GVBM)|
-    :Tải giáo án .docx/.pdf lên Web Next.js;
+    :Mở Sổ điểm điện tử trên Web Next.js hoặc Mobile App;
+    :Chọn Lớp học và chọn **Môn học phụ trách**
+    (Toán, Tiếng Việt, Tiếng Anh, Khoa học, Lịch sử...);
+    :Chọn **Học kỳ** (HK1 / HK2) và chọn **Cột điểm thành phần**:
+    - Điểm kiểm tra miệng / dò bài cũ (ORAL_TEST)
+    - Điểm kiểm tra 15 phút (TEST_15P)
+    - Điểm 1 tiết / kiểm tra định kỳ (TEST_1P)
+    - Điểm thi Giữa kỳ (MID_TERM)
+    - Điểm thi Cuối kỳ (FINAL);
+    :Nhập/cập nhật bảng điểm số theo danh sách học sinh (thang điểm 10);
+    
+    |Client App (Next.js / React Native)|
+    :Gửi dữ liệu bảng điểm môn học lên Backend;
+    
+    |Backend NestJS (API & Services)|
+    :Lưu trữ các đầu điểm thành phần vào collection /scores;
+    :Tự động tính **Điểm trung bình môn (GPA môn)** theo trọng số quy định;
+    
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Cập nhật các document trong /scores;
+    
+    |Giáo viên (GVCN & GVBM)|
+    :Kiểm tra bảng tổng hợp điểm môn học & bấm **"Công bố điểm"**;
+    
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Cập nhật cờ is_published = TRUE trong /scores;
+
+else if ([Khởi động bài cũ / Mini-game bằng AI])
+    |Giáo viên (GVCN & GVBM)|
+    :Tải giáo án .docx/.pdf môn học lên Web Next.js;
     
     |Dịch Vụ Firebase & AI (Storage, FCM, Gemini)|
     :Firebase Storage lưu trữ tệp tài liệu an toàn;
@@ -107,13 +136,13 @@ else if ([Kiểm tra bài cũ / Mini-game bằng AI])
     :Tổ chức tương tác bài cũ / Mini-game tại lớp (chiếu lên bảng):
     - Vòng quay Random học sinh lên bảng
     - Hoặc học sinh giơ bảng trả lời mini-game (không làm bài online);
-    :Giáo viên trực tiếp chấm & nhập điểm số cho học sinh trên App;
+    :Giáo viên trực tiếp chấm & nhập điểm miệng/điểm cộng vào môn học đang dạy;
     
     |Client App (Next.js / React Native)|
-    :Gửi dữ liệu điểm kiểm tra vừa nhập lên Backend;
+    :Gửi dữ liệu điểm vừa nhập lên Backend;
     
     |Backend NestJS (API & Services)|
-    :Lưu điểm kiểm tra vào /quiz_results và /scores;
+    :Lưu điểm vào /quiz_results và sổ điểm /scores của môn học;
     :Tự động tổng hợp và sắp xếp thứ hạng học sinh trong lớp;
     
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
@@ -125,8 +154,7 @@ else if ([Kiểm tra bài cũ / Mini-game bằng AI])
     - Thống kê phân bố điểm số và danh sách thứ hạng của lớp;
     
     |Giáo viên (GVCN & GVBM)|
-    :Giáo viên theo dõi kết quả, điều chỉnh điểm nếu cần;
-    :Bấm "Công bố điểm" để phụ huynh cùng theo dõi;
+    :Giáo viên theo dõi kết quả, bấm "Công bố điểm" vào môn học;
     
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Cập nhật cờ is_published = TRUE trong /scores;
@@ -162,8 +190,15 @@ endif
 |Phụ huynh (Parent)|
 :Nhận âm thanh & banner thông báo đẩy trên Mobile App;
 :Chạm vào thông báo để mở App React Native;
-if (Nội dung thông báo?) then ([Thông báo vắng học / Điểm mới])
-    :Xem chi tiết bảng điểm hoặc lịch sử điểm danh của con;
+if (Nội dung thông báo?) then ([Thông báo điểm mới])
+    :Mở **Sổ Điểm Điện Tử** của con trên App;
+    :Tra cứu Bảng điểm đa môn học toàn diện:
+    - Bảng điểm tất cả các môn: Toán, Tiếng Việt, Tiếng Anh, KHTN...
+    - Các đầu điểm thành phần: Miệng, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ
+    - Điểm trung bình từng môn (GPA môn) & Điểm trung bình học kỳ;
+    stop
+else if ([Thông báo vắng học]) then
+    :Xem chi tiết ngày vắng & lịch sử chuyên cần của con;
     stop
 else ([Nhắc nhở nộp BHYT / Học phí])
     :Mở mục "Học phí & BHYT" trên App;
