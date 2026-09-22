@@ -1,4 +1,4 @@
-﻿# Tài Liệu Yêu Cầu Dự Án (Project Requirements Specification)
+# Tài Liệu Yêu Cầu Dự Án (Project Requirements Specification)
 # Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
@@ -37,11 +37,11 @@
 - **FR-04.2:** Giao diện Vòng quay may mắn (Lucky Wheel) sinh động trên Web Next.js có hiệu ứng âm thanh, tối ưu chiếu lên máy chiếu/bảng thông minh.
 - **FR-04.3:** Cho phép giáo viên chấm điểm trực tiếp tại chỗ và tự động lưu vào bảng `scores` (cột điểm miệng).
 
-### FR-05: Quản lý Học Phí & Bảo Hiểm Y Tế (BHYT)
+### FR-05: Quản lý Học Phí & Bảo Hiểm Y Tế (BHYT) - Không có cổng thanh toán online
 - **FR-05.1:** Quản lý theo dõi trực tiếp trong bảng `fees_and_insurance` với 2 cờ boolean:
   - `is_paid_tuition`: Trạng thái đã nộp học phí.
   - `is_paid_insurance`: Trạng thái đã nộp tiền BHYT học sinh.
-- **FR-05.2:** Giao diện tích chọn 1-chạm cho GVCN khi thu tiền mặt tại lớp hoặc tự động cập nhật khi phụ huynh đóng online.
+- **FR-05.2:** Giao diện tích chọn 1-chạm (checkbox) cho GVCN/Nhà trường khi phụ huynh nộp trực tiếp tại trường/lớp. Hệ thống hoàn toàn không tích hợp cổng thanh toán trực tuyến.
 - **FR-05.3:** Hỗ trợ tính năng lọc nhanh danh sách chưa nộp BHYT và phát thông báo nhắc nhở tức thời (Push Notification FCM) đến phụ huynh.
 
 ### FR-06: Điểm Danh Chuyên Cần & Báo Cáo Sĩ Số

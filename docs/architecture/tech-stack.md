@@ -98,11 +98,11 @@ erDiagram
         string term_name "Học kỳ 1 - 2026"
         decimal tuition_amount
         boolean is_paid_tuition "Cờ trạng thái đã nộp học phí"
-        datetime tuition_paid_at
+        datetime tuition_paid_at "Thời điểm ghi nhận nộp học phí"
         decimal insurance_amount
         boolean is_paid_insurance "Cờ trạng thái đã nộp BHYT"
-        datetime insurance_paid_at
-        string payment_method "CASH, BANK_TRANSFER"
+        datetime insurance_paid_at "Thời điểm ghi nhận nộp BHYT"
+        string note "Ghi chú thu nộp"
     }
 
     quizzes {

@@ -112,10 +112,10 @@ erDiagram
         varchar term_name "Tên đợt thu (Học kỳ 1 năm học 2026-2027)"
         decimal tuition_amount "Số tiền học phí phải nộp"
         boolean is_paid_tuition "Cờ nộp học phí (TRUE = Đã nộp)"
-        timestamp tuition_paid_at "Thời điểm nộp học phí"
+        timestamp tuition_paid_at "Thời điểm ghi nhận nộp học phí"
         decimal insurance_amount "Số tiền BHYT phải nộp"
         boolean is_paid_insurance "Cờ nộp BHYT (TRUE = Đã nộp)"
-        varchar payment_method "CASH (Tiền mặt), BANK_TRANSFER"
+        varchar note "Ghi chú thu nộp"
         timestamp created_at
     }
 
@@ -233,17 +233,18 @@ Lưu vết trạng thái có mặt/vắng học của học sinh từng ngày.
 
 ---
 
-### 3.7. Bảng `fees_and_insurance` (Quản Lý Thu Học Phí & BHYT)
-Quản lý trạng thái hoàn thành nghĩa vụ tài chính của từng học sinh bằng 2 cờ boolean.
+### 3.7. Bảng `fees_and_insurance` (Quản Lý Sổ Theo Dõi Học Phí & BHYT)
+Quản lý trạng thái hoàn thành nghĩa vụ tài chính của từng học sinh bằng 2 cờ boolean. **Hệ thống hoàn toàn không có tính năng thanh toán trực tuyến**. Phụ huynh và học sinh hoàn thành nghĩa vụ trực tiếp tại trường/lớp; GVCN hoặc Quản trị viên chỉ tích chọn cờ boolean để theo dõi.
 - **`id`** (`UUID`, PK): Khóa chính bản ghi thu phí.
 - **`student_id`** (`UUID`, FK -> `students.id`, Not Null): Học sinh.
 - **`term_name`** (`VARCHAR(100)`, Not Null): Tên đợt thu (Ví dụ: `Học phí & BHYT Học kỳ 1 năm 2026-2027`).
 - **`tuition_amount`** (`NUMERIC(12,2)`, Default: `0`): Số tiền học phí phải nộp.
-- **`is_paid_tuition`** (`BOOLEAN`, Default: `FALSE`, Not Null): **Cờ nộp học phí** (`TRUE` = Đã hoàn thành).
-- **`tuition_paid_at`** (`TIMESTAMP`, Nullable): Thời điểm thanh toán học phí.
+- **`is_paid_tuition`** (`BOOLEAN`, Default: `FALSE`, Not Null): **Cờ nộp học phí** (`TRUE` = Đã nộp).
+- **`tuition_paid_at`** (`TIMESTAMP`, Nullable): Thời điểm ghi nhận hoàn thành nộp học phí.
 - **`insurance_amount`** (`NUMERIC(12,2)`, Default: `0`): Số tiền Bảo hiểm Y tế học sinh.
-- **`is_paid_insurance`** (`BOOLEAN`, Default: `FALSE`, Not Null): **Cờ nộp BHYT** (`TRUE` = Đã hoàn thành).
-- **`payment_method`** (`VARCHAR(30)`, Nullable): Hình thức nộp tiền (`CASH` - Nộp tiền mặt cho GVCN, `BANK_TRANSFER` - Chuyển khoản trực tiếp trường học).
+- **`is_paid_insurance`** (`BOOLEAN`, Default: `FALSE`, Not Null): **Cờ nộp BHYT** (`TRUE` = Đã nộp).
+- **`insurance_paid_at`** (`TIMESTAMP`, Nullable): Thời điểm ghi nhận hoàn thành nộp BHYT.
+- **`note`** (`VARCHAR(255)`, Nullable): Ghi chú thu nộp của GVCN/Nhà trường.
 
 ---
 

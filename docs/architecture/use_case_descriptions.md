@@ -1,4 +1,4 @@
-﻿# Tài Liệu Đặc Tả Chi Tiết Trường Hợp Sử Dụng (Use Case Descriptions)
+# Tài Liệu Đặc Tả Chi Tiết Trường Hợp Sử Dụng (Use Case Descriptions)
 # Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
@@ -83,7 +83,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 - **Luồng sự kiện chính (Main Flow):**
   1. GVCN mở tab "Quản lý Thu phí & BHYT" của lớp chủ nhiệm trên Web Next.js hoặc Mobile App.
   2. Hệ thống hiển thị bảng danh sách học sinh với 2 cột checkbox: `Học phí` (`is_paid_tuition`) và `BHYT` (`is_paid_insurance`).
-  3. Khi phụ huynh nộp tiền mặt: GVCN tích chọn vào ô tương ứng. Khi phụ huynh nộp online: Hệ thống tự động tích `true`.
+  3. Khi phụ huynh nộp tiền tại trường/lớp: GVCN tích chọn vào ô checkbox tương ứng để xác nhận hoàn thành (hệ thống không có tính năng thanh toán trực tuyến).
   4. GVCN lọc danh sách các em "Chưa nộp BHYT" và nhấn nút "Gửi nhắc nhở phụ huynh".
   5. Backend gửi thông báo đẩy (Push Notification) qua FCM tới phụ huynh của các học sinh đó.
 
