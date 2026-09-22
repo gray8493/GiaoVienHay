@@ -45,10 +45,10 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 - **Không có thi trực tuyến:** Học sinh không sử dụng app để làm bài kiểm tra cá nhân. Toàn bộ là trải nghiệm tương tác tập thể tại lớp học dưới sự điều phối của Giáo viên.
 
 ### 2.2. Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
-- **Cả GVCN và GVBM đều sử dụng linh hoạt:**
-- **Thuật toán thông minh:** Tự động đối chiếu với dữ liệu điểm danh của ngày hôm nay, **chỉ lọc các học sinh ĐANG CÓ MẶT (`status = 'PRESENT'`)**, tự động loại trừ học sinh vắng để không bị gián đoạn giờ học.
+- **Cả GVCN và GVBM đều sử dụng linh hoạt trong tiết học.**
+- **Nút Bỏ qua thông minh (Skip):** Nếu quay trúng bạn nào nghỉ học hoặc vắng mặt/không thể lên bảng, Giáo viên chỉ cần bấm nút **"Bỏ qua (Skip)"**, hệ thống lập tức quay vòng mới để chọn học sinh khác.
 - Giao diện quay số / lật thẻ bài ấn tượng, tạo sự công bằng, minh bạch và hào hứng trước khi vào bài học mới.
-- Hỗ trợ giáo viên chấm và nhập điểm miệng trực tiếp lưu ngay vào CSDL.
+- Hỗ trợ giáo viên chấm và nhập điểm miệng trực tiếp lưu ngay vào CSDL môn học đang dạy.
 
 ### 2.3. Quản Lý Học Phí & Bảo Hiểm Y Tế (BHYT)
 - Quản lý trạng thái bằng 2 cờ Boolean trực tiếp trong CSDL:
@@ -56,12 +56,17 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
   - `is_paid_insurance`: Đã nộp tiền BHYT học sinh.
 - GVCN theo dõi bằng checklist 1-chạm, lọc nhanh danh sách chưa nộp để gửi tin nhắn thông báo tự động (Push Notification FCM) đến phụ huynh.
 
-### 2.4. Giáo Viên Tự Tạo Lớp & Mời Phụ Huynh Tham Gia Qua Link (Class Invite Link)
-- **Tạo lớp linh hoạt & thêm học sinh nhanh chóng:** Giáo viên chủ động tạo lớp học của mình (Tên lớp, Khối 1-9, Năm học), thêm danh sách học sinh (nhập trực tiếp hoặc dán danh sách tên/ngày sinh).
+### 2.4. Giáo Viên Chủ Nhiệm Tạo Lớp Tổng & Giáo Viên Bộ Môn Truy Cập Theo Môn (Class & Subject Access)
+- **GVCN tạo 1 lớp tổng:** Duy nhất Giáo viên chủ nhiệm (GVCN) tạo lớp học tổng (Tên lớp, Khối 1-9, Năm học), nhập danh sách học sinh và phân công Giáo viên bộ môn (GVBM) theo từng môn học.
+- **GVBM truy cập lớp tổng:** Các GVBM truy cập vào lớp học tổng này để quản lý và thay đổi/nhập điểm của chính bộ môn mình phụ trách (không cần tạo lớp riêng).
 - **Cơ chế vào lớp 1-chạm qua Link mời:**
   - Hệ thống tự động sinh **Mã mời (`invite_code`)** và **Đường dẫn mời tham gia lớp học (`invite_link`)** kèm mã QR.
-  - Giáo viên sao chép link và gửi vào nhóm Phụ huynh (Zalo, tin nhắn SMS).
-  - Phụ huynh mở link, đăng nhập nhanh (bằng SĐT nhận OTP), chọn đúng con mình trong danh sách học sinh của lớp để hoàn tất kết nối với giáo viên và nhà trường.
+  - GVCN gửi link vào nhóm Phụ huynh (Zalo, tin nhắn SMS).
+  - Phụ huynh mở link, đăng nhập nhanh (bằng SĐT nhận OTP), chọn đúng con mình trong danh sách học sinh của lớp để hoàn tất kết nối.
+
+### 2.5. Nhận Xét Học Sinh Ngắn Gọn Gửi Phụ Huynh
+- **Nhận xét bằng đoạn text ngắn:** Cả GVBM và GVCN đều có thể gửi lời nhận xét ngắn gọn (dưới dạng văn bản ngắn thuần túy, không dùng thẻ nhãn tags rườm rà) về tinh thần học tập, nề nếp hoặc bài làm của học sinh.
+- **Kết nối tức thời tới Phụ huynh:** Nhận xét dạng text được lưu vào collection `/remarks` và bắn thông báo đẩy (FCM) tức thời đến điện thoại phụ huynh.
 
 ---
 
@@ -69,13 +74,14 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 Hệ thống sử dụng **Google Cloud Firestore (NoSQL Document Store)** làm cơ sở dữ liệu duy nhất toàn diện:
 
 1. `/users/{userId}`: Tài khoản, email, SĐT, vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`), FCM Device Tokens.
-2. `/classes/{classId}`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`, `invite_code`, `invite_link`.
+2. `/classes/{classId}`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`, `subject_teachers` (danh sách phân công GVBM theo môn), `invite_code`, `invite_link`.
 3. `/students/{studentId}`: Hồ sơ học sinh, họ tên, ngày sinh, `classId`, danh sách phụ huynh liên kết (`parent_uids`).
 4. `/attendances/{attendanceId}`: Điểm danh chuyên cần theo ngày (`classId`, `studentId`, `date`, `status = PRESENT/ABSENT_EXCUSED/ABSENT_UNEXCUSED`).
-5. `/scores/{scoreId}`: Sổ điểm đa môn học toàn diện theo học sinh (`studentId`, `classId`, `subjectCode` [Toán, Tiếng Việt/Ngữ văn, Tiếng Anh, KHTN...], `semester` [HK1, HK2], `scoreType` [Điểm miệng/dò bài, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ], `scoreValue` [thang 10], hệ số điểm, `teacherId`, `isPublished`).
-6. `/fees_and_insurance/{recordId}`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi chú thu nộp.
-7. `/quizzes/{quizId}`: Bộ câu hỏi / mini-game tạo từ giáo án phục vụ Giáo viên trình chiếu tương tác tại lớp.
+5. `/scores/{scoreId}`: Sổ điểm các môn học theo từng học sinh (`studentId`, `classId`, `subjectCode`, `semester`, `scoreType`, `scoreValue`, `teacherId`, `teacher_comment`, `isPublished`). Lưu trữ các cột điểm do giáo viên nhập, không tự động tính GPA môn.
+6. `/remarks/{remarkId}`: Sổ nhận xét học sinh (đoạn text ngắn gọn gửi phụ huynh, không dùng nhãn tags).
+7. `/fees_and_insurance/{recordId}`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi chú thu nộp.
+8. `/quizzes/{quizId}`: Bộ câu hỏi / mini-game tạo từ giáo án phục vụ Giáo viên trình chiếu tương tác tại lớp.
    - Subcollection `/questions/{questionId}`: Câu hỏi, 4 lựa chọn, đáp án đúng, giải thích, thời gian đếm ngược.
-8. `/quiz_results/{resultId}`: Điểm kiểm tra bài cũ / kết quả mini-game do Giáo viên trực tiếp nhập tại lớp, thứ hạng trong lớp (`rank_position`) phục vụ hiển thị Bảng xếp hạng cho lớp xem.
-9. `/notifications/{notificationId}`: Nhật ký thông báo đẩy phát tới phụ huynh qua Firebase Cloud Messaging.
+9. `/quiz_results/{resultId}`: Điểm kiểm tra bài cũ / kết quả tham gia mini-game do Giáo viên trực tiếp nhập tại lớp (Bảng xếp hạng vinh danh tại lớp được lấy từ Sổ điểm môn học `/scores`).
+10. `/notifications/{notificationId}`: Nhật ký thông báo đẩy phát tới phụ huynh qua Firebase Cloud Messaging.
 

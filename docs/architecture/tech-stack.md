@@ -129,7 +129,6 @@ erDiagram
         string student_id "Ref -> students"
         string teacher_id "Ref -> users (GV nhập điểm)"
         decimal score "Điểm số GV chấm/nhập"
-        int rank_position "Thứ hạng trong lớp"
         string notes "Nhận xét của GV"
         boolean is_synced_to_grades "Đã chuyển vào sổ điểm"
         timestamp created_at
@@ -168,13 +167,12 @@ erDiagram
                         ▼
       [Web Next.js: Trình chiếu Mini-game lên bảng lớp]
                         │
-                        ▼ (Giáo viên kiểm tra học sinh & trực tiếp nhập điểm tại lớp)
-[Firestore /quiz_results & /scores] ──► [Hiển thị Bảng xếp hạng Leaderboard cho GV xem]
-                        │
-                        ▼ (GV công bố điểm ──► Firestore Trigger / NestJS)
+                         ▼ (Giáo viên kiểm tra học sinh & trực tiếp nhập điểm tại lớp)
+[Firestore /scores] ───────────────► [Hiển thị Bảng xếp hạng (Leaderboard) Điểm Môn Học cho GV xem]
+                         │
+                         ▼ (GV công bố điểm ──► Firestore Trigger / NestJS)
            [Firebase Cloud Messaging (FCM)]
                         │
                         ▼
    [Đẩy thông báo điểm tức thì đến Mobile App Phụ huynh]
 ```
-

@@ -17,12 +17,12 @@
   - `TEACHER_HOMEROOM` (GVCN): **Tự tạo lớp, thêm học sinh, chia sẻ link mời vào lớp** + Toàn bộ quyền giảng dạy (dò bài, nhập điểm, tạo game AI, quay random) + Quản lý điểm danh nề nếp, BHYT & học phí, nhận xét hạnh kiểm lớp chủ nhiệm.
   - `TEACHER_SUBJECT` (GVBM): Nhập điểm bộ môn, tạo câu hỏi bằng AI, quay random học sinh, tạo game lớp học.
   - `PARENT`: Nhận link mời của giáo viên, đăng nhập và xác nhận con em mình; Tra cứu sổ điểm, chuyên cần, tình trạng BHYT/học phí.
-- **FR-01.2 (Giáo viên tự tạo lớp & danh sách học sinh):**
-  - Cho phép Giáo viên chủ động tạo lớp học mới (Tên lớp, Khối 1-9, Năm học).
-  - Thêm danh sách học sinh nhanh chóng bằng cách nhập trực tiếp hoặc dán danh sách họ tên, ngày sinh.
+- **FR-01.2 (GVCN tạo lớp tổng & phân công GVBM):**
+  - Duy nhất Giáo viên chủ nhiệm (GVCN) tạo Lớp học tổng (Tên lớp, Khối 1-9, Năm học) và thêm danh sách học sinh.
+  - GVCN phân công Giáo viên bộ môn (GVBM) theo từng môn học của lớp. GVBM truy cập vào lớp tổng này để quản lý và nhập/sửa điểm cho chính bộ môn mình phụ trách.
 - **FR-01.3 (Link mời tham gia lớp & Onboarding Phụ huynh):**
   - Hệ thống tự động sinh `invite_code` và `invite_link` (kèm mã QR) cho mỗi lớp học.
-  - Phụ huynh nhấp vào link mời, đăng nhập ứng dụng qua SMS OTP/Email, chọn đúng tên con em mình trong danh sách lớp để hoàn tất liên kết.
+  - Phụ huynh nhấp vào link mời do GVCN chia sẻ, đăng nhập ứng dụng qua SMS OTP/Email, chọn đúng tên con em mình trong danh sách lớp để hoàn tất liên kết.
 
 ### FR-02: Import Docs/PDF bằng AI (Gemini API) Sinh Câu Hỏi Kiểm Tra Bài Cũ
 - **FR-02.1:** Cho phép giáo viên (cả GVCN và GVBM) tải lên tài liệu giáo trình bài học (`.docx`, `.pdf`).
@@ -35,16 +35,18 @@
   1. *Rung chuông vàng / Đấu trí:* Đếm ngược thời gian, học sinh giơ bảng chọn đáp án, loại trực tiếp hoặc tính điểm tích lũy.
   2. *Vượt chướng ngại vật / Đua xe:* Chia tổ thi đua, tổ trả lời đúng sẽ tiến về đích.
   3. *Hộp quà may mắn (Mystery Box):* Trả lời câu hỏi mở quà trúng sticker/điểm cộng.
-- **FR-03.3:** Hiệu ứng đồ họa bắt mắt, âm thanh reo hò kịch tính, tự động vinh danh bảng vàng cuối trò chơi.
-- **FR-03.4:** **Nhập điểm kiểm tra tại lớp & Bảng xếp hạng (Leaderboard) cho Giáo viên:**
-  - Ứng dụng không có chức năng cho học sinh làm bài kiểm tra trực tuyến. Giáo viên tổ chức kiểm tra tại lớp (kiểm tra bài cũ, làm bài tập, mini-game trên bảng) và trực tiếp nhập điểm số cho học sinh.
-  - Hệ thống tự động tổng hợp dữ liệu điểm và hiển thị **Bảng xếp hạng (Leaderboard)** lớp học (Top điểm cao nhất, danh sách xếp hạng toàn lớp) trực tiếp trên màn hình của Giáo viên để theo dõi và vinh danh.
+- **FR-03.3:** Hiệu ứng đồ họa bắt mắt, âm thanh reo hò kịch tính, tạo không khí học tập sôi nổi (không đua hạng điểm game).
+- **FR-03.4:** **Trình Chiếu Bảng Xếp Hạng (Leaderboard) Điểm Môn Học:**
+  - Bảng xếp hạng (Leaderboard) tại lớp được thiết kế **chuyên biệt và duy nhất cho Điểm Môn Học** (Toán, Tiếng Việt, Tiếng Anh, Khoa học...).
+  - Sau khi Giáo viên nhập điểm môn học, hệ thống sắp xếp thứ hạng điểm cao nhất và cho phép Giáo viên trình chiếu **Bảng Xếp Hạng Điểm Môn Học** lên máy chiếu / bảng lớp:
+    + Vinh danh Top học sinh đạt điểm cao nhất của môn học (Top 1, Top 2, Top 3) kèm hiệu ứng chúc mừng hoa điểm mười.
+    + Thống kê phổ điểm và danh sách thứ hạng môn học trong lớp để học sinh cùng cố gắng học tập.
   - Giáo viên có quyền điều chỉnh điểm và phê duyệt công bố điểm vào sổ điểm chính thức (`/scores`) để phụ huynh xem được.
 
 ### FR-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
-- **FR-04.1:** Thuật toán lọc thông minh: Chỉ lấy danh sách học sinh có trạng thái **`PRESENT` (Có mặt)** trong collection `/attendances` của ngày hôm nay. Tự động loại trừ các em vắng mặt.
-- **FR-04.2:** Giao diện Vòng quay may mắn (Lucky Wheel) sinh động trên Web Next.js có hiệu ứng âm thanh, tối ưu chiếu lên máy chiếu/bảng thông minh.
-- **FR-04.3:** Cho phép giáo viên chấm điểm trực tiếp tại chỗ và tự động lưu vào collection `/scores` (cột điểm miệng).
+- **FR-04.1:** Giao diện Vòng quay may mắn (Lucky Wheel) sinh động trên Web Next.js có hiệu ứng âm thanh, tối ưu chiếu lên máy chiếu/bảng thông minh.
+- **FR-04.2 (Nút Bỏ qua thông minh):** Nếu quay trúng bạn nào nghỉ học hoặc vắng mặt/không thể lên bảng, Giáo viên chỉ cần bấm nút **"Bỏ qua (Skip)"**, hệ thống lập tức quay vòng mới để chọn học sinh khác.
+- **FR-04.3:** Cho phép giáo viên chấm điểm trực tiếp tại chỗ và lưu vào collection `/scores` của môn học đang dạy.
 
 ### FR-05: Quản lý Học Phí & Bảo Hiểm Y Tế (BHYT) - Không có cổng thanh toán online
 - **FR-05.1:** Quản lý theo dõi trực tiếp trong collection `/fees_and_insurance` với 2 cờ boolean:
@@ -60,12 +62,19 @@
 ### FR-07: Sổ Điểm Điện Tử Đa Môn Học & Đa Cột Điểm Thành Phần
 - **FR-07.1 (Quản lý đa môn học Cấp 1 & 2):** Quản lý sổ điểm theo từng môn học trong chương trình: Toán, Tiếng Việt/Ngữ văn, Tiếng Anh, Tự nhiên - Xã hội / KHTN, Lịch sử - Địa lý, Tin học, Đạo đức/GDCD, Nghệ thuật, Thể dục.
 - **FR-07.2 (Đa dạng các đầu điểm thành phần):** Cung cấp giao diện nhập điểm linh hoạt cho nhiều loại điểm khác nhau theo thang điểm 10 (bước nhảy 0.1):
-  - Điểm kiểm tra miệng / Dò bài cũ đầu giờ (hệ số 1).
-  - Điểm trả lời câu hỏi tương tác / Mini-game trên lớp (hệ số 1).
-  - Điểm kiểm tra 15 phút thường xuyên (hệ số 1).
-  - Điểm kiểm tra 1 tiết / Định kỳ (hệ số 2).
-  - Điểm thi Giữa học kỳ (hệ số 2).
-  - Điểm thi Cuối học kỳ (hệ số 3).
-- **FR-07.3 (Tự động tính Điểm Trung Bình):** Hệ thống tự động tính Điểm trung bình môn (GPA môn) theo trọng số hệ số điểm và tổng hợp Điểm trung bình các môn của học kỳ (HK1, HK2, Cả năm) theo quy chế của Bộ Giáo Dục.
+  - Điểm kiểm tra miệng / Dò bài cũ đầu giờ.
+  - Điểm kiểm tra 15 phút thường xuyên.
+  - Điểm kiểm tra 1 tiết / Định kỳ.
+  - Điểm thi Giữa học kỳ.
+  - Điểm thi Cuối học kỳ.
+- **FR-07.3 (Lưu trữ điểm thành phần, không tính GPA):** Hệ thống lưu trữ trung thực các cột điểm thành phần do Giáo viên trực tiếp nhập, không tự động tính Điểm trung bình môn (GPA môn).
 - **FR-07.4 (Công bố điểm có kiểm soát):** Giáo viên chủ động kiểm tra và bấm "Công bố điểm" (theo từng môn học hoặc theo đợt kiểm tra) để gửi thông báo tức thời qua FCM cho phụ huynh tra cứu.
+
+### FR-08: Đánh Giá & Nhận Xét Học Sinh Ngắn Gọn Gửi Phụ Huynh
+- **FR-08.1 (Nhận xét văn bản ngắn):**
+  - Cho phép Giáo viên (cả GVCN và GVBM) nhập lời nhận xét ngắn gọn (đoạn text ngắn) cho từng học sinh về tinh thần học tập, nề nếp hoặc kết quả bài làm.
+  - Hệ thống thuần túy sử dụng văn bản ngắn, không dùng hệ thống thẻ nhãn tags rườm rà.
+- **FR-08.2 (Đồng bộ tức thì tới Sổ liên lạc Phụ huynh):**
+  - Nhận xét dạng text được lưu vào collection `/remarks` và tự động gửi thông báo đẩy (FCM) đến ứng dụng của Phụ huynh.
+  - Phụ huynh có thể xem lời nhận xét chi tiết và xác nhận đã đọc trên ứng dụng di động.
 

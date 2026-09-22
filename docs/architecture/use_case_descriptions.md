@@ -11,21 +11,22 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ## 2. Chi tiết các Use Case Cốt Lõi
 
-### UC-CLS-01: Giáo Viên Tự Tạo Lớp & Thêm Danh Sách Học Sinh
+### UC-CLS-01: GVCN Tạo Lớp Học Tổng, Thêm Học Sinh & Phân Công GVBM
 - **Mã Use Case:** `UC-CLS-01`
-- **Tác nhân chính:** Giáo viên (GVCN & GVBM).
+- **Tác nhân chính:** Giáo viên Chủ nhiệm (GVCN).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/classes`, `/students`, `/fees_and_insurance`).
-- **Mô tả:** Giáo viên chủ động tạo lớp học mới trên hệ thống, thêm học sinh vào lớp và hệ thống tự động sinh Mã mời (Invite Code) cùng Link mời (Invite Link) để chia sẻ cho Phụ huynh.
-- **Tiền điều kiện:** Giáo viên đã đăng nhập thành công vào hệ thống.
-- **Hậu điều kiện:** Lớp học được khởi tạo, danh sách học sinh được lưu, link mời sẵn sàng để chia sẻ.
+- **Mô tả:** Giáo viên chủ nhiệm (GVCN) tạo lớp học tổng (ví dụ: `6A1`, `2B`), thêm danh sách học sinh vào lớp và phân công Giáo viên bộ môn (GVBM) theo từng môn học. Các GVBM đăng nhập sẽ thấy lớp này và chỉ cần truy cập vào để nhập/sửa điểm môn họ dạy. Hệ thống tự động sinh Mã mời (Invite Code) cùng Link mời (Invite Link) để chia sẻ cho Phụ huynh.
+- **Tiền điều kiện:** GVCN đã đăng nhập thành công vào hệ thống.
+- **Hậu điều kiện:** Lớp học tổng được khởi tạo kèm danh sách phân công GVBM, danh sách học sinh được lưu, link mời sẵn sàng để chia sẻ cho phụ huynh.
 - **Luồng sự kiện chính (Main Flow):**
-  1. Giáo viên mở màn hình "Quản lý lớp học" trên Web hoặc Mobile App, chọn "Tạo lớp học mới".
-  2. Giáo viên nhập thông tin lớp: Tên lớp (ví dụ: `2A`), Khối (`2`), Niên khóa (`2026-2027`).
-  3. Giáo viên thêm danh sách học sinh (nhập trực tiếp họ tên/ngày sinh hoặc dán danh sách từ bảng tính).
-  4. Giáo viên nhấn "Hoàn tất tạo lớp".
-  5. Backend NestJS sinh mã mời ngẫu nhiên 6-8 ký tự (`invite_code`) và đường dẫn mời (`invite_link`), lưu vào collection `/classes`.
-  6. Backend lưu thông tin từng học sinh vào collection `/students` và khởi tạo bản ghi `/fees_and_insurance` với cờ FALSE.
-  7. Hệ thống hiển thị thông tin lớp học thành công kèm nút "Sao chép Link mời" và "Mã QR" để gửi vào nhóm Phụ huynh (Zalo, tin nhắn).
+  1. GVCN mở màn hình "Quản lý lớp học", chọn "Tạo lớp học tổng".
+  2. Nhập thông tin lớp: Tên lớp (ví dụ: `6A1`), Khối (`6`), Niên khóa (`2026-2027`).
+  3. Thêm danh sách học sinh (nhập trực tiếp họ tên/ngày sinh hoặc tải file Excel danh sách).
+  4. Phân công Giáo viên bộ môn (GVBM) phụ trách từng môn học trong lớp (Toán, Văn, Anh, Khoa học...).
+  5. GVCN nhấn "Hoàn tất tạo lớp".
+  6. Backend NestJS sinh mã mời ngẫu nhiên 6-8 ký tự (`invite_code`), đường dẫn mời (`invite_link`), lưu vào collection `/classes` cùng mảng phân công `subject_teachers`.
+  7. Backend lưu danh sách học sinh vào collection `/students` và khởi tạo bản ghi `/fees_and_insurance` với cờ FALSE.
+  8. GVCN sao chép Link mời gửi vào nhóm Phụ huynh lớp (Zalo, tin nhắn). Các GVBM được phân công có thể đăng nhập và truy cập lớp tổng để vào điểm.
 
 ---
 
@@ -33,8 +34,8 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 - **Mã Use Case:** `UC-PAR-00`
 - **Tác nhân chính:** Phụ huynh (Parent).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/classes`, `/students`, `/users`).
-- **Mô tả:** Phụ huynh nhấp vào Link mời do Giáo viên chia sẻ, đăng nhập ứng dụng và chọn xác nhận học sinh là con của mình để kết nối vào lớp học.
-- **Tiền điều kiện:** Giáo viên đã tạo lớp và chia sẻ Link mời; Phụ huynh có điện thoại thông minh.
+- **Mô tả:** Phụ huynh nhấp vào Link mời do GVCN chia sẻ, đăng nhập ứng dụng và chọn xác nhận học sinh là con của mình để kết nối vào lớp học.
+- **Tiền điều kiện:** GVCN đã tạo lớp và chia sẻ Link mời; Phụ huynh có điện thoại thông minh.
 - **Hậu điều kiện:** Tài khoản Phụ huynh được liên kết với học sinh (`parent_uids`), nhận được các thông báo và theo dõi học tập của con.
 - **Luồng sự kiện chính (Main Flow):**
   1. Phụ huynh nhấp vào **Link mời tham gia lớp học** nhận được qua Zalo hoặc tin nhắn SMS.
@@ -47,49 +48,63 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ---
 
-### UC-ACA-02: Nhập & Phê Duyệt Sổ Điểm Đa Môn Học & Đa Cột Điểm
+### UC-ACA-02: Nhập Sổ Điểm Môn Học Phụ Trách (Không Tự Động Tính GPA)
 - **Mã Use Case:** `UC-ACA-02`
 - **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/scores`), Firebase FCM.
-- **Mô tả:** Giáo viên mở sổ điểm điện tử, lựa chọn Môn học phụ trách (Toán, Tiếng Việt, Tiếng Anh, Khoa học, Sử - Địa, Tin học...), Học kỳ và loại điểm thành phần (Miệng, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ) để nhập điểm cho học sinh. Hệ thống tự động tính Điểm trung bình môn (GPA môn) và hỗ trợ công bố điểm cho phụ huynh.
-- **Tiền điều kiện:** Lớp học đã có danh sách học sinh; Giáo viên có quyền giảng dạy môn học tại lớp.
-- **Hậu điều kiện:** Điểm số các môn được lưu an toàn vào `/scores`, điểm trung bình môn được tự động tính toán, thông báo điểm mới được gửi tới phụ huynh.
+- **Mô tả:** Giáo viên mở sổ điểm điện tử của lớp tổng, lựa chọn Môn học mình phụ trách (Toán, Tiếng Việt, Tiếng Anh, Khoa học...), Học kỳ và loại điểm thành phần (Miệng, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ) để nhập điểm cho học sinh. Hệ thống lưu trữ các cột điểm do giáo viên nhập, không tự động tính GPA môn.
+- **Tiền điều kiện:** Lớp học tổng đã có danh sách học sinh; Giáo viên được phân công giảng dạy môn học tại lớp.
+- **Hậu điều kiện:** Điểm số các môn được lưu an toàn vào `/scores`, thông báo điểm mới được gửi tới phụ huynh khi GV công bố.
 - **Luồng sự kiện chính (Main Flow):**
   1. Giáo viên mở tab "Sổ điểm điện tử" trên Web Next.js hoặc Mobile App.
-  2. Chọn Lớp học cần nhập điểm và chọn **Môn học phụ trách** (Ví dụ: `Toán`, `Tiếng Việt`, `Tiếng Anh`, `Khoa học`...).
+  2. Chọn Lớp học tổng và chọn **Môn học phụ trách**.
   3. Chọn **Học kỳ** (`Học kỳ 1` hoặc `Học kỳ 2`).
   4. Chọn **Cột điểm thành phần** cần nhập:
-     - Điểm kiểm tra miệng / Dò bài cũ (`ORAL_TEST` - hệ số 1)
-     - Điểm kiểm tra 15 phút thường xuyên (`TEST_15P` - hệ số 1)
-     - Điểm kiểm tra 1 tiết / Định kỳ (`TEST_1P` - hệ số 2)
-     - Điểm thi Giữa học kỳ (`MID_TERM` - hệ số 2)
-     - Điểm thi Cuối học kỳ (`FINAL` - hệ số 3).
-  5. Màn hình hiển thị bảng danh sách học sinh; Giáo viên nhập điểm số (thang điểm 10, bước nhảy 0.1) cho từng học sinh hoặc nhập hàng loạt từ bàn phím.
+     - Điểm kiểm tra miệng / Dò bài cũ (`ORAL_TEST`)
+     - Điểm kiểm tra 15 phút thường xuyên (`TEST_15P`)
+     - Điểm kiểm tra 1 tiết / Định kỳ (`TEST_1P`)
+     - Điểm thi Giữa học kỳ (`MID_TERM`)
+     - Điểm thi Cuối học kỳ (`FINAL`).
+  5. Màn hình hiển thị danh sách học sinh; Giáo viên nhập điểm số (thang điểm 10, bước nhảy 0.1) cho từng học sinh.
   6. Giáo viên bấm "Lưu bảng điểm".
-  7. Backend NestJS lưu trữ các document điểm vào collection `/scores`, tự động tổng hợp tính **Điểm trung bình môn (GPA môn)** theo công thức hệ số quy định.
-  8. Giáo viên kiểm tra lại bảng tổng hợp điểm; khi sẵn sàng, bấm nút **"Công bố điểm môn học"**.
+  7. Backend NestJS lưu trữ các document điểm vào collection `/scores` (không tự động tính GPA môn).
+  8. Giáo viên kiểm tra lại bảng điểm; khi sẵn sàng, bấm nút **"Công bố điểm môn học"**.
   9. Backend cập nhật cờ `is_published = true` trong `/scores` và kích hoạt FCM phát thông báo điểm mới kèm tên môn học và loại điểm đến ứng dụng của Phụ huynh.
 
 ---
 
-### UC-ACA-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
+### UC-ACA-03: Nhập Lời Nhận Xét Ngắn Gọn Cho Học Sinh (Đoạn Text Ngắn Gửi Phụ Huynh)
+- **Mã Use Case:** `UC-ACA-03`
+- **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/remarks`), Firebase FCM.
+- **Mô tả:** Giáo viên nhập lời nhận xét ngắn gọn (dưới dạng văn bản ngắn, không dùng hệ thống tags) về thái độ học tập, bài làm hoặc nề nếp của học sinh. Phụ huynh nhận được thông báo tức thời trên App.
+- **Tiền điều kiện:** Giáo viên đã đăng nhập và truy cập lớp học.
+- **Hậu điều kiện:** Lời nhận xét ngắn dạng text được lưu trữ an toàn vào `/remarks`, thông báo đẩy tức thời gửi tới Phụ huynh của học sinh.
+- **Luồng sự kiện chính (Main Flow):**
+  1. Giáo viên chọn học sinh cần nhận xét trên Web Next.js hoặc Mobile App React Native.
+  2. Giáo viên nhập trực tiếp **lời nhận xét ngắn gọn (đoạn text ngắn)** (Ví dụ: *"Hôm nay em phát biểu rất hăng hái"*, *"Cần tập trung nghe giảng hơn"* - Không dùng nhãn tags).
+  3. Giáo viên bấm "Gửi nhận xét".
+  4. Backend NestJS lưu bản ghi vào collection `/remarks` với cờ `is_published = true`.
+  5. Backend kích hoạt Firebase FCM phát thông báo tức thì kèm nội dung text ngắn tới điện thoại của Phụ huynh.
+  6. Phụ huynh mở thông báo, đọc lời nhận xét trên App và có thể bấm xác nhận đã đọc.
+
+---
+
+### UC-ACA-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng (Có Nút Bỏ Qua)
 - **Mã Use Case:** `UC-ACA-04`
 - **Tác nhân chính:** Giáo viên (Cả GVCN và GVBM).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/attendances` và `/students`).
-- **Mô tả:** Giáo viên sử dụng công cụ quay số / bốc thăm ngẫu nhiên để chọn học sinh lên bảng kiểm tra bài cũ. Thuật toán tự động đối chiếu dữ liệu điểm danh và chỉ lọc ra các học sinh **CÓ MẶT HÔM NAY**.
+- **Mô tả:** Giáo viên sử dụng công cụ quay số / bốc thăm ngẫu nhiên để chọn học sinh lên bảng kiểm tra bài cũ. Nếu quay trúng bạn nào nghỉ học hoặc vắng mặt/không thể lên bảng, giáo viên bấm nút "Bỏ qua (Skip)" để lập tức quay vòng mới.
 - **Tiền điều kiện:** Lớp học đã được điểm danh trong ngày hiện tại.
-- **Hậu điều kiện:** Một học sinh có mặt được chọn ngẫu nhiên, điểm kiểm tra bài cũ có thể nhập trực tiếp vào sổ điểm.
+- **Hậu điều kiện:** Một học sinh được chọn lên bảng, điểm kiểm tra bài cũ có thể nhập trực tiếp vào cột điểm môn học.
 - **Luồng sự kiện chính (Main Flow):**
-  1. Tại màn hình lớp học trên Web Next.js, giáo viên bấm "Dò bài cũ & Gọi học sinh lên bảng".
-  2. Web gửi request `GET /api/v1/classes/:id/present-students-today` tới Backend NestJS.
-  3. Backend truy vấn Firestore collection `/attendances` với điều kiện: `class_id == :id AND attendance_date == TODAY AND status == 'PRESENT'`.
-  4. Backend trả về danh sách chỉ gồm các học sinh ĐANG CÓ MẶT trong lớp (loại trừ các học sinh vắng).
-  5. Web Next.js hiển thị giao diện Vòng quay may mắn (Lucky Wheel) hoặc Hiệu ứng rút thẻ bài sinh động.
-  6. Giáo viên bấm "Quay số", vòng quay khởi chạy kèm âm thanh hồi hộp.
-  7. Vòng quay dừng lại tại học sinh trúng thưởng (Ví dụ: "Em Trần Thị Bình - STT 08").
-  8. Học sinh lên bảng trả lời câu hỏi bài cũ đang chiếu.
-  9. Giáo viên nhập điểm trực tiếp tại pop-up (cột điểm miệng) và nhấn "Lưu điểm".
-  10. Điểm số được lưu ngay vào bảng `scores`.
+  1. Tại màn hình lớp học trên Web Next.js, giáo viên bấm "Dò bài cũ & Vòng quay học sinh".
+  2. Web hiển thị giao diện Vòng quay may mắn (Lucky Wheel) với danh sách học sinh trong lớp.
+  3. Giáo viên bấm "Quay số", vòng quay khởi chạy kèm âm thanh hồi hộp.
+  4. Vòng quay dừng lại tại một học sinh.
+  5. **Xử lý tình huống học sinh vắng:** Nếu học sinh đó nghỉ học hoặc có lý do không thể lên bảng, Giáo viên chỉ cần bấm nút **"Bỏ qua (Skip)"**, hệ thống tự động chạy tiếp vòng quay mới ngay lập tức.
+  6. Khi học sinh có mặt lên bảng trả lời câu hỏi bài cũ, giáo viên chấm điểm trực tiếp tại pop-up và nhấn "Lưu điểm".
+  7. Điểm số được lưu ngay vào bảng `scores` của môn học đang dạy.
 
 ---
 
@@ -135,20 +150,19 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ---
 
-### UC-ACA-07: Giáo Viên Nhập Điểm Kiểm Tra Lớp Học & Xem Bảng Xếp Hạng
+### UC-ACA-07: Trình Chiếu Bảng Xếp Hạng (Leaderboard) Điểm Môn Học
 - **Mã Use Case:** `UC-ACA-07`
 - **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
-- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/scores` & `/quiz_results`), Firebase FCM.
-- **Mô tả:** Sau khi tổ chức cho học sinh kiểm tra bài cũ hoặc thi đua mini-game tại lớp, Giáo viên trực tiếp nhập điểm số cho học sinh trên ứng dụng. Hệ thống tự động xếp hạng và hiển thị Bảng xếp hạng (Leaderboard) điểm số của lớp cho Giáo viên theo dõi và công bố.
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/scores`), Firebase FCM.
+- **Mô tả:** Bảng xếp hạng (Leaderboard) tại lớp được thiết kế chuyên biệt và duy nhất cho Điểm Môn Học. Sau khi Giáo viên nhập điểm môn học (Toán, Tiếng Việt, Tiếng Anh...), hệ thống tự động xếp hạng và cho phép Giáo viên trình chiếu Bảng xếp hạng điểm môn học lên bảng lớp để vinh danh các học sinh có kết quả học tập xuất sắc.
 - **Luồng sự kiện chính (Main Flow):**
-  1. Giáo viên tổ chức kiểm tra ở lớp (dò bài cũ, câu hỏi AI hoặc mini-game trình chiếu trên bảng). Học sinh trả lời trực tiếp tại lớp (không qua app).
-  2. Giáo viên mở giao diện nhập điểm của lớp trên Web/Mobile, nhập điểm số và nhận xét cho từng học sinh.
-  3. Hệ thống lưu điểm và tự động sắp xếp thứ hạng học sinh trong lớp theo điểm số từ cao xuống thấp.
-  4. Hệ thống hiển thị **Bảng xếp hạng (Leaderboard)** lớp học cho Giáo viên xem:
-     - Vinh danh Top học sinh điểm cao nhất (Top 1, Top 2, Top 3) kèm huy hiệu.
-     - Danh sách thứ hạng điểm toàn lớp và thống kê phổ điểm.
-  5. Giáo viên xem lại, chỉnh sửa nếu cần và bấm **"Công bố điểm"**.
-  6. Điểm số được công bố vào Sổ điểm điện tử (`/scores`) và gửi thông báo đẩy (FCM) đến điện thoại của phụ huynh.
+  1. Giáo viên mở Sổ điểm của môn học phụ trách trên Web Next.js hoặc Mobile App.
+  2. Sau khi nhập hoặc cập nhật điểm số cho học sinh, Giáo viên chọn chức năng **"Trình chiếu Bảng Xếp Hạng Môn Học"**.
+  3. Màn hình Next.js chuyển sang chế độ Fullscreen trình chiếu giao diện **Leaderboard Điểm Môn Học**:
+     - Vinh danh Top học sinh điểm cao nhất môn học (Top 1, Top 2, Top 3) kèm hiệu ứng pháo hoa, vương miện / huy hiệu hoa điểm mười.
+     - Hiển thị danh sách thứ hạng điểm số của môn học và thống kê phổ điểm cả lớp.
+  4. Giáo viên kiểm tra lại bảng điểm và bấm **"Công bố điểm môn học"**.
+  5. Điểm số được lưu chính thức vào Sổ điểm điện tử (`/scores`) và gửi thông báo đẩy (FCM) đến điện thoại của phụ huynh.
 
 ---
 

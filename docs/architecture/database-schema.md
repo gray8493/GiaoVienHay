@@ -57,7 +57,8 @@ erDiagram
         string name "Tên lớp (1A, 2B, 6A1, 9B)"
         int grade_level "Khối lớp (1 đến 9)"
         string academic_year "Niên khóa (2026-2027)"
-        string homeroom_teacher_id "UID Giáo viên chủ nhiệm"
+        string homeroom_teacher_id "UID Giáo viên chủ nhiệm tạo & quản lý lớp"
+        array subject_teachers "Phân công GVBM theo môn [{teacher_id, subject_code}]"
         string invite_code UK "Mã mời 6-8 ký tự ngẫu nhiên duy nhất"
         string invite_link "Đường dẫn liên kết mời phụ huynh vào lớp"
         string created_by "UID Giáo viên tạo lớp"
@@ -95,9 +96,21 @@ erDiagram
         int semester "Học kỳ 1 hoặc 2"
         string score_type "ORAL_TEST, TEST_15P, TEST_1P, MID_TERM, FINAL"
         number score_value "Thang điểm 0.0 - 10.0"
+        string teacher_comment "Lời nhận xét của giáo viên kèm điểm số"
         string teacher_id "UID Giáo viên nhập điểm"
         boolean is_published "Cờ công bố cho phụ huynh xem"
         timestamp published_at "Thời điểm công bố"
+        timestamp created_at
+    }
+
+    remarks {
+        string id PK "Auto ID"
+        string student_id "ID học sinh nhận nhận xét"
+        string class_id "ID lớp học"
+        string teacher_id "UID Giáo viên nhận xét"
+        string subject_code "Môn học liên quan (hoặc null nếu nhận xét chung)"
+        string content "Đoạn text ngắn nhận xét gửi phụ huynh"
+        boolean is_published "Cờ công bố cho phụ huynh"
         timestamp created_at
     }
 
@@ -144,7 +157,6 @@ erDiagram
         string student_id "ID học sinh nhận điểm"
         string teacher_id "UID Giáo viên trực tiếp nhập điểm"
         number score "Điểm số GV chấm/nhập (thang 10)"
-        int rank_position "Thứ hạng trong lớp (Top 1, Top 2, Top 3...)"
         string notes "Nhận xét của giáo viên"
         boolean is_synced_to_grades "Đã duyệt chuyển vào sổ điểm /scores"
         timestamp created_at "Thời điểm giáo viên nhập điểm"
@@ -187,8 +199,11 @@ Quản lý danh mục lớp học thuộc khối 1 đến khối 9 do Giáo viê
 - **`name`** (`string`): Tên lớp học (Ví dụ: `1A`, `3C`, `6A1`, `9B`).
 - **`grade_level`** (`number`): Khối lớp từ `1` đến `9`.
 - **`academic_year`** (`string`): Niên khóa (Ví dụ: `2026-2027`).
-- **`homeroom_teacher_id`** (`string`, Nullable): UID Giáo viên chủ nhiệm phụ trách lớp.
-- **`created_by`** (`string`): UID Giáo viên trực tiếp tạo lớp.
+- **`homeroom_teacher_id`** (`string`): UID Giáo viên chủ nhiệm (GVCN) - người tạo lớp và quản lý lớp tổng.
+- **`subject_teachers`** (`array of map`): Danh sách phân công Giáo viên bộ môn (GVBM) theo từng môn học trong lớp:
+  - `[ { "teacher_id": "uid_gvbm_math", "subject_code": "MATH" }, { "teacher_id": "uid_gvbm_lit", "subject_code": "LIT" } ]`.
+  - Giúp GVBM chỉ cần đăng nhập là truy cập được lớp tổng và chỉ được phép thay đổi điểm của bộ môn mình phụ trách.
+- **`created_by`** (`string`): UID Giáo viên chủ nhiệm tạo lớp.
 - **`invite_code`** (`string`, Unique): Mã mời ngắn (6-8 ký tự) để phụ huynh nhập khi vào lớp.
 - **`invite_link`** (`string`): Đường dẫn liên kết mời phụ huynh (Ví dụ: `https://giaovienhay.vn/join?code=ABC123XYZ`).
 - **`created_at`** (`timestamp`): Thời điểm tạo lớp.
@@ -220,11 +235,9 @@ Lưu vết trạng thái có mặt/vắng học của học sinh từng ngày.
 - **`teacher_id`** (`string`): UID Giáo viên thực hiện điểm danh.
 - **`created_at`** (`timestamp`): Thời gian ghi nhận điểm danh.
 
-> **Chiến lược tối ưu tính năng Vòng quay Random học sinh có mặt:**
-> Truy vấn Firestore:
-> ```typescript
-> firestore.collection('attendances')
->   .where('class_id', '==', classId)
+> **Cơ chế Vòng quay kiểm tra bài cũ thông minh:**
+> - Vòng quay chọn ngẫu nhiên học sinh trong lớp.
+> - Nếu quay trúng bạn nào nghỉ học hoặc vắng mặt/không thể lên bảng, Giáo viên chỉ cần bấm nút **"Bỏ qua (Skip)"**, hệ thống tự động quay ngay vòng mới để chọn bạn khác.
 >   .where('attendance_date', '==', todayStr)
 >   .where('status', '==', 'PRESENT')
 >   .get();
@@ -253,19 +266,36 @@ Lưu trữ sổ điểm điện tử đa môn học toàn diện theo học sinh
   - `ORAL_TEST`: Điểm kiểm tra bài cũ / kiểm tra miệng đầu giờ (hệ số 1)
   - `QUIZ`: Điểm mini-game / trả lời câu hỏi tương tác trên lớp (hệ số 1)
   - `TEST_15P`: Điểm kiểm tra thường xuyên 15 phút (hệ số 1)
-  - `TEST_1P`: Điểm kiểm tra 1 tiết / định kỳ (hệ số 2)
-  - `MID_TERM`: Điểm thi Giữa học kỳ (hệ số 2)
-  - `FINAL`: Điểm thi Cuối học kỳ (hệ số 3)
-- **`score_value`** (`number`): Điểm số từ `0.0` đến `10.0` (bước nhảy 0.1).
-- **`weight`** (`number`, Default: `1`): Hệ số tính điểm trung bình môn.
-- **`teacher_id`** (`string`): UID Giáo viên trực tiếp nhập điểm.
+  - `TEST_1P`: Điểm kiểm tra 1 tiết / định kỳ
+  - `MID_TERM`: Điểm thi Giữa học kỳ
+  - `FINAL`: Điểm thi Cuối học kỳ
+- **`score_value`** (`number`): Điểm số từ `0.0` đến `10.0` (bước nhảy 0.1) do Giáo viên chấm/nhập.
+- **`teacher_comment`** (`string`, Nullable): Lời nhận xét, góp ý ngắn của giáo viên kèm theo đầu điểm (Ví dụ: *"Bài làm cẩn thận"*).
+- **`teacher_id`** (`string`): UID Giáo viên trực tiếp nhập điểm (GVBM hoặc GVCN).
 - **`is_published`** (`boolean`, Default: `false`): Cờ xác nhận đã công bố cho phụ huynh xem trên app.
 - **`published_at`** (`timestamp`, Nullable): Thời điểm phê duyệt công bố điểm.
 - **`created_at`** (`timestamp`): Ngày nhập điểm.
 
+> **Ghi chú về tính điểm:** Hệ thống lưu trữ trung thực các cột điểm thành phần do Giáo viên nhập và không tự động tính Điểm trung bình môn (GPA môn).
+
 ---
 
-### 3.6. Collection `/fees_and_insurance`
+### 3.6. Collection `/remarks`
+Lưu trữ sổ nhận xét, đánh giá học sinh của Giáo viên gửi tới Phụ huynh (dưới dạng đoạn text ngắn).
+- **`id`** (`string`, Document ID): Mã tự sinh Firestore.
+- **`student_id`** (`string`): ID học sinh được nhận xét.
+- **`class_id`** (`string`): ID lớp học.
+- **`teacher_id`** (`string`): UID Giáo viên đưa ra nhận xét.
+- **`teacher_name`** (`string`): Họ và tên Giáo viên nhận xét.
+- **`subject_code`** (`string`, Nullable): Môn học liên quan (hoặc `NULL` nếu là nhận xét chung của GVCN).
+- **`content`** (`string`): **Nội dung lời nhận xét ngắn gọn (đoạn text ngắn)** gửi tới phụ huynh (Ví dụ: *"Hôm nay em phát biểu rất hăng hái"*, *"Em cần chú ý nghe giảng hơn"* - Không sử dụng thẻ nhãn tags).
+- **`is_published`** (`boolean`, Default: `true`): Cờ cho phép phụ huynh xem trên ứng dụng.
+- **`parent_acknowledged`** (`boolean`, Default: `false`): Cờ xác nhận Phụ huynh đã đọc phản hồi.
+- **`created_at`** (`timestamp`): Thời điểm tạo lời nhận xét.
+
+---
+
+### 3.7. Collection `/fees_and_insurance`
 Sổ theo dõi trạng thái hoàn thành nghĩa vụ tài chính của từng học sinh bằng 2 cờ boolean. **Hệ thống hoàn toàn không có tính năng thanh toán trực tuyến**. Phụ huynh và học sinh hoàn thành nghĩa vụ trực tiếp tại trường/lớp; GVCN hoặc Quản trị viên chỉ tích chọn cờ boolean để theo dõi.
 - **`id`** (`string`, Document ID): Mã tự sinh.
 - **`student_id`** (`string`): ID học sinh.
@@ -282,7 +312,7 @@ Sổ theo dõi trạng thái hoàn thành nghĩa vụ tài chính của từng h
 
 ---
 
-### 3.7. Collection `/quizzes` & Subcollection `/questions`
+### 3.8. Collection `/quizzes` & Subcollection `/questions`
 Quản lý các bộ câu hỏi kiểm tra bài cũ sinh ra từ tài liệu giáo án bài giảng.
 - **`id`** (`string`, Document ID): Mã tự sinh bộ đề.
 - **`title`** (`string`): Tên bộ kiểm tra (Ví dụ: `Bài 12 - Phép cộng phân số`).
@@ -303,22 +333,21 @@ Quản lý các bộ câu hỏi kiểm tra bài cũ sinh ra từ tài liệu gi�
 
 ---
 
-### 3.8. Collection `/quiz_results`
-Lưu trữ điểm số kiểm tra bài cũ hoặc kết quả thi đua mini-game tại lớp **do Giáo viên trực tiếp nhập** cho từng học sinh (Ứng dụng hoàn toàn không cho học sinh làm bài thi hay tự động chấm bài trực tuyến). Dữ liệu này dùng để hệ thống tự động tổng hợp **Bảng xếp hạng (Leaderboard)** lớp học cho Giáo viên xem và vinh danh.
+### 3.9. Collection `/quiz_results`
+Lưu trữ điểm số kiểm tra bài cũ hoặc kết quả tham gia mini-game tại lớp **do Giáo viên trực tiếp nhập** cho từng học sinh (Ứng dụng hoàn toàn không cho học sinh làm bài thi hay tự động chấm bài trực tuyến). Bảng xếp hạng (Leaderboard) vinh danh tại lớp được lấy từ Sổ điểm môn học (`/scores`), hệ thống không xếp hạng điểm mini-game.
 - **`id`** (`string`, Document ID): Mã tự sinh.
 - **`quiz_id`** (`string`): Thuộc bài kiểm tra bài cũ / mini-game nào.
 - **`class_id`** (`string`): Lớp học sinh tham gia.
 - **`student_id`** (`string`): ID học sinh nhận điểm.
 - **`teacher_id`** (`string`): UID Giáo viên trực tiếp nhập điểm.
-- **`score`** (`number`): Điểm số do Giáo viên chấm/nhập (thang 10 hoặc điểm mini-game).
-- **`rank_position`** (`number`, Nullable): Thứ hạng của học sinh trong lớp (Top 1, Top 2, Top 3...) tính theo điểm số.
+- **`score`** (`number`): Điểm số do Giáo viên chấm/nhập (thang 10).
 - **`notes`** (`string`, Nullable): Nhận xét của giáo viên về câu trả lời của học sinh.
 - **`is_synced_to_grades`** (`boolean`, Default: `false`): Trạng thái giáo viên đã phê duyệt chuyển điểm vào sổ điểm chính thức `/scores`.
 - **`created_at`** (`timestamp`): Thời điểm giáo viên nhập điểm.
 
 ---
 
-### 3.9. Collection `/notifications`
+### 3.10. Collection `/notifications`
 Lưu nhật ký các thông báo đẩy đã phát tới phụ huynh qua Firebase Cloud Messaging.
 - **`id`** (`string`, Document ID): Mã tự sinh.
 - **`recipient_user_id`** (`string`): UID phụ huynh nhận thông báo trỏ đến `/users/{uid}`.
@@ -340,8 +369,8 @@ Trong Google Cloud Firestore, các truy vấn đơn trường được lập ch�
 | `attendances` | `class_id` (ASC), `attendance_date` (ASC), `status` (ASC) | **Lọc siêu tốc (< 5ms) danh sách học sinh CÓ MẶT cho Vòng quay Random** |
 | `scores` | `student_id` (ASC), `subject_code` (ASC), `semester` (ASC) | Tối ưu hiển thị sổ điểm môn học và tính điểm trung bình cho học bạ |
 | `scores` | `class_id` (ASC), `subject_code` (ASC), `is_published` (ASC) | Tối ưu tải bảng điểm lớp học theo môn học cho giáo viên |
+| `scores` | `class_id` (ASC), `subject_code` (ASC), `score_value` (DESC) | **Truy xuất Bảng xếp hạng (Leaderboard) Điểm Môn Học vinh danh tại lớp** |
 | `fees_and_insurance`| `class_id` (ASC), `is_paid_insurance` (ASC), `is_paid_tuition` (ASC) | **Tối ưu bộ lọc học sinh chưa nộp BHYT để phát tin nhắc nhở tức thì** |
-| `quiz_results` | `quiz_id` (ASC), `score` (DESC) | **Truy xuất Bảng xếp hạng (Leaderboard) lớp học theo điểm số cao nhất** |
 | `notifications` | `recipient_user_id` (ASC), `created_at` (DESC) | Tải danh sách thông báo mới nhất trên Mobile App Phụ huynh |
 | `students` | `parent_uids` (Arrays), `full_name` (ASC) | Tối ưu hiển thị danh sách các con thuộc cùng một tài khoản phụ huynh |
 

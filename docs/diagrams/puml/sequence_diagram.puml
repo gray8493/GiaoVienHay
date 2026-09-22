@@ -25,7 +25,7 @@ box "Tầng Backend (NestJS Platform)" #FFF3E0
 boundary "API Gateway\n(Reverse Proxy & RBAC)" as Gateway
 control "Admin Module\n(School & Users)" as AdminModule
 control "Academic Module\n(Grades & Attend)" as AcadModule
-control "Gamification & AI\n(Quiz & Leaderboard)" as GameModule
+control "Gamification & AI\n(Quiz & Mini-Games)" as GameModule
 control "Fees & Insurance\n(Cờ Boolean)" as FeeModule
 control "Notification Module\n(FCM Dispatcher)" as NotiModule
 end box
@@ -45,21 +45,28 @@ end box
 ' GIAI ĐOẠN 1: GIÁO VIÊN TỰ TẠO LỚP, THÊM HỌC SINH & PHỤ HUYNH VÀO LỚP QUA LINK
 ' ==============================================================================
 
-== GIAI ĐOẠN 1: GIÁO VIÊN TỰ TẠO LỚP, THÊM HỌC SINH & PHỤ HUYNH VÀO LỚP QUA LINK ==
+== GIAI ĐOẠN 1: GVCN TẠO LỚP TỔNG, GÁN GVBM & PHỤ HUYNH VÀO LỚP QUA LINK ==
 
-Teacher -> TeacherUI: Đăng nhập & Tạo lớp mới (Tên lớp, Khối 1-9) kèm danh sách Học sinh
-TeacherUI -> Gateway: POST /api/v1/classes (kèm Firebase ID Token)
-Gateway -> FBAuth: Verify ID Token (kiểm tra quyền TEACHER)
+Teacher -> TeacherUI: GVCN đăng nhập, tạo Lớp tổng (Tên lớp, Khối 1-9), danh sách HS & phân công GVBM
+TeacherUI -> Gateway: POST /api/v1/classes (className, grade, students, subject_teachers)
+Gateway -> FBAuth: Verify ID Token (kiểm tra quyền TEACHER_HOMEROOM)
 FBAuth --> Gateway: Token hợp lệ
-Gateway -> AcadModule: Forward request (Tạo lớp & sinh Invite Link)
-AcadModule -> Firestore: Lưu lớp học vào /classes (sinh invite_code, invite_link)
+Gateway -> AcadModule: Forward request (Tạo lớp tổng & sinh Invite Link)
+AcadModule -> Firestore: Lưu lớp học vào /classes (sinh invite_code, invite_link, subject_teachers)
 AcadModule -> Firestore: Lưu danh sách học sinh vào /students
-AcadModule -> FeeModule: Khởi tạo danh mục theo dõi Học phí & BHYT
+AcadModule -> FeeModule: Khởi tạo danh mục theo dõi BHYT cho lớp
 FeeModule -> Firestore: Khởi tạo bản ghi trong /fees_and_insurance (cờ mặc định FALSE)
 Firestore --> AcadModule: Ghi nhận thành công
 AcadModule --> TeacherUI: Phản hồi thành công kèm **Link mời tham gia lớp (Invite Link)**
 
-Teacher -> Parent: Sao chép & Gửi Link mời vào nhóm lớp (Zalo / Tin nhắn)
+Teacher -> TeacherUI: GVBM đăng nhập & truy cập Lớp tổng theo môn được phân công
+TeacherUI -> Gateway: GET /api/v1/classes/{classId}/my-subject
+Gateway -> AcadModule: Forward request (xác thực quyền GVBM của lớp)
+AcadModule -> Firestore: Truy vấn phân công giảng dạy môn học
+Firestore --> AcadModule: Trả về dữ liệu lớp và môn phụ trách
+AcadModule --> TeacherUI: Trả về danh sách học sinh để GVBM quản lý & vào điểm
+
+Teacher -> Parent: GVCN gửi Link mời vào nhóm phụ huynh của lớp
 Parent -> ParentApp: Nhấp vào Link mời tham gia lớp học
 ParentApp -> FBAuth: Đăng nhập bằng SĐT (SMS OTP) hoặc Email
 FBAuth --> ParentApp: Đăng nhập thành công, nhận Firebase ID Token
@@ -93,34 +100,47 @@ GameModule -> Firestore: Lưu bộ câu hỏi vào /quizzes & subcollection /que
 GameModule --> TeacherUI: Trả về giao diện Mini-game sẵn sàng trình chiếu
 
 note over Teacher, TeacherUI #FFF9C4
-  <b>Lưu ý phạm vi:</b> Hệ thống KHÔNG có chức năng học sinh làm bài kiểm tra online.
-  Học sinh tương tác trực tiếp tại lớp (bảng con, giơ tay, chạm bảng).
-  Giáo viên tổ chức tại lớp và trực tiếp nhập điểm số của học sinh.
+  <b>Lưu ý nghiệp vụ:</b>
+  - Nếu Vòng quay gọi trúng bạn vắng mặt, GV bấm <b>"Bỏ qua (Skip)"</b> để quay bạn khác.
+  - Học sinh tương tác trực tiếp tại lớp (không làm bài online).
+  - GVBM trực tiếp nhập điểm vào môn học mình phụ trách.
 end note
 
-Teacher -> TeacherUI: Trình chiếu Mini-game/dò bài tại lớp, sau đó trực tiếp nhập điểm học sinh
+Teacher -> TeacherUI: Quay Vòng quay, nếu học sinh vắng bấm "Bỏ qua (Skip)" để quay tiếp
+TeacherUI -> TeacherUI: Tự động chạy lại Vòng quay chọn học sinh khác
+Teacher -> TeacherUI: Học sinh trả lời bài cũ/mini-game, GV nhập điểm số vào môn học
 TeacherUI -> Gateway: POST /api/v1/academic/in-class-scores (classId, subjectCode, danh sách điểm)
 Gateway -> AcadModule: Forward request (kèm danh sách điểm GV vừa nhập)
 AcadModule -> Firestore: Lưu điểm vào /quiz_results và sổ điểm /scores của môn học
-Firestore --> AcadModule: Đã cập nhật
-AcadModule -> AcadModule: Sắp xếp thứ hạng lớp học từ cao xuống thấp
-AcadModule --> TeacherUI: Trả về **BẢNG XẾP HẠNG (LEADERBOARD)** lớp học cho Giáo viên xem
+Firestore --> AcadModule: Đã cập nhật điểm vào môn học
+AcadModule --> TeacherUI: Phản hồi lưu điểm thành công
 
 == QUẢN LÝ SỔ ĐIỂM ĐA MÔN & ĐA CỘT ĐIỂM (NHIỀU MÔN, NHIỀU LOẠI ĐIỂM) ==
 
-Teacher -> TeacherUI: Mở Sổ điểm, chọn Môn học (Toán/Văn/Anh...), Học kỳ (HK1/HK2) & Cột điểm (Miệng, 15p, 1 tiết, Giữa kỳ, Cuối kỳ)
+Teacher -> TeacherUI: Mở Sổ điểm, chọn Môn học phụ trách, Học kỳ & Cột điểm
 TeacherUI -> Gateway: POST /api/v1/grades/batch (classId, subjectCode, semester, scoreType, studentScores)
-Gateway -> AcadModule: Forward request (xác thực quyền giảng dạy môn học)
-AcadModule -> Firestore: Lưu các đầu điểm vào /scores & tự động tính Điểm trung bình môn (GPA)
+Gateway -> AcadModule: Forward request (xác thực quyền giảng dạy môn học của GVBM)
+AcadModule -> Firestore: Lưu các đầu điểm vào /scores (không tự động tính GPA)
 Firestore --> AcadModule: Cập nhật sổ điểm thành công
-AcadModule --> TeacherUI: Trả về bảng điểm tổng hợp môn học
+AcadModule -> AcadModule: Sắp xếp danh sách học sinh theo Điểm môn học cao nhất
+AcadModule --> TeacherUI: Trả về **BẢNG XẾP HẠNG (LEADERBOARD) ĐIỂM MÔN HỌC**
 
-Teacher -> TeacherUI: Kiểm tra bảng điểm môn học & bấm "Công bố điểm"
+Teacher -> TeacherUI: Trình chiếu Bảng xếp hạng điểm môn học vinh danh tại lớp & bấm "Công bố điểm"
 TeacherUI -> Gateway: POST /api/v1/grades/publish (classId, subjectCode, scoreType)
 Gateway -> AcadModule: Forward request
 AcadModule -> Firestore: Cập nhật cờ is_published = TRUE trong /scores
 AcadModule -> NotiModule: Kích hoạt thông báo điểm mới (kèm tên môn và loại điểm)
 AcadModule --> TeacherUI: Thông báo "Đã công bố điểm môn học cho phụ huynh"
+
+== GIÁO VIÊN NHẬP NHẬN XÉT ĐOẠN TEXT NGẮN GỬI PHỤ HUYNH ==
+
+Teacher -> TeacherUI: Chọn học sinh, nhập lời nhận xét ngắn gọn (đoạn text ngắn)
+TeacherUI -> Gateway: POST /api/v1/remarks (studentId, classId, subjectCode, content)
+Gateway -> AcadModule: Forward request (xác thực quyền Giáo viên)
+AcadModule -> Firestore: Lưu bản ghi nhận xét (text ngắn, không nhãn tags) vào /remarks
+Firestore --> AcadModule: Ghi nhận nhận xét thành công
+AcadModule -> NotiModule: Kích hoạt thông báo nhận xét mới (nội dung text ngắn) tới Phụ huynh
+AcadModule --> TeacherUI: Thông báo "Đã gửi nhận xét tới Phụ huynh"
 
 Teacher -> TeacherUI: Thu tiền BHYT trực tiếp tại lớp & tích chọn cờ đã nộp
 TeacherUI -> Gateway: PATCH /api/v1/fees-insurance/toggle

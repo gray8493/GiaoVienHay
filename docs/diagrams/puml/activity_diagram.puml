@@ -37,25 +37,30 @@ title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to
 |Giáo viên (GVCN & GVBM)|
 start
 :Đăng nhập ứng dụng (Web hoặc Mobile App);
-:Tự tạo Lớp học mới (Tên lớp, Khối 1-9, Năm học);
-:Thêm danh sách Học sinh vào lớp (nhập trực tiếp hoặc tải file danh sách);
+if (Vai trò của Giáo viên?) then ([Giáo viên Chủ nhiệm (GVCN)])
+    :Tạo **Lớp học tổng** (Tên lớp, Khối 1-9, Năm học);
+    :Thêm danh sách Học sinh vào lớp (nhập trực tiếp hoặc tải file Excel);
+    :Phân công Giáo viên bộ môn (GVBM) phụ trách từng môn học;
 
-|Client App (Next.js / React Native)|
-:Gửi yêu cầu tạo lớp & danh sách học sinh lên Backend;
+    |Client App (Next.js / React Native)|
+    :Gửi yêu cầu tạo lớp, danh sách học sinh & phân công GVBM lên Backend;
 
-|Backend NestJS (API & Services)|
-:Khởi tạo Lớp học & tự động sinh **Mã mời & Link mời vào lớp (Invite Link)**;
-:Lưu thông tin Lớp học và danh sách Học sinh;
-:Khởi tạo các bản ghi theo dõi Học phí & BHYT (cờ mặc định FALSE);
+    |Backend NestJS (API & Services)|
+    :Khởi tạo Lớp học tổng & sinh **Mã mời & Link mời vào lớp (Invite Link)**;
+    :Lưu thông tin Lớp học và danh sách Học sinh;
+    :Khởi tạo các bản ghi theo dõi BHYT (cờ mặc định FALSE);
 
-|Cơ Sở Dữ Liệu (Cloud Firestore)|
-:Lưu vào /classes (kèm invite_code, invite_link), /students và /fees_and_insurance;
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Lưu vào /classes (kèm invite_code, invite_link, subject_teachers), /students và /fees_and_insurance;
 
-|Client App (Next.js / React Native)|
-:Hiển thị Link mời tham gia lớp học kèm mã QR / nút Sao chép;
+    |Client App (Next.js / React Native)|
+    :Hiển thị Link mời tham gia lớp học kèm mã QR / nút Sao chép;
 
-|Giáo viên (GVCN & GVBM)|
-:Sao chép Link mời & gửi vào nhóm Phụ huynh (Zalo / Tin nhắn);
+    |Giáo viên (GVCN & GVBM)|
+    :Sao chép Link mời & gửi vào nhóm Phụ huynh (Zalo / Tin nhắn);
+else ([Giáo viên Bộ môn (GVBM)])
+    :Truy cập vào Lớp học tổng đã được GVCN phân công giảng dạy;
+endif
 
 |Phụ huynh (Parent)|
 :Nhấp vào **Link mời vào lớp** được Giáo viên chia sẻ;
@@ -109,14 +114,19 @@ else if ([Quản lý Sổ điểm Đa môn & Đa cột điểm])
     :Gửi dữ liệu bảng điểm môn học lên Backend;
     
     |Backend NestJS (API & Services)|
-    :Lưu trữ các đầu điểm thành phần vào collection /scores;
-    :Tự động tính **Điểm trung bình môn (GPA môn)** theo trọng số quy định;
+    :Lưu trữ các đầu điểm thành phần vào collection /scores
+    (Hệ thống lưu đúng các cột điểm do giáo viên nhập, không tự động tính GPA môn);
     
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Cập nhật các document trong /scores;
     
+    |Client App (Next.js / React Native)|
+    :Hiển thị **BẢNG XẾP HẠNG (LEADERBOARD) ĐIỂM MÔN HỌC**:
+    - Trình chiếu vinh danh Top học sinh điểm cao nhất môn (Top 1, Top 2, Top 3)
+    - Thống kê phổ điểm và danh sách thứ hạng của môn học trong lớp;
+    
     |Giáo viên (GVCN & GVBM)|
-    :Kiểm tra bảng tổng hợp điểm môn học & bấm **"Công bố điểm"**;
+    :Trình chiếu Bảng xếp hạng điểm môn học lên màn hình lớp & bấm **"Công bố điểm"**;
     
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Cập nhật cờ is_published = TRUE trong /scores;
@@ -133,31 +143,41 @@ else if ([Khởi động bài cũ / Mini-game bằng AI])
     :Lưu bộ câu hỏi vào /quizzes và subcollection /questions;
     
     |Giáo viên (GVCN & GVBM)|
-    :Tổ chức tương tác bài cũ / Mini-game tại lớp (chiếu lên bảng):
-    - Vòng quay Random học sinh lên bảng
-    - Hoặc học sinh giơ bảng trả lời mini-game (không làm bài online);
-    :Giáo viên trực tiếp chấm & nhập điểm miệng/điểm cộng vào môn học đang dạy;
+    :Tổ chức tương tác bài cũ / Mini-game tại lớp (chiếu lên bảng);
+    :Khởi động **Vòng quay Random** quay ngẫu nhiên chọn học sinh;
+    if (Học sinh quay trúng nghỉ học hoặc vắng mặt?) then ([Bấm Bỏ qua])
+        :Giáo viên bấm nút **"Bỏ qua (Skip)"**;
+        :Hệ thống tự động quay tiếp vòng mới chọn bạn khác;
+    else ([Có mặt sẵn sàng])
+    endif
+    :Học sinh lên bảng hoặc giơ bảng trả lời mini-game (không làm bài online);
+    :Giáo viên trực tiếp chấm & nhập điểm vào môn học đang dạy;
     
     |Client App (Next.js / React Native)|
     :Gửi dữ liệu điểm vừa nhập lên Backend;
     
     |Backend NestJS (API & Services)|
     :Lưu điểm vào /quiz_results và sổ điểm /scores của môn học;
-    :Tự động tổng hợp và sắp xếp thứ hạng học sinh trong lớp;
     
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Cập nhật các document trong /quiz_results và /scores;
+
+else if ([Nhận xét & Đánh giá học sinh])
+    |Giáo viên (GVCN & GVBM)|
+    :Chọn học sinh cần nhận xét trên Web hoặc Mobile App;
+    :Nhập **lời nhận xét ngắn gọn (đoạn text ngắn)**
+    (Ví dụ: "Hôm nay em phát biểu rất hăng hái", "Cần chú ý nghe giảng hơn" - Không dùng nhãn tags);
+    :Bấm "Gửi nhận xét";
     
     |Client App (Next.js / React Native)|
-    :Hiển thị **BẢNG XẾP HẠNG (LEADERBOARD)** lớp học cho Giáo viên xem:
-    - Vinh danh Top điểm cao nhất lớp
-    - Thống kê phân bố điểm số và danh sách thứ hạng của lớp;
+    :Gửi dữ liệu nhận xét lên Backend;
     
-    |Giáo viên (GVCN & GVBM)|
-    :Giáo viên theo dõi kết quả, bấm "Công bố điểm" vào môn học;
+    |Backend NestJS (API & Services)|
+    :Lưu trữ nhận xét (đoạn text ngắn) vào collection /remarks;
+    :Kích hoạt thông báo tức thì tới Phụ huynh của học sinh đó;
     
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
-    :Cập nhật cờ is_published = TRUE trong /scores;
+    :Lưu bản ghi nhận xét vào /remarks;
 
 else ([Quản lý thu nộp BHYT / Học phí])
     |Giáo viên (GVCN & GVBM)|
@@ -192,21 +212,22 @@ endif
 :Chạm vào thông báo để mở App React Native;
 if (Nội dung thông báo?) then ([Thông báo điểm mới])
     :Mở **Sổ Điểm Điện Tử** của con trên App;
-    :Tra cứu Bảng điểm đa môn học toàn diện:
-    - Bảng điểm tất cả các môn: Toán, Tiếng Việt, Tiếng Anh, KHTN...
-    - Các đầu điểm thành phần: Miệng, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ
-    - Điểm trung bình từng môn (GPA môn) & Điểm trung bình học kỳ;
-    stop
-else if ([Thông báo vắng học]) then
+    :Tra cứu Bảng điểm các môn học:
+    - Bảng điểm chi tiết: Toán, Tiếng Việt, Tiếng Anh, KHTN...
+    - Các đầu điểm thành phần: Miệng, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ;
+else if ([Thông báo nhận xét mới từ giáo viên]) then ([Nhận xét])
+    :Mở Sổ liên lạc điện tử của con;
+    :Xem chi tiết lời nhận xét (đoạn text ngắn) của giáo viên;
+    :Bấm "Xác nhận đã đọc" để phản hồi với giáo viên;
+else if ([Thông báo vắng học]) then ([Vắng học])
     :Xem chi tiết ngày vắng & lịch sử chuyên cần của con;
-    stop
 else ([Nhắc nhở nộp BHYT / Học phí])
     :Mở mục "Học phí & BHYT" trên App;
     :Tra cứu tình trạng nghĩa vụ tài chính của con em:
     - Trạng thái Học phí (Đã nộp / Chưa nộp)
     - Trạng thái BHYT (Đã nộp / Chưa nộp kèm hạn chót);
     :Xem hướng dẫn nộp tiền trực tiếp tại trường cho GVCN;
-    stop
 endif
+stop
 
 @enduml

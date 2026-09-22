@@ -41,7 +41,7 @@ actor "Firebase FCM\n(SYS-02)" as FCM <<System>>
 ' GVCN kế thừa toàn bộ năng lực sư phạm của GVBM
 GVBM <|-- GVCN : <<kế thừa quyền giảng dạy>>
 
-note "<b>PHẠM VI HỆ THỐNG:</b>\n- KHÔNG có Tác nhân Học sinh (Student)\n- KHÔNG có tính năng học sinh làm bài kiểm tra trực tuyến\n- Giáo viên tự tạo lớp, mời PH qua link\n- Admin chỉ quản trị: CRUD, Ban, Limit" as ScopeNote
+note "<b>PHẠM VI HỆ THỐNG:</b>\n- KHÔNG có Tác nhân Học sinh (Student)\n- KHÔNG có tính năng học sinh làm bài kiểm tra trực tuyến\n- Chỉ GVCN tạo lớp tổng, thêm HS, gán GVBM & sinh link mời PH\n- GVBM truy cập lớp tổng để nhập/sửa điểm môn mình dạy\n- Vòng quay có nút Bỏ qua (Skip) nếu quay trúng bạn vắng\n- Sổ điểm lưu các cột điểm, không tự động tính GPA môn\n- Nhận xét là đoạn text ngắn gửi phụ huynh (không tags)\n- Admin chỉ quản trị: CRUD, Ban, Limit" as ScopeNote
 ScopeNote .. GVBM
 ScopeNote .. GVCN
 
@@ -58,17 +58,17 @@ rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
     }
 
     package "Phân hệ Nghiệp vụ Sư phạm & Lớp học (GVBM & GVCN)" {
-        usecase "UC-ACA-02\nNhập Sổ Điểm Đa Môn Học\n(Nhiều môn & Nhiều loại điểm:\nMiệng, 15p, 1 tiết, Giữa kỳ, Cuối kỳ)" as UC_Grades
-        usecase "UC-ACA-04\nDò bài cũ & Quay Random Học sinh\n(Lọc học sinh có mặt hôm nay)" as UC_RandomStudent
+        usecase "UC-ACA-02\nNhập Sổ Điểm Môn Học Phụ Trách\n(Nhiều môn & Nhiều loại điểm:\nMiệng, 15p, 1 tiết, Giữa kỳ, Cuối kỳ)" as UC_Grades
+        usecase "UC-ACA-03\nNhập Nhận Xét Ngắn Cho Học Sinh\n(Đoạn text ngắn gửi tới Phụ huynh)" as UC_Remarks
+        usecase "UC-ACA-04\nDò bài cũ & Quay Random Học sinh\n(Nút Bỏ qua nếu quay trúng bạn vắng)" as UC_RandomStudent
         usecase "UC-ACA-05\nImport Docs/PDF bằng AI (Gemini)\nSinh câu hỏi kiểm tra bài cũ" as UC_AIQuiz
         usecase "UC-ACA-06\nTạo & Khởi chạy Mini-game Lớp học\n(Rung chuông vàng, Đua xe, Hộp quà)" as UC_ClassroomGame
-        usecase "UC-ACA-07\nNhập Điểm Kiểm Tra Tại Lớp &\nXem Bảng Xếp Hạng (Leaderboard)" as UC_Leaderboard
+        usecase "UC-ACA-07\nTrình Chiếu Bảng Xếp Hạng\n(Leaderboard) Điểm Môn Học" as UC_Leaderboard
     }
 
     package "Phân hệ Quản trị Lớp chủ nhiệm (Dành riêng cho GVCN)" {
-        usecase "UC-CLS-01\nTự tạo Lớp học & Thêm Học sinh\n(Sinh Invite Link & QR)" as UC_CreateClass
+        usecase "UC-CLS-01\nTạo Lớp Tổng, Thêm Học Sinh\n& Phân công GVBM (Sinh Invite Link)" as UC_CreateClass
         usecase "UC-ACA-01\nĐiểm danh Chuyên cần Lớp chủ nhiệm" as UC_Attendance
-        usecase "UC-ACA-03\nNhận xét Hạnh kiểm & Rèn luyện định kỳ" as UC_Remarks
         usecase "UC-FEE-01\nQuản lý Thu Học phí & BHYT\n(Cờ boolean: is_paid_tuition, is_paid_insurance)" as UC_FeesInsurance
     }
 
@@ -92,6 +92,7 @@ Admin --> UC_AdminLimit
 
 ' GVBM (và GVCN qua kế thừa)
 GVBM --> UC_Grades
+GVBM --> UC_Remarks
 GVBM --> UC_RandomStudent
 GVBM --> UC_AIQuiz
 GVBM --> UC_ClassroomGame
@@ -100,7 +101,6 @@ GVBM --> UC_Leaderboard
 ' Quyền đặc thù của GVCN
 GVCN --> UC_CreateClass
 GVCN --> UC_Attendance
-GVCN --> UC_Remarks
 GVCN --> UC_FeesInsurance
 
 ' Phụ huynh
@@ -115,6 +115,7 @@ UC_AIQuiz ..> GeminiAI : <<invokes>>\nBóc tách nội dung
 UC_ClassroomGame ..> GeminiAI : <<invokes>>\nSinh kịch bản Game
 UC_Attendance ..> FCM : <<trigger>>\nCảnh báo vắng học
 UC_Grades ..> FCM : <<trigger>>\nThông báo điểm mới
+UC_Remarks ..> FCM : <<trigger>>\nThông báo nhận xét mới
 UC_FeesInsurance ..> FCM : <<trigger>>\nNhắc nộp BHYT/Học phí
 UC_ReceiveNoti <-- FCM
 

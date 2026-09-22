@@ -71,7 +71,7 @@ AcademicSvc -- NotiSvc : 2.20: notifyGradePublished(classId, subjectCode)
 FeeSvc -- NotiSvc : 2.21: notifyFeeReminder(classId)
 
 ' --- NHÓM 3: Cổng Phụ huynh (Parent -> Mobile App React Native) ---
-Parent -- MobileParentUI : 3.1: login(credentials)\n3.2: switchChildProfile(childId)\n3.3: viewChildAcademicReport(grades, GPA)\n3.4: viewAttendanceHistory()\n3.5: viewTuitionAndInsuranceStatus(isPaidFlags)
+Parent -- MobileParentUI : 3.1: login(credentials)\n3.2: switchChildProfile(childId)\n3.3: viewChildAcademicReport(grades)\n3.4: viewAttendanceHistory()\n3.5: viewTuitionAndInsuranceStatus(isPaidFlags)
 
 MobileParentUI -- Gateway : 3.6: HTTP POST /api/v1/auth/login\n3.7: HTTP GET /api/v1/students/:id/academic\n3.8: HTTP GET /api/v1/students/:id/attendance\n3.9: HTTP GET /api/v1/students/:id/fees-insurance
 
