@@ -5,11 +5,25 @@
 
 ## 1. Giới thiệu & Ranh giới phân quyền hệ thống
 
-Hệ thống phục vụ công tác quản lý học sinh khối **Cấp 1 & Cấp 2** với cơ chế phân quyền RBAC phân cấp rõ rệt giữa:
-- **Ban Giám Hiệu (Admin)**
-- **Giáo viên Chủ nhiệm (GVCN - Homeroom Teacher)**
-- **Giáo viên Bộ môn (GVBM - Subject Teacher)**
-- **Phụ huynh học sinh (Parent)**
+Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân, trong đó **Giáo viên chủ nhiệm (GVCN)** sở hữu toàn bộ các quyền giảng dạy sư phạm của **Giáo viên bộ môn (GVBM)** và có thêm các quyền quản trị riêng cho lớp chủ nhiệm:
+
+```text
+               ┌───────────────────────────────┐
+               │    Giáo viên Bộ môn (GVBM)    │
+               │ - Nhập điểm môn phụ trách     │
+               │ - Dò bài cũ, Random học sinh  │
+               │ - Dùng AI tạo đề & tạo Game   │
+               └───────────────┬───────────────┘
+                               │ (Kế thừa toàn bộ quyền giảng dạy)
+                               ▼
+               ┌───────────────────────────────┐
+               │  Giáo viên Chủ nhiệm (GVCN)   │
+               │ + Điểm danh lớp chủ nhiệm     │
+               │ + Quản lý Học phí & BHYT      │
+               │ + Nhận xét hạnh kiểm cả kỳ    │
+               │ + Phát thông báo toàn lớp     │
+               └───────────────────────────────┘
+```
 
 ---
 
@@ -17,16 +31,16 @@ Hệ thống phục vụ công tác quản lý học sinh khối **Cấp 1 & C�
 
 | Mã Tác nhân | Tên Tác nhân | Vai trò chi tiết | Quyền hạn nghiệp vụ |
 | :--- | :--- | :--- | :--- |
-| **ACT-01** | **Admin** | Ban Giám Hiệu / Quản trị viên trường | Quản lý niên khóa, khối lớp, phân công GVCN và GVBM, cấu hình biểu phí & BHYT, giám sát toàn trường. |
-| **ACT-02A** | **GVCN** (Teacher Homeroom) | Giáo viên Chủ nhiệm | Điểm danh lớp chủ nhiệm, theo dõi & cập nhật trạng thái đóng Học phí & BHYT (`fees_and_insurance`), nhập nhận xét hạnh kiểm, gửi thông báo họp. |
-| **ACT-02B** | **GVBM** (Teacher Subject) | Giáo viên Bộ môn | Nhập điểm môn học phụ trách, upload tài liệu Docs/PDF để AI sinh câu hỏi kiểm tra bài cũ, quay random học sinh có mặt lên bảng. |
-| **ACT-03** | **Parent** (Phụ huynh) | Phụ huynh học sinh | Nhận thông báo đẩy (vắng học, điểm mới), theo dõi sổ liên lạc, tra cứu tình trạng đóng Học phí & BHYT của con em. |
-| **SYS-01** | **Gemini AI Engine** | Dịch vụ AI (Google Gemini API) | Tiếp nhận văn bản trích xuất từ Docs/PDF, tự động sinh ngân hàng câu hỏi kiểm tra bài cũ có cấu trúc. |
+| **ACT-01** | **Admin** | Ban Giám Hiệu / Quản trị viên trường | Quản lý niên khóa, khối lớp 1-9, phân công chuyên môn, cấu hình biểu phí & BHYT, giám sát toàn trường. |
+| **ACT-02A** | **GVCN** (Teacher Homeroom) | Giáo viên Chủ nhiệm | **Toàn quyền giảng dạy (dò bài, chấm điểm, tạo game AI, random học sinh)** + Quản lý nề nếp, điểm danh, theo dõi cờ nộp Học phí & BHYT (`fees_and_insurance`), nhận xét rèn luyện. |
+| **ACT-02B** | **GVBM** (Teacher Subject) | Giáo viên Bộ môn | Nhập điểm môn học phụ trách, upload tài liệu Docs/PDF để AI sinh câu hỏi kiểm tra bài cũ, quay random học sinh có mặt hôm nay, tổ chức mini-game lớp học. |
+| **ACT-03** | **Parent** (Phụ huynh) | Phụ huynh học sinh | Nhận thông báo đẩy (vắng học, điểm mới, nhắc BHYT), theo dõi sổ liên lạc, tra cứu tình trạng đóng Học phí & BHYT của con em. |
+| **SYS-01** | **Gemini AI Engine** | Dịch vụ AI (Google Gemini API) | Trích xuất văn bản từ Docs/PDF, tự động tạo câu hỏi trắc nghiệm/tự luận ngắn và cấu hình luật chơi mini-game tương tác. |
 | **SYS-02** | **Firebase FCM** | Dịch vụ Push Notification | Gửi thông báo tức thì tới ứng dụng di động React Native của Phụ huynh. |
 
 ---
 
-## 3. Ma Trận Phân Quyền Use Case Chi Tiết
+## 3. Ma Trận Phân Quyền Use Case Toàn Diện
 
 | Mã Use Case | Tên Trường hợp sử dụng | Admin | GVCN | GVBM | Phụ huynh |
 | :--- | :--- | :---: | :---: | :---: | :---: |
@@ -37,10 +51,11 @@ Hệ thống phục vụ công tác quản lý học sinh khối **Cấp 1 & C�
 | **UC-ADM-03** | Quản lý hồ sơ học sinh & Liên kết phụ huynh | ✔ | Xem | ✖ | ✖ |
 | **UC-ADM-04** | Cấu hình mức thu Học phí & BHYT theo năm | ✔ | ✖ | ✖ | ✖ |
 | **UC-ACA-01** | Điểm danh chuyên cần lớp chủ nhiệm | ✖ | ✔ | ✖ | ✖ |
-| **UC-ACA-02** | Nhập & Phê duyệt điểm số môn học phụ trách | ✖ | ✖ | ✔ | ✖ |
+| **UC-ACA-02** | Nhập & Phê duyệt điểm số môn học phụ trách | ✖ | ✔ | ✔ | ✖ |
 | **UC-ACA-03** | Nhập nhận xét rèn luyện, hạnh kiểm định kỳ | ✖ | ✔ | ✖ | ✖ |
-| **UC-ACA-04** | Import Docs/PDF bằng AI (Gemini) sinh câu hỏi bài cũ | ✖ | ✔ | ✔ | ✖ |
-| **UC-ACA-05** | Quay Random học sinh có mặt hôm nay lên bảng | ✖ | ✔ | ✔ | ✖ |
+| **UC-ACA-04** | Dò bài cũ & Quay Random học sinh có mặt hôm nay | ✖ | ✔ | ✔ | ✖ |
+| **UC-ACA-05** | Import Docs/PDF bằng AI (Gemini) sinh câu hỏi bài cũ | ✖ | ✔ | ✔ | ✖ |
+| **UC-ACA-06** | Tạo & Khởi chạy Mini-game tương tác lớp học | ✖ | ✔ | ✔ | ✖ |
 | **UC-FEE-01** | Quản lý cờ thu Học phí & BHYT (`fees_and_insurance`)| Xem | ✔ | ✖ | ✖ |
 | **UC-PAR-01** | Tra cứu điểm số & Học bạ điện tử của con | ✖ | ✖ | ✖ | ✔ |
 | **UC-PAR-02** | Theo dõi lịch sử chuyên cần & Cảnh báo vắng | ✖ | ✖ | ✖ | ✔ |
@@ -49,24 +64,17 @@ Hệ thống phục vụ công tác quản lý học sinh khối **Cấp 1 & C�
 
 ---
 
-## 4. Mô Tả Chi Tiết Các Tính Năng Đặc Thù
+## 4. Mô Tả Các Nghiệp Vụ Tương Tác Giảng Dạy Mới
 
-### 4.1. Tính năng AI Sinh Câu Hỏi Kiểm Tra Bài Cũ từ Docs/PDF (UC-ACA-04)
-- **Đầu vào:** Giáo viên tải lên file tài liệu bài giảng (`.docx` hoặc `.pdf`) của bài học trước hoặc bài học hiện tại.
-- **Xử lý:** Backend NestJS trích xuất nội dung văn bản (Text Parser) $\rightarrow$ gọi Google Gemini API với prompt sư phạm:
-  *"Hãy tạo 3-5 câu hỏi kiểm tra bài cũ trắc nghiệm hoặc ngắn gọn bám sát nội dung văn bản sau, kèm đáp án và thang điểm."*
-- **Đầu ra:** Tạo bản ghi trong bảng `quizzes` và các câu hỏi trong bảng `questions`. Giáo viên có thể duyệt, sửa và bật chế độ trình chiếu lên bảng.
+### 4.1. Tạo & Vận Hành Mini-game Tương Tác Lớp Học (UC-ACA-06)
+- **Tác nhân thực hiện:** GVCN hoặc GVBM.
+- **Mô tả:** Sau khi AI sinh bộ câu hỏi từ file giáo trình `.docx`/`.pdf`, giáo viên chọn kiểu game để biến tiết học thành sân chơi sôi nổi:
+  - **Game 1 - Rung Chuông Vàng:** Học sinh trong lớp cùng giơ bảng chọn A/B/C/D, giáo viên bấm đáp án trên màn hình để kiểm tra ai ở lại sàn thi đấu.
+  - **Game 2 - Vượt Chướng Ngại Vật (Đua xe):** Chia lớp thành các tổ thi đua, trả lời đúng câu hỏi thì xe của đội tiến 1 ô.
+  - **Game 3 - Mở Hộp Quà May Mắn:** Chọn câu hỏi bất kỳ, trả lời đúng mở được phần thưởng điểm số hoặc sticker khen thưởng.
+  - **Game 4 - Chạm Nối Ghép Cặp:** Học sinh Cấp 1 lên chạm trực tiếp trên bảng thông minh để nối khái niệm với hình minh họa.
 
-### 4.2. Tính năng Vòng Quay / Random Học Sinh Lên Bảng (UC-ACA-05)
-- **Thuật toán cốt lõi:**
-  1. Lấy `class_id` hiện tại và ngày hôm nay.
-  2. Truy vấn bảng `attendances`: Lọc ra danh sách `student_id` có trạng thái `status = 'PRESENT'` (có mặt). **Tự động loại bỏ học sinh vắng mặt.**
-  3. Lọc tiếp những học sinh chưa được kiểm tra bài cũ trong các tiết gần nhất (nếu bật tùy chọn ưu tiên).
-  4. Hiển thị giao diện Vòng quay may mắn / Rút thăm ngẫu nhiên sinh động trên Web Next.js để chiếu lên bảng trước lớp.
-
-### 4.3. Quản Lý Học Phí & Bảo Hiểm Y Tế (UC-FEE-01)
-- Bảng `fees_and_insurance` theo dõi trực tiếp cho từng học sinh với 2 cờ boolean:
-  - `is_paid_tuition` (`true`/`false`): Đã nộp học phí hay chưa.
-  - `is_paid_insurance` (`true`/`false`): Đã nộp tiền BHYT học sinh hay chưa.
-- GVCN có giao diện checklist nhanh để tích chọn khi nhận tiền trực tiếp từ phụ huynh hoặc hệ thống tự động gán `true` khi phụ huynh thanh toán online.
-- Bộ lọc thông minh cho phép GVCN lọc danh sách: *"Các học sinh chưa đóng BHYT"* để gửi tin nhắn nhắc nhở một chạm đến đúng các phụ huynh đó.
+### 4.2. Dò Bài Cũ & Vòng Quay Random Học Sinh (UC-ACA-04)
+- Áp dụng cho cả **GVCN** và **GVBM** đầu mỗi tiết học.
+- Thuật toán tự động đọc bảng `attendances` và **chỉ nạp các học sinh CÓ MẶT (`status = 'PRESENT'`)** vào vòng quay, đảm bảo không bao giờ quay trúng học sinh đang vắng.
+- Kết hợp hiển thị câu hỏi do AI tạo ra để học sinh trả lời, giáo viên cho điểm trực tiếp tại chỗ.

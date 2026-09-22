@@ -24,19 +24,22 @@ skinparam note {
     FontSize 10
 }
 
-title Sơ Đồ Use Case Toàn Hệ Thống (System Use Case Diagram) - GiaoVienHay (EduConnect)\nQuản Lý Học Sinh Cấp 1 & 2: Phân Quyền GVCN/GVBM, AI Quiz & Random Học Sinh
+title Sơ Đồ Use Case Toàn Hệ Thống (System Use Case Diagram) - GiaoVienHay (EduConnect)\nQuản Lý Học Sinh Cấp 1 & 2: Dò Bài Cũ, AI Quiz & Tạo Game Tương Tác Lớp Học
 
 ' ==============================================================================
 ' 1. ĐỊNH NGHĨA CÁC TÁC NHÂN (ACTORS)
 ' ==============================================================================
 
 actor "Quản trị viên / BGH\n(Admin)" as Admin
-actor "Giáo viên Chủ nhiệm\n(GVCN)" as GVCN
 actor "Giáo viên Bộ môn\n(GVBM)" as GVBM
+actor "Giáo viên Chủ nhiệm\n(GVCN)" as GVCN
 actor "Phụ huynh Học sinh\n(Parent)" as Parent
 
 actor "Google Gemini AI\n(SYS-01)" as GeminiAI <<System>>
 actor "Firebase FCM\n(SYS-02)" as FCM <<System>>
+
+' GVCN kế thừa toàn bộ năng lực sư phạm của GVBM
+GVBM <|-- GVCN : <<kế thừa quyền giảng dạy>>
 
 ' ==============================================================================
 ' 2. DANH MỤC USE CASE THEO PHÂN HỆ
@@ -51,16 +54,17 @@ rectangle "Hệ Thống GiaoVienHay (EduConnect) - Cấp 1 & Cấp 2" {
         usecase "UC-ADM-04\nCấu hình Biểu phí & BHYT" as UC_ConfigFee
     }
 
-    package "Phân hệ Giáo viên Chủ nhiệm (GVCN)" {
-        usecase "UC-ACA-01\nĐiểm danh Chuyên cần Lớp chủ nhiệm" as UC_Attendance
-        usecase "UC-ACA-03\nNhận xét Hạnh kiểm & Rèn luyện" as UC_Remarks
-        usecase "UC-FEE-01\nQuản lý Thu Học phí & BHYT\n(is_paid_tuition, is_paid_insurance)" as UC_FeesInsurance
+    package "Phân hệ Nghiệp vụ Sư phạm & Lớp học (GVBM & GVCN)" {
+        usecase "UC-ACA-02\nNhập & Phê duyệt Điểm số môn học" as UC_Grades
+        usecase "UC-ACA-04\nDò bài cũ & Quay Random Học sinh\n(Lọc học sinh có mặt hôm nay)" as UC_RandomStudent
+        usecase "UC-ACA-05\nImport Docs/PDF bằng AI (Gemini)\nSinh câu hỏi kiểm tra bài cũ" as UC_AIQuiz
+        usecase "UC-ACA-06\nTạo & Khởi chạy Mini-game Lớp học\n(Rung chuông vàng, Đua xe, Hộp quà)" as UC_ClassroomGame
     }
 
-    package "Phân hệ Giáo viên Bộ môn (GVBM)" {
-        usecase "UC-ACA-02\nNhập & Phê duyệt Điểm số môn phụ trách" as UC_Grades
-        usecase "UC-ACA-04\nImport Docs/PDF bằng AI\nSinh câu hỏi kiểm tra bài cũ" as UC_AIQuiz
-        usecase "UC-ACA-05\nVòng quay / Random Học sinh\n(Lọc học sinh có mặt hôm nay)" as UC_RandomStudent
+    package "Phân hệ Quản trị Lớp chủ nhiệm (Dành riêng cho GVCN)" {
+        usecase "UC-ACA-01\nĐiểm danh Chuyên cần Lớp chủ nhiệm" as UC_Attendance
+        usecase "UC-ACA-03\nNhận xét Hạnh kiểm & Rèn luyện định kỳ" as UC_Remarks
+        usecase "UC-FEE-01\nQuản lý Thu Học phí & BHYT\n(Cờ boolean: is_paid_tuition, is_paid_insurance)" as UC_FeesInsurance
     }
 
     package "Phân hệ Phụ huynh (Parent Portal)" {
@@ -81,26 +85,26 @@ Admin --> UC_Assign
 Admin --> UC_Students
 Admin --> UC_ConfigFee
 
-' GVCN (Thừa kế quyền Giáo viên và có thêm quyền chủ nhiệm)
+' GVBM (và GVCN qua kế thừa)
+GVBM --> UC_Grades
+GVBM --> UC_RandomStudent
+GVBM --> UC_AIQuiz
+GVBM --> UC_ClassroomGame
+
+' Quyền đặc thù của GVCN
 GVCN --> UC_Attendance
 GVCN --> UC_Remarks
 GVCN --> UC_FeesInsurance
-GVCN --> UC_AIQuiz
-GVCN --> UC_RandomStudent
 
-' GVBM
-GVBM --> UC_Grades
-GVBM --> UC_AIQuiz
-GVBM --> UC_RandomStudent
-
-' Parent
+' Phụ huynh
 Parent --> UC_ViewGrades
 Parent --> UC_ViewAttendance
 Parent --> UC_ViewFees
 Parent --> UC_ReceiveNoti
 
 ' Hệ thống bên ngoài
-UC_AIQuiz ..> GeminiAI : <<invokes>>\nBóc tách & sinh câu hỏi
+UC_AIQuiz ..> GeminiAI : <<invokes>>\nBóc tách nội dung
+UC_ClassroomGame ..> GeminiAI : <<invokes>>\nSinh kịch bản Game
 UC_Attendance ..> FCM : <<trigger>>\nCảnh báo vắng học
 UC_Grades ..> FCM : <<trigger>>\nThông báo điểm mới
 UC_FeesInsurance ..> FCM : <<trigger>>\nNhắc nộp BHYT/Học phí

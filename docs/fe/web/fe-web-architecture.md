@@ -8,15 +8,15 @@ Tài liệu này đặc tả chi tiết cấu trúc, giao diện và tính năng
 
 ## 1. Các Tính Năng Giao Diện Đặc Thù
 
-### 1.1. Chế Độ Trình Chiếu Lớp Học & AI Quiz Generator
+### 1.1. AI Quiz Generator & Bộ 4 Mini-Game Tương Tác Lớp Học
 - **Import Giáo án/Docs/PDF:** Giáo viên kéo thả file bài giảng vào khu vực upload, hệ thống hiển thị tiến trình bóc tách AI (Google Gemini API).
-- **Xem trước & Tinh chỉnh câu hỏi:** Bảng hiển thị danh sách câu hỏi trắc nghiệm A-B-C-D kèm lời giải thích, cho phép chỉnh sửa trực tiếp.
-- **Classroom Presentation Mode (Toàn màn hình):**
-  - Giao diện Fullscreen, nền tối hoặc tương phản cao, font chữ to rõ nét phục vụ máy chiếu và TV/Bảng thông minh trong lớp.
-  - Tích hợp bộ đếm giờ (Timer) đếm ngược 30s/45s/60s.
-  - Nút bấm ẩn/hiện đáp án từng bước.
+- **Bộ 4 Chế Độ Mini-Game Trình Chiếu Lớp Học (Fullscreen Canvas/Animation):**
+  1. **Golden Bell (Rung chuông vàng):** Hiển thị câu hỏi đếm ngược 30s, âm thanh kịch tính, hiển thị tỉ lệ chọn đáp án và loại trực tiếp học sinh trả lời sai.
+  2. **Class Racing (Vượt chướng ngại vật / Đua xe):** Chia lớp thành các tổ (Tổ 1 -> Tổ 4), tổ trả lời đúng xe sẽ tăng tốc về đích.
+  3. **Mystery Box (Hộp quà bí mật):** Màn hình hiển thị các hộp quà nhiều màu sắc, học sinh trả lời đúng câu hỏi bài cũ được mở hộp quà may mắn (điểm cộng, tràng pháo tay).
+  4. **Smartboard Match (Chạm nối đáp án):** Giao diện cảm ứng cho phép học sinh Cấp 1 lên bảng kéo thả nối từ/hình ảnh trực tiếp bằng tay/bút tương tác.
 
-### 1.2. Vòng Quay May Mắn / Random Học Sinh Lên Bảng
+### 1.2. Dò Bài Cũ & Vòng Quay May Mắn (Lucky Wheel)
 - **Giao diện Vòng quay Canvas / CSS Animation:** Mô phỏng vòng quay bánh xe may mắn rực rỡ sắc màu kèm âm thanh quay số hồi hộp.
 - **Dữ liệu thời gian thực:** Tự động gọi API lấy danh sách học sinh **có mặt hôm nay** (dựa vào dữ liệu điểm danh thực tế vừa lưu, tự động loại bỏ học sinh vắng).
 - **Pop-up Chấm điểm nhanh:** Khi kim dừng lại ở học sinh nào, pop-up hiển thị ngay tên học sinh kèm ô nhập điểm miệng và nút "Lưu vào sổ điểm".
@@ -43,19 +43,19 @@ web-admin/
 │   │   │   │   ├── classes/                # Quản lý lớp, khối 1-9
 │   │   │   │   ├── assignments/            # Phân công GVCN & GVBM
 │   │   │   │   └── fee-config/             # Cấu hình biểu phí & BHYT
-│   │   │   ├── homeroom/                   # Dành cho GVCN
-│   │   │   │   ├── attendance/             # Điểm danh lớp chủ nhiệm
-│   │   │   │   ├── fees-insurance/         # Quản lý cờ thu Học phí & BHYT
+│   │   │   ├── teacher/                    # Dành cho Giáo viên (Cả GVCN & GVBM đều truy cập)
+│   │   │   │   ├── gradebook/              # Sổ điểm môn học
+│   │   │   │   ├── attendance/             # Điểm danh lớp học
+│   │   │   │   ├── fees-insurance/         # Quản lý cờ thu Học phí & BHYT (chỉ lớp chủ nhiệm)
+│   │   │   │   ├── oral-test/              # Dò bài cũ & Vòng quay Random học sinh có mặt
+│   │   │   │   ├── ai-quiz/                # Import Docs/PDF sinh câu hỏi AI
+│   │   │   │   │   ├── upload/
+│   │   │   │   │   └── games/              # 4 Mini-games: GoldenBell, Racing, MysteryBox, Matching
 │   │   │   │   └── conduct/                # Nhận xét hạnh kiểm
-│   │   │   └── subject/                    # Dành cho GVBM
-│   │   │       ├── gradebook/              # Sổ điểm bộ môn
-│   │   │       ├── ai-quiz/                # Import Docs/PDF & Sinh câu hỏi bằng Gemini
-│   │   │       │   ├── upload/             # Tải tài liệu
-│   │   │       │   └── presentation/       # Chế độ trình chiếu lên bảng
-│   │   │       └── random-student/         # Vòng quay học sinh có mặt hôm nay
-│   │   │           └── page.tsx
+│   │   │   └── layout.tsx
 │   ├── components/
-│   │   ├── classroom/                      # LuckyWheel, QuizSlide, CountdownTimer
+│   │   ├── games/                          # GoldenBellBoard, RacingTrack, MysteryBoxes, MatchBoard
+│   │   ├── classroom/                      # LuckyWheel, CountdownTimer, ScoreCelebration
 │   │   ├── fees/                           # FeeStatusBadge, FeeChecklistTable
 │   │   └── ui/                             # Table, Modal, Button, Checkbox
 │   └── services/
