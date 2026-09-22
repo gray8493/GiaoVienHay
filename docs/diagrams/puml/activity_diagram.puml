@@ -1,4 +1,4 @@
-﻿@startuml
+@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -17,46 +17,46 @@ skinparam note {
     FontSize 10
 }
 
-title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to-End System Activity Diagram)\nGiaoVienHay - Bao Quát Cả 3 Nhóm Tác Nhân & Các Nghiệp Vụ Cốt Lõi
+title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to-End System Activity Diagram)\nGiaoVienHay - Quản Trị, Nghiệp Vụ Sư Phạm & Cổng Phụ Huynh (Theo Dõi Cờ BHYT/Học Phí)
 
 ' ==============================================================================
 ' ĐỊNH NGHĨA CÁC PHÂN VÙNG LÀN BƠI (SWIMLANES)
 ' ==============================================================================
 
 |#E3F2FD|Quản trị viên (Admin)|
-|#E1F5FE|Giáo viên (Teacher)|
+|#E1F5FE|Giáo viên (GVCN & GVBM)|
 |#EDE7F6|Client App (Next.js / React Native)|
 |#FFF3E0|Backend NestJS (API & Services)|
 |#E8F5E9|Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-|#FCE4EC|Dịch Vụ Ngoài (FCM & Payment Gateway)|
+|#FCE4EC|Dịch Vụ Ngoài (Firebase FCM & AI)|
 |#F3E5F5|Phụ huynh (Parent)|
 
 ' ==============================================================================
-' GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & HỌC PHÍ (ADMIN PORTAL)
+' GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & DANH MỤC THU NỘP BHYT/HỌC PHÍ (ADMIN)
 ' ==============================================================================
 
 |Quản trị viên (Admin)|
 start
 :Đăng nhập Web Quản trị Next.js;
-:Thiết lập Khối lớp, Phân công giảng dạy cho Giáo viên;
+:Thiết lập Khối lớp 1-9, Phân công GVCN & GV Bộ môn;
 :Tạo danh sách Học sinh và thiết lập Liên kết với Phụ huynh;
-:Khởi tạo đợt thu Học phí theo kỳ (UC-ADM-04);
+:Cấu hình danh mục thu Học phí & BHYT theo năm học;
 
 |Client App (Next.js / React Native)|
-:Gửi yêu cầu khởi tạo cấu trúc và biểu phí;
+:Gửi yêu cầu khởi tạo cấu trúc và danh mục;
 
 |Backend NestJS (API & Services)|
 :Xác thực quyền Admin (RolesGuard);
 :Xử lý nghiệp vụ & Mở DB Transaction;
 
 |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-:Lưu trữ cơ cấu trường, phân công và hóa đơn học phí vào PostgreSQL;
+:Lưu cơ cấu trường, phân công và bản ghi fees_and_insurance (cờ mặc định FALSE);
 
 ' ==============================================================================
-' GIAI ĐOẠN 2: NGHIỆP VỤ GIẢNG DẠY & CHUYÊN CẦN (TEACHER)
+' GIAI ĐOẠN 2: NGHIỆP VỤ SƯ PHẠM, ĐIỂM DANH & QUẢN LÝ BHYT (GIÁO VIÊN)
 ' ==============================================================================
 
-|Giáo viên (Teacher)|
+|Giáo viên (GVCN & GVBM)|
 :Mở ứng dụng (Web hoặc Mobile App React Native);
 if (Lựa chọn thao tác nghiệp vụ?) then ([Điểm danh chuyên cần])
     :Mở tính năng "Điểm danh" tại lớp học;
@@ -74,25 +74,30 @@ if (Lựa chọn thao tác nghiệp vụ?) then ([Điểm danh chuyên cần])
     else (Không)
     endif
 
-else ([Nhập điểm môn học])
-    |Giáo viên (Teacher)|
-    :Mở Sổ điểm trên Web Next.js;
-    :Nhập các cột điểm kiểm tra thành phần;
-    :Bấm "Phê duyệt & Công bố điểm";
+else if (Lựa chọn thao tác nghiệp vụ?) then ([Dò bài cũ & Chơi Game AI])
+    |Giáo viên (GVCN & GVBM)|
+    :Tải giáo án .docx/.pdf lên Web Next.js;
     
-    |Client App (Next.js / React Native)|
-    :Gửi POST /api/v1/grades/publish;
+    |Dịch Vụ Ngoài (Firebase FCM & AI)|
+    :Google Gemini AI phân tích bóc tách và sinh câu hỏi;
     
-    |Backend NestJS (API & Services)|
-    :Kiểm tra thang điểm (0-10) & tính điểm trung bình;
+    |Giáo viên (GVCN & GVBM)|
+    :Chọn 1 trong 4 Mini-game (Rung chuông vàng, Đua xe, Hộp quà);
+    :Quay Vòng quay Random học sinh (chỉ học sinh CÓ MẶT hôm nay);
+    :Chấm điểm miệng và lưu trực tiếp vào sổ điểm;
+
+else ([Quản lý thu nộp BHYT / Học phí])
+    |Giáo viên (GVCN & GVBM)|
+    :GVCN mở danh sách lớp chủ nhiệm;
+    :Tích chọn cờ boolean (is_paid_tuition, is_paid_insurance) khi học sinh nộp;
+    :Lọc danh sách các em chưa nộp BHYT và bấm "Nhắc nhở";
     
     |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-    :Cập nhật bảng grades trong PostgreSQL;
-    :Phát sự kiện 'GradePublishedEvent' vào RabbitMQ;
+    :Phát sự kiện 'FeeReminderEvent' vào RabbitMQ;
 endif
 
 ' ==============================================================================
-' GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & BẮN THÔNG BÁO TỨC THÌ
+' GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & BẮN THÔNG BÁO TỨC THÌ (FCM)
 ' ==============================================================================
 
 |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
@@ -103,11 +108,11 @@ endif
 :Truy xuất Device Token từ Redis Cache;
 :Gửi yêu cầu Multicast Push tới FCM;
 
-|Dịch Vụ Ngoài (FCM & Payment Gateway)|
+|Dịch Vụ Ngoài (Firebase FCM & AI)|
 :Firebase FCM chuyển phát thông báo đẩy tới điện thoại Phụ huynh;
 
 ' ==============================================================================
-' GIAI ĐOẠN 4: CỔNG PHỤ HUYNH - TRA CỨU & THANH TOÁN HỌC PHÍ (PARENT)
+' GIAI ĐOẠN 4: CỔNG PHỤ HUYNH - TRA CỨU HỌC BẠ & TRẠNG THÁI BHYT (PARENT)
 ' ==============================================================================
 
 |Phụ huynh (Parent)|
@@ -116,36 +121,13 @@ endif
 if (Nội dung thông báo?) then ([Thông báo vắng học / Điểm mới])
     :Xem chi tiết bảng điểm hoặc lịch sử điểm danh của con;
     stop
-else ([Thông báo học phí mới])
-    :Mở mục "Học phí" trên App;
-    :Kiểm tra chi tiết các khoản thu cần nộp;
-    :Bấm "Thanh toán ngay" và chọn Cổng thanh toán (VNPAY / MoMo);
-    
-    |Client App (Next.js / React Native)|
-    :Gửi POST /api/v1/payments/create-url;
-    
-    |Backend NestJS (API & Services)|
-    :Tạo giao dịch chờ & sinh chữ ký số (Checksum);
-    
-    |Dịch Vụ Ngoài (FCM & Payment Gateway)|
-    :Cổng thanh toán hiển thị màn hình thanh toán / Mở App ngân hàng;
-    
-    |Phụ huynh (Parent)|
-    :Xác thực OTP / Sinh trắc học để thanh toán;
-    
-    |Dịch Vụ Ngoài (FCM & Payment Gateway)|
-    :Trừ tiền tài khoản & Gửi Webhook IPN về Backend NestJS;
-    
-    |Backend NestJS (API & Services)|
-    :Xác thực chữ ký số Webhook;
-    
-    |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-    :Cập nhật trạng thái hóa đơn sang 'PAID' trong PostgreSQL;
-    
-    |Phụ huynh (Parent)|
-    :Nhận biên lai điện tử xác nhận thanh toán thành công;
+else ([Nhắc nhở nộp BHYT / Học phí])
+    :Mở mục "Học phí & BHYT" trên App;
+    :Tra cứu tình trạng nghĩa vụ tài chính của con em:
+    - Trạng thái Học phí (Đã nộp / Chưa nộp)
+    - Trạng thái BHYT (Đã nộp / Chưa nộp kèm hạn chót);
+    :Xem hướng dẫn nộp tiền trực tiếp tại trường cho GVCN;
     stop
 endif
 
 @enduml
-

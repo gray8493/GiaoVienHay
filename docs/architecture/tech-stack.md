@@ -1,4 +1,4 @@
-﻿# Tài Liệu Ngăn Xếp Công Nghệ & Sơ Đồ CSDL (Tech Stack & Database Schema)
+# Tài Liệu Ngăn Xếp Công Nghệ & Sơ Đồ CSDL (Tech Stack & Database Schema)
 # Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
@@ -102,7 +102,7 @@ erDiagram
         decimal insurance_amount
         boolean is_paid_insurance "Cờ trạng thái đã nộp BHYT"
         datetime insurance_paid_at
-        string payment_method "CASH, ONLINE"
+        string payment_method "CASH, BANK_TRANSFER"
     }
 
     quizzes {

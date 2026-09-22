@@ -1,4 +1,4 @@
-﻿@startuml
+@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -37,7 +37,7 @@ package "Client Components (Frontend)" {
         [Quản Trị Trường & Khối Lớp]
         [Sổ Điểm & Nhập Điểm Bộ Môn]
         [Điểm Danh & Nề Nếp GVCN]
-        [Quản Lý Học Phí & BHYT]
+        [Quản Lý Trạng Thái Học Phí & BHYT]
         [Classroom Presentation Mode]
         [Bộ 4 Mini-games Tương Tác]
         [Vòng Quay May Mắn (Lucky Wheel)]
@@ -49,7 +49,7 @@ package "Client Components (Frontend)" {
         [GV: Điểm Danh Nhanh]
         [PH: Tra Cứu Điểm & Học Bạ]
         [PH: Theo Dõi Chuyên Cần]
-        [PH: Xem Tình Trạng BHYT/Học Phí]
+        [PH: Xem Trạng Thái Nộp BHYT/Học Phí]
         [FCM Push Notification Receiver]
     }
 }
@@ -69,7 +69,7 @@ package "Backend Server Platform (NestJS Modular Monolith)" {
         component [School & Admin Module\n(Classes 1-9, Teachers, Assignments)] as AdminMod
         component [Academic & Attendance Module\n(Grades, Daily Attendance Check)] as AcadMod
         component [Gamification & Quiz Module\n(Doc Parser, Question Generator, Game Engine)] as GameMod
-        component [Billing & Insurance Module\n(Tuition, BHYT Boolean Flags)] as BillingMod
+        component [Fees & Insurance Module\n(Quản lý cờ nộp Học phí & BHYT boolean)] as FeeMod
         component [Notification Module\n(Message Dispatcher, FCM Worker)] as NotiMod
     }
     
@@ -86,7 +86,7 @@ package "Storage & Cloud Infrastructure" {
     database "PostgreSQL 15 (Managed)\n(users, classes, students, scores,\nattendances, fees_and_insurance,\nquizzes, questions, notifications)" as PostgresDB
     database "MongoDB 6\n(News Feeds, Audit Logs)" as MongoDB
     database "Redis 7\n(Session, Token Blacklist, BullMQ)" as RedisDB
-    queue "RabbitMQ\n(Event Exchange: Attendance, Grade, Fee)" as RabbitBroker
+    queue "RabbitMQ\n(Event Exchange: Attendance, Grade, FeeReminder)" as RabbitBroker
 }
 
 ' ==============================================================================
@@ -99,7 +99,6 @@ package "External Cloud Services" {
         [Firebase Cloud Messaging (FCM)\n(Push Notification Gateway)] as FBMessaging
     }
     cloud "Google Gemini API\n(gemini-1.5-flash)" as GeminiAI
-    cloud "Cổng Thanh Toán\n(VNPAY / MoMo)" as PaymentGateway
 }
 
 ' ==============================================================================
@@ -115,14 +114,14 @@ AuthGuard --> AuthMod
 AuthGuard --> AdminMod
 AuthGuard --> AcadMod
 AuthGuard --> GameMod
-AuthGuard --> BillingMod
+AuthGuard --> FeeMod
 AuthGuard --> NotiMod
 
 ' Modules liên kết Data Access Layer
 AuthMod --> PrismaDAL
 AdminMod --> PrismaDAL
 AcadMod --> PrismaDAL
-BillingMod --> PrismaDAL
+FeeMod --> PrismaDAL
 GameMod --> PrismaDAL
 
 PrismaDAL --> PostgresDB
@@ -132,6 +131,7 @@ MongoDAL --> MongoDB
 ' Background Jobs & Cache
 AuthMod --> RedisDB : Caching session & Blacklist
 AcadMod --> RabbitBroker : Publish 'StudentAbsentEvent',\n'GradePublishedEvent'
+FeeMod --> RabbitBroker : Publish 'FeeReminderEvent'
 RabbitBroker --> NotiMod : Consume Events
 NotiMod --> BullMQ
 BullMQ --> RedisDB
@@ -140,8 +140,6 @@ BullMQ --> RedisDB
 GameMod --> FBStorage : Upload & đọc file .docx / .pdf
 GameMod --> GeminiAI : Gửi văn bản trích xuất sinh câu hỏi & Game
 NotiMod --> FBMessaging : Gửi Multicast Push Notification
-FBMessaging -.-> MobileClient : Đẩy thông báo tức thì
-BillingMod --> PaymentGateway : Tạo giao dịch & Nhận Webhook
+FBMessaging -.-> MobileClient : Đẩy thông báo tức thì (vắng học, điểm mới, nhắc BHYT)
 
 @enduml
-

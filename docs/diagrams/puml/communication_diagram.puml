@@ -1,4 +1,4 @@
-﻿@startuml
+@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -10,13 +10,13 @@ skinparam object {
     FontStyle bold
 }
 
-title Sơ Đồ Giao Tiếp Toàn Hệ Thống (System-Wide Communication Diagram) - GiaoVienHay\nBao Quát Toàn Diện 3 Nhóm Tác Nhân & Các Phân Hệ Chức Năng Cốt Lõi
+title Sơ Đồ Giao Tiếp Toàn Hệ Thống (System-Wide Communication Diagram) - GiaoVienHay\nBao Quát 3 Nhóm Tác Nhân: Quản Trị, Sư Phạm & Phụ Huynh (Theo Dõi Trạng Thái Nộp BHYT/Học Phí)
 
 ' ==============================================================================
 ' 1. CÁC TÁC NHÂN NGƯỜI DÙNG (ACTORS)
 ' ==============================================================================
 object "<u>:Admin</u>\n(Quản trị viên / BGH)" as Admin
-object "<u>:Teacher</u>\n(Giáo viên)" as Teacher
+object "<u>:Teacher</u>\n(GVCN & GVBM)" as Teacher
 object "<u>:Parent</u>\n(Phụ huynh)" as Parent
 
 ' ==============================================================================
@@ -31,16 +31,15 @@ object "<u>:MobileParentUI</u>\n(Mobile App Phụ huynh)" as MobileParentUI
 ' 3. TẦNG BACKEND & API GATEWAY (NESTJS PLATFORM)
 ' ==============================================================================
 object "<u>:APIGateway</u>\n(Routing & RBAC Guard)" as Gateway
-object "<u>:AuthService</u>\n(NestJS Auth Module)" as AuthSvc
 object "<u>:AdminSchoolService</u>\n(NestJS Admin Module)" as AdminSvc
 object "<u>:AcademicService</u>\n(NestJS Academic Module)" as AcademicSvc
+object "<u>:FeesInsuranceService</u>\n(NestJS Fee/BHYT Module)" as FeeSvc
 object "<u>:NotificationService</u>\n(NestJS Noti Module)" as NotiSvc
-object "<u>:BillingPaymentService</u>\n(NestJS Payment Module)" as PaymentSvc
 
 ' ==============================================================================
 ' 4. TẦNG DỮ LIỆU & HÀNG ĐỢI (STORAGE & BROKER LAYER)
 ' ==============================================================================
-object "<u>:PostgreSQL</u>\n(Users, Roles, Grades, Fees)" as Postgres
+object "<u>:PostgreSQL</u>\n(Users, Classes, Students, Scores, Fees)" as Postgres
 object "<u>:MongoDB</u>\n(News Feeds, Audit Logs)" as Mongo
 object "<u>:RedisCache</u>\n(Session, FCM Tokens, BullMQ)" as Redis
 object "<u>:RabbitMQ</u>\n(Message Broker Events)" as RabbitMQ
@@ -49,47 +48,48 @@ object "<u>:RabbitMQ</u>\n(Message Broker Events)" as RabbitMQ
 ' 5. CÁC DỊCH VỤ NGOÀI (EXTERNAL SERVICES)
 ' ==============================================================================
 object "<u>:FirebaseFCM</u>\n(Cloud Messaging Service)" as FCM
-object "<u>:PaymentGateway</u>\n(VNPAY / MoMo Gateway)" as PaymentGW
+object "<u>:FirebaseStorage</u>\n(Lưu trữ tài liệu giáo án)" as FBStorage
 
 ' ==============================================================================
 ' CÁC LUỒNG GIAO TIẾP & THÔNG ĐIỆP ĐƯỢC ĐÁNH SỐ THEO PHÂN HỆ
 ' ==============================================================================
 
 ' --- NHÓM 1: Quản trị Trường học & Cấu hình Hệ thống (Admin -> Web Next.js) ---
-Admin -- WebAdminUI : 1.1: login(credentials)\n1.2: manageSchoolStructure(classes, subjects)\n1.3: assignTeachers(homeroom, subjects)\n1.4: manageStudentParentLink(records)\n1.5: createTuitionInvoices(fees)\n1.6: postAnnouncement(newsContent)
+Admin -- WebAdminUI : 1.1: login(credentials)\n1.2: manageSchoolStructure(classes, subjects)\n1.3: assignTeachers(homeroom, subjects)\n1.4: manageStudentParentLink(records)\n1.5: configureFeeAndInsuranceTerms(terms)\n1.6: postAnnouncement(newsContent)
 
-WebAdminUI -- Gateway : 1.7: HTTP POST /api/v1/auth/login\n1.8: HTTP REST /api/v1/admin/* (CRUD)\n1.9: HTTP POST /api/v1/billing/invoices\n1.10: HTTP POST /api/v1/feeds
+WebAdminUI -- Gateway : 1.7: HTTP POST /api/v1/auth/login\n1.8: HTTP REST /api/v1/admin/* (CRUD)\n1.9: HTTP POST /api/v1/fees/config\n1.10: HTTP POST /api/v1/feeds
 
 Gateway -- AdminSvc : 1.11: forwardAdminRequest(validatedToken)
-Gateway -- PaymentSvc : 1.12: forwardBillingRequest(token)
+Gateway -- FeeSvc : 1.12: forwardFeeConfigRequest(token)
 AdminSvc -- Postgres : 1.13: saveSchoolData(classes, assignments, linkages)
 AdminSvc -- Mongo : 1.14: saveAnnouncementFeed(content, audit)
 
-' --- NHÓM 2: Nghiệp vụ Giảng dạy & Đánh giá (Teacher -> Web & Mobile App) ---
-Teacher -- WebTeacherUI : 2.1: login(credentials)\n2.2: viewTimetable()\n2.3: inputAndPublishGrades(classId, scores)\n2.4: writeStudentRemarks(remarks)
+' --- NHÓM 2: Nghiệp vụ Sư phạm & Lớp học (Giáo viên -> Web & Mobile App) ---
+Teacher -- WebTeacherUI : 2.1: login(credentials)\n2.2: importDocsAndGenerateGame(file)\n2.3: runClassroomMiniGame(gameType)\n2.4: inputAndPublishGrades(classId, scores)\n2.5: checkFeesInsuranceList(homeroomClassId)\n2.6: togglePaidFlag(studentId, isPaidTuition, isPaidInsurance)
 
-Teacher -- MobileTeacherUI : 2.5: quickAttendance(classId, presentList, absentList)\n2.6: sendUrgentNotice(message)
+Teacher -- MobileTeacherUI : 2.7: quickAttendance(classId, presentList, absentList)\n2.8: viewHomeroomFeeStatus()
 
-WebTeacherUI -- Gateway : 2.7: HTTP POST /api/v1/grades/publish\n2.8: HTTP POST /api/v1/students/remarks
-MobileTeacherUI -- Gateway : 2.9: HTTP POST /api/v1/attendance/submit\n2.10: HTTP GET /api/v1/teacher/schedule
+WebTeacherUI -- Gateway : 2.9: HTTP POST /api/v1/quizzes/generate\n2.10: HTTP POST /api/v1/grades/publish\n2.11: HTTP PATCH /api/v1/fees-insurance/toggle
+MobileTeacherUI -- Gateway : 2.12: HTTP POST /api/v1/attendance/submit
 
-Gateway -- AcademicSvc : 2.11: forwardAcademicRequest(teacherToken)
-AcademicSvc -- Postgres : 2.12: persistGradesAndAttendance(ACID)
-AcademicSvc -- RabbitMQ : 2.13: publishEvent(GradePublishedEvent, StudentAbsentEvent)
+Gateway -- AcademicSvc : 2.13: forwardAcademicRequest(teacherToken)
+Gateway -- FeeSvc : 2.14: forwardFeeUpdateRequest(teacherToken)
+FeeSvc -- Postgres : 2.15: updateBooleanFlags(is_paid_tuition, is_paid_insurance)
+FeeSvc -- RabbitMQ : 2.16: publishEvent(FeeReminderEvent)
+AcademicSvc -- Postgres : 2.17: persistGradesAndAttendance(ACID)
+AcademicSvc -- RabbitMQ : 2.18: publishEvent(GradePublishedEvent, StudentAbsentEvent)
+AcademicSvc -- FBStorage : 2.19: uploadAndStoreDocFile(docx, pdf)
 
 ' --- NHÓM 3: Cổng Phụ huynh (Parent -> Mobile App React Native) ---
-Parent -- MobileParentUI : 3.1: login(credentials)\n3.2: switchChildProfile(childId)\n3.3: viewChildAcademicReport(grades, GPA)\n3.4: viewAttendanceHistory()\n3.5: viewTuitionInvoices()\n3.6: initiatePayment(invoiceId, method)
+Parent -- MobileParentUI : 3.1: login(credentials)\n3.2: switchChildProfile(childId)\n3.3: viewChildAcademicReport(grades, GPA)\n3.4: viewAttendanceHistory()\n3.5: viewTuitionAndInsuranceStatus(isPaidFlags)
 
-MobileParentUI -- Gateway : 3.7: HTTP POST /api/v1/auth/login\n3.8: HTTP GET /api/v1/students/:id/academic\n3.9: HTTP GET /api/v1/students/:id/attendance\n3.10: HTTP POST /api/v1/payments/create-url
+MobileParentUI -- Gateway : 3.6: HTTP POST /api/v1/auth/login\n3.7: HTTP GET /api/v1/students/:id/academic\n3.8: HTTP GET /api/v1/students/:id/attendance\n3.9: HTTP GET /api/v1/students/:id/fees-insurance
 
-Gateway -- PaymentSvc : 3.11: forwardPaymentRequest(parentToken)
-PaymentSvc -- PaymentGW : 3.12: requestPaymentUrl(orderInfo, amount)
-PaymentGW -- MobileParentUI : 3.13: returnPaymentRedirectUrl()
-PaymentGW -- PaymentSvc : 3.14: webhookIPN(checksum, transactionStatus)
-PaymentSvc -- Postgres : 3.15: updateInvoiceStatus(PAID, receiptId)
+Gateway -- FeeSvc : 3.10: queryFeeStatus(studentId)
+FeeSvc -- Postgres : 3.11: fetchBooleanFlagsAndAmounts()
 
 ' --- NHÓM 4: Xử lý Bất đồng bộ & Bắn Thông Báo Đẩy Thời Gian Thực ---
-RabbitMQ -- NotiSvc : 4.1: consumeEvent(GradePublishedEvent, StudentAbsentEvent)
+RabbitMQ -- NotiSvc : 4.1: consumeEvent(GradePublishedEvent, StudentAbsentEvent, FeeReminderEvent)
 NotiSvc -- Postgres : 4.2: queryParentAccountByStudentId()
 NotiSvc -- Redis : 4.3: fetchDeviceFCMTokens(parentIds)
 NotiSvc -- FCM : 4.4: sendMulticastPushNotification(fcmTokens, payload)
@@ -98,4 +98,3 @@ FCM -- MobileParentUI : 4.5: pushBackgroundNotification(alertTitle, alertBody)
 MobileParentUI -- Parent : 4.6: renderPushBannerNotification()
 
 @enduml
-

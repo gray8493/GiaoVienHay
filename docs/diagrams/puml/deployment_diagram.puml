@@ -1,4 +1,4 @@
-﻿@startuml
+@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -91,12 +91,6 @@ cloud "Google Cloud AI" as GoogleAI {
     }
 }
 
-cloud "Cổng Thanh Toán Trực Tuyến" as PaymentCloud {
-    node "VNPAY / MoMo Payment Gateway" {
-        artifact "Payment & IPN Webhook API" as PaymentEndpoint
-    }
-}
-
 ' ==============================================================================
 ' CÁC KẾT NỐI MẠNG & GIAO THỨC (NETWORK CONNECTIONS)
 ' ==============================================================================
@@ -104,25 +98,22 @@ cloud "Cổng Thanh Toán Trực Tuyến" as PaymentCloud {
 ' Client tương tác với Web và API
 Browser --> NextjsApp : HTTPS / TLS 1.3 (:443)\n(Truy cập Web Quản trị & Bảng tương tác)
 Browser --> NestjsApp : HTTPS REST API (:443)\n(Gọi API dữ liệu, bốc thăm, quiz)
-MobileApp --> NestjsApp : HTTPS REST API (:443)\n(Gửi điểm danh, tra cứu điểm số)
+MobileApp --> NestjsApp : HTTPS REST API (:443)\n(Gửi điểm danh, tra cứu điểm số, xem BHYT)
 
 ' Vercel Next.js giao tiếp với Backend
 NextjsApp --> NestjsApp : HTTPS RESTful Calls / Server Actions
 
-' Backend nội bộ trong PaaS Platform (Private Network siêu nhanh)
+' Backend nội bộ trong PaaS Platform (Private Network)
 NestjsApp --> PostgresInstance : TCP / Prisma Driver (:5432)
 NestjsApp --> RedisInstance : TCP / Redis Protocol (:6379)
 NestjsApp --> RabbitInstance : AMQP Protocol (:5672)
 
 ' Backend kết nối Firebase Cloud
 NestjsApp --> StorageBucket : HTTPS Firebase Admin SDK\n(Upload & đọc tài liệu giáo án)
-NestjsApp --> FcmGateway : HTTPS FCM HTTP v1 API\n(Gửi thông báo đẩy vắng học, điểm mới)
+NestjsApp --> FcmGateway : HTTPS FCM HTTP v1 API\n(Gửi thông báo đẩy vắng học, điểm mới, nhắc BHYT)
 FcmGateway -.-> MobileApp : Push Alert Notifications (APNs / FCM Native)
 
-' Backend kết nối AI & Payment
+' Backend kết nối AI
 NestjsApp --> GeminiEndpoint : HTTPS API (@google/genai)\n(Gửi văn bản sinh câu hỏi & Game)
-NestjsApp --> PaymentEndpoint : HTTPS REST (:443)\n(Tạo giao dịch thanh toán)
-PaymentEndpoint --> NestjsApp : HTTPS POST Webhook IPN\n(Cập nhật cờ is_paid_tuition)
 
 @enduml
-

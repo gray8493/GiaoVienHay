@@ -15,7 +15,7 @@ Tài liệu này đặc tả chi tiết cấu trúc, quy tắc điều hướng 
    - Hỗ trợ chuyển đổi linh hoạt giữa nhiều hồ sơ con em (Child Switcher).
    - Nhận thông báo đẩy (Push Notification) tức thì khi con vắng học hoặc có điểm mới.
    - Tra cứu kết quả học tập chi tiết, học bạ điện tử và lịch sử điểm danh.
-   - Xem hóa đơn và bấm thanh toán học phí qua cổng thanh toán liên kết.
+   - Tra cứu tình trạng nộp Học phí & BHYT của con (Đã nộp / Chưa nộp).
 
 ---
 
@@ -41,7 +41,7 @@ mobile-app/
 │   │       ├── ParentHomeScreen.tsx        # Trang chủ phụ huynh & bảng tin
 │   │       ├── ChildAcademicScreen.tsx     # Bảng điểm & tiến độ của con
 │   │       ├── ChildAttendanceScreen.tsx   # Lịch sử chuyên cần của con
-│   │       ├── TuitionPaymentScreen.tsx    # Hóa đơn & thanh toán học phí
+│   │       ├── FeesInsuranceStatusScreen.tsx # Tra cứu tình trạng nộp Học phí & BHYT
 │   │       └── NotificationsScreen.tsx     # Trung tâm thông báo
 │   ├── components/                         # UI Components tái sử dụng
 │   │   ├── common/                         # Button, Input, Card, Header, Avatar, Badge
@@ -78,7 +78,7 @@ graph TD
     CheckAuth -->|Hợp lệ| CheckRole{Role là gì?}
     
     CheckRole -->|TEACHER| TeacherTabs[TeacherTabNavigator\n1. Lịch dạy (Home)\n2. Điểm danh (Attendance)\n3. Nhập điểm (Grades)\n4. Cá nhân (Profile)]
-    CheckRole -->|PARENT| ParentTabs[ParentTabNavigator\n1. Tổng quan con (Home)\n2. Điểm số (Academic)\n3. Chuyên cần (Attendance)\n4. Học phí (Tuition)\n5. Thông báo (Noti)]
+    CheckRole -->|PARENT| ParentTabs[ParentTabNavigator\n1. Tổng quan con (Home)\n2. Điểm số (Academic)\n3. Chuyên cần (Attendance)\n4. Học phí & BHYT (Fees & Insurance)\n5. Thông báo (Noti)]
 ```
 
 ---

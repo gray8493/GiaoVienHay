@@ -1,4 +1,4 @@
-﻿# Tài Liệu Thiết Kế Cơ Sở Dữ Liệu (Database Schema Specification)
+# Tài Liệu Thiết Kế Cơ Sở Dữ Liệu (Database Schema Specification)
 # Hệ Thống GiaoVienHay – PostgreSQL 15 & Firebase Storage
 
 Tài liệu này đặc tả chi tiết cấu trúc bảng, kiểu dữ liệu, các ràng buộc toàn vẹn (Constraints), chỉ mục (Indexes) và mối quan hệ giữa 10 bảng dữ liệu cốt lõi của hệ thống **GiaoVienHay**.
@@ -115,9 +115,7 @@ erDiagram
         timestamp tuition_paid_at "Thời điểm nộp học phí"
         decimal insurance_amount "Số tiền BHYT phải nộp"
         boolean is_paid_insurance "Cờ nộp BHYT (TRUE = Đã nộp)"
-        timestamp insurance_paid_at "Thời điểm nộp BHYT"
-        varchar payment_method "CASH (Tiền mặt), VNPAY, MOMO"
-        varchar transaction_ref "Mã đối soát giao dịch ngân hàng/cổng"
+        varchar payment_method "CASH (Tiền mặt), BANK_TRANSFER"
         timestamp created_at
     }
 
@@ -245,9 +243,7 @@ Quản lý trạng thái hoàn thành nghĩa vụ tài chính của từng học
 - **`tuition_paid_at`** (`TIMESTAMP`, Nullable): Thời điểm thanh toán học phí.
 - **`insurance_amount`** (`NUMERIC(12,2)`, Default: `0`): Số tiền Bảo hiểm Y tế học sinh.
 - **`is_paid_insurance`** (`BOOLEAN`, Default: `FALSE`, Not Null): **Cờ nộp BHYT** (`TRUE` = Đã hoàn thành).
-- **`insurance_paid_at`** (`TIMESTAMP`, Nullable): Thời điểm thanh toán BHYT.
-- **`payment_method`** (`VARCHAR(30)`, Nullable): Phương thức (`CASH` - Nộp tiền mặt trực tiếp cho GVCN, `VNPAY`, `MOMO`).
-- **`transaction_ref`** (`VARCHAR(100)`, Nullable): Mã giao dịch đối soát ngân hàng/cổng thanh toán.
+- **`payment_method`** (`VARCHAR(30)`, Nullable): Hình thức nộp tiền (`CASH` - Nộp tiền mặt cho GVCN, `BANK_TRANSFER` - Chuyển khoản trực tiếp trường học).
 
 ---
 

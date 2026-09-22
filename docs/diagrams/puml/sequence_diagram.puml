@@ -1,4 +1,4 @@
-﻿@startuml
+@startuml
 autonumber "<b>[00]</b>"
 skinparam BoxPadding 10
 skinparam ParticipantPadding 10
@@ -6,7 +6,7 @@ skinparam SequenceArrowThickness 1.2
 skinparam RoundCorner 8
 skinparam defaultFontSize 11
 
-title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - GiaoVienHay\nBao Quát Toàn Diện 3 Nhóm Tác Nhân & Các Phân Hệ Chức Năng Cốt Lõi
+title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - GiaoVienHay\nBao Quát Toàn Diện 3 Nhóm Tác Nhân: Quản Trị, Sư Phạm & Phụ Huynh
 
 ' ==============================================================================
 ' 1. ĐỊNH NGHĨA CÁC THÀNH PHẦN THEO TẦNG KIẾN TRÚC
@@ -25,8 +25,8 @@ box "Tầng Backend (NestJS Platform)" #FFF3E0
 boundary "API Gateway\n(Reverse Proxy & RBAC)" as Gateway
 control "Admin Module\n(School & Users)" as AdminModule
 control "Academic Module\n(Grades & Attend)" as AcadModule
+control "Fees & Insurance\n(Cờ Boolean)" as FeeModule
 control "Notification Module\n(BullMQ & FCM)" as NotiModule
-control "Billing Module\n(Payment & Invoice)" as BillingModule
 end box
 
 box "Tầng Dữ Liệu & Hàng Đợi (Storage & Broker)" #E8F5E9
@@ -37,32 +37,32 @@ end box
 
 box "Dịch Vụ Bên Ngoài (Third-Party Cloud)" #FCE4EC
 boundary "Firebase FCM\n(Cloud Messaging)" as FCM
-boundary "Cổng Thanh Toán\n(VNPAY / MoMo)" as PaymentGW
+boundary "Firebase Storage\n(Lưu File Giáo Án)" as FBStorage
 end box
 
 ' ==============================================================================
-' GIAI ĐOẠN 1: QUẢN TRỊ TRƯỜNG HỌC & KHỞI TẠO BIỂU PHÍ (ADMIN)
+' GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & ĐỢT THU NỘP BHYT/HỌC PHÍ (ADMIN)
 ' ==============================================================================
 
-== GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & TẠO HÓA ĐƠN HỌC PHÍ (ADMIN) ==
+== GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & ĐỢT THU NỘP BHYT/HỌC PHÍ (ADMIN) ==
 
 Admin -> WebAdminUI: Đăng nhập & thiết lập lớp học, phân công giảng dạy
 WebAdminUI -> Gateway: POST /api/v1/admin/classes/assign
 Gateway -> AdminModule: Forward request (Admin Token)
-AdminModule -> Postgres: Lưu thông tin phân công chuyên môn
+AdminModule -> Postgres: Lưu thông tin phân công GVCN & GVBM
 Postgres --> AdminModule: Thành công
 
-Admin -> WebAdminUI: Khởi tạo đợt thu học phí học kỳ
-WebAdminUI -> Gateway: POST /api/v1/billing/invoices
-Gateway -> BillingModule: Forward request
-BillingModule -> Postgres: Tạo danh sách hóa đơn học phí cho học sinh
-Postgres --> BillingModule: Hóa đơn được tạo thành công
+Admin -> WebAdminUI: Cấu hình danh mục thu Học phí & BHYT theo năm
+WebAdminUI -> Gateway: POST /api/v1/fees-insurance/terms
+Gateway -> FeeModule: Forward request
+FeeModule -> Postgres: Khởi tạo bản ghi fees_and_insurance với cờ mặc định FALSE
+Postgres --> FeeModule: Khởi tạo danh sách theo dõi thành công
 
 ' ==============================================================================
-' GIAI ĐOẠN 2: NGHIỆP VỤ GIẢNG DẠY - ĐIỂM DANH & NHẬP ĐIỂM (TEACHER)
+' GIAI ĐOẠN 2: NGHIỆP VỤ SƯ PHẠM - ĐIỂM DANH, CÔNG BỐ ĐIỂM & THEO DÕI BHYT (GV)
 ' ==============================================================================
 
-== GIAI ĐOẠN 2: ĐIỂM DANH & CÔNG BỐ ĐIỂM SỐ (TEACHER) ==
+== GIAI ĐOẠN 2: ĐIỂM DANH, NHẬP ĐIỂM & ĐÔN ĐỐC BHYT (GIÁO VIÊN) ==
 
 Teacher -> TeacherUI: Mở App tại lớp, chọn học sinh vắng & nhấn "Lưu điểm danh"
 TeacherUI -> Gateway: POST /api/v1/attendance/submit
@@ -78,13 +78,19 @@ AcadModule -> Postgres: Lưu bảng điểm & tính lại điểm TB môn
 AcadModule -> RabbitMQ: Phát sự kiện 'GradePublishedEvent' (classId, subjectId)
 AcadModule --> TeacherUI: Phản hồi "Đã công bố điểm"
 
+Teacher -> TeacherUI: Thu tiền BHYT trực tiếp tại lớp & tích chọn cờ đã nộp
+TeacherUI -> Gateway: PATCH /api/v1/fees-insurance/toggle
+Gateway -> FeeModule: Forward request (cập nhật is_paid_insurance = TRUE)
+FeeModule -> Postgres: Lưu trạng thái cờ boolean vào bảng fees_and_insurance
+Postgres --> FeeModule: Cập nhật thành công
+
 ' ==============================================================================
-' GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & BẮN THÔNG BÁO TỨC THÌ
+' GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & BẮN THÔNG BÁO TỨC THÌ (FCM)
 ' ==============================================================================
 
 == GIAI ĐOẠN 3: XỬ LÝ SỰ KIỆN BẤT ĐỒNG BỘ & ĐẨY THÔNG BÁO (FCM) ==
 
-RabbitMQ -> NotiModule: Chuyển giao các sự kiện (Vắng học, Điểm mới)
+RabbitMQ -> NotiModule: Chuyển giao các sự kiện (Vắng học, Điểm mới, Nhắc BHYT)
 NotiModule -> Postgres: Tra cứu phụ huynh liên kết với học sinh
 Postgres --> NotiModule: Danh sách ParentId
 NotiModule -> Redis: Lấy Device FCM Token của phụ huynh
@@ -94,10 +100,10 @@ FCM -> ParentApp: Đẩy thông báo tức thì tới thiết bị di động
 ParentApp -> Parent: Rung/Chuông & hiển thị Banner thông báo
 
 ' ==============================================================================
-' GIAI ĐOẠN 4: CỔNG PHỤ HUYNH - TRA CỨU & THANH TOÁN HỌC PHÍ (PARENT)
+' GIAI ĐOẠN 4: CỔNG PHỤ HUYNH - TRA CỨU HỌC BẠ & TRẠNG THÁI BHYT/HỌC PHÍ (PARENT)
 ' ==============================================================================
 
-== GIAI ĐOẠN 4: TRA CỨU HỌC TẬP & THANH TOÁN HỌC PHÍ ONLINE (PARENT) ==
+== GIAI ĐOẠN 4: TRA CỨU HỌC BẠ & XEM TÌNH TRẠNG NỘP HỌC PHÍ/BHYT (PARENT) ==
 
 Parent -> ParentApp: Mở thông báo xem chi tiết bảng điểm / chuyên cần của con
 ParentApp -> Gateway: GET /api/v1/students/:id/academic
@@ -106,22 +112,12 @@ AcadModule -> Postgres: Lấy chi tiết điểm số & chuyên cần
 Postgres --> AcadModule: Dữ liệu học tập
 AcadModule --> ParentApp: Hiển thị bảng điểm chi tiết trực quan
 
-Parent -> ParentApp: Chuyển sang mục "Học phí", bấm "Thanh toán ngay"
-ParentApp -> Gateway: POST /api/v1/payments/create-url
-Gateway -> BillingModule: Forward request
-BillingModule -> PaymentGW: Gọi API tạo giao dịch (OrderInfo, Amount, ReturnUrl)
-PaymentGW --> BillingModule: Trả về Payment URL
-BillingModule --> ParentApp: Chuyển hướng sang Cổng thanh toán (VNPAY/MoMo)
-
-Parent -> PaymentGW: Xác thực thanh toán (OTP ngân hàng)
-PaymentGW -> PaymentGW: Xử lý trừ tiền giao dịch thành công
-PaymentGW -> Gateway: Gửi Webhook IPN (kèm chữ ký số Checksum)
-Gateway -> BillingModule: Forward webhook
-BillingModule -> BillingModule: Kiểm tra tính hợp lệ chữ ký số
-BillingModule -> Postgres: Cập nhật hóa đơn sang trạng thái 'PAID'
-BillingModule -> NotiModule: Gửi biên lai xác nhận thanh toán thành công
-NotiModule -> FCM: Bắn thông báo đẩy xác nhận đã đóng học phí
-FCM -> ParentApp: Hiển thị thông báo "Thanh toán học phí thành công"
+Parent -> ParentApp: Chuyển sang mục "Học phí & BHYT"
+ParentApp -> Gateway: GET /api/v1/students/:id/fees-insurance
+Gateway -> FeeModule: Forward query
+FeeModule -> Postgres: Lấy trạng thái cờ is_paid_tuition và is_paid_insurance
+Postgres --> FeeModule: Dữ liệu trạng thái nghĩa vụ tài chính
+FeeModule --> ParentApp: Trả về trạng thái chi tiết
+ParentApp -> Parent: Hiển thị rõ ràng:\n- Học phí: ĐÃ NỘP (Tích xanh)\n- BHYT: CHƯA NỘP (Cảnh báo vàng kèm hạn nộp)
 
 @enduml
-

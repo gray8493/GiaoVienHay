@@ -1,4 +1,4 @@
-﻿# Quy Chuẩn Mã Phản Hồi & Cấu Trúc Dữ Liệu API (API Status & Response Codes Specification)
+# Quy Chuẩn Mã Phản Hồi & Cấu Trúc Dữ Liệu API (API Status & Response Codes Specification)
 # Dự Án GiaoVienHay
 
 Tài liệu này định nghĩa chuẩn mực cấu trúc phản hồi (**Response Envelope**) và danh mục toàn bộ mã trạng thái HTTP cùng mã lỗi nghiệp vụ (**Business Error Codes**) áp dụng cho Backend NestJS, Web Quản trị Next.js và Mobile App React Native.
@@ -104,11 +104,10 @@ Tất cả các API của hệ thống GiaoVienHay đều trả về dữ liệu
 | `ACAD_ATTENDANCE_ALREADY_EXISTS`| 409 | Buổi học này đã được điểm danh trước đó. |
 | `ACAD_SEMESTER_LOCKED` | 400 | Học kỳ đã kết thúc, không thể chỉnh sửa điểm số. |
 
-### 3.4. Phân hệ Thông báo & Thanh toán (NOTI_* & PAY_*)
+### 3.4. Phân hệ Thông báo & Học phí/BHYT (NOTI_* & FEE_*)
 | Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
 | :--- | :---: | :--- |
 | `NOTI_DEVICE_TOKEN_INVALID` | 400 | Thiết bị không hợp lệ để nhận thông báo đẩy FCM. |
-| `PAY_INVOICE_NOT_FOUND` | 404 | Không tìm thấy hóa đơn học phí. |
-| `PAY_INVOICE_ALREADY_PAID` | 409 | Hóa đơn này đã được thanh toán thành công trước đó. |
-| `PAY_SIGNATURE_INVALID` | 400 | Chữ ký số giao dịch từ cổng thanh toán không khớp. |
+| `FEE_RECORD_NOT_FOUND` | 404 | Không tìm thấy bản ghi theo dõi học phí hoặc BHYT của học sinh. |
+| `FEE_TERM_LOCKED` | 400 | Đợt thu nộp đã kết thúc, không thể điều chỉnh trạng thái cờ nộp. |
 
