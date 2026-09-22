@@ -13,12 +13,12 @@ title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - 
 ' ==============================================================================
 
 box "Tầng Client (Presentation Layer)" #E3F2FD
-actor "Quản trị viên\n(Admin)" as Admin
-boundary "Web Quản trị\n(Next.js)" as WebAdminUI
+actor "Quản trị viên\n(Platform Admin)" as Admin
+boundary "Web Quản trị\n(Next.js - Chỉ Admin)" as WebAdminUI
 actor "Giáo viên\n(Teacher)" as Teacher
-boundary "Mobile/Web GV\n(React Native / Next.js)" as TeacherUI
+boundary "App GV (Phone/Tablet)\n(React Native)" as TeacherUI
 actor "Phụ huynh\n(Parent)" as Parent
-boundary "Mobile Phụ huynh\n(React Native App)" as ParentApp
+boundary "App Phụ huynh\n(React Native App)" as ParentApp
 end box
 
 box "Tầng Backend (NestJS Platform)" #FFF3E0
@@ -42,12 +42,37 @@ boundary "Google Gemini AI\n(GenAI API)" as Gemini
 end box
 
 ' ==============================================================================
+' GIAI ĐOẠN 0: QUẢN TRỊ VIÊN VẬN HÀNH TRÊN WEB NEXT.JS (CHỈ RIÊNG ADMIN)
+' ==============================================================================
+
+== GIAI ĐOẠN 0: PLATFORM ADMIN QUẢN TRỊ TRÊN WEB NEXT.JS (CRUD, BAN, LIMIT) ==
+
+Admin -> WebAdminUI: Đăng nhập Cổng Quản trị (Admin Portal trên Web Next.js)
+WebAdminUI -> Gateway: POST /api/v1/admin/auth/verify (Admin Token)
+Gateway -> FBAuth: Xác minh Custom Claims (role = ADMIN)
+FBAuth --> Gateway: Token Quản trị viên hợp lệ
+Gateway --> WebAdminUI: Truy cập thành công Dashboard Admin
+
+Admin -> WebAdminUI: Cấu hình hạn mức (limit/quota: số lớp, học sinh/lớp, lượt AI Gemini) & Quản lý User/Ban
+WebAdminUI -> Gateway: PUT /api/v1/admin/system/limits (payload: quotaConfigs)
+Gateway -> AdminModule: Cập nhật hạn mức hệ thống & chính sách tài nguyên
+AdminModule -> Firestore: Ghi cấu hình vào /system_configs/limits
+Firestore --> AdminModule: Ghi nhận thành công
+AdminModule --> WebAdminUI: Cập nhật thông số hệ thống thành công
+
+' ==============================================================================
 ' GIAI ĐOẠN 1: GIÁO VIÊN TỰ TẠO LỚP, THÊM HỌC SINH & PHỤ HUYNH VÀO LỚP QUA LINK
 ' ==============================================================================
 
 == GIAI ĐOẠN 1: GVCN TẠO LỚP TỔNG, GÁN GVBM & PHỤ HUYNH VÀO LỚP QUA LINK ==
 
-Teacher -> TeacherUI: GVCN đăng nhập, tạo Lớp tổng (Tên lớp, Khối 1-9), danh sách HS & phân công GVBM
+Teacher -> TeacherUI: Đăng nhập & Tạo/Cập nhật Hồ sơ: Chọn 1 hoặc nhiều môn giảng dạy (teaching_subjects)
+TeacherUI -> Gateway: PATCH /api/v1/users/profile (teaching_subjects: ["MATH", "LIT", ...])
+Gateway -> AdminModule: Cập nhật hồ sơ giáo viên
+AdminModule -> Firestore: Lưu mảng teaching_subjects vào /users/{uid}
+Firestore --> AdminModule: Cập nhật thành công
+
+Teacher -> TeacherUI: GVCN tạo Lớp tổng (Tên lớp, Khối 1-9), hệ thống tự gán môn GVCN dạy, GVCN gán GVBM môn còn lại
 TeacherUI -> Gateway: POST /api/v1/classes (className, grade, students, subject_teachers)
 Gateway -> FBAuth: Verify ID Token (kiểm tra quyền TEACHER_HOMEROOM)
 FBAuth --> Gateway: Token hợp lệ
@@ -141,6 +166,16 @@ AcadModule -> Firestore: Lưu bản ghi nhận xét (text ngắn, không nhãn t
 Firestore --> AcadModule: Ghi nhận nhận xét thành công
 AcadModule -> NotiModule: Kích hoạt thông báo nhận xét mới (nội dung text ngắn) tới Phụ huynh
 AcadModule --> TeacherUI: Thông báo "Đã gửi nhận xét tới Phụ huynh"
+
+== GIÁO VIÊN TẠO LỜI NHẮC LỊCH KIỂM TRA CHO PHỤ HUYNH DẶN HỌC SINH ==
+
+Teacher -> TeacherUI: Chọn Lớp, Môn học, Loại kiểm tra, Ngày kiểm tra & lời dặn dò ôn tập
+TeacherUI -> Gateway: POST /api/v1/academic/exam-reminders (classId, subjectCode, examType, examDate, message)
+Gateway -> AcadModule: Forward request (xác thực quyền GVBM/GVCN)
+AcadModule -> Firestore: Lưu thông tin vào collection /exam_reminders
+Firestore --> AcadModule: Lưu bản ghi thành công
+AcadModule -> NotiModule: Kích hoạt phát thông báo đẩy tới toàn bộ Phụ huynh trong lớp
+AcadModule --> TeacherUI: Thông báo "Đã phát lời nhắc kiểm tra tới Phụ huynh"
 
 Teacher -> TeacherUI: Thu tiền BHYT trực tiếp tại lớp & tích chọn cờ đã nộp
 TeacherUI -> Gateway: PATCH /api/v1/fees-insurance/toggle

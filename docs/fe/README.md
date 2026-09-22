@@ -13,12 +13,13 @@ Hệ thống cung cấp 2 giải pháp giao diện độc lập nhằm tối ưu
 +--------------------------------------------------------------------------------------------------+
 |                                    TẦNG FRONTEND (PRESENTATION LAYER)                            |
 +----------------------------------------------------+---------------------------------------------+
-| 1. WEB QUẢN TRỊ (Admin & Giáo viên)                | 2. MOBILE APP (Giáo viên & Phụ huynh)       |
+| 1. WEB ADMIN (Chỉ riêng Platform Admin)            | 2. MOBILE & TABLET APP (Giáo viên & PH)     |
 |    - Framework: Next.js 14+ (App Router)           |    - Framework: React Native (CLI / Expo)   |
 |    - Ngôn ngữ: TypeScript                          |    - Ngôn ngữ: TypeScript                   |
-|    - Đối tượng: Platform Admin, Giáo viên           |    - Đối tượng: Giáo viên, Phụ huynh        |
-|    - Mục đích: CRUD, Ban, Limit tài nguyên, tạo     |    - Mục đích: Điểm danh nhanh, nhận thông  |
-|      lớp, nhập điểm, trình chiếu tương tác.         |      báo đẩy tức thì, tra cứu học bạ, phí.  |
+|    - Đối tượng: DUY NHẤT Platform Admin            |    - Đối tượng: Giáo viên (GVCN & GVBM)     |
+|    - Mục đích: CRUD người dùng & dữ liệu, Ban/     |      và Phụ huynh                           |
+|      Unban tài khoản, Cấu hình Limit/Quota hệ      |    - Mục đích: Nghiệp vụ lớp học, tạo lớp,  |
+|      thống (số lớp, học sinh, hạn ngạch AI).       |      sổ điểm, AI quiz, mini-game, nhận xét. |
 +----------------------------------------------------+---------------------------------------------+
 ```
 

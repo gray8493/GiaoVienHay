@@ -28,7 +28,10 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
    - Nhận thông báo đẩy tức thì (vắng học, điểm số, nhắc nộp BHYT), theo dõi sát sao sự tiến bộ của con qua ứng dụng di động.
 
 > **NGUYÊN TẮC THIẾT KẾ & GIỚI HẠN PHẠM VI (SCOPE BOUNDARY):**  
-> Hệ thống **hoàn toàn KHÔNG CUNG CẤP tính năng cho học sinh làm bài kiểm tra trực tuyến** (Không có tài khoản học sinh, không có cổng thi/làm trắc nghiệm online). Toàn bộ hoạt động kiểm tra bài cũ, hỏi đáp và mini-game đều do **Giáo viên trực tiếp tổ chức và trình chiếu trên bảng tại lớp học**. Sau đó, **Giáo viên là người trực tiếp chấm và nhập điểm số** của học sinh vào hệ thống.
+> 1. **Phân định Nền tảng Ứng dụng (Frontend Boundaries):**
+>    - **Web Next.js 14+:** Được phát triển **CHỈ DÀNH RIÊNG CHO PLATFORM ADMIN** ("chúng tôi" - Quản trị viên nền tảng). Web Admin Portal gói gọn trong 3 nhóm tính năng: **CRUD** (quản lý người dùng/lớp học), **Ban/Unban** (khóa/mở tài khoản), **Limit/Quota** (hạn ngạch tài nguyên & gọi AI). Tuyệt đối không chứa route nghiệp vụ sư phạm của giáo viên hay cổng phụ huynh.
+>    - **Mobile & Tablet App (React Native):** Ứng dụng đa vai trò trên di động & máy tính bảng dành cho **Giáo viên (GVCN & GVBM)** và **Phụ huynh**. Giáo viên sử dụng Phone/Tablet để giảng dạy tại lớp, kết nối Máy chiếu/Smartboard (3 Mini-game, Vòng quay random, Sổ điểm, Điểm danh, Lời nhắc lịch kiểm tra...). Phụ huynh dùng Phone nhận thông báo đẩy FCM, tra cứu học tập, BHYT.
+> 2. **Không có thi trực tuyến:** Hệ thống **hoàn toàn KHÔNG CUNG CẤP tính năng cho học sinh làm bài kiểm tra trực tuyến** (Không có tài khoản học sinh, không có cổng thi/làm trắc nghiệm online). Toàn bộ hoạt động kiểm tra bài cũ, hỏi đáp và mini-game đều do **Giáo viên trực tiếp tổ chức và trình chiếu trên bảng tại lớp học**. Sau đó, **Giáo viên là người trực tiếp chấm và nhập điểm số** của học sinh vào hệ thống.
 
 ---
 
@@ -68,6 +71,10 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 - **Nhận xét bằng đoạn text ngắn:** Cả GVBM và GVCN đều có thể gửi lời nhận xét ngắn gọn (dưới dạng văn bản ngắn thuần túy, không dùng thẻ nhãn tags rườm rà) về tinh thần học tập, nề nếp hoặc bài làm của học sinh.
 - **Kết nối tức thời tới Phụ huynh:** Nhận xét dạng text được lưu vào collection `/remarks` và bắn thông báo đẩy (FCM) tức thời đến điện thoại phụ huynh.
 
+### 2.6. Thông Báo & Lời Nhắc Lịch Kiểm Tra Sắp Tới (GV Cho Phụ Huynh Đôn Đốc Học Sinh)
+- **Tạo lời nhắc nhanh chóng:** Cả GVBM và GVCN đều có thể tạo thông báo nhắc lịch kiểm tra sắp tới (15 phút, 1 tiết, Giữa kỳ...) kèm theo môn học, ngày kiểm tra và nội dung dặn dò ôn tập bài giảng.
+- **Đôn đốc con em tại nhà:** Hệ thống bắn thông báo đẩy tức thì (FCM) đến điện thoại của toàn bộ phụ huynh trong lớp, giúp bố mẹ chủ động nắm bắt lịch thi và đôn đốc con học bài, ôn tập kỹ lưỡng.
+
 ---
 
 ## 3. Kiến trúc CSDL Cốt Lõi (Firebase Cloud Firestore)
@@ -83,5 +90,6 @@ Hệ thống sử dụng **Google Cloud Firestore (NoSQL Document Store)** làm 
 8. `/quizzes/{quizId}`: Bộ câu hỏi / mini-game tạo từ giáo án phục vụ Giáo viên trình chiếu tương tác tại lớp.
    - Subcollection `/questions/{questionId}`: Câu hỏi, 4 lựa chọn, đáp án đúng, giải thích, thời gian đếm ngược.
 9. `/quiz_results/{resultId}`: Điểm kiểm tra bài cũ / kết quả tham gia mini-game do Giáo viên trực tiếp nhập tại lớp (Bảng xếp hạng vinh danh tại lớp được lấy từ Sổ điểm môn học `/scores`).
-10. `/notifications/{notificationId}`: Nhật ký thông báo đẩy phát tới phụ huynh qua Firebase Cloud Messaging.
+10. `/exam_reminders/{reminderId}`: Thông báo lời nhắc lịch kiểm tra sắp tới (môn học, loại kiểm tra, ngày thi, lời dặn ôn tập) do GVBM/GVCN tạo gửi tới phụ huynh.
+11. `/notifications/{notificationId}`: Nhật ký thông báo đẩy phát tới phụ huynh qua Firebase Cloud Messaging.
 

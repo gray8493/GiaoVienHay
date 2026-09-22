@@ -14,12 +14,15 @@
 ### FR-01: Quản lý Phân quyền Chi tiết (RBAC Guard in NestJS)
 - **FR-01.1:** Phân quyền chuẩn xác giữa 4 nhóm vai trò:
   - `ADMIN`: Quản trị viên nền tảng (Platform Admin), chỉ đảm nhiệm CRUD dữ liệu/tài khoản, Ban (khóa/mở khóa tài khoản) và cấu hình Limit (hạn mức tạo lớp, số học sinh, hạn ngạch AI).
-  - `TEACHER_HOMEROOM` (GVCN): **Tự tạo lớp, thêm học sinh, chia sẻ link mời vào lớp** + Toàn bộ quyền giảng dạy (dò bài, nhập điểm, tạo game AI, quay random) + Quản lý điểm danh nề nếp, BHYT & học phí, nhận xét hạnh kiểm lớp chủ nhiệm.
-  - `TEACHER_SUBJECT` (GVBM): Nhập điểm bộ môn, tạo câu hỏi bằng AI, quay random học sinh, tạo game lớp học.
-  - `PARENT`: Nhận link mời của giáo viên, đăng nhập và xác nhận con em mình; Tra cứu sổ điểm, chuyên cần, tình trạng BHYT/học phí.
-- **FR-01.2 (GVCN tạo lớp tổng & phân công GVBM):**
-  - Duy nhất Giáo viên chủ nhiệm (GVCN) tạo Lớp học tổng (Tên lớp, Khối 1-9, Năm học) và thêm danh sách học sinh.
-  - GVCN phân công Giáo viên bộ môn (GVBM) theo từng môn học của lớp. GVBM truy cập vào lớp tổng này để quản lý và nhập/sửa điểm cho chính bộ môn mình phụ trách.
+  - `TEACHER_HOMEROOM` (GVCN): **Thiết lập hồ sơ chọn 1 hoặc nhiều môn trực tiếp giảng dạy** + Tự tạo lớp tổng, thêm học sinh, chia sẻ link mời vào lớp + Toàn bộ quyền giảng dạy (dò bài, nhập điểm, tạo game AI, quay random) + Quản lý điểm danh nề nếp, BHYT & học phí, nhận xét học sinh.
+  - `TEACHER_SUBJECT` (GVBM): Thiết lập hồ sơ môn chuyên môn, nhập điểm bộ môn được phân công, tạo câu hỏi bằng AI, quay random học sinh, tạo game lớp học.
+  - `PARENT`: Nhận link mời của giáo viên, đăng nhập và xác nhận con em mình; Tra cứu sổ điểm, chuyên cần, tình trạng BHYT/học phí, nhận lời nhắc bài kiểm tra.
+- **FR-01.2 (GVCN chọn môn dạy trong hồ sơ & phân công GVBM cho lớp tổng):**
+  - **Chọn môn trong hồ sơ:** Ở phần tạo/cài đặt hồ sơ cá nhân, Giáo viên chủ nhiệm (GVCN) có thể tích chọn **một hoặc nhiều môn học mình trực tiếp giảng dạy** (`teaching_subjects`):
+    + *Với Cấp 1 (Tiểu học):* GVCN chọn nhiều môn (Toán, Tiếng Việt, Tự nhiên & Xã hội, Đạo đức, Hoạt động trải nghiệm...).
+    + *Với Cấp 2 (THCS):* GVCN chọn 1 môn chuyên môn (hoặc nhiều hơn nếu dạy kiêm nhiệm).
+  - **Tạo lớp & Tự động gán môn:** Duy nhất GVCN tạo Lớp học tổng (Tên lớp, Khối 1-9, Năm học). Hệ thống tự động gán các môn GVCN đã chọn; GVCN chỉ cần phân công các Giáo viên bộ môn (GVBM) khác cho những môn còn lại.
+  - GVBM truy cập vào lớp tổng này để quản lý và nhập/sửa điểm cho đúng bộ môn mình phụ trách.
 - **FR-01.3 (Link mời tham gia lớp & Onboarding Phụ huynh):**
   - Hệ thống tự động sinh `invite_code` và `invite_link` (kèm mã QR) cho mỗi lớp học.
   - Phụ huynh nhấp vào link mời do GVCN chia sẻ, đăng nhập ứng dụng qua SMS OTP/Email, chọn đúng tên con em mình trong danh sách lớp để hoàn tất liên kết.
@@ -77,4 +80,12 @@
 - **FR-08.2 (Đồng bộ tức thì tới Sổ liên lạc Phụ huynh):**
   - Nhận xét dạng text được lưu vào collection `/remarks` và tự động gửi thông báo đẩy (FCM) đến ứng dụng của Phụ huynh.
   - Phụ huynh có thể xem lời nhận xét chi tiết và xác nhận đã đọc trên ứng dụng di động.
+
+### FR-09: Tạo Lời Nhắc Lịch Kiểm Tra Cho Phụ Huynh Đôn Đốc Con
+- **FR-09.1 (Tạo lời nhắc kiểm tra):**
+  - Cho phép Giáo viên (cả GVBM và GVCN) tạo thông báo lịch kiểm tra sắp tới (15 phút, 1 tiết, Giữa kỳ, Cuối kỳ) cho lớp học.
+  - Thông tin bao gồm: Môn học, Loại bài kiểm tra, Ngày diễn ra kiểm tra, Lời dặn dò/hướng dẫn trọng tâm ôn tập.
+- **FR-09.2 (Đẩy thông báo tức thì qua FCM):**
+  - Hệ thống lưu thông tin vào collection `/exam_reminders` và tự động gửi thông báo đẩy (FCM) đến điện thoại của toàn bộ Phụ huynh trong lớp.
+  - Phụ huynh nhận thông báo, mở ứng dụng xem chi tiết để kịp thời đôn đốc, nhắc nhở con em ôn bài ở nhà.
 

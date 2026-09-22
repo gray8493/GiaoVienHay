@@ -45,6 +45,7 @@ erDiagram
         string phone "Số điện thoại đăng nhập"
         string full_name "Họ và tên"
         string role "ADMIN, TEACHER_HOMEROOM, TEACHER_SUBJECT, PARENT"
+        array teaching_subjects "Mảng mã môn giảng dạy (1 hoặc nhiều môn)"
         string avatar_url "Link ảnh đại diện Firebase Storage"
         array fcm_tokens "Mảng FCM Device Tokens để nhận Push Notification"
         boolean is_active "Trạng thái kích hoạt tài khoản"
@@ -185,6 +186,10 @@ Quản lý tài khoản đăng nhập chung cho cả 4 nhóm vai trò. Document 
 - **`phone`** (`string`, Nullable): Số điện thoại dùng để đăng nhập OTP.
 - **`full_name`** (`string`): Họ và tên đầy đủ.
 - **`role`** (`string`): Vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`).
+- **`teaching_subjects`** (`array of string`, Nullable): Danh sách mã môn học giáo viên trực tiếp giảng dạy (Ví dụ: `["MATH", "LIT", "SCI"]`):
+  - *Với GVCN Cấp 1:* Cho phép tích chọn **nhiều môn** (Toán, Tiếng Việt, TNXH, Đạo đức, HĐTN...).
+  - *Với GVCN Cấp 2:* Cho phép chọn **1 môn** chuyên môn (hoặc nhiều môn nếu dạy kiêm nhiệm).
+  - *Với GVBM:* Chọn các môn chuyên môn được phân công giảng dạy.
 - **`avatar_url`** (`string`, Nullable): Đường dẫn ảnh đại diện lưu trên Firebase Cloud Storage.
 - **`fcm_tokens`** (`array of string`): Danh sách Device Tokens để gửi multicast Push Notification qua FCM.
 - **`is_active`** (`boolean`, Default: `true`): Khóa hoặc mở tài khoản.
@@ -353,10 +358,30 @@ Lưu nhật ký các thông báo đẩy đã phát tới phụ huynh qua Firebas
 - **`recipient_user_id`** (`string`): UID phụ huynh nhận thông báo trỏ đến `/users/{uid}`.
 - **`title`** (`string`): Tiêu đề thông báo.
 - **`body`** (`string`): Nội dung thông báo hiển thị trên banner điện thoại.
-- **`type`** (`string`): Loại thông báo (`ATTENDANCE_ALERT` - Vắng học, `GRADE_ALERT` - Điểm mới, `FEE_REMINDER` - Nhắc đóng BHYT/học phí, `GENERAL` - Thông báo chung).
+- **`type`** (`string`): Loại thông báo:
+  - `ATTENDANCE_ALERT`: Cảnh báo vắng học đầu giờ.
+  - `GRADE_ALERT`: Điểm kiểm tra mới được công bố.
+  - `EXAM_REMINDER`: Lời nhắc lịch kiểm tra sắp tới để phụ huynh đôn đốc con.
+  - `REMARK_ALERT`: Lời nhận xét mới từ giáo viên.
+  - `FEE_REMINDER`: Nhắc nộp BHYT/học phí.
+  - `GENERAL`: Thông báo chung của lớp/nhà trường.
 - **`is_read`** (`boolean`, Default: `false`): Trạng thái phụ huynh đã mở xem trên ứng dụng.
-- **`metadata`** (`map`, Nullable): Payload dữ liệu đính kèm (Ví dụ: `{"student_id": "id", "screen": "ChildAttendance"}`).
+- **`metadata`** (`map`, Nullable): Payload dữ liệu đính kèm (Ví dụ: `{"student_id": "id", "screen": "ExamReminder"}`).
 - **`created_at`** (`timestamp`): Thời gian gửi thông báo.
+
+---
+
+### 3.11. Collection `/exam_reminders`
+Lưu trữ các thông báo lời nhắc về lịch kiểm tra sắp tới do Giáo viên (cả GVBM và GVCN) tạo để phát thông báo tới Phụ huynh dặn dò học sinh ôn bài.
+- **`id`** (`string`, Document ID): Mã tự sinh Firestore.
+- **`class_id`** (`string`): ID lớp học.
+- **`teacher_id`** (`string`): UID Giáo viên tạo lời nhắc (GVBM hoặc GVCN).
+- **`teacher_name`** (`string`): Họ và tên Giáo viên tạo lời nhắc.
+- **`subject_code`** (`string`): Môn học kiểm tra (`MATH`, `LIT`, `ENG`...).
+- **`exam_type`** (`string`): Loại bài kiểm tra (`ORAL_TEST`, `TEST_15P`, `TEST_1P`, `MID_TERM`, `FINAL`).
+- **`exam_date`** (`string`): Ngày diễn ra kiểm tra (`YYYY-MM-DD`).
+- **`message`** (`string`): Lời dặn dò, hướng dẫn ôn tập của giáo viên (đoạn text ngắn, ví dụ: *"Ngày mai có bài kiểm tra 15 phút bài Phân số, phụ huynh dặn các em ôn kỹ công thức"*).
+- **`created_at`** (`timestamp`): Thời điểm tạo lời nhắc.
 
 ---
 

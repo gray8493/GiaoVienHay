@@ -23,8 +23,9 @@ title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to
 ' ==============================================================================
 
 |#E3F2FD|Quản trị viên (Admin)|
+|#BBDEFB|Web Next.js (Chỉ Admin Portal)|
 |#E1F5FE|Giáo viên (GVCN & GVBM)|
-|#EDE7F6|Client App (Next.js / React Native)|
+|#EDE7F6|App React Native (Phone/Tablet - GV & Phụ huynh)|
 |#FFF3E0|Backend NestJS (API & Services)|
 |#E8F5E9|Cơ Sở Dữ Liệu (Cloud Firestore)|
 |#FCE4EC|Dịch Vụ Firebase & AI (Storage, FCM, Gemini)|
@@ -36,13 +37,16 @@ title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to
 
 |Giáo viên (GVCN & GVBM)|
 start
-:Đăng nhập ứng dụng (Web hoặc Mobile App);
+:Đăng nhập App React Native (Điện thoại / Máy tính bảng);
+:Tạo / Cập nhật Hồ sơ: Chọn **1 hoặc nhiều môn học trực tiếp giảng dạy**
+(Cấp 1: Chọn nhiều môn Toán, Tiếng Việt, TNXH...; Cấp 2: Chọn 1 môn chuyên môn);
+
 if (Vai trò của Giáo viên?) then ([Giáo viên Chủ nhiệm (GVCN)])
     :Tạo **Lớp học tổng** (Tên lớp, Khối 1-9, Năm học);
     :Thêm danh sách Học sinh vào lớp (nhập trực tiếp hoặc tải file Excel);
-    :Phân công Giáo viên bộ môn (GVBM) phụ trách từng môn học;
+    :Hệ thống tự động gán các môn GVCN dạy; GVCN phân công GVBM cho các môn còn lại;
 
-    |Client App (Next.js / React Native)|
+    |App React Native (Phone/Tablet - GV & Phụ huynh)|
     :Gửi yêu cầu tạo lớp, danh sách học sinh & phân công GVBM lên Backend;
 
     |Backend NestJS (API & Services)|
@@ -53,7 +57,7 @@ if (Vai trò của Giáo viên?) then ([Giáo viên Chủ nhiệm (GVCN)])
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Lưu vào /classes (kèm invite_code, invite_link, subject_teachers), /students và /fees_and_insurance;
 
-    |Client App (Next.js / React Native)|
+    |App React Native (Phone/Tablet - GV & Phụ huynh)|
     :Hiển thị Link mời tham gia lớp học kèm mã QR / nút Sao chép;
 
     |Giáo viên (GVCN & GVBM)|
@@ -81,10 +85,10 @@ endif
 ' ==============================================================================
 
 |Giáo viên (GVCN & GVBM)|
-:Mở ứng dụng (Web hoặc Mobile App React Native);
+:Mở App React Native (Điện thoại hoặc Máy tính bảng);
 if (Nghiệp vụ thực hiện tại lớp?) then ([Điểm danh chuyên cần đầu giờ])
     |Giáo viên (GVCN & GVBM)|
-    :GVCN chọn lớp chủ nhiệm trên Mobile App;
+    :GVCN chọn lớp chủ nhiệm trên App React Native;
     :Điểm danh nhanh: Chạm đánh dấu học sinh vắng;
     :Bấm "Lưu điểm danh";
     
@@ -99,7 +103,7 @@ if (Nghiệp vụ thực hiện tại lớp?) then ([Điểm danh chuyên cần 
 
 else if ([Quản lý Sổ điểm Đa môn & Đa cột điểm])
     |Giáo viên (GVCN & GVBM)|
-    :Mở Sổ điểm điện tử trên Web Next.js hoặc Mobile App;
+    :Mở Sổ điểm điện tử trên App React Native (Phone/Tablet);
     :Chọn Lớp học và chọn **Môn học phụ trách**
     (Toán, Tiếng Việt, Tiếng Anh, Khoa học, Lịch sử...);
     :Chọn **Học kỳ** (HK1 / HK2) và chọn **Cột điểm thành phần**:
@@ -110,7 +114,7 @@ else if ([Quản lý Sổ điểm Đa môn & Đa cột điểm])
     - Điểm thi Cuối kỳ (FINAL);
     :Nhập/cập nhật bảng điểm số theo danh sách học sinh (thang điểm 10);
     
-    |Client App (Next.js / React Native)|
+    |App React Native (Phone/Tablet - GV & Phụ huynh)|
     :Gửi dữ liệu bảng điểm môn học lên Backend;
     
     |Backend NestJS (API & Services)|
@@ -120,20 +124,20 @@ else if ([Quản lý Sổ điểm Đa môn & Đa cột điểm])
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Cập nhật các document trong /scores;
     
-    |Client App (Next.js / React Native)|
+    |App React Native (Phone/Tablet - GV & Phụ huynh)|
     :Hiển thị **BẢNG XẾP HẠNG (LEADERBOARD) ĐIỂM MÔN HỌC**:
     - Trình chiếu vinh danh Top học sinh điểm cao nhất môn (Top 1, Top 2, Top 3)
     - Thống kê phổ điểm và danh sách thứ hạng của môn học trong lớp;
     
     |Giáo viên (GVCN & GVBM)|
-    :Trình chiếu Bảng xếp hạng điểm môn học lên màn hình lớp & bấm **"Công bố điểm"**;
+    :Trình chiếu Bảng xếp hạng điểm môn học lên màn hình lớp (qua Tablet/Phone) & bấm **"Công bố điểm"**;
     
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Cập nhật cờ is_published = TRUE trong /scores;
 
 else if ([Khởi động bài cũ / Mini-game bằng AI])
     |Giáo viên (GVCN & GVBM)|
-    :Tải giáo án .docx/.pdf môn học lên Web Next.js;
+    :Tải giáo án .docx/.pdf môn học trên App React Native;
     
     |Dịch Vụ Firebase & AI (Storage, FCM, Gemini)|
     :Firebase Storage lưu trữ tệp tài liệu an toàn;
@@ -143,7 +147,7 @@ else if ([Khởi động bài cũ / Mini-game bằng AI])
     :Lưu bộ câu hỏi vào /quizzes và subcollection /questions;
     
     |Giáo viên (GVCN & GVBM)|
-    :Tổ chức tương tác bài cũ / Mini-game tại lớp (chiếu lên bảng);
+    :Tổ chức tương tác bài cũ / Mini-game tại lớp (chiếu từ Tablet/Phone lên màn hình/smartboard);
     :Khởi động **Vòng quay Random** quay ngẫu nhiên chọn học sinh;
     if (Học sinh quay trúng nghỉ học hoặc vắng mặt?) then ([Bấm Bỏ qua])
         :Giáo viên bấm nút **"Bỏ qua (Skip)"**;
@@ -153,7 +157,7 @@ else if ([Khởi động bài cũ / Mini-game bằng AI])
     :Học sinh lên bảng hoặc giơ bảng trả lời mini-game (không làm bài online);
     :Giáo viên trực tiếp chấm & nhập điểm vào môn học đang dạy;
     
-    |Client App (Next.js / React Native)|
+    |App React Native (Phone/Tablet - GV & Phụ huynh)|
     :Gửi dữ liệu điểm vừa nhập lên Backend;
     
     |Backend NestJS (API & Services)|
@@ -164,12 +168,12 @@ else if ([Khởi động bài cũ / Mini-game bằng AI])
 
 else if ([Nhận xét & Đánh giá học sinh])
     |Giáo viên (GVCN & GVBM)|
-    :Chọn học sinh cần nhận xét trên Web hoặc Mobile App;
+    :Chọn học sinh cần nhận xét trên App React Native;
     :Nhập **lời nhận xét ngắn gọn (đoạn text ngắn)**
     (Ví dụ: "Hôm nay em phát biểu rất hăng hái", "Cần chú ý nghe giảng hơn" - Không dùng nhãn tags);
     :Bấm "Gửi nhận xét";
     
-    |Client App (Next.js / React Native)|
+    |App React Native (Phone/Tablet - GV & Phụ huynh)|
     :Gửi dữ liệu nhận xét lên Backend;
     
     |Backend NestJS (API & Services)|
@@ -179,9 +183,25 @@ else if ([Nhận xét & Đánh giá học sinh])
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Lưu bản ghi nhận xét vào /remarks;
 
+else if ([Tạo Lời nhắc Lịch kiểm tra sắp tới - GVBM & GVCN])
+    |Giáo viên (GVCN & GVBM)|
+    :Chọn Lớp học, Môn học, Loại bài kiểm tra & Ngày kiểm tra;
+    :Nhập nội dung dặn dò học sinh ôn tập (đoạn text ngắn);
+    :Bấm "Gửi lời nhắc tới Phụ huynh";
+    
+    |App React Native (Phone/Tablet - GV & Phụ huynh)|
+    :Gửi dữ liệu lời nhắc bài kiểm tra lên Backend;
+    
+    |Backend NestJS (API & Services)|
+    :Lưu thông tin vào collection /exam_reminders;
+    :Kích hoạt thông báo đẩy FCM tới toàn thể Phụ huynh trong lớp;
+    
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Lưu bản ghi vào /exam_reminders;
+
 else ([Quản lý thu nộp BHYT / Học phí])
     |Giáo viên (GVCN & GVBM)|
-    :GVCN mở danh sách lớp chủ nhiệm;
+    :GVCN mở danh sách lớp chủ nhiệm trên App React Native;
     :Tích chọn cờ boolean (is_paid_tuition, is_paid_insurance) khi học sinh nộp;
     :Lọc danh sách các em chưa nộp BHYT và bấm "Nhắc nhở";
     
@@ -215,6 +235,9 @@ if (Nội dung thông báo?) then ([Thông báo điểm mới])
     :Tra cứu Bảng điểm các môn học:
     - Bảng điểm chi tiết: Toán, Tiếng Việt, Tiếng Anh, KHTN...
     - Các đầu điểm thành phần: Miệng, 15 phút, 1 tiết, Giữa kỳ, Cuối kỳ;
+else if ([Lời nhắc lịch kiểm tra sắp tới]) then ([Nhắc kiểm tra])
+    :Xem chi tiết Môn thi, Ngày kiểm tra & Lời dặn dò của giáo viên;
+    :Phụ huynh đôn đốc, nhắc nhở con em ôn tập kỹ bài học ở nhà;
 else if ([Thông báo nhận xét mới từ giáo viên]) then ([Nhận xét])
     :Mở Sổ liên lạc điện tử của con;
     :Xem chi tiết lời nhận xét (đoạn text ngắn) của giáo viên;

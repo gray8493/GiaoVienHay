@@ -41,7 +41,7 @@ actor "Firebase FCM\n(SYS-02)" as FCM <<System>>
 ' GVCN kế thừa toàn bộ năng lực sư phạm của GVBM
 GVBM <|-- GVCN : <<kế thừa quyền giảng dạy>>
 
-note "<b>PHẠM VI HỆ THỐNG:</b>\n- KHÔNG có Tác nhân Học sinh (Student)\n- KHÔNG có tính năng học sinh làm bài kiểm tra trực tuyến\n- Chỉ GVCN tạo lớp tổng, thêm HS, gán GVBM & sinh link mời PH\n- GVBM truy cập lớp tổng để nhập/sửa điểm môn mình dạy\n- Vòng quay có nút Bỏ qua (Skip) nếu quay trúng bạn vắng\n- Sổ điểm lưu các cột điểm, không tự động tính GPA môn\n- Nhận xét là đoạn text ngắn gửi phụ huynh (không tags)\n- Admin chỉ quản trị: CRUD, Ban, Limit" as ScopeNote
+note "<b>PHẠM VI & NỀN TẢNG HỆ THỐNG:</b>\n- <b>Web Next.js:</b> Dành CHỈ RIÊNG CHO ADMIN (CRUD, Ban, Limit)\n- <b>App React Native (Phone/Tablet):</b> Dành cho Giáo viên & Phụ huynh\n- KHÔNG có Tác nhân Học sinh (Student)\n- KHÔNG có tính năng học sinh làm bài kiểm tra trực tuyến\n- Chỉ GVCN tạo lớp tổng, thêm HS, gán GVBM & sinh link mời PH\n- GVBM truy cập lớp tổng để nhập/sửa điểm môn mình dạy\n- Vòng quay có nút Bỏ qua (Skip) nếu quay trúng bạn vắng\n- Sổ điểm lưu các cột điểm, không tự động tính GPA môn\n- Nhận xét là đoạn text ngắn gửi phụ huynh (không tags)" as ScopeNote
 ScopeNote .. GVBM
 ScopeNote .. GVCN
 
@@ -58,12 +58,14 @@ rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
     }
 
     package "Phân hệ Nghiệp vụ Sư phạm & Lớp học (GVBM & GVCN)" {
+        usecase "UC-AUTH-02\nThiết Lập Hồ Sơ Giáo Viên\n(Chọn 1 hoặc nhiều môn giảng dạy)" as UC_TeacherProfile
         usecase "UC-ACA-02\nNhập Sổ Điểm Môn Học Phụ Trách\n(Nhiều môn & Nhiều loại điểm:\nMiệng, 15p, 1 tiết, Giữa kỳ, Cuối kỳ)" as UC_Grades
         usecase "UC-ACA-03\nNhập Nhận Xét Ngắn Cho Học Sinh\n(Đoạn text ngắn gửi tới Phụ huynh)" as UC_Remarks
         usecase "UC-ACA-04\nDò bài cũ & Quay Random Học sinh\n(Nút Bỏ qua nếu quay trúng bạn vắng)" as UC_RandomStudent
         usecase "UC-ACA-05\nImport Docs/PDF bằng AI (Gemini)\nSinh câu hỏi kiểm tra bài cũ" as UC_AIQuiz
         usecase "UC-ACA-06\nTạo & Khởi chạy Mini-game Lớp học\n(Rung chuông vàng, Đua xe, Hộp quà)" as UC_ClassroomGame
         usecase "UC-ACA-07\nTrình Chiếu Bảng Xếp Hạng\n(Leaderboard) Điểm Môn Học" as UC_Leaderboard
+        usecase "UC-ACA-08\nTạo Lời Nhắc Bài Kiểm Tra\n(Gửi Phụ huynh dặn học sinh)" as UC_ExamReminder
     }
 
     package "Phân hệ Quản trị Lớp chủ nhiệm (Dành riêng cho GVCN)" {
@@ -78,6 +80,7 @@ rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
         usecase "UC-PAR-02\nTheo dõi Chuyên cần & Cảnh báo vắng" as UC_ViewAttendance
         usecase "UC-PAR-03\nTra cứu Tình trạng Học phí & BHYT" as UC_ViewFees
         usecase "UC-PAR-04\nNhận Thông báo Đẩy tức thời (FCM)" as UC_ReceiveNoti
+        usecase "UC-PAR-05\nNhận Lời Nhắc Lịch Kiểm Tra\n& Đôn đốc con ôn tập" as UC_ViewExamReminder
     }
 }
 
@@ -91,8 +94,10 @@ Admin --> UC_AdminBan
 Admin --> UC_AdminLimit
 
 ' GVBM (và GVCN qua kế thừa)
+GVBM --> UC_TeacherProfile
 GVBM --> UC_Grades
 GVBM --> UC_Remarks
+GVBM --> UC_ExamReminder
 GVBM --> UC_RandomStudent
 GVBM --> UC_AIQuiz
 GVBM --> UC_ClassroomGame
@@ -108,6 +113,8 @@ Parent --> UC_JoinByLink
 Parent --> UC_ViewGrades
 Parent --> UC_ViewAttendance
 Parent --> UC_ViewFees
+Parent --> UC_ReceiveNoti
+Parent --> UC_ViewExamReminder
 Parent --> UC_ReceiveNoti
 
 ' Hệ thống bên ngoài

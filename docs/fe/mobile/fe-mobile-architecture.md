@@ -7,15 +7,23 @@ Tài liệu này đặc tả chi tiết cấu trúc, quy tắc điều hướng 
 
 ## 1. Mục Tiêu & Nhóm Người Dùng (Target Audience)
 
-1. **Giáo viên (Teacher Mode):**
-   - Mở app tại lớp học để điểm danh nhanh chóng (thao tác 1 chạm).
-   - Xem thời khóa biểu cá nhân trong ngày.
-   - Nhập nhận xét nhanh hoặc gửi thông báo khẩn tới lớp chủ nhiệm.
+1. **Giáo viên (Teacher Mode - Hỗ trợ Phone & Tablet để kết nối máy chiếu/bảng lớp):**
+   - Thiết lập hồ sơ cá nhân: Chọn 1 hoặc nhiều môn trực tiếp giảng dạy (`teaching_subjects`).
+   - GVCN tạo lớp tổng, thêm học sinh, phân công GVBM và sinh Invite Link cho phụ huynh.
+   - Điểm danh chuyên cần đầu giờ (thao tác 1 chạm).
+   - Quản lý Sổ điểm môn học phụ trách (nhiều đầu điểm, không tính GPA) & Trình chiếu Leaderboard điểm môn học.
+   - Tải file giáo án bài học (`.docx`, `.pdf`) để AI sinh câu hỏi kiểm tra bài cũ (Quiz).
+   - Khởi chạy bộ 3 Mini-game tương tác tại lớp: Rung chuông vàng, Đua xe, Hộp quà bí mật (chiếu lên bảng từ iPad/Tablet).
+   - Vòng quay Random học sinh lên bảng kiểm tra bài cũ (nút Bỏ qua khi vắng).
+   - Nhập lời nhận xét ngắn gọn (đoạn text ngắn gửi phụ huynh).
+   - Tạo lời nhắc lịch kiểm tra sắp tới gửi phụ huynh đôn đốc học sinh.
+   - Theo dõi cờ nộp Học phí & BHYT của lớp chủ nhiệm.
 2. **Phụ huynh (Parent Mode):**
-   - Hỗ trợ chuyển đổi linh hoạt giữa nhiều hồ sơ con em (Child Switcher).
-   - Nhận thông báo đẩy (Push Notification) tức thì khi con vắng học hoặc có điểm mới.
-   - Tra cứu kết quả học tập chi tiết, học bạ điện tử và lịch sử điểm danh.
-   - Tra cứu tình trạng nộp Học phí & BHYT của con (Đã nộp / Chưa nộp).
+   - Tham gia vào lớp học bằng Link mời / Quét mã QR do GVCN gửi.
+   - Đăng nhập bằng SĐT nhận OTP, xác nhận con em mình (hỗ trợ chuyển đổi giữa nhiều con).
+   - Nhận thông báo đẩy (Push Notification) tức thì: vắng học đầu giờ, điểm mới, nhận xét, lời nhắc bài kiểm tra, nhắc nộp BHYT.
+   - Tra cứu Sổ điểm điện tử chi tiết các môn học.
+   - Xem lịch sử chuyên cần và tình trạng nộp BHYT của con.
 
 ---
 
@@ -24,25 +32,34 @@ Tài liệu này đặc tả chi tiết cấu trúc, quy tắc điều hướng 
 ```text
 mobile-app/
 ├── src/
-│   ├── assets/                             # Hình ảnh, vector icons, fonts
+│   ├── assets/                             # Hình ảnh, vector icons, sound effects, fonts
 │   ├── navigation/                         # Cấu hình Navigation (React Navigation)
 │   │   ├── RootNavigator.tsx               # Điều hướng tầng cao nhất (Auth vs App)
-│   │   ├── AuthNavigator.tsx               # Stack đăng nhập, quên mật khẩu
-│   │   ├── TeacherTabNavigator.tsx         # Bottom Tabs dành cho Giáo viên
+│   │   ├── AuthNavigator.tsx               # Stack đăng nhập OTP / Link mời lớp
+│   │   ├── TeacherTabNavigator.tsx         # Bottom Tabs & Drawer dành cho Giáo viên
 │   │   └── ParentTabNavigator.tsx          # Bottom Tabs dành cho Phụ huynh
 │   ├── screens/                            # Màn hình ứng dụng
-│   │   ├── auth/                           # LoginScreen, ForgotPasswordScreen
-│   │   ├── teacher/                        # Màn hình Giáo viên
+│   │   ├── auth/                           # LoginScreen, JoinClassByLinkScreen
+│   │   ├── teacher/                        # Nghiệp vụ Sư phạm Giáo viên (Phone & Tablet)
+│   │   │   ├── ClassManagementScreen.tsx   # GVCN tạo lớp tổng, gán GVBM, chia sẻ Invite Link
 │   │   │   ├── AttendanceScreen.tsx        # Điểm danh nhanh tại lớp
-│   │   │   ├── TeacherScheduleScreen.tsx   # Lịch dạy cá nhân
-│   │   │   ├── QuickGradingScreen.tsx      # Nhập điểm nhanh
-│   │   │   └── TeacherProfileScreen.tsx    # Hồ sơ giáo viên
+│   │   │   ├── GradebookScreen.tsx         # Sổ điểm môn học phụ trách
+│   │   │   ├── LeaderboardScreen.tsx       # Trình chiếu Bảng xếp hạng Điểm Môn Học
+│   │   │   ├── LuckyWheelScreen.tsx        # Vòng quay Random học sinh (nút Bỏ qua)
+│   │   │   ├── AIQuizUploadScreen.tsx      # Tải giáo án để AI Gemini sinh câu hỏi
+│   │   │   ├── MiniGamesScreen.tsx         # Chạy 3 Mini-game: Rung chuông, Đua xe, Hộp quà
+│   │   │   ├── RemarksScreen.tsx           # Nhập lời nhận xét text ngắn gửi phụ huynh
+│   │   │   ├── ExamReminderScreen.tsx      # Tạo lời nhắc lịch kiểm tra gửi phụ huynh
+│   │   │   ├── FeesInsuranceScreen.tsx     # Theo dõi cờ BHYT lớp chủ nhiệm
+│   │   │   └── TeacherProfileScreen.tsx    # Thiết lập hồ sơ (chọn 1 hoặc nhiều môn dạy)
 │   │   └── parent/                         # Màn hình Phụ huynh
-│   │       ├── ParentHomeScreen.tsx        # Trang chủ phụ huynh & bảng tin
-│   │       ├── ChildAcademicScreen.tsx     # Bảng điểm & tiến độ của con
-│   │       ├── ChildAttendanceScreen.tsx   # Lịch sử chuyên cần của con
-│   │       ├── FeesInsuranceStatusScreen.tsx # Tra cứu tình trạng nộp Học phí & BHYT
-│   │       └── NotificationsScreen.tsx     # Trung tâm thông báo
+│   │       ├── ParentHomeScreen.tsx        # Trang chủ phụ huynh & bảng tin lớp
+│   │       ├── ChildAcademicScreen.tsx     # Sổ điểm chi tiết các môn của con
+│   │       ├── ChildAttendanceScreen.tsx   # Lịch sử chuyên cần & ngày vắng
+│   │       ├── ExamRemindersScreen.tsx     # Lịch kiểm tra sắp tới để đôn đốc con
+│   │       ├── ChildRemarksScreen.tsx      # Lời nhận xét của thầy cô (nút xác nhận đã đọc)
+│   │       ├── FeesInsuranceStatusScreen.tsx # Tra cứu tình trạng nộp BHYT
+│   │       └── NotificationsScreen.tsx     # Hộp thư thông báo đẩy thời gian thực
 │   ├── components/                         # UI Components tái sử dụng
 │   │   ├── common/                         # Button, Input, Card, Header, Avatar, Badge
 │   │   ├── attendance/                     # StudentAttendanceRow, StatusChip

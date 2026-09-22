@@ -51,7 +51,7 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 | Mã Use Case | Tên Trường hợp sử dụng | Admin | GVCN | GVBM | Phụ huynh |
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | **UC-AUTH-01** | Đăng nhập hệ thống (Web / Mobile App) | ✔ | ✔ | ✔ | ✔ |
-| **UC-AUTH-02** | Đổi mật khẩu & Xem hồ sơ cá nhân | ✔ | ✔ | ✔ | ✔ |
+| **UC-AUTH-02** | Thiết lập hồ sơ cá nhân & Chọn môn giảng dạy (1 hoặc nhiều môn) | ✔ | ✔ | ✔ | ✔ |
 | **UC-ADM-01** | CRUD Tài khoản & Dữ liệu Hệ thống | ✔ | ✖ | ✖ | ✖ |
 | **UC-ADM-02** | Khóa & Mở khóa Tài khoản (Ban / Unban) | ✔ | ✖ | ✖ | ✖ |
 | **UC-ADM-03** | Cấu hình Hạn mức Tài nguyên (Limit / Quota) | ✔ | ✖ | ✖ | ✖ |
@@ -65,11 +65,13 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 | **UC-ACA-05** | **Import Docs/PDF bằng AI (Gemini) sinh câu hỏi / Tạo Quiz** | ✖ | **✔ (Có)** | **✔ (Có)** | ✖ |
 | **UC-ACA-06** | **Tạo & Khởi chạy Mini-game tương tác lớp học** | ✖ | **✔ (Có)** | **✔ (Có)** | ✖ |
 | **UC-ACA-07** | Trình chiếu Bảng xếp hạng (Leaderboard) Điểm Môn Học | ✖ | ✔ | ✔ | ✖ |
+| **UC-ACA-08** | **Tạo lời nhắc lịch kiểm tra gửi Phụ huynh đôn đốc con** | ✖ | **✔ (Có)** | **✔ (Có)** | ✖ |
 | **UC-FEE-01** | Quản lý cờ thu Học phí & BHYT (`fees_and_insurance`)| Xem | ✔ | ✖ | ✖ |
 | **UC-PAR-01** | Tra cứu bảng điểm đa môn & Học bạ điện tử của con | ✖ | ✖ | ✖ | ✔ |
 | **UC-PAR-02** | Theo dõi lịch sử chuyên cần & Cảnh báo vắng | ✖ | ✖ | ✖ | ✔ |
 | **UC-PAR-03** | Xem trạng thái đóng Học phí & BHYT của con | ✖ | ✖ | ✖ | ✔ |
 | **UC-PAR-04** | Nhận thông báo đẩy thời gian thực từ nhà trường | ✖ | ✖ | ✖ | ✔ |
+| **UC-PAR-05** | **Nhận lời nhắc lịch kiểm tra & Đôn đốc con ôn tập** | ✖ | ✖ | ✖ | **✔ (Có)** |
 
 ---
 
@@ -94,4 +96,9 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 - Áp dụng cho cả **GVCN** và **GVBM** đầu mỗi tiết học.
 - Vòng quay may mắn gọi ngẫu nhiên học sinh lên bảng kiểm tra bài cũ. Nếu học sinh nghỉ học/vắng mặt, giáo viên bấm **"Bỏ qua (Skip)"** để tự động quay bạn khác.
 - Cho phép giáo viên trực tiếp chấm và nhập điểm miệng vào môn học đang dạy.
+
+### 4.4. Tạo Lời Nhắc Lịch Kiểm Tra Cho Phụ Huynh Đôn Đốc Con (UC-ACA-08)
+- Áp dụng cho cả **GVCN** và **GVBM**.
+- Giáo viên tạo thông báo trước ngày kiểm tra (15 phút, 1 tiết, Giữa kỳ...) kèm theo môn học, ngày kiểm tra và nội dung dặn dò bài học.
+- Hệ thống gửi thông báo đẩy (FCM) tức thì tới toàn thể phụ huynh trong lớp, giúp gia đình chủ động nhắc nhở, đồng hành cùng con em ôn tập tốt nhất.
 

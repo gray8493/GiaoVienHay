@@ -1,4 +1,5 @@
 # Tài Liệu Đặc Tả Chi Tiết Trường Hợp Sử Dụng (Use Case Descriptions)
+
 # Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
@@ -12,6 +13,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ## 2. Chi tiết các Use Case Cốt Lõi
 
 ### UC-CLS-01: GVCN Tạo Lớp Học Tổng, Thêm Học Sinh & Phân Công GVBM
+
 - **Mã Use Case:** `UC-CLS-01`
 - **Tác nhân chính:** Giáo viên Chủ nhiệm (GVCN).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/classes`, `/students`, `/fees_and_insurance`).
@@ -31,6 +33,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-PAR-00: Phụ Huynh Tham Gia Lớp Bằng Link Mời & Xác Nhận Con Em
+
 - **Mã Use Case:** `UC-PAR-00`
 - **Tác nhân chính:** Phụ huynh (Parent).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/classes`, `/students`, `/users`).
@@ -48,7 +51,8 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ---
 
-### UC-ACA-02: Nhập Sổ Điểm Môn Học Phụ Trách (Không Tự Động Tính GPA)
+### UC-ACA-02: Nhập Sổ Điểm Môn Học Phụ Trách 
+
 - **Mã Use Case:** `UC-ACA-02`
 - **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/scores`), Firebase FCM.
@@ -74,6 +78,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-ACA-03: Nhập Lời Nhận Xét Ngắn Gọn Cho Học Sinh (Đoạn Text Ngắn Gửi Phụ Huynh)
+
 - **Mã Use Case:** `UC-ACA-03`
 - **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/remarks`), Firebase FCM.
@@ -82,7 +87,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 - **Hậu điều kiện:** Lời nhận xét ngắn dạng text được lưu trữ an toàn vào `/remarks`, thông báo đẩy tức thời gửi tới Phụ huynh của học sinh.
 - **Luồng sự kiện chính (Main Flow):**
   1. Giáo viên chọn học sinh cần nhận xét trên Web Next.js hoặc Mobile App React Native.
-  2. Giáo viên nhập trực tiếp **lời nhận xét ngắn gọn (đoạn text ngắn)** (Ví dụ: *"Hôm nay em phát biểu rất hăng hái"*, *"Cần tập trung nghe giảng hơn"* - Không dùng nhãn tags).
+  2. Giáo viên nhập trực tiếp **lời nhận xét ngắn gọn (đoạn text ngắn)** (Ví dụ: *"Hôm nay em phát biểu rất hăng hái"*, *"Cần tập trung nghe giảng hơn"* )
   3. Giáo viên bấm "Gửi nhận xét".
   4. Backend NestJS lưu bản ghi vào collection `/remarks` với cờ `is_published = true`.
   5. Backend kích hoạt Firebase FCM phát thông báo tức thì kèm nội dung text ngắn tới điện thoại của Phụ huynh.
@@ -91,6 +96,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-ACA-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng (Có Nút Bỏ Qua)
+
 - **Mã Use Case:** `UC-ACA-04`
 - **Tác nhân chính:** Giáo viên (Cả GVCN và GVBM).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/attendances` và `/students`).
@@ -109,6 +115,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-ACA-05: Import Docs/PDF bằng AI (Gemini API) Sinh Câu Hỏi Kiểm Tra Bài Cũ
+
 - **Mã Use Case:** `UC-ACA-05`
 - **Tác nhân chính:** Giáo viên (Cả GVCN và GVBM).
 - **Tác nhân hỗ trợ:** Google Gemini API, Backend NestJS.
@@ -129,6 +136,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-ACA-06: Tạo & Khởi Chạy Mini-Game Tương Tác Lớp Học (Classroom Gamification)
+
 - **Mã Use Case:** `UC-ACA-06`
 - **Tác nhân chính:** Giáo viên (Cả GVCN và GVBM).
 - **Tác nhân hỗ trợ:** Web Next.js UI, Backend NestJS.
@@ -151,6 +159,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-ACA-07: Trình Chiếu Bảng Xếp Hạng (Leaderboard) Điểm Môn Học
+
 - **Mã Use Case:** `UC-ACA-07`
 - **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/scores`), Firebase FCM.
@@ -167,6 +176,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-FEE-01: Quản Lý Thu Học Phí & Bảo Hiểm Y Tế (BHYT)
+
 - **Mã Use Case:** `UC-FEE-01`
 - **Tác nhân chính:** Giáo viên Chủ nhiệm (GVCN) & Admin.
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/fees_and_insurance`), Firebase FCM.
@@ -180,7 +190,27 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ---
 
+### UC-ACA-08: Tạo Lời Nhắc Lịch Kiểm Tra Cho Phụ Huynh Đôn Đốc Học Sinh
+
+- **Mã Use Case:** `UC-ACA-08`
+- **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/exam_reminders`), Firebase FCM.
+- **Mô tả:** Giáo viên tạo thông báo lời nhắc về lịch kiểm tra sắp tới (15 phút, 1 tiết, Giữa kỳ, Cuối kỳ) gửi tới điện thoại của toàn bộ phụ huynh trong lớp, kèm lời dặn dò trọng tâm ôn tập để bố mẹ đôn đốc con học bài ở nhà.
+- **Tiền điều kiện:** Giáo viên đã đăng nhập và truy cập lớp học.
+- **Hậu điều kiện:** Lời nhắc được lưu vào `/exam_reminders`, thông báo đẩy FCM được phát tới phụ huynh lớp.
+- **Luồng sự kiện chính (Main Flow):**
+  1. Giáo viên mở màn hình lớp học, chọn chức năng "Tạo lời nhắc kiểm tra".
+  2. Chọn Môn học, Loại bài kiểm tra (15 phút, 1 tiết, Giữa kỳ...) và Ngày kiểm tra.
+  3. Nhập lời dặn dò ôn tập (Ví dụ: *"Ngày mai có bài kiểm tra 15p bài Phân số, các em nhớ ôn công thức và mang thước kẻ"*).
+  4. Bấm "Gửi lời nhắc tới Phụ huynh".
+  5. Backend NestJS lưu bản ghi vào collection `/exam_reminders`.
+  6. Backend kích hoạt Firebase FCM phát thông báo đẩy loại `EXAM_REMINDER` đến điện thoại của toàn thể Phụ huynh trong lớp.
+  7. Phụ huynh nhận thông báo, mở app xem chi tiết và đôn đốc con học bài.
+
+---
+
 ### UC-ADM-01: CRUD Tài khoản & Dữ liệu Hệ thống
+
 - **Mã Use Case:** `UC-ADM-01`
 - **Tác nhân chính:** Quản trị viên Nền tảng (Platform Admin).
 - **Tác nhân hỗ trợ:** Backend NestJS, Firebase Auth, Google Cloud Firestore.
@@ -194,6 +224,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-ADM-02: Khóa & Mở khóa Tài khoản (Ban / Unban User)
+
 - **Mã Use Case:** `UC-ADM-02`
 - **Tác nhân chính:** Quản trị viên Nền tảng (Platform Admin).
 - **Tác nhân hỗ trợ:** Backend NestJS, Firebase Auth, Google Cloud Firestore (`/users`).
@@ -208,6 +239,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ---
 
 ### UC-ADM-03: Cấu hình Hạn mức Tài nguyên (Limit / Quota)
+
 - **Mã Use Case:** `UC-ADM-03`
 - **Tác nhân chính:** Quản trị viên Nền tảng (Platform Admin).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (`/system_configs`).
@@ -221,4 +253,3 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
      - Dung lượng upload tài liệu giáo án tối đa (ví dụ: 10MB/file).
   3. Nhấn "Lưu cấu hình".
   4. Backend lưu thông số vào `/system_configs` và áp dụng ngay lập tức qua các Middleware / Guards kiểm soát hạn mức trên toàn bộ API.
-
