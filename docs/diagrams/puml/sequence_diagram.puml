@@ -6,98 +6,121 @@ skinparam SequenceArrowThickness 1.2
 skinparam RoundCorner 8
 skinparam defaultFontSize 11
 
-title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - GiaoVienHay (EduConnect)\nQuy Trình: Đăng Nhập, Nhập & Phê Duyệt Điểm Số, Gửi Thông Báo Tức Thì
+title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - GiaoVienHay (EduConnect)\nBao Quát Toàn Diện 3 Nhóm Tác Nhân & Các Phân Hệ Chức Năng Cốt Lõi
 
 ' ==============================================================================
 ' 1. ĐỊNH NGHĨA CÁC THÀNH PHẦN THEO TẦNG KIẾN TRÚC
 ' ==============================================================================
 
 box "Tầng Client (Presentation Layer)" #E3F2FD
+actor "Quản trị viên\n(Admin)" as Admin
+boundary "Web Quản trị\n(Next.js)" as WebAdminUI
 actor "Giáo viên\n(Teacher)" as Teacher
-boundary "Web Quản trị\n(Next.js App)" as WebUI
-boundary "Mobile App\n(React Native)" as MobileParent
+boundary "Mobile/Web GV\n(React Native / Next.js)" as TeacherUI
 actor "Phụ huynh\n(Parent)" as Parent
+boundary "Mobile Phụ huynh\n(React Native App)" as ParentApp
 end box
 
 box "Tầng Backend (NestJS Platform)" #FFF3E0
-boundary "API Gateway\n(Reverse Proxy)" as Gateway
-control "Auth Module\n(Passport JWT)" as AuthModule
-control "Academic Module\n(Grades & Classes)" as AcadModule
-control "Notification Module\n(BullMQ Worker)" as NotiModule
+boundary "API Gateway\n(Reverse Proxy & RBAC)" as Gateway
+control "Admin Module\n(School & Users)" as AdminModule
+control "Academic Module\n(Grades & Attend)" as AcadModule
+control "Notification Module\n(BullMQ & FCM)" as NotiModule
+control "Billing Module\n(Payment & Invoice)" as BillingModule
 end box
 
 box "Tầng Dữ Liệu & Hàng Đợi (Storage & Broker)" #E8F5E9
 database "PostgreSQL\n(Prisma ORM)" as Postgres
-database "Redis Cache\n(Session & Store)" as Redis
+database "Redis Cache\n(Session & FCM Tokens)" as Redis
 queue "RabbitMQ\n(Message Broker)" as RabbitMQ
 end box
 
-box "Dịch Vụ Bên Ngoài (Third-Party)" #FCE4EC
+box "Dịch Vụ Bên Ngoài (Third-Party Cloud)" #FCE4EC
 boundary "Firebase FCM\n(Cloud Messaging)" as FCM
+boundary "Cổng Thanh Toán\n(VNPAY / MoMo)" as PaymentGW
 end box
 
 ' ==============================================================================
-' 2. GIAI ĐOẠN 1: ĐĂNG NHẬP & XÁC THỰC PHÂN QUYỀN (JWT)
+' GIAI ĐOẠN 1: QUẢN TRỊ TRƯỜNG HỌC & KHỞI TẠO BIỂU PHÍ (ADMIN)
 ' ==============================================================================
 
-== GIAI ĐOẠN 1: ĐĂNG NHẬP & XÁC THỰC (AUTHENTICATION) ==
+== GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & TẠO HÓA ĐƠN HỌC PHÍ (ADMIN) ==
 
-Teacher -> WebUI: Nhập Email & Mật khẩu
-WebUI -> Gateway: POST /api/v1/auth/login
-Gateway -> AuthModule: Forward credentials
-AuthModule -> Postgres: Truy vấn User theo Email
-Postgres --> AuthModule: Trả về User Entity & Password Hash
-AuthModule -> AuthModule: Kiểm tra băm Argon2/Bcrypt
-AuthModule -> AuthModule: Tạo Access Token (JWT) & Refresh Token
-AuthModule -> Redis: Lưu Refresh Token session
-AuthModule --> Gateway: Trả về Token Pair & User Profile
-Gateway --> WebUI: Phản hồi HTTP 200 OK (Kèm JWT)
-WebUI -> WebUI: Lưu token bảo mật & hiển thị Dashboard
+Admin -> WebAdminUI: Đăng nhập & thiết lập lớp học, phân công giảng dạy
+WebAdminUI -> Gateway: POST /api/v1/admin/classes/assign
+Gateway -> AdminModule: Forward request (Admin Token)
+AdminModule -> Postgres: Lưu thông tin phân công chuyên môn
+Postgres --> AdminModule: Thành công
+
+Admin -> WebAdminUI: Khởi tạo đợt thu học phí học kỳ
+WebAdminUI -> Gateway: POST /api/v1/billing/invoices
+Gateway -> BillingModule: Forward request
+BillingModule -> Postgres: Tạo danh sách hóa đơn học phí cho học sinh
+Postgres --> BillingModule: Hóa đơn được tạo thành công
 
 ' ==============================================================================
-' 3. GIAI ĐOẠN 2: NHẬP ĐIỂM & PHÊ DUYỆT CÔNG BỐ
+' GIAI ĐOẠN 2: NGHIỆP VỤ GIẢNG DẠY - ĐIỂM DANH & NHẬP ĐIỂM (TEACHER)
 ' ==============================================================================
 
-== GIAI ĐOẠN 2: NHẬP ĐIỂM & PHÊ DUYỆT CÔNG BỐ (GRADE PUBLISH) ==
+== GIAI ĐOẠN 2: ĐIỂM DANH & CÔNG BỐ ĐIỂM SỐ (TEACHER) ==
 
-Teacher -> WebUI: Chọn Lớp, Môn học & Nhập bảng điểm
-Teacher -> WebUI: Nhấn nút "Phê duyệt & Công bố"
-WebUI -> Gateway: POST /api/v1/grades/publish\n(Header: Bearer <JWT>, Payload: GradeList)
-Gateway -> Gateway: Kiểm tra chữ ký JWT & trích xuất Role (TEACHER)
+Teacher -> TeacherUI: Mở App tại lớp, chọn học sinh vắng & nhấn "Lưu điểm danh"
+TeacherUI -> Gateway: POST /api/v1/attendance/submit
+Gateway -> AcadModule: Forward request (Teacher Token)
+AcadModule -> Postgres: Ghi nhận bản ghi điểm danh
+AcadModule -> RabbitMQ: Phát sự kiện 'StudentAbsentEvent' (kèm studentId vắng)
+AcadModule --> TeacherUI: Phản hồi "Điểm danh hoàn tất"
+
+Teacher -> TeacherUI: Nhập cột điểm 1 tiết & nhấn "Phê duyệt công bố"
+TeacherUI -> Gateway: POST /api/v1/grades/publish
 Gateway -> AcadModule: Forward request
-
-AcadModule -> AcadModule: Validate điểm (0.0 <= score <= 10.0)
-AcadModule -> Postgres: Lưu điểm & tính lại điểm trung bình môn
-Postgres --> AcadModule: Xác nhận lưu trữ thành công (ACID)
-
-AcadModule -> RabbitMQ: Publish event 'GradePublishedEvent'\n(classId, subjectId, timestamp)
-AcadModule --> Gateway: Phản hồi thành công
-Gateway --> WebUI: Hiển thị "Đã công bố điểm thành công"
+AcadModule -> Postgres: Lưu bảng điểm & tính lại điểm TB môn
+AcadModule -> RabbitMQ: Phát sự kiện 'GradePublishedEvent' (classId, subjectId)
+AcadModule --> TeacherUI: Phản hồi "Đã công bố điểm"
 
 ' ==============================================================================
-' 4. GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & ĐẨY THÔNG BÁO TỚI PHỤ HUYNH
+' GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & BẮN THÔNG BÁO TỨC THÌ
 ' ==============================================================================
 
-== GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & ĐẨY THÔNG BÁO TỚI PHỤ HUYNH ==
+== GIAI ĐOẠN 3: XỬ LÝ SỰ KIỆN BẤT ĐỒNG BỘ & ĐẨY THÔNG BÁO (FCM) ==
 
-RabbitMQ -> NotiModule: Consume 'GradePublishedEvent'
-NotiModule -> Postgres: Lấy danh sách phụ huynh có con trong lớp
-Postgres --> NotiModule: Trả về danh sách ParentId & StudentId
-NotiModule -> Redis: Lấy Device FCM Token của các Phụ huynh
-Redis --> NotiModule: Trả về Device Tokens
+RabbitMQ -> NotiModule: Chuyển giao các sự kiện (Vắng học, Điểm mới)
+NotiModule -> Postgres: Tra cứu phụ huynh liên kết với học sinh
+Postgres --> NotiModule: Danh sách ParentId
+NotiModule -> Redis: Lấy Device FCM Token của phụ huynh
+Redis --> NotiModule: Trả về FCM Tokens
+NotiModule -> FCM: Gửi multicast push notification
+FCM -> ParentApp: Đẩy thông báo tức thì tới thiết bị di động
+ParentApp -> Parent: Rung/Chuông & hiển thị Banner thông báo
 
-NotiModule -> FCM: Gửi multicast push notification\n("Đã có điểm môn [Toán] mới của học sinh")
-FCM --> NotiModule: Phản hồi gửi thành công (MessageId)
-FCM -> MobileParent: Đẩy thông báo tức thì tới điện thoại
+' ==============================================================================
+' GIAI ĐOẠN 4: CỔNG PHỤ HUYNH - TRA CỨU & THANH TOÁN HỌC PHÍ (PARENT)
+' ==============================================================================
 
-MobileParent -> Parent: Hiển thị âm thanh & Banner thông báo
-Parent -> MobileParent: Chạm vào thông báo
-MobileParent -> Gateway: GET /api/v1/students/:id/grades (Bearer <Parent_JWT>)
+== GIAI ĐOẠN 4: TRA CỨU HỌC TẬP & THANH TOÁN HỌC PHÍ ONLINE (PARENT) ==
+
+Parent -> ParentApp: Mở thông báo xem chi tiết bảng điểm / chuyên cần của con
+ParentApp -> Gateway: GET /api/v1/students/:id/academic
 Gateway -> AcadModule: Forward query
-AcadModule -> Postgres: Lấy chi tiết bảng điểm con em
-Postgres --> AcadModule: Trả về dữ liệu điểm
-AcadModule --> Gateway: Phản hồi HTTP 200 OK
-Gateway --> MobileParent: Trả về kết quả
-MobileParent -> Parent: Hiển thị bảng điểm chi tiết trực quan
+AcadModule -> Postgres: Lấy chi tiết điểm số & chuyên cần
+Postgres --> AcadModule: Dữ liệu học tập
+AcadModule --> ParentApp: Hiển thị bảng điểm chi tiết trực quan
+
+Parent -> ParentApp: Chuyển sang mục "Học phí", bấm "Thanh toán ngay"
+ParentApp -> Gateway: POST /api/v1/payments/create-url
+Gateway -> BillingModule: Forward request
+BillingModule -> PaymentGW: Gọi API tạo giao dịch (OrderInfo, Amount, ReturnUrl)
+PaymentGW --> BillingModule: Trả về Payment URL
+BillingModule --> ParentApp: Chuyển hướng sang Cổng thanh toán (VNPAY/MoMo)
+
+Parent -> PaymentGW: Xác thực thanh toán (OTP ngân hàng)
+PaymentGW -> PaymentGW: Xử lý trừ tiền giao dịch thành công
+PaymentGW -> Gateway: Gửi Webhook IPN (kèm chữ ký số Checksum)
+Gateway -> BillingModule: Forward webhook
+BillingModule -> BillingModule: Kiểm tra tính hợp lệ chữ ký số
+BillingModule -> Postgres: Cập nhật hóa đơn sang trạng thái 'PAID'
+BillingModule -> NotiModule: Gửi biên lai xác nhận thanh toán thành công
+NotiModule -> FCM: Bắn thông báo đẩy xác nhận đã đóng học phí
+FCM -> ParentApp: Hiển thị thông báo "Thanh toán học phí thành công"
 
 @enduml

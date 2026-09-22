@@ -17,83 +17,133 @@ skinparam note {
     FontSize 10
 }
 
-title Sơ Đồ Hoạt Động Quy Trình Điểm Danh & Bắn Thông Báo Vắng Học (Activity Diagram)\nGiaoVienHay (EduConnect) - React Native, NestJS, RabbitMQ & FCM
+title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to-End System Activity Diagram)\nGiaoVienHay (EduConnect) - Bao Quát Cả 3 Nhóm Tác Nhân & Các Nghiệp Vụ Cốt Lõi
 
 ' ==============================================================================
-' ĐỊNH NGHĨA CÁC PHÂN VÙNG (SWIMLANES)
+' ĐỊNH NGHĨA CÁC PHÂN VÙNG LÀN BƠI (SWIMLANES)
 ' ==============================================================================
 
+|#E3F2FD|Quản trị viên (Admin)|
 |#E1F5FE|Giáo viên (Teacher)|
-|#EDE7F6|Client App (React Native / Next.js)|
-|#FFF3E0|Backend NestJS (API & Controller)|
-|#E8F5E9|Hạ tầng Dữ liệu (PostgreSQL & RabbitMQ)|
-|#FCE4EC|Dịch vụ Đẩy Thông báo (FCM Worker)|
-|#F3E5F5|Phụ huynh (Parent Mobile App)|
+|#EDE7F6|Client App (Next.js / React Native)|
+|#FFF3E0|Backend NestJS (API & Services)|
+|#E8F5E9|Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
+|#FCE4EC|Dịch Vụ Ngoài (FCM & Payment Gateway)|
+|#F3E5F5|Phụ huynh (Parent)|
 
 ' ==============================================================================
-' LUỒNG HOẠT ĐỘNG (FLOW)
+' GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & HỌC PHÍ (ADMIN PORTAL)
 ' ==============================================================================
 
-|Giáo viên (Teacher)|
+|Quản trị viên (Admin)|
 start
-:Mở tính năng "Điểm danh";
-:Chọn Lớp học, Ngày học và Buổi/Tiết học;
+:Đăng nhập Web Quản trị Next.js;
+:Thiết lập Khối lớp, Phân công giảng dạy cho Giáo viên;
+:Tạo danh sách Học sinh và thiết lập Liên kết với Phụ huynh;
+:Khởi tạo đợt thu Học phí theo kỳ (UC-ADM-04);
 
-|Client App (React Native / Next.js)|
-:Gửi GET /api/v1/classes/:id/students;
+|Client App (Next.js / React Native)|
+:Gửi yêu cầu khởi tạo cấu trúc và biểu phí;
 
-|Backend NestJS (API & Controller)|
-:Xác thực quyền giảng dạy của Giáo viên (RolesGuard);
-:Truy vấn danh sách học sinh kèm trạng thái điểm danh trước (nếu có);
+|Backend NestJS (API & Services)|
+:Xác thực quyền Admin (RolesGuard);
+:Xử lý nghiệp vụ & Mở DB Transaction;
 
-|Hạ tầng Dữ liệu (PostgreSQL & RabbitMQ)|
-:Trả về dữ liệu từ PostgreSQL;
+|Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
+:Lưu trữ cơ cấu trường, phân công và hóa đơn học phí vào PostgreSQL;
 
-|Client App (React Native / Next.js)|
-:Hiển thị danh sách học sinh với mặc định "Có mặt";
+' ==============================================================================
+' GIAI ĐOẠN 2: NGHIỆP VỤ GIẢNG DẠY & CHUYÊN CẦN (TEACHER)
+' ==============================================================================
 
 |Giáo viên (Teacher)|
-:Kiểm diện và chuyển trạng thái học sinh vắng\n("Vắng có phép" hoặc "Vắng không phép");
-:Nhập ghi chú/lý do vắng (nếu có);
-:Nhấn nút "Lưu Điểm Danh";
+:Mở ứng dụng (Web hoặc Mobile App React Native);
+if (Lựa chọn thao tác nghiệp vụ?) then ([Điểm danh chuyên cần])
+    :Mở tính năng "Điểm danh" tại lớp học;
+    :Đánh dấu các học sinh Vắng (Có phép / Không phép);
+    :Bấm "Lưu điểm danh";
+    
+    |Client App (Next.js / React Native)|
+    :Gửi POST /api/v1/attendance/submit;
+    
+    |Backend NestJS (API & Services)|
+    :Lưu bản ghi điểm danh vào DB;
+    if (Có học sinh vắng?) then (Có)
+        |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
+        :Phát sự kiện 'StudentAbsentEvent' vào RabbitMQ;
+    else (Không)
+    endif
 
-|Client App (React Native / Next.js)|
-:Kiểm tra tính hợp lệ dữ liệu (Form validation);
-:Gửi POST /api/v1/attendance/submit (JWT Token);
-
-|Backend NestJS (API & Controller)|
-:Xác thực token JWT;
-:Mở Database Transaction;
-
-|Hạ tầng Dữ liệu (PostgreSQL & RabbitMQ)|
-:Ghi nhận các bản ghi điểm danh vào PostgreSQL;
-if (Có học sinh vắng mặt?) then (Có)
-    :Phát sự kiện 'StudentAbsentEvent' vào RabbitMQ;
-else (Không)
+else ([Nhập điểm môn học])
+    |Giáo viên (Teacher)|
+    :Mở Sổ điểm trên Web Next.js;
+    :Nhập các cột điểm kiểm tra thành phần;
+    :Bấm "Phê duyệt & Công bố điểm";
+    
+    |Client App (Next.js / React Native)|
+    :Gửi POST /api/v1/grades/publish;
+    
+    |Backend NestJS (API & Services)|
+    :Kiểm tra thang điểm (0-10) & tính điểm trung bình;
+    
+    |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
+    :Cập nhật bảng grades trong PostgreSQL;
+    :Phát sự kiện 'GradePublishedEvent' vào RabbitMQ;
 endif
 
-|Backend NestJS (API & Controller)|
-:Commit Transaction;
-:Trả về response thành công (HTTP 201 Created);
+' ==============================================================================
+' GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & BẮN THÔNG BÁO TỨC THÌ
+' ==============================================================================
 
-|Client App (React Native / Next.js)|
-:Hiển thị thông báo "Điểm danh hoàn tất";
+|Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
+:RabbitMQ giao sự kiện cho Notification Worker;
 
-|Hạ tầng Dữ liệu (PostgreSQL & RabbitMQ)|
-if (Có sự kiện 'StudentAbsentEvent' trong Queue?) then (Có)
-    :RabbitMQ chuyển giao Event cho Notification Worker;
-    
-    |Dịch vụ Đẩy Thông báo (FCM Worker)|
-    :Đọc Event, tra cứu tài khoản Phụ huynh liên kết;
-    :Lấy Device Token từ Redis Cache;
-    :Tạo payload thông báo với nội dung:\n"Học sinh [Tên] vắng mặt tiết [X] ngày [Y]";
-    :Gửi yêu cầu Push Notification qua Firebase FCM;
-    
-    |Phụ huynh (Parent Mobile App)|
-    :Nhận âm thanh và banner thông báo đẩy trên điện thoại;
-    :Chạm vào thông báo để mở xem chi tiết chuyên cần của con;
+|Backend NestJS (API & Services)|
+:Notification Service lấy thông tin Phụ huynh liên quan;
+:Truy xuất Device Token từ Redis Cache;
+:Gửi yêu cầu Multicast Push tới FCM;
+
+|Dịch Vụ Ngoài (FCM & Payment Gateway)|
+:Firebase FCM chuyển phát thông báo đẩy tới điện thoại Phụ huynh;
+
+' ==============================================================================
+' GIAI ĐOẠN 4: CỔNG PHỤ HUYNH - TRA CỨU & THANH TOÁN HỌC PHÍ (PARENT)
+' ==============================================================================
+
+|Phụ huynh (Parent)|
+:Nhận âm thanh & banner thông báo đẩy trên Mobile App;
+:Chạm vào thông báo để mở App React Native;
+if (Nội dung thông báo?) then ([Thông báo vắng học / Điểm mới])
+    :Xem chi tiết bảng điểm hoặc lịch sử điểm danh của con;
     stop
-else (Không có vắng)
+else ([Thông báo học phí mới])
+    :Mở mục "Học phí" trên App;
+    :Kiểm tra chi tiết các khoản thu cần nộp;
+    :Bấm "Thanh toán ngay" và chọn Cổng thanh toán (VNPAY / MoMo);
+    
+    |Client App (Next.js / React Native)|
+    :Gửi POST /api/v1/payments/create-url;
+    
+    |Backend NestJS (API & Services)|
+    :Tạo giao dịch chờ & sinh chữ ký số (Checksum);
+    
+    |Dịch Vụ Ngoài (FCM & Payment Gateway)|
+    :Cổng thanh toán hiển thị màn hình thanh toán / Mở App ngân hàng;
+    
+    |Phụ huynh (Parent)|
+    :Xác thực OTP / Sinh trắc học để thanh toán;
+    
+    |Dịch Vụ Ngoài (FCM & Payment Gateway)|
+    :Trừ tiền tài khoản & Gửi Webhook IPN về Backend NestJS;
+    
+    |Backend NestJS (API & Services)|
+    :Xác thực chữ ký số Webhook;
+    
+    |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
+    :Cập nhật trạng thái hóa đơn sang 'PAID' trong PostgreSQL;
+    
+    |Phụ huynh (Parent)|
+    :Nhận biên lai điện tử xác nhận thanh toán thành công;
     stop
 endif
 

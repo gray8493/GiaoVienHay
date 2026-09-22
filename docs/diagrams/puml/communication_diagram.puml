@@ -10,45 +10,91 @@ skinparam object {
     FontStyle bold
 }
 
-title Sơ Đồ Giao Tiếp Toàn Hệ Thống (Communication Diagram) - GiaoVienHay (EduConnect)\nMô Tả Luồng Tương Tác Giữa Các Đối Tượng Khi Nhập Điểm & Bắn Thông Báo
+title Sơ Đồ Giao Tiếp Toàn Hệ Thống (System-Wide Communication Diagram) - GiaoVienHay (EduConnect)\nBao Quát Toàn Diện 3 Nhóm Tác Nhân & Các Phân Hệ Chức Năng Cốt Lõi
 
-' --- 1. Tác Nhân Người Dùng (Human Actors) ---
+' ==============================================================================
+' 1. CÁC TÁC NHÂN NGƯỜI DÙNG (ACTORS)
+' ==============================================================================
+object "<u>:Admin</u>\n(Quản trị viên / BGH)" as Admin
 object "<u>:Teacher</u>\n(Giáo viên)" as Teacher
 object "<u>:Parent</u>\n(Phụ huynh)" as Parent
 
-' --- 2. Giao Diện Người Dùng (UI Layer) ---
-object "<u>:WebNextjsUI</u>\n(Web Quản trị Next.js)" as WebUI
-object "<u>:MobileReactNativeUI</u>\n(Mobile App Phụ huynh)" as MobileUI
+' ==============================================================================
+' 2. TẦNG GIAO DIỆN CLIENT (PRESENTATION LAYER)
+' ==============================================================================
+object "<u>:WebNextjsAdminUI</u>\n(Web Quản trị Next.js)" as WebAdminUI
+object "<u>:WebNextjsTeacherUI</u>\n(Web Giáo viên Next.js)" as WebTeacherUI
+object "<u>:MobileTeacherUI</u>\n(Mobile App Giáo viên)" as MobileTeacherUI
+object "<u>:MobileParentUI</u>\n(Mobile App Phụ huynh)" as MobileParentUI
 
-' --- 3. Backend Chung (NestJS Platform) ---
-object "<u>:APIGateway</u>\n(Routing & RateLimit)" as Gateway
-object "<u>:AcademicService</u>\n(NestJS Module)" as AcademicSvc
-object "<u>:NotificationService</u>\n(NestJS Module)" as NotiSvc
+' ==============================================================================
+' 3. TẦNG BACKEND & API GATEWAY (NESTJS PLATFORM)
+' ==============================================================================
+object "<u>:APIGateway</u>\n(Routing & RBAC Guard)" as Gateway
+object "<u>:AuthService</u>\n(NestJS Auth Module)" as AuthSvc
+object "<u>:AdminSchoolService</u>\n(NestJS Admin Module)" as AdminSvc
+object "<u>:AcademicService</u>\n(NestJS Academic Module)" as AcademicSvc
+object "<u>:NotificationService</u>\n(NestJS Noti Module)" as NotiSvc
+object "<u>:BillingPaymentService</u>\n(NestJS Payment Module)" as PaymentSvc
 
-' --- 4. Tầng Dữ Liệu & Hàng Đợi (Storage Layer) ---
-object "<u>:PostgreSQL</u>\n(RDBMS)" as Postgres
-object "<u>:RabbitMQ</u>\n(Message Broker)" as RabbitMQ
-object "<u>:RedisCache</u>\n(Session & FCM Tokens)" as Redis
+' ==============================================================================
+' 4. TẦNG DỮ LIỆU & HÀNG ĐỢI (STORAGE & BROKER LAYER)
+' ==============================================================================
+object "<u>:PostgreSQL</u>\n(Users, Roles, Grades, Fees)" as Postgres
+object "<u>:MongoDB</u>\n(News Feeds, Audit Logs)" as Mongo
+object "<u>:RedisCache</u>\n(Session, FCM Tokens, BullMQ)" as Redis
+object "<u>:RabbitMQ</u>\n(Message Broker Events)" as RabbitMQ
 
-' --- 5. Dịch Vụ Ngoài (External Cloud) ---
-object "<u>:FirebaseFCM</u>\n(Cloud Messaging)" as FCM
+' ==============================================================================
+' 5. CÁC DỊCH VỤ NGOÀI (EXTERNAL SERVICES)
+' ==============================================================================
+object "<u>:FirebaseFCM</u>\n(Cloud Messaging Service)" as FCM
+object "<u>:PaymentGateway</u>\n(VNPAY / MoMo Gateway)" as PaymentGW
 
-' --- 6. CÁC TƯƠNG TÁC ĐÁNH SỐ (NUMBERED INTERACTIONS) ---
+' ==============================================================================
+' CÁC LUỒNG GIAO TIẾP & THÔNG ĐIỆP ĐƯỢC ĐÁNH SỐ THEO PHÂN HỆ
+' ==============================================================================
 
-Teacher -- WebUI : 1: Nhập điểm & nhấn 'Phê duyệt' >
-WebUI -- Gateway : 2: POST /api/v1/grades/publish >
-Gateway -- AcademicSvc : 3: Forward validated request >
+' --- NHÓM 1: Quản trị Trường học & Cấu hình Hệ thống (Admin -> Web Next.js) ---
+Admin -- WebAdminUI : 1.1: login(credentials)\n1.2: manageSchoolStructure(classes, subjects)\n1.3: assignTeachers(homeroom, subjects)\n1.4: manageStudentParentLink(records)\n1.5: createTuitionInvoices(fees)\n1.6: postAnnouncement(newsContent)
 
-AcademicSvc -- Postgres : 4: Lưu dữ liệu điểm & tính điểm TB >
-AcademicSvc -- RabbitMQ : 5: Phát 'GradePublishedEvent' >
-AcademicSvc .. WebUI : 6: Phản hồi kết quả thành công >
+WebAdminUI -- Gateway : 1.7: HTTP POST /api/v1/auth/login\n1.8: HTTP REST /api/v1/admin/* (CRUD)\n1.9: HTTP POST /api/v1/billing/invoices\n1.10: HTTP POST /api/v1/feeds
 
-RabbitMQ -- NotiSvc : 7: Giao nhận 'GradePublishedEvent' >
-NotiSvc -- Postgres : 8: Truy vấn danh sách phụ huynh liên quan >
-NotiSvc -- Redis : 9: Lấy Device FCM Token của phụ huynh >
-NotiSvc -- FCM : 10: Gửi push notification request >
+Gateway -- AdminSvc : 1.11: forwardAdminRequest(validatedToken)
+Gateway -- PaymentSvc : 1.12: forwardBillingRequest(token)
+AdminSvc -- Postgres : 1.13: saveSchoolData(classes, assignments, linkages)
+AdminSvc -- Mongo : 1.14: saveAnnouncementFeed(content, audit)
 
-FCM -- MobileUI : 11: Đẩy thông báo tức thì tới app >
-MobileUI -- Parent : 12: Hiển thị banner thông báo điểm mới >
+' --- NHÓM 2: Nghiệp vụ Giảng dạy & Đánh giá (Teacher -> Web & Mobile App) ---
+Teacher -- WebTeacherUI : 2.1: login(credentials)\n2.2: viewTimetable()\n2.3: inputAndPublishGrades(classId, scores)\n2.4: writeStudentRemarks(remarks)
+
+Teacher -- MobileTeacherUI : 2.5: quickAttendance(classId, presentList, absentList)\n2.6: sendUrgentNotice(message)
+
+WebTeacherUI -- Gateway : 2.7: HTTP POST /api/v1/grades/publish\n2.8: HTTP POST /api/v1/students/remarks
+MobileTeacherUI -- Gateway : 2.9: HTTP POST /api/v1/attendance/submit\n2.10: HTTP GET /api/v1/teacher/schedule
+
+Gateway -- AcademicSvc : 2.11: forwardAcademicRequest(teacherToken)
+AcademicSvc -- Postgres : 2.12: persistGradesAndAttendance(ACID)
+AcademicSvc -- RabbitMQ : 2.13: publishEvent(GradePublishedEvent, StudentAbsentEvent)
+
+' --- NHÓM 3: Cổng Phụ huynh (Parent -> Mobile App React Native) ---
+Parent -- MobileParentUI : 3.1: login(credentials)\n3.2: switchChildProfile(childId)\n3.3: viewChildAcademicReport(grades, GPA)\n3.4: viewAttendanceHistory()\n3.5: viewTuitionInvoices()\n3.6: initiatePayment(invoiceId, method)
+
+MobileParentUI -- Gateway : 3.7: HTTP POST /api/v1/auth/login\n3.8: HTTP GET /api/v1/students/:id/academic\n3.9: HTTP GET /api/v1/students/:id/attendance\n3.10: HTTP POST /api/v1/payments/create-url
+
+Gateway -- PaymentSvc : 3.11: forwardPaymentRequest(parentToken)
+PaymentSvc -- PaymentGW : 3.12: requestPaymentUrl(orderInfo, amount)
+PaymentGW -- MobileParentUI : 3.13: returnPaymentRedirectUrl()
+PaymentGW -- PaymentSvc : 3.14: webhookIPN(checksum, transactionStatus)
+PaymentSvc -- Postgres : 3.15: updateInvoiceStatus(PAID, receiptId)
+
+' --- NHÓM 4: Xử lý Bất đồng bộ & Bắn Thông Báo Đẩy Thời Gian Thực ---
+RabbitMQ -- NotiSvc : 4.1: consumeEvent(GradePublishedEvent, StudentAbsentEvent)
+NotiSvc -- Postgres : 4.2: queryParentAccountByStudentId()
+NotiSvc -- Redis : 4.3: fetchDeviceFCMTokens(parentIds)
+NotiSvc -- FCM : 4.4: sendMulticastPushNotification(fcmTokens, payload)
+
+FCM -- MobileParentUI : 4.5: pushBackgroundNotification(alertTitle, alertBody)
+MobileParentUI -- Parent : 4.6: renderPushBannerNotification()
 
 @enduml
