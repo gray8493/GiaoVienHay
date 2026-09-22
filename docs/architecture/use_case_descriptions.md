@@ -14,14 +14,14 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 ### UC-ACA-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
 - **Mã Use Case:** `UC-ACA-04`
 - **Tác nhân chính:** Giáo viên (Cả GVCN và GVBM).
-- **Tác nhân hỗ trợ:** Backend NestJS, PostgreSQL (Bảng `attendances` và `students`).
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/attendances` và `/students`).
 - **Mô tả:** Giáo viên sử dụng công cụ quay số / bốc thăm ngẫu nhiên để chọn học sinh lên bảng kiểm tra bài cũ. Thuật toán tự động đối chiếu dữ liệu điểm danh và chỉ lọc ra các học sinh **CÓ MẶT HÔM NAY**.
 - **Tiền điều kiện:** Lớp học đã được điểm danh trong ngày hiện tại.
 - **Hậu điều kiện:** Một học sinh có mặt được chọn ngẫu nhiên, điểm kiểm tra bài cũ có thể nhập trực tiếp vào sổ điểm.
 - **Luồng sự kiện chính (Main Flow):**
   1. Tại màn hình lớp học trên Web Next.js, giáo viên bấm "Dò bài cũ & Gọi học sinh lên bảng".
   2. Web gửi request `GET /api/v1/classes/:id/present-students-today` tới Backend NestJS.
-  3. Backend truy vấn bảng `attendances` với điều kiện: `class_id = :id AND attendance_date = CURRENT_DATE AND status = 'PRESENT'`.
+  3. Backend truy vấn Firestore collection `/attendances` với điều kiện: `class_id == :id AND attendance_date == TODAY AND status == 'PRESENT'`.
   4. Backend trả về danh sách chỉ gồm các học sinh ĐANG CÓ MẶT trong lớp (loại trừ các học sinh vắng).
   5. Web Next.js hiển thị giao diện Vòng quay may mắn (Lucky Wheel) hoặc Hiệu ứng rút thẻ bài sinh động.
   6. Giáo viên bấm "Quay số", vòng quay khởi chạy kèm âm thanh hồi hộp.
@@ -75,10 +75,27 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ---
 
+### UC-ACA-07: Giáo Viên Nhập Điểm Kiểm Tra Lớp Học & Xem Bảng Xếp Hạng
+- **Mã Use Case:** `UC-ACA-07`
+- **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collections `/scores` & `/quiz_results`), Firebase FCM.
+- **Mô tả:** Sau khi tổ chức cho học sinh kiểm tra bài cũ hoặc thi đua mini-game tại lớp, Giáo viên trực tiếp nhập điểm số cho học sinh trên ứng dụng. Hệ thống tự động xếp hạng và hiển thị Bảng xếp hạng (Leaderboard) điểm số của lớp cho Giáo viên theo dõi và công bố.
+- **Luồng sự kiện chính (Main Flow):**
+  1. Giáo viên tổ chức kiểm tra ở lớp (dò bài cũ, câu hỏi AI hoặc mini-game trình chiếu trên bảng). Học sinh trả lời trực tiếp tại lớp (không qua app).
+  2. Giáo viên mở giao diện nhập điểm của lớp trên Web/Mobile, nhập điểm số và nhận xét cho từng học sinh.
+  3. Hệ thống lưu điểm và tự động sắp xếp thứ hạng học sinh trong lớp theo điểm số từ cao xuống thấp.
+  4. Hệ thống hiển thị **Bảng xếp hạng (Leaderboard)** lớp học cho Giáo viên xem:
+     - Vinh danh Top học sinh điểm cao nhất (Top 1, Top 2, Top 3) kèm huy hiệu.
+     - Danh sách thứ hạng điểm toàn lớp và thống kê phổ điểm.
+  5. Giáo viên xem lại, chỉnh sửa nếu cần và bấm **"Công bố điểm"**.
+  6. Điểm số được công bố vào Sổ điểm điện tử (`/scores`) và gửi thông báo đẩy (FCM) đến điện thoại của phụ huynh.
+
+---
+
 ### UC-FEE-01: Quản Lý Thu Học Phí & Bảo Hiểm Y Tế (BHYT)
 - **Mã Use Case:** `UC-FEE-01`
 - **Tác nhân chính:** Giáo viên Chủ nhiệm (GVCN) & Admin.
-- **Tác nhân hỗ trợ:** Backend NestJS, PostgreSQL (Bảng `fees_and_insurance`), Firebase FCM.
+- **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/fees_and_insurance`), Firebase FCM.
 - **Mô tả:** GVCN theo dõi và quản lý danh sách học sinh của lớp đã hoặc chưa hoàn thành nộp Học phí và Bảo hiểm Y tế thông qua 2 cờ boolean `is_paid_tuition` và `is_paid_insurance`.
 - **Luồng sự kiện chính (Main Flow):**
   1. GVCN mở tab "Quản lý Thu phí & BHYT" của lớp chủ nhiệm trên Web Next.js hoặc Mobile App.

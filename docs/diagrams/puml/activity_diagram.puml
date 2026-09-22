@@ -1,5 +1,4 @@
 @startuml
-skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
 skinparam conditionStyle insidediamond
@@ -17,7 +16,7 @@ skinparam note {
     FontSize 10
 }
 
-title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to-End System Activity Diagram)\nGiaoVienHay - Quản Trị, Nghiệp Vụ Sư Phạm & Cổng Phụ Huynh (Theo Dõi Cờ BHYT/Học Phí)
+title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to-End System Activity Diagram)\nGiaoVienHay - Quản Trị, Nghiệp Vụ Sư Phạm & Cổng Phụ Huynh (100% Nền Tảng Firebase)
 
 ' ==============================================================================
 ' ĐỊNH NGHĨA CÁC PHÂN VÙNG LÀN BƠI (SWIMLANES)
@@ -27,8 +26,8 @@ title Sơ Đồ Hoạt Động Toàn Chu Trình Vận Hành Hệ Thống (End-to
 |#E1F5FE|Giáo viên (GVCN & GVBM)|
 |#EDE7F6|Client App (Next.js / React Native)|
 |#FFF3E0|Backend NestJS (API & Services)|
-|#E8F5E9|Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-|#FCE4EC|Dịch Vụ Ngoài (Firebase FCM & AI)|
+|#E8F5E9|Cơ Sở Dữ Liệu (Cloud Firestore)|
+|#FCE4EC|Dịch Vụ Firebase & AI (Storage, FCM, Gemini)|
 |#F3E5F5|Phụ huynh (Parent)|
 
 ' ==============================================================================
@@ -46,11 +45,11 @@ start
 :Gửi yêu cầu khởi tạo cấu trúc và danh mục;
 
 |Backend NestJS (API & Services)|
-:Xác thực quyền Admin (RolesGuard);
-:Xử lý nghiệp vụ & Mở DB Transaction;
+:Xác thực quyền Admin (Firebase Auth RBAC);
+:Xử lý nghiệp vụ và ghi nhận vào Firestore;
 
-|Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-:Lưu cơ cấu trường, phân công và bản ghi fees_and_insurance (cờ mặc định FALSE);
+|Cơ Sở Dữ Liệu (Cloud Firestore)|
+:Lưu vào /classes, /users, /students và /fees_and_insurance (cờ mặc định FALSE);
 
 ' ==============================================================================
 ' GIAI ĐOẠN 2: NGHIỆP VỤ SƯ PHẠM, ĐIỂM DANH & QUẢN LÝ BHYT (GIÁO VIÊN)
@@ -58,33 +57,59 @@ start
 
 |Giáo viên (GVCN & GVBM)|
 :Mở ứng dụng (Web hoặc Mobile App React Native);
-if (Lựa chọn thao tác nghiệp vụ?) then ([Điểm danh chuyên cần])
-    :Mở tính năng "Điểm danh" tại lớp học;
-    :Đánh dấu các học sinh Vắng (Có phép / Không phép);
+if (Nghiệp vụ thực hiện tại lớp?) then ([Điểm danh chuyên cần đầu giờ])
+    |Giáo viên (GVCN & GVBM)|
+    :GVCN chọn lớp chủ nhiệm trên Mobile App;
+    :Điểm danh nhanh: Chạm đánh dấu học sinh vắng;
     :Bấm "Lưu điểm danh";
     
-    |Client App (Next.js / React Native)|
-    :Gửi POST /api/v1/attendance/submit;
+    |Backend NestJS (API & Services)|
+    :Ghi nhận dữ liệu điểm danh ngày hôm nay;
+    
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Lưu vào collection /attendances;
     
     |Backend NestJS (API & Services)|
-    :Lưu bản ghi điểm danh vào DB;
-    if (Có học sinh vắng?) then (Có)
-        |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-        :Phát sự kiện 'StudentAbsentEvent' vào RabbitMQ;
-    else (Không)
-    endif
+    :Xác định danh sách học sinh vắng để kích hoạt thông báo;
 
-else if (Lựa chọn thao tác nghiệp vụ?) then ([Dò bài cũ & Chơi Game AI])
+else if ([Kiểm tra bài cũ / Mini-game bằng AI])
     |Giáo viên (GVCN & GVBM)|
     :Tải giáo án .docx/.pdf lên Web Next.js;
     
-    |Dịch Vụ Ngoài (Firebase FCM & AI)|
-    :Google Gemini AI phân tích bóc tách và sinh câu hỏi;
+    |Dịch Vụ Firebase & AI (Storage, FCM, Gemini)|
+    :Firebase Storage lưu trữ tệp tài liệu an toàn;
+    :Google Gemini AI phân tích bóc tách giáo án và sinh bộ câu hỏi trắc nghiệm;
+    
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Lưu bộ câu hỏi vào /quizzes và subcollection /questions;
     
     |Giáo viên (GVCN & GVBM)|
-    :Chọn 1 trong 4 Mini-game (Rung chuông vàng, Đua xe, Hộp quà);
-    :Quay Vòng quay Random học sinh (chỉ học sinh CÓ MẶT hôm nay);
-    :Chấm điểm miệng và lưu trực tiếp vào sổ điểm;
+    :Tổ chức kiểm tra bài cũ / Mini-game tại lớp:
+    - Vòng quay Random học sinh lên bảng kiểm tra
+    - Hoặc cho học sinh làm bài tập/trả lời câu hỏi trên lớp;
+    :Giáo viên trực tiếp nhập điểm kiểm tra cho học sinh trên App;
+    
+    |Client App (Next.js / React Native)|
+    :Gửi dữ liệu điểm kiểm tra vừa nhập lên Backend;
+    
+    |Backend NestJS (API & Services)|
+    :Lưu điểm kiểm tra vào /quiz_results và /scores;
+    :Tự động tổng hợp và sắp xếp thứ hạng học sinh trong lớp;
+    
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Cập nhật các document trong /quiz_results và /scores;
+    
+    |Client App (Next.js / React Native)|
+    :Hiển thị **BẢNG XẾP HẠNG (LEADERBOARD)** lớp học cho Giáo viên xem:
+    - Vinh danh Top điểm cao nhất lớp
+    - Thống kê phân bố điểm số và danh sách thứ hạng của lớp;
+    
+    |Giáo viên (GVCN & GVBM)|
+    :Giáo viên theo dõi kết quả, điều chỉnh điểm nếu cần;
+    :Bấm "Công bố điểm" để phụ huynh cùng theo dõi;
+    
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Cập nhật cờ is_published = TRUE trong /scores;
 
 else ([Quản lý thu nộp BHYT / Học phí])
     |Giáo viên (GVCN & GVBM)|
@@ -92,24 +117,23 @@ else ([Quản lý thu nộp BHYT / Học phí])
     :Tích chọn cờ boolean (is_paid_tuition, is_paid_insurance) khi học sinh nộp;
     :Lọc danh sách các em chưa nộp BHYT và bấm "Nhắc nhở";
     
-    |Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-    :Phát sự kiện 'FeeReminderEvent' vào RabbitMQ;
+    |Cơ Sở Dữ Liệu (Cloud Firestore)|
+    :Cập nhật cờ nộp trong collection /fees_and_insurance;
 endif
 
 ' ==============================================================================
-' GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & BẮN THÔNG BÁO TỨC THÌ (FCM)
+' GIAI ĐOẠN 3: BẮN THÔNG BÁO TỨC THÌ QUA FIREBASE CLOUD MESSAGING (FCM)
 ' ==============================================================================
 
-|Dữ Liệu & Hàng Đợi (PostgreSQL & RabbitMQ)|
-:RabbitMQ giao sự kiện cho Notification Worker;
-
 |Backend NestJS (API & Services)|
-:Notification Service lấy thông tin Phụ huynh liên quan;
-:Truy xuất Device Token từ Redis Cache;
-:Gửi yêu cầu Multicast Push tới FCM;
+:Truy xuất parent_uids và fcm_tokens từ Firestore;
+:Gửi yêu cầu Multicast Push tới Firebase Cloud Messaging;
 
-|Dịch Vụ Ngoài (Firebase FCM & AI)|
-:Firebase FCM chuyển phát thông báo đẩy tới điện thoại Phụ huynh;
+|Dịch Vụ Firebase & AI (Storage, FCM, Gemini)|
+:Firebase FCM chuyển phát thông báo đẩy tức thì tới điện thoại Phụ huynh;
+
+|Cơ Sở Dữ Liệu (Cloud Firestore)|
+:Lưu nhật ký thông báo vào collection /notifications;
 
 ' ==============================================================================
 ' GIAI ĐOẠN 4: CỔNG PHỤ HUYNH - TRA CỨU HỌC BẠ & TRẠNG THÁI BHYT (PARENT)

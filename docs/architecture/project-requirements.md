@@ -21,7 +21,7 @@
 ### FR-02: Import Docs/PDF bằng AI (Gemini API) Sinh Câu Hỏi Kiểm Tra Bài Cũ
 - **FR-02.1:** Cho phép giáo viên (cả GVCN và GVBM) tải lên tài liệu giáo trình bài học (`.docx`, `.pdf`).
 - **FR-02.2:** Backend NestJS tích hợp **Google Gemini API** (`gemini-1.5-flash`) tự động trích xuất nội dung và sinh từ 3-5 câu hỏi trắc nghiệm/tự luận ngắn phục vụ kiểm tra bài cũ 5-10 phút đầu giờ.
-- **FR-02.3:** Lưu trữ câu hỏi vào các bảng `quizzes` và `questions`, hỗ trợ chế độ xem trước (preview) và chỉnh sửa nội dung/đáp án.
+- **FR-02.3:** Lưu trữ câu hỏi vào Firestore collections `/quizzes` và subcollection `/questions`, hỗ trợ chế độ xem trước (preview) và chỉnh sửa nội dung/đáp án.
 
 ### FR-03: Tạo & Vận Hành Mini-Game Tương Tác Lớp Học (Classroom Gamification)
 - **FR-03.1:** Hỗ trợ tính năng 1-chạm: Chuyển đổi bộ câu hỏi AI thành trò chơi lớp học sinh động chiếu lên bảng tương tác / máy chiếu.
@@ -31,14 +31,18 @@
   3. *Hộp quà may mắn (Mystery Box):* Trả lời câu hỏi mở quà trúng sticker/điểm cộng.
   4. *Chạm nối ghép cặp trên bảng thông minh:* Kéo thả nối câu hỏi với đáp án đúng bằng cảm ứng chạm.
 - **FR-03.3:** Hiệu ứng đồ họa bắt mắt, âm thanh reo hò kịch tính, tự động vinh danh bảng vàng cuối trò chơi.
+- **FR-03.4:** **Nhập điểm kiểm tra tại lớp & Bảng xếp hạng (Leaderboard) cho Giáo viên:**
+  - Ứng dụng không có chức năng cho học sinh làm bài kiểm tra trực tuyến. Giáo viên tổ chức kiểm tra tại lớp (kiểm tra bài cũ, làm bài tập, mini-game trên bảng) và trực tiếp nhập điểm số cho học sinh.
+  - Hệ thống tự động tổng hợp dữ liệu điểm và hiển thị **Bảng xếp hạng (Leaderboard)** lớp học (Top điểm cao nhất, danh sách xếp hạng toàn lớp) trực tiếp trên màn hình của Giáo viên để theo dõi và vinh danh.
+  - Giáo viên có quyền điều chỉnh điểm và phê duyệt công bố điểm vào sổ điểm chính thức (`/scores`) để phụ huynh xem được.
 
 ### FR-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
-- **FR-04.1:** Thuật toán lọc thông minh: Chỉ lấy danh sách học sinh có trạng thái **`PRESENT` (Có mặt)** trong bảng `attendances` của ngày hôm nay. Tự động loại trừ các em vắng mặt.
+- **FR-04.1:** Thuật toán lọc thông minh: Chỉ lấy danh sách học sinh có trạng thái **`PRESENT` (Có mặt)** trong collection `/attendances` của ngày hôm nay. Tự động loại trừ các em vắng mặt.
 - **FR-04.2:** Giao diện Vòng quay may mắn (Lucky Wheel) sinh động trên Web Next.js có hiệu ứng âm thanh, tối ưu chiếu lên máy chiếu/bảng thông minh.
-- **FR-04.3:** Cho phép giáo viên chấm điểm trực tiếp tại chỗ và tự động lưu vào bảng `scores` (cột điểm miệng).
+- **FR-04.3:** Cho phép giáo viên chấm điểm trực tiếp tại chỗ và tự động lưu vào collection `/scores` (cột điểm miệng).
 
 ### FR-05: Quản lý Học Phí & Bảo Hiểm Y Tế (BHYT) - Không có cổng thanh toán online
-- **FR-05.1:** Quản lý theo dõi trực tiếp trong bảng `fees_and_insurance` với 2 cờ boolean:
+- **FR-05.1:** Quản lý theo dõi trực tiếp trong collection `/fees_and_insurance` với 2 cờ boolean:
   - `is_paid_tuition`: Trạng thái đã nộp học phí.
   - `is_paid_insurance`: Trạng thái đã nộp tiền BHYT học sinh.
 - **FR-05.2:** Giao diện tích chọn 1-chạm (checkbox) cho GVCN/Nhà trường khi phụ huynh nộp trực tiếp tại trường/lớp. Hệ thống hoàn toàn không tích hợp cổng thanh toán trực tuyến.

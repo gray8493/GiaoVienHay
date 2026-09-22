@@ -1,302 +1,408 @@
-# Tài Liệu Thiết Kế Cơ Sở Dữ Liệu (Database Schema Specification)
-# Hệ Thống GiaoVienHay – PostgreSQL 15 & Firebase Storage
+# Tài Liệu Thiết Kế Cơ Sở Dữ Liệu NoSQL (Firestore Schema Specification)
+# Hệ Thống GiaoVienHay – 100% Nền Tảng Google Cloud Firestore
 
-Tài liệu này đặc tả chi tiết cấu trúc bảng, kiểu dữ liệu, các ràng buộc toàn vẹn (Constraints), chỉ mục (Indexes) và mối quan hệ giữa 10 bảng dữ liệu cốt lõi của hệ thống **GiaoVienHay**.
+Tài liệu này đặc tả chi tiết cấu trúc Collections, Subcollections, Document Fields, kiểu dữ liệu Firestore, Composite Indexes và Security Rules của hệ thống **GiaoVienHay** trên nền tảng **Google Cloud Firestore**.
 
 ---
 
-## 1. Nguyên Tắc & Quy Ước Thiết Kế CSDL
+## 1. Nguyên Tắc & Quy Ước Thiết Kế Firestore NoSQL
 
-1. **Hệ quản trị CSDL chính:** **PostgreSQL 15+** (Đảm bảo giao dịch ACID, hỗ trợ JSONB cho câu hỏi/đáp án).
-2. **Lưu trữ Tệp Tài liệu (File Storage):** Sử dụng **Firebase Cloud Storage**. Bảng CSDL chỉ lưu chuỗi URL an toàn (`source_doc_url`) trỏ tới tệp tài liệu giáo án `.docx`, `.pdf` đã upload.
+1. **Hệ quản trị CSDL duy nhất:** **Google Cloud Firestore** (NoSQL Document Store phân tán toàn cầu, đồng bộ Realtime, tích hợp native với Firebase Ecosystem).
+2. **Lưu trữ Tệp Giáo Án (File Storage):** Sử dụng **Firebase Cloud Storage**. Document trong Firestore chỉ lưu chuỗi URL an toàn (`source_doc_url`) trỏ tới tệp tài liệu giáo án `.docx`, `.pdf` đã upload.
 3. **Quy ước đặt tên (Naming Convention):**
-   - Tên bảng và tên cột: viết thường theo định dạng `snake_case`.
-   - Khóa chính (Primary Key): Luôn sử dụng kiểu `UUID` (sinh tự động qua hàm `gen_random_uuid()`).
-   - Khóa ngoại (Foreign Key): Tên bảng số ít kèm hậu tố `_id` (Ví dụ: `class_id`, `teacher_id`).
-4. **Tính toàn vẹn & Ràng buộc:**
-   - Thang điểm: Kiểm tra ràng buộc `CHECK (score_value >= 0.0 AND score_value <= 10.0)`.
-   - Cờ trạng thái tài chính: Sử dụng kiểu `BOOLEAN` (`is_paid_tuition`, `is_paid_insurance`), mặc định là `FALSE`.
+   - Tên Collections: viết thường số nhiều theo định dạng `snake_case` (ví dụ: `users`, `classes`, `students`, `scores`, `attendances`, `fees_and_insurance`, `quizzes`, `quiz_results`, `notifications`).
+   - Tên Document ID: Sử dụng Firebase Auto-generated ID (20 ký tự) hoặc Auth UID cho collection `users`.
+   - Tên trường (Fields): Viết thường theo định dạng `snake_case`.
+4. **Kiểu dữ liệu hỗ trợ trong Firestore:**
+   - `string`: Chuỗi ký tự UTF-8.
+   - `number`: Số thực / số nguyên (ví dụ: điểm số 0.0 - 10.0).
+   - `boolean`: Cờ logic (`TRUE` / `FALSE`).
+   - `timestamp`: Đối tượng mốc thời gian Firestore `Timestamp` (chính xác đến nano-giây).
+   - `array`: Mảng danh sách giá trị (ví dụ: mảng đáp án, mảng FCM tokens).
+   - `map`: Đối tượng JSON lồng nhau (Key-Value map).
+   - `reference`: DocumentReference liên kết giữa các tài liệu.
 
 ---
 
-## 2. Sơ Đồ Quan Hệ Thực Thể Chi Tiết (Entity-Relationship Diagram)
+## 2. Sơ Đồ Cấu Trúc Collections & Subcollections
 
 ```mermaid
 erDiagram
-    users ||--o{ classes : "phân_công_chủ_nhiệm"
-    users ||--o{ student_parent_relations : "là_phụ_huynh_của"
-    users ||--o{ scores : "chấm_điểm"
-    users ||--o{ attendances : "điểm_danh"
-    users ||--o{ quizzes : "tạo_đề_và_game"
-    users ||--o{ notifications : "nhận_thông_báo"
-
-    classes ||--|{ students : "chứa_danh_sách"
-    classes ||--o{ attendances : "ghi_nhận_theo_lớp"
-    classes ||--o{ quizzes : "áp_dụng_kiểm_tra"
-
-    students ||--o{ student_parent_relations : "được_liên_kết_với"
-    students ||--o{ scores : "nhận_kết_quả"
-    students ||--o{ attendances : "được_điểm_danh"
-    students ||--o{ fees_and_insurance : "theo_dõi_nghĩa_vụ"
-
-    quizzes ||--|{ questions : "bao_gồm_các_câu_hỏi"
+    users ||--o{ classes : manages_as_homeroom
+    classes ||--|{ students : contains_students
+    users ||--o{ students : links_parent
+    students ||--o{ scores : has_scores
+    classes ||--o{ attendances : records_attendance
+    students ||--o{ fees_and_insurance : tracks_fees
+    users ||--o{ quizzes : creates_quiz
+    quizzes ||--|{ questions_subcollection : contains_questions
+    quizzes ||--o{ quiz_results : records_in_class_results
+    users ||--o{ notifications : receives_notifications
 
     users {
-        uuid id PK
-        varchar email UK "Email đăng nhập"
-        varchar phone UK "Số điện thoại đăng nhập"
-        varchar password_hash "Băm mật khẩu Argon2/Bcrypt"
-        varchar full_name "Họ và tên"
-        varchar role "ADMIN, TEACHER_HOMEROOM, TEACHER_SUBJECT, PARENT"
-        varchar avatar_url "Link ảnh đại diện Firebase"
-        boolean is_active "Trạng thái kích hoạt"
-        timestamp created_at
-        timestamp updated_at
+        string uid PK "Document ID = Firebase Auth UID"
+        string email "Email người dùng"
+        string phone "Số điện thoại đăng nhập"
+        string full_name "Họ và tên"
+        string role "ADMIN, TEACHER_HOMEROOM, TEACHER_SUBJECT, PARENT"
+        string avatar_url "Link ảnh đại diện Firebase Storage"
+        array fcm_tokens "Mảng FCM Device Tokens để nhận Push Notification"
+        boolean is_active "Trạng thái kích hoạt tài khoản"
+        timestamp created_at "Ngày tạo"
+        timestamp updated_at "Ngày cập nhật"
     }
 
     classes {
-        uuid id PK
-        varchar name "Tên lớp (1A, 2B, 6A1, 9B)"
+        string id PK "Auto ID"
+        string name "Tên lớp (1A, 2B, 6A1, 9B)"
         int grade_level "Khối lớp (1 đến 9)"
-        varchar academic_year "Niên khóa (Ví dụ: 2026-2027)"
-        uuid homeroom_teacher_id FK "GVCN phụ trách -> users.id"
+        string academic_year "Niên khóa (2026-2027)"
+        string homeroom_teacher_id "UID Giáo viên chủ nhiệm"
         timestamp created_at
     }
 
     students {
-        uuid id PK
-        varchar student_code UK "Mã định danh học sinh (duy nhất)"
-        varchar full_name "Họ và tên học sinh"
-        date dob "Ngày tháng năm sinh"
-        varchar gender "MALE, FEMALE"
-        uuid class_id FK "Lớp học -> classes.id"
-        timestamp created_at
-    }
-
-    student_parent_relations {
-        uuid student_id PK,FK "-> students.id"
-        uuid parent_user_id PK,FK "-> users.id"
-        varchar relationship "FATHER, MOTHER, GUARDIAN"
-        boolean is_primary_contact "Người liên hệ chính nhận tin nhắn"
-        timestamp created_at
-    }
-
-    scores {
-        uuid id PK
-        uuid student_id FK "-> students.id"
-        varchar subject_code "Mã môn (MATH, LIT, ENG, HIS,...)"
-        int semester "Học kỳ (1 hoặc 2)"
-        varchar score_type "ORAL_TEST, TEST_15P, TEST_1P, MID_TERM, FINAL"
-        decimal score_value "Giá trị điểm (0.00 đến 10.00)"
-        uuid teacher_id FK "Giáo viên chấm điểm -> users.id"
-        boolean is_published "Đã công bố cho phụ huynh xem"
-        timestamp published_at "Thời điểm phê duyệt công bố"
+        string id PK "Auto ID"
+        string student_code UK "Mã định danh học sinh duy nhất"
+        string full_name "Họ và tên học sinh"
+        date dob "Ngày sinh"
+        string gender "MALE hoặc FEMALE"
+        string class_id "ID lớp học sinh đang học"
+        array parent_uids "Mảng các UID phụ huynh liên kết"
         timestamp created_at
     }
 
     attendances {
-        uuid id PK
-        uuid student_id FK "-> students.id"
-        uuid class_id FK "-> classes.id"
-        date attendance_date "Ngày điểm danh"
-        int period "Tiết học (1 đến 5) hoặc Buổi (Sáng/Chiều)"
-        varchar status "PRESENT, ABSENT_EXCUSED, ABSENT_UNEXCUSED"
-        text note "Ghi chú hoặc lý do phụ huynh xin phép"
-        uuid teacher_id FK "Giáo viên thực hiện điểm danh -> users.id"
+        string id PK "Auto ID"
+        string class_id "ID lớp học"
+        string student_id "ID học sinh"
+        string attendance_date "Chuỗi ngày YYYY-MM-DD"
+        int period "Tiết học hoặc buổi sáng/chiều"
+        string status "PRESENT (Có mặt), ABSENT_EXCUSED, ABSENT_UNEXCUSED"
+        string note "Lý do vắng nếu có"
+        string teacher_id "UID Giáo viên điểm danh"
+        timestamp created_at
+    }
+
+    scores {
+        string id PK "Auto ID"
+        string student_id "ID học sinh nhận điểm"
+        string class_id "ID lớp học"
+        string subject_code "Mã môn học (MATH, LIT, ENG...)"
+        int semester "Học kỳ 1 hoặc 2"
+        string score_type "ORAL_TEST, TEST_15P, TEST_1P, MID_TERM, FINAL"
+        number score_value "Thang điểm 0.0 - 10.0"
+        string teacher_id "UID Giáo viên nhập điểm"
+        boolean is_published "Cờ công bố cho phụ huynh xem"
+        timestamp published_at "Thời điểm công bố"
         timestamp created_at
     }
 
     fees_and_insurance {
-        uuid id PK
-        uuid student_id FK "-> students.id"
-        varchar term_name "Tên đợt thu (Học kỳ 1 năm học 2026-2027)"
-        decimal tuition_amount "Số tiền học phí phải nộp"
+        string id PK "Auto ID"
+        string student_id "ID học sinh"
+        string class_id "ID lớp chủ nhiệm"
+        string term_name "Tên đợt thu (Học kỳ 1 năm học 2026-2027)"
+        number tuition_amount "Số tiền học phí"
         boolean is_paid_tuition "Cờ nộp học phí (TRUE = Đã nộp)"
         timestamp tuition_paid_at "Thời điểm ghi nhận nộp học phí"
-        decimal insurance_amount "Số tiền BHYT phải nộp"
+        number insurance_amount "Số tiền BHYT"
         boolean is_paid_insurance "Cờ nộp BHYT (TRUE = Đã nộp)"
-        varchar note "Ghi chú thu nộp"
+        timestamp insurance_paid_at "Thời điểm ghi nhận nộp BHYT"
+        string note "Ghi chú thu nộp của GVCN"
         timestamp created_at
     }
 
     quizzes {
-        uuid id PK
-        varchar title "Tiêu đề bộ kiểm tra bài cũ"
-        varchar subject_code "Môn học"
-        uuid class_id FK "Lớp áp dụng -> classes.id"
-        uuid teacher_id FK "Giáo viên tạo đề -> users.id"
-        varchar source_doc_url "Link tệp giáo án .docx/.pdf trên Firebase Storage"
-        varchar game_type "GOLDEN_BELL, RACING, MYSTERY_BOX, MATCHING"
+        string id PK "Auto ID"
+        string title "Tiêu đề bộ đề kiểm tra bài cũ"
+        string subject_code "Môn học"
+        string class_id "Lớp áp dụng"
+        string teacher_id "UID Giáo viên tạo đề"
+        string source_doc_url "Link tệp giáo án .docx/.pdf trên Firebase Storage"
+        string game_type "GOLDEN_BELL, RACING, MYSTERY_BOX, MATCHING"
         timestamp created_at
     }
 
-    questions {
-        uuid id PK
-        uuid quiz_id FK "Thuộc bộ quiz -> quizzes.id"
+    questions_subcollection {
+        string id PK "Subcollection: /quizzes/{quizId}/questions/{id}"
         int question_index "Thứ tự câu hỏi (1, 2, 3...)"
-        text content "Nội dung câu hỏi kiểm tra bài cũ"
-        jsonb options "Mảng 4 lựa chọn: [A, B, C, D]"
-        varchar correct_answer "Đáp án đúng (A, B, C hoặc D)"
-        text explanation "Lời giải thích chi tiết đáp án"
-        int time_limit_seconds "Thời gian suy nghĩ đếm ngược (mặc định 30s)"
-        int score_reward "Điểm thưởng khi trả lời đúng trong game (mặc định 10)"
+        string content "Nội dung câu hỏi kiểm tra bài cũ"
+        array options "Mảng 4 phương án [A, B, C, D]"
+        string correct_answer "Ký tự đáp án đúng (A, B, C hoặc D)"
+        string explanation "Lời giải thích chi tiết"
+        int time_limit_seconds "Thời gian suy nghĩ (mặc định 30s)"
+    }
+
+    quiz_results {
+        string id PK "Auto ID"
+        string quiz_id "ID bộ đề / game"
+        string class_id "ID lớp học"
+        string student_id "ID học sinh nhận điểm"
+        string teacher_id "UID Giáo viên trực tiếp nhập điểm"
+        number score "Điểm số GV chấm/nhập (thang 10)"
+        int rank_position "Thứ hạng trong lớp (Top 1, Top 2, Top 3...)"
+        string notes "Nhận xét của giáo viên"
+        boolean is_synced_to_grades "Đã duyệt chuyển vào sổ điểm /scores"
+        timestamp created_at "Thời điểm giáo viên nhập điểm"
     }
 
     notifications {
-        uuid id PK
-        uuid recipient_user_id FK "Người nhận thông báo -> users.id"
-        varchar title "Tiêu đề thông báo đẩy"
-        text body "Nội dung thông báo chi tiết"
-        varchar type "ATTENDANCE_ALERT, GRADE_ALERT, FEE_REMINDER, GENERAL"
-        boolean is_read "Đã đọc (TRUE / FALSE)"
-        jsonb metadata "Dữ liệu đính kèm điều hướng (student_id, screen)"
+        string id PK "Auto ID"
+        string recipient_user_id "UID phụ huynh nhận thông báo"
+        string title "Tiêu đề thông báo đẩy"
+        string body "Nội dung chi tiết thông báo"
+        string type "ATTENDANCE_ALERT, GRADE_ALERT, FEE_REMINDER, GENERAL"
+        boolean is_read "Trạng thái đã đọc (TRUE/FALSE)"
+        map metadata "Payload điều hướng (student_id, screen)"
         timestamp created_at
     }
 ```
 
 ---
 
-## 3. Đặc Tả Chi Tiết 10 Bảng CSDL
+## 3. Đặc Tả Chi Tiết Từng Collection Firestore
 
-### 3.1. Bảng `users` (Người Dùng Hệ Thống)
-Quản lý tài khoản đăng nhập chung cho cả 4 nhóm vai trò.
-- **`id`** (`UUID`, PK): Khóa chính ngẫu nhiên.
-- **`email`** (`VARCHAR(150)`, UK, Nullable): Email xác thực và nhận thông báo.
-- **`phone`** (`VARCHAR(20)`, UK, Nullable): Số điện thoại dùng để đăng nhập và gửi SMS.
-- **`password_hash`** (`VARCHAR(255)`, Not Null): Chuỗi băm mật khẩu an toàn.
-- **`full_name`** (`VARCHAR(100)`, Not Null): Họ và tên đầy đủ.
-- **`role`** (`VARCHAR(30)`, Not Null): Vai trò người dùng (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`).
-- **`avatar_url`** (`VARCHAR(500)`, Nullable): Đường dẫn ảnh đại diện lưu trên Firebase Storage.
-- **`is_active`** (`BOOLEAN`, Default: `TRUE`): Khóa hoặc mở tài khoản.
+### 3.1. Collection `/users`
+Quản lý tài khoản đăng nhập chung cho cả 4 nhóm vai trò. Document ID chính là **Firebase Auth UID**.
+- **`uid`** (`string`, Document ID): UID do Firebase Auth tạo ra.
+- **`email`** (`string`, Nullable): Email xác thực và nhận thông báo.
+- **`phone`** (`string`, Nullable): Số điện thoại dùng để đăng nhập OTP.
+- **`full_name`** (`string`): Họ và tên đầy đủ.
+- **`role`** (`string`): Vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`).
+- **`avatar_url`** (`string`, Nullable): Đường dẫn ảnh đại diện lưu trên Firebase Cloud Storage.
+- **`fcm_tokens`** (`array of string`): Danh sách Device Tokens để gửi multicast Push Notification qua FCM.
+- **`is_active`** (`boolean`, Default: `true`): Khóa hoặc mở tài khoản.
+- **`created_at`** (`timestamp`): Thời điểm tạo tài khoản.
+- **`updated_at`** (`timestamp`): Thời điểm cập nhật cuối.
 
 ---
 
-### 3.2. Bảng `classes` (Lớp Học Cấp 1 & Cấp 2)
+### 3.2. Collection `/classes`
 Quản lý danh mục lớp học thuộc khối 1 đến khối 9.
-- **`id`** (`UUID`, PK): Khóa chính.
-- **`name`** (`VARCHAR(20)`, Not Null): Tên lớp học (Ví dụ: `1A`, `3C`, `6A1`, `9B`).
-- **`grade_level`** (`INTEGER`, Not Null): Khối lớp từ `1` đến `9`.
-- **`academic_year`** (`VARCHAR(20)`, Not Null): Niên khóa (Ví dụ: `2026-2027`).
-- **`homeroom_teacher_id`** (`UUID`, FK -> `users.id`, Nullable): ID Giáo viên chủ nhiệm phụ trách lớp.
+- **`id`** (`string`, Document ID): Mã tự sinh Firestore.
+- **`name`** (`string`): Tên lớp học (Ví dụ: `1A`, `3C`, `6A1`, `9B`).
+- **`grade_level`** (`number`): Khối lớp từ `1` đến `9`.
+- **`academic_year`** (`string`): Niên khóa (Ví dụ: `2026-2027`).
+- **`homeroom_teacher_id`** (`string`, Nullable): UID Giáo viên chủ nhiệm phụ trách lớp.
+- **`created_at`** (`timestamp`): Thời điểm tạo lớp.
 
 ---
 
-### 3.3. Bảng `students` (Học Sinh)
+### 3.3. Collection `/students`
 Lưu trữ hồ sơ học sinh thuộc các khối lớp.
-- **`id`** (`UUID`, PK): Khóa chính.
-- **`student_code`** (`VARCHAR(30)`, UK, Not Null): Mã số định danh học sinh duy nhất toàn trường.
-- **`full_name`** (`VARCHAR(100)`, Not Null): Họ và tên học sinh.
-- **`dob`** (`DATE`, Not Null): Ngày tháng năm sinh.
-- **`gender`** (`VARCHAR(10)`, Not Null): Giới tính (`MALE` / `FEMALE`).
-- **`class_id`** (`UUID`, FK -> `classes.id`, Not Null): Lớp học sinh đang theo học.
+- **`id`** (`string`, Document ID): Mã tự sinh Firestore.
+- **`student_code`** (`string`): Mã số định danh học sinh duy nhất toàn trường.
+- **`full_name`** (`string`): Họ và tên học sinh.
+- **`dob`** (`string` / `timestamp`): Ngày tháng năm sinh.
+- **`gender`** (`string`): Giới tính (`MALE` / `FEMALE`).
+- **`class_id`** (`string`): ID lớp học sinh đang theo học trỏ đến `/classes/{id}`.
+- **`parent_uids`** (`array of string`): Danh sách UID phụ huynh liên kết (phục vụ truy vấn nhanh danh sách con của phụ huynh: `where('parent_uids', 'array-contains', parentUid)`).
+- **`created_at`** (`timestamp`): Thời điểm tạo hồ sơ.
 
 ---
 
-### 3.4. Bảng `student_parent_relations` (Quan Hệ Phụ Huynh - Học Sinh)
-Bảng liên kết nhiều - nhiều giữa tài khoản Phụ huynh (`users`) và Học sinh (`students`).
-- **`student_id`** (`UUID`, PK, FK -> `students.id`): ID học sinh.
-- **`parent_user_id`** (`UUID`, PK, FK -> `users.id`): ID tài khoản phụ huynh.
-- **`relationship`** (`VARCHAR(20)`, Not Null): Mối quan hệ (`FATHER`, `MOTHER`, `GUARDIAN`).
-- **`is_primary_contact`** (`BOOLEAN`, Default: `TRUE`): Xác định người liên hệ chính khi phát thông báo khẩn cấp.
-
----
-
-### 3.5. Bảng `scores` (Sổ Điểm Điện Tử)
-Lưu trữ toàn bộ các đầu điểm kiểm tra thành phần theo môn học.
-- **`id`** (`UUID`, PK): Khóa chính bản ghi điểm.
-- **`student_id`** (`UUID`, FK -> `students.id`, Not Null): Học sinh nhận điểm.
-- **`subject_code`** (`VARCHAR(20)`, Not Null): Mã môn học (`MATH`, `LIT`, `ENG`,...).
-- **`semester`** (`INTEGER`, Not Null): Học kỳ `1` hoặc `2`.
-- **`score_type`** (`VARCHAR(30)`, Not Null): Loại điểm (`ORAL_TEST` - kiểm tra bài cũ/miệng, `TEST_15P`, `TEST_1P`, `MID_TERM`, `FINAL`).
-- **`score_value`** (`NUMERIC(4,2)`, Not Null): Điểm số từ `0.00` đến `10.00` (Ràng buộc: `CHECK (score_value >= 0 AND score_value <= 10)`).
-- **`teacher_id`** (`UUID`, FK -> `users.id`, Not Null): Giáo viên nhập và phê duyệt điểm.
-- **`is_published`** (`BOOLEAN`, Default: `FALSE`): Cờ xác nhận đã công bố cho phụ huynh xem.
-- **`published_at`** (`TIMESTAMP`, Nullable): Thời điểm phê duyệt công bố điểm.
-
----
-
-### 3.6. Bảng `attendances` (Điểm Danh Chuyên Cần)
+### 3.4. Collection `/attendances`
 Lưu vết trạng thái có mặt/vắng học của học sinh từng ngày.
-- **`id`** (`UUID`, PK): Khóa chính.
-- **`student_id`** (`UUID`, FK -> `students.id`, Not Null): Học sinh được điểm danh.
-- **`class_id`** (`UUID`, FK -> `classes.id`, Not Null): Lớp học tại thời điểm điểm danh.
-- **`attendance_date`** (`DATE`, Not Null): Ngày điểm danh.
-- **`period`** (`INTEGER`, Not Null): Tiết học hoặc buổi (Sáng/Chiều).
-- **`status`** (`VARCHAR(20)`, Not Null): Trạng thái (`PRESENT` - Có mặt, `ABSENT_EXCUSED` - Vắng có phép, `ABSENT_UNEXCUSED` - Vắng không phép).
-- **`note`** (`TEXT`, Nullable): Ghi chú lý do vắng.
-- **`teacher_id`** (`UUID`, FK -> `users.id`, Not Null): Giáo viên thực hiện điểm danh.
+- **`id`** (`string`, Document ID): Mã tự sinh Firestore.
+- **`student_id`** (`string`): ID học sinh được điểm danh.
+- **`class_id`** (`string`): Lớp học tại thời điểm điểm danh.
+- **`attendance_date`** (`string`): Chuỗi ngày điểm danh `YYYY-MM-DD`.
+- **`period`** (`number`): Tiết học hoặc buổi (Sáng/Chiều).
+- **`status`** (`string`): Trạng thái (`PRESENT` - Có mặt, `ABSENT_EXCUSED` - Vắng có phép, `ABSENT_UNEXCUSED` - Vắng không phép).
+- **`note`** (`string`, Nullable): Ghi chú lý do vắng.
+- **`teacher_id`** (`string`): UID Giáo viên thực hiện điểm danh.
+- **`created_at`** (`timestamp`): Thời gian ghi nhận điểm danh.
 
-> **Chiến lược tối ưu tính năng Random học sinh:**
-> Chỉ mục `idx_attendances_today (class_id, attendance_date, status)` giúp câu truy vấn:
-> `SELECT student_id FROM attendances WHERE class_id = ? AND attendance_date = CURRENT_DATE AND status = 'PRESENT'`
-> thực thi với tốc độ phản hồi cực nhanh dưới 5ms để nạp ngay vào Vòng quay may mắn.
-
----
-
-### 3.7. Bảng `fees_and_insurance` (Quản Lý Sổ Theo Dõi Học Phí & BHYT)
-Quản lý trạng thái hoàn thành nghĩa vụ tài chính của từng học sinh bằng 2 cờ boolean. **Hệ thống hoàn toàn không có tính năng thanh toán trực tuyến**. Phụ huynh và học sinh hoàn thành nghĩa vụ trực tiếp tại trường/lớp; GVCN hoặc Quản trị viên chỉ tích chọn cờ boolean để theo dõi.
-- **`id`** (`UUID`, PK): Khóa chính bản ghi thu phí.
-- **`student_id`** (`UUID`, FK -> `students.id`, Not Null): Học sinh.
-- **`term_name`** (`VARCHAR(100)`, Not Null): Tên đợt thu (Ví dụ: `Học phí & BHYT Học kỳ 1 năm 2026-2027`).
-- **`tuition_amount`** (`NUMERIC(12,2)`, Default: `0`): Số tiền học phí phải nộp.
-- **`is_paid_tuition`** (`BOOLEAN`, Default: `FALSE`, Not Null): **Cờ nộp học phí** (`TRUE` = Đã nộp).
-- **`tuition_paid_at`** (`TIMESTAMP`, Nullable): Thời điểm ghi nhận hoàn thành nộp học phí.
-- **`insurance_amount`** (`NUMERIC(12,2)`, Default: `0`): Số tiền Bảo hiểm Y tế học sinh.
-- **`is_paid_insurance`** (`BOOLEAN`, Default: `FALSE`, Not Null): **Cờ nộp BHYT** (`TRUE` = Đã nộp).
-- **`insurance_paid_at`** (`TIMESTAMP`, Nullable): Thời điểm ghi nhận hoàn thành nộp BHYT.
-- **`note`** (`VARCHAR(255)`, Nullable): Ghi chú thu nộp của GVCN/Nhà trường.
+> **Chiến lược tối ưu tính năng Vòng quay Random học sinh có mặt:**
+> Truy vấn Firestore:
+> ```typescript
+> firestore.collection('attendances')
+>   .where('class_id', '==', classId)
+>   .where('attendance_date', '==', todayStr)
+>   .where('status', '==', 'PRESENT')
+>   .get();
+> ```
+> Kết hợp **Firestore Composite Index** `(class_id ASC, attendance_date ASC, status ASC)` giúp trả về danh sách học sinh CÓ MẶT cực nhanh dưới 5ms để nạp ngay vào Vòng quay may mắn trên Web Next.js.
 
 ---
 
-### 3.8. Bảng `quizzes` (Bộ Đề Kiểm Tra & Mini-Game Lớp Học)
+### 3.5. Collection `/scores`
+Lưu trữ sổ điểm điện tử các đầu điểm kiểm tra thành phần theo môn học.
+- **`id`** (`string`, Document ID): Mã tự sinh.
+- **`student_id`** (`string`): ID học sinh nhận điểm.
+- **`class_id`** (`string`): ID lớp học.
+- **`subject_code`** (`string`): Mã môn học (`MATH`, `LIT`, `ENG`,...).
+- **`semester`** (`number`): Học kỳ `1` hoặc `2`.
+- **`score_type`** (`string`): Loại điểm (`ORAL_TEST` - kiểm tra bài cũ/miệng, `TEST_15P`, `TEST_1P`, `MID_TERM`, `FINAL`).
+- **`score_value`** (`number`): Điểm số từ `0.0` đến `10.0`.
+- **`teacher_id`** (`string`): UID Giáo viên nhập điểm.
+- **`is_published`** (`boolean`, Default: `false`): Cờ xác nhận đã công bố cho phụ huynh xem.
+- **`published_at`** (`timestamp`, Nullable): Thời điểm phê duyệt công bố điểm.
+- **`created_at`** (`timestamp`): Ngày nhập điểm.
+
+---
+
+### 3.6. Collection `/fees_and_insurance`
+Sổ theo dõi trạng thái hoàn thành nghĩa vụ tài chính của từng học sinh bằng 2 cờ boolean. **Hệ thống hoàn toàn không có tính năng thanh toán trực tuyến**. Phụ huynh và học sinh hoàn thành nghĩa vụ trực tiếp tại trường/lớp; GVCN hoặc Quản trị viên chỉ tích chọn cờ boolean để theo dõi.
+- **`id`** (`string`, Document ID): Mã tự sinh.
+- **`student_id`** (`string`): ID học sinh.
+- **`class_id`** (`string`): ID lớp chủ nhiệm.
+- **`term_name`** (`string`): Tên đợt thu (Ví dụ: `Học phí & BHYT Học kỳ 1 năm 2026-2027`).
+- **`tuition_amount`** (`number`, Default: `0`): Số tiền học phí phải nộp.
+- **`is_paid_tuition`** (`boolean`, Default: `false`): **Cờ nộp học phí** (`true` = Đã nộp).
+- **`tuition_paid_at`** (`timestamp`, Nullable): Thời điểm ghi nhận hoàn thành nộp học phí.
+- **`insurance_amount`** (`number`, Default: `0`): Số tiền Bảo hiểm Y tế học sinh.
+- **`is_paid_insurance`** (`boolean`, Default: `false`): **Cờ nộp BHYT** (`true` = Đã nộp).
+- **`insurance_paid_at`** (`timestamp`, Nullable): Thời điểm ghi nhận hoàn thành nộp BHYT.
+- **`note`** (`string`, Nullable): Ghi chú thu nộp của GVCN/Nhà trường.
+- **`created_at`** (`timestamp`): Ngày tạo bản ghi.
+
+---
+
+### 3.7. Collection `/quizzes` & Subcollection `/questions`
 Quản lý các bộ câu hỏi kiểm tra bài cũ sinh ra từ tài liệu giáo án bài giảng.
-- **`id`** (`UUID`, PK): Khóa chính bộ đề.
-- **`title`** (`VARCHAR(200)`, Not Null): Tên bộ kiểm tra (Ví dụ: `Bài 12 - Phép cộng phân số`).
-- **`subject_code`** (`VARCHAR(20)`, Not Null): Môn học.
-- **`class_id`** (`UUID`, FK -> `classes.id`, Not Null): Lớp học được áp dụng.
-- **`teacher_id`** (`UUID`, FK -> `users.id`, Not Null): Giáo viên tạo bộ quiz.
-- **`source_doc_url`** (`VARCHAR(500)`, Nullable): **Đường dẫn tệp tài liệu giáo án gốc (`.docx`, `.pdf`) lưu trên Firebase Cloud Storage**.
-- **`game_type`** (`VARCHAR(30)`, Default: `'GOLDEN_BELL'`): Kiểu mini-game hiển thị (`GOLDEN_BELL` - Rung chuông vàng, `RACING` - Đua xe, `MYSTERY_BOX` - Hộp quà, `MATCHING` - Chạm nối bảng thông minh).
-- **`created_at`** (`TIMESTAMP`, Default: `NOW()`): Ngày tạo.
+- **`id`** (`string`, Document ID): Mã tự sinh bộ đề.
+- **`title`** (`string`): Tên bộ kiểm tra (Ví dụ: `Bài 12 - Phép cộng phân số`).
+- **`subject_code`** (`string`): Môn học.
+- **`class_id`** (`string`): Lớp học được áp dụng.
+- **`teacher_id`** (`string`): UID Giáo viên tạo bộ quiz.
+- **`source_doc_url`** (`string`, Nullable): **Đường dẫn tệp tài liệu giáo án gốc (`.docx`, `.pdf`) lưu trên Firebase Cloud Storage**.
+- **`game_type`** (`string`, Default: `'GOLDEN_BELL'`): Kiểu mini-game hiển thị (`GOLDEN_BELL` - Rung chuông vàng, `RACING` - Đua xe, `MYSTERY_BOX` - Hộp quà, `MATCHING` - Chạm nối bảng thông minh).
+- **`created_at`** (`timestamp`): Ngày tạo.
+
+**Subcollection `/quizzes/{quizId}/questions/{questionId}`**:
+- **`question_index`** (`number`): Số thứ tự câu hỏi trong game (1, 2, 3...).
+- **`content`** (`string`): Nội dung câu hỏi kiểm tra.
+- **`options`** (`array of string`): Mảng 4 đáp án lựa chọn: `["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"]`.
+- **`correct_answer`** (`string`): Ký tự đáp án đúng (`A`, `B`, `C` hoặc `D`).
+- **`explanation`** (`string`, Nullable): Lời giải thích chi tiết giúp học sinh hiểu bài ngay trên lớp.
+- **`time_limit_seconds`** (`number`, Default: `30`): Thời gian đếm ngược suy nghĩ (giây).
 
 ---
 
-### 3.9. Bảng `questions` (Chi Tiết Câu Hỏi Kiểm Tra Bài Cũ)
-Lưu danh sách câu hỏi thuộc bộ đề thi / trò chơi.
-- **`id`** (`UUID`, PK): Khóa chính câu hỏi.
-- **`quiz_id`** (`UUID`, FK -> `quizzes.id`, On Delete Cascade): Thuộc bộ đề quiz.
-- **`question_index`** (`INTEGER`, Not Null): Số thứ tự câu hỏi trong game (1, 2, 3...).
-- **`content`** (`TEXT`, Not Null): Nội dung câu hỏi kiểm tra.
-- **`options`** (`JSONB`, Not Null): Mảng 4 đáp án lựa chọn định dạng JSON: `["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"]`.
-- **`correct_answer`** (`VARCHAR(10)`, Not Null): Ký tự đáp án đúng (`A`, `B`, `C` hoặc `D`).
-- **`explanation`** (`TEXT`, Nullable): Lời giải thích chi tiết giúp học sinh hiểu bài ngay trên lớp.
-- **`time_limit_seconds`** (`INTEGER`, Default: `30`): Thời gian đếm ngược suy nghĩ (giây).
-- **`score_reward`** (`INTEGER`, Default: `10`): Điểm thưởng tích lũy cho đội/học sinh khi trả lời đúng trong game.
+### 3.8. Collection `/quiz_results`
+Lưu trữ điểm số kiểm tra bài cũ hoặc kết quả thi đua mini-game tại lớp **do Giáo viên trực tiếp nhập** cho từng học sinh (Ứng dụng hoàn toàn không cho học sinh làm bài thi hay tự động chấm bài trực tuyến). Dữ liệu này dùng để hệ thống tự động tổng hợp **Bảng xếp hạng (Leaderboard)** lớp học cho Giáo viên xem và vinh danh.
+- **`id`** (`string`, Document ID): Mã tự sinh.
+- **`quiz_id`** (`string`): Thuộc bài kiểm tra bài cũ / mini-game nào.
+- **`class_id`** (`string`): Lớp học sinh tham gia.
+- **`student_id`** (`string`): ID học sinh nhận điểm.
+- **`teacher_id`** (`string`): UID Giáo viên trực tiếp nhập điểm.
+- **`score`** (`number`): Điểm số do Giáo viên chấm/nhập (thang 10 hoặc điểm mini-game).
+- **`rank_position`** (`number`, Nullable): Thứ hạng của học sinh trong lớp (Top 1, Top 2, Top 3...) tính theo điểm số.
+- **`notes`** (`string`, Nullable): Nhận xét của giáo viên về câu trả lời của học sinh.
+- **`is_synced_to_grades`** (`boolean`, Default: `false`): Trạng thái giáo viên đã phê duyệt chuyển điểm vào sổ điểm chính thức `/scores`.
+- **`created_at`** (`timestamp`): Thời điểm giáo viên nhập điểm.
 
 ---
 
-### 3.10. Bảng `notifications` (Lịch Sử Thông Báo Đẩy)
+### 3.9. Collection `/notifications`
 Lưu nhật ký các thông báo đẩy đã phát tới phụ huynh qua Firebase Cloud Messaging.
-- **`id`** (`UUID`, PK): Khóa chính thông báo.
-- **`recipient_user_id`** (`UUID`, FK -> `users.id`, Not Null): Tài khoản phụ huynh nhận thông báo.
-- **`title`** (`VARCHAR(200)`, Not Null): Tiêu đề thông báo.
-- **`body`** (`TEXT`, Not Null): Nội dung thông báo hiển thị trên banner điện thoại.
-- **`type`** (`VARCHAR(50)`, Not Null): Loại thông báo (`ATTENDANCE_ALERT` - Vắng học, `GRADE_ALERT` - Điểm mới, `FEE_REMINDER` - Nhắc đóng BHYT/học phí, `GENERAL` - Thông báo chung).
-- **`is_read`** (`BOOLEAN`, Default: `FALSE`): Trạng thái phụ huynh đã mở xem trên ứng dụng.
-- **`metadata`** (`JSONB`, Nullable): Payload dữ liệu đính kèm (Ví dụ: `{"student_id": "uuid", "screen": "ChildAttendance"}`).
-- **`created_at`** (`TIMESTAMP`, Default: `NOW()`): Thời gian gửi thông báo.
+- **`id`** (`string`, Document ID): Mã tự sinh.
+- **`recipient_user_id`** (`string`): UID phụ huynh nhận thông báo trỏ đến `/users/{uid}`.
+- **`title`** (`string`): Tiêu đề thông báo.
+- **`body`** (`string`): Nội dung thông báo hiển thị trên banner điện thoại.
+- **`type`** (`string`): Loại thông báo (`ATTENDANCE_ALERT` - Vắng học, `GRADE_ALERT` - Điểm mới, `FEE_REMINDER` - Nhắc đóng BHYT/học phí, `GENERAL` - Thông báo chung).
+- **`is_read`** (`boolean`, Default: `false`): Trạng thái phụ huynh đã mở xem trên ứng dụng.
+- **`metadata`** (`map`, Nullable): Payload dữ liệu đính kèm (Ví dụ: `{"student_id": "id", "screen": "ChildAttendance"}`).
+- **`created_at`** (`timestamp`): Thời gian gửi thông báo.
 
 ---
 
-## 4. Chiến Lược Chỉ Mục Tối Ưu Truy Vấn (Indexing Strategy)
+## 4. Chiến Lược Chỉ Mục Firestore (Composite Indexes)
 
-| Tên Chỉ Mục (Index Name) | Bảng | Các Cột Chỉ Mục | Mục Đích Tối Ưu |
-| :--- | :--- | :--- | :--- |
-| `idx_users_email` | `users` | `email` (B-Tree) | Tối ưu đăng nhập và kiểm tra trùng email |
-| `idx_users_phone` | `users` | `phone` (B-Tree) | Tối ưu đăng nhập qua số điện thoại |
-| `idx_attendances_today` | `attendances` | `class_id, attendance_date, status` | **Tối ưu tốc độ lấy danh sách học sinh CÓ MẶT cho Vòng quay Random (< 5ms)** |
-| `idx_scores_student_subject` | `scores` | `student_id, subject_code, semester` | Tối ưu hiển thị sổ điểm môn học và tính điểm trung bình |
-| `idx_fees_insurance_filter` | `fees_and_insurance` | `student_id, is_paid_insurance, is_paid_tuition` | **Tối ưu bộ lọc học sinh chưa nộp BHYT để phát tin nhắc nhở** |
-| `idx_questions_quiz_id` | `questions` | `quiz_id, question_index` | Tối ưu tải nhanh bộ câu hỏi khi bắt đầu trò chơi lớp học |
-| `idx_notifications_user` | `notifications` | `recipient_user_id, is_read, created_at` | Tối ưu tải trang thông báo trên Mobile App Phụ huynh |
+Trong Google Cloud Firestore, các truy vấn đơn trường được lập chỉ mục tự động. Dưới đây là danh sách **Composite Indexes** bắt buộc cấu hình trong file `firestore.indexes.json` để tối ưu các truy vấn lọc phức hợp:
 
+| Collection ID | Các Trường Chỉ Mục Phức Hợp (Fields & Orders) | Mục Đích Tối Ưu Hóa |
+| :--- | :--- | :--- |
+| `attendances` | `class_id` (ASC), `attendance_date` (ASC), `status` (ASC) | **Lọc siêu tốc (< 5ms) danh sách học sinh CÓ MẶT cho Vòng quay Random** |
+| `scores` | `student_id` (ASC), `subject_code` (ASC), `semester` (ASC) | Tối ưu hiển thị sổ điểm môn học và tính điểm trung bình cho học bạ |
+| `scores` | `class_id` (ASC), `subject_code` (ASC), `is_published` (ASC) | Tối ưu tải bảng điểm lớp học theo môn học cho giáo viên |
+| `fees_and_insurance`| `class_id` (ASC), `is_paid_insurance` (ASC), `is_paid_tuition` (ASC) | **Tối ưu bộ lọc học sinh chưa nộp BHYT để phát tin nhắc nhở tức thì** |
+| `quiz_results` | `quiz_id` (ASC), `score` (DESC) | **Truy xuất Bảng xếp hạng (Leaderboard) lớp học theo điểm số cao nhất** |
+| `notifications` | `recipient_user_id` (ASC), `created_at` (DESC) | Tải danh sách thông báo mới nhất trên Mobile App Phụ huynh |
+| `students` | `parent_uids` (Arrays), `full_name` (ASC) | Tối ưu hiển thị danh sách các con thuộc cùng một tài khoản phụ huynh |
+
+---
+
+## 5. Quy Tắc Bảo Mật Dữ Liệu (Firestore Security Rules)
+
+Quy tắc bảo mật được định nghĩa chặt chẽ theo vai trò (RBAC) dựa trên Custom Claims của Firebase Auth (`request.auth.token.role`):
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Hàm trợ giúp kiểm tra xác thực và vai trò
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'ADMIN';
+    }
+    
+    function isTeacher() {
+      return isAuthenticated() && (request.auth.token.role == 'TEACHER_HOMEROOM' || request.auth.token.role == 'TEACHER_SUBJECT');
+    }
+    
+    function isParent() {
+      return isAuthenticated() && request.auth.token.role == 'PARENT';
+    }
+
+    // 1. Collection users: Tự xem/sửa hồ sơ chính mình, Admin toàn quyền
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+    }
+
+    // 2. Collection classes & students: Admin toàn quyền, GV đọc/ghi điểm, Phụ huynh chỉ đọc hồ sơ con
+    match /classes/{classId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // 3. Collection attendances & scores: Giáo viên & Admin có quyền ghi; Phụ huynh chỉ đọc
+    match /attendances/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow write: if isTeacher() || isAdmin();
+    }
+
+    match /scores/{scoreId} {
+      allow read: if isTeacher() || isAdmin() || (isParent() && resource.data.is_published == true);
+      allow write: if isTeacher() || isAdmin();
+    }
+
+    // 4. Collection fees_and_insurance: Chỉ Admin & GVCN được ghi nhận cờ nộp; Phụ huynh chỉ xem
+    match /fees_and_insurance/{recordId} {
+      allow read: if isAuthenticated();
+      allow write: if isTeacher() || isAdmin();
+    }
+
+    // 5. Quizzes & Quiz Results: Giáo viên & Admin toàn quyền
+    match /quizzes/{quizId} {
+      allow read, write: if isTeacher() || isAdmin();
+      
+      match /questions/{questionId} {
+        allow read, write: if isTeacher() || isAdmin();
+      }
+    }
+
+    match /quiz_results/{resultId} {
+      allow read, write: if isTeacher() || isAdmin();
+    }
+
+    // 6. Notifications: Phụ huynh đọc thông báo của chính mình
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.recipient_user_id;
+      allow write: if isTeacher() || isAdmin();
+    }
+  }
+}
+```

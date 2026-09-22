@@ -1,4 +1,4 @@
-﻿# Quy Tắc Đặt Mã & Soạn Thảo Testcase (Testcase Specification Rules)
+# Quy Tắc Đặt Mã & Soạn Thảo Testcase (Testcase Specification Rules)
 # Dự Án GiaoVienHay
 
 Tài liệu này quy định chuẩn bắt buộc khi đặt mã định danh, phân loại và trình bày kịch bản kiểm thử (Testcase) cho toàn bộ dự án **GiaoVienHay**.
@@ -17,7 +17,7 @@ Mọi testcase trong dự án bắt buộc phải tuân theo cấu trúc chuẩn
 
 1. **`<Loại Test>`**: 2 chữ cái viết hoa xác định cấp độ kiểm thử:
    - **`UT`**: Unit Test (Kiểm thử đơn vị hàm, controller, service, validator).
-   - **`IT`**: Integration Test (Kiểm thử tích hợp giữa NestJS API, PostgreSQL DB và Redis/RabbitMQ).
+   - **`IT`**: Integration Test (Kiểm thử tích hợp giữa NestJS API, Cloud Firestore và Firebase Services).
    - **`ST`**: System Test (Kiểm thử luồng hệ thống xuyên suốt từ Client Web/App đến Backend).
    - **`AT`**: Acceptance Test (Kiểm thử chấp nhận người dùng UAT: Admin, Teacher, Parent).
 
@@ -32,8 +32,8 @@ Mọi testcase trong dự án bắt buộc phải tuân theo cấu trúc chuẩn
 3. **`<Số thứ tự testcase>`**: 2 hoặc 3 chữ số (`01`, `02`, `03`,...).
 
 ### Ví dụ mã testcase hợp lệ:
-- `UT01_AuthService_TC01`: Unit test kiểm tra mã hóa mật khẩu khi tạo tài khoản.
-- `IT03_GradePublish_TC01`: Integration test kiểm tra cập nhật điểm vào PostgreSQL và phát event RabbitMQ.
+- `UT01_AuthService_TC01`: Unit test kiểm tra xác thực Firebase ID Token khi đăng nhập.
+- `IT03_GradePublish_TC01`: Integration test kiểm tra cập nhật điểm vào Firestore collection /scores và kích hoạt FCM.
 - `ST04_AttendanceFlow_TC01`: System test kiểm tra giáo viên điểm danh trên Mobile và phụ huynh nhận Push Notification.
 
 ---

@@ -1,103 +1,54 @@
 @startuml
-skinparam defaultTextAlignment center
-skinparam roundCorner 8
-skinparam BoxPadding 10
 skinparam componentStyle uml2
+skinparam roundCorner 8
+skinparam defaultFontSize 11
 
-skinparam component {
-    BackgroundColor #FFFFFF
-    BorderColor #1E88E5
-    ArrowColor #2E7D32
-    FontSize 11
-}
-
-skinparam package {
-    BackgroundColor #F8F9FA
-    BorderColor #1565C0
-    FontSize 12
-    FontStyle bold
-}
-
-skinparam database {
-    BackgroundColor #E8F5E9
-    BorderColor #2E7D32
-    FontSize 11
-}
-
-title Sơ Đồ Thành Phần Hệ Thống (Component Diagram) - GiaoVienHay\nKiến Trúc Modular Monolith (NestJS), Next.js Web, React Native Mobile & Firebase Services
+title Sơ Đồ Thành Phần Hệ Thống (Component Diagram) - GiaoVienHay\nKiến Trúc NestJS Modular Monolith Kết Hợp Nền Tảng Google Firebase Toàn Diện
 
 ' ==============================================================================
-' 1. TẦNG CLIENT (PRESENTATION LAYER)
+' 1. TẦNG TRÌNH DIỄN (CLIENTS)
 ' ==============================================================================
 
-package "Client Components (Frontend)" {
-    component [Web Admin & Giáo viên\n(Next.js 14 App Router)] as WebClient {
-        portin " " as WebPort
-        [Auth & Session UI]
-        [Quản Trị Trường & Khối Lớp]
-        [Sổ Điểm & Nhập Điểm Bộ Môn]
-        [Điểm Danh & Nề Nếp GVCN]
-        [Quản Lý Trạng Thái Học Phí & BHYT]
-        [Classroom Presentation Mode]
-        [Bộ 4 Mini-games Tương Tác]
-        [Vòng Quay May Mắn (Lucky Wheel)]
-    }
-
-    component [Mobile App\n(React Native iOS/Android)] as MobileClient {
-        portin " " as MobilePort
-        [Auth & Keychain Storage]
-        [GV: Điểm Danh Nhanh]
-        [PH: Tra Cứu Điểm & Học Bạ]
-        [PH: Theo Dõi Chuyên Cần]
-        [PH: Xem Trạng Thái Nộp BHYT/Học Phí]
-        [FCM Push Notification Receiver]
-    }
+package "Presentation Clients" {
+    [Web Client (Next.js 14)\n(Admin Portal, GVCN/GVBM Dashboard,\nVòng Quay Random, Trình Chiếu Game)] as WebClient
+    [Mobile App (React Native)\n(Điểm danh nhanh GV, Tra cứu điểm,\nChuyên cần & Cờ nộp BHYT Phụ huynh)] as MobileClient
 }
 
 ' ==============================================================================
-' 2. TẦNG BACKEND (NESTJS MODULAR MONOLITH)
+' 2. TẦNG ỨNG DỤNG BACKEND (NESTJS MODULAR MONOLITH)
 ' ==============================================================================
 
-package "Backend Server Platform (NestJS Modular Monolith)" {
-    portin "HTTP REST API\n(HTTPS :443)" as HttpEntry
+package "NestJS Modular Application (Backend)" {
     
-    component [API Gateway / Routing Layer\n(NestJS Controllers, Interceptors, Pipes)] as Gateway
-    component [RBAC & Auth Guard\n(Passport-JWT, @Roles Decorator)] as AuthGuard
+    interface "RESTful API / JSON" as HttpEntry
     
-    package "Core Business Modules (NestJS)" {
-        component [Auth Module\n(JWT, Refresh Token, Password Hash)] as AuthMod
-        component [School & Admin Module\n(Classes 1-9, Teachers, Assignments)] as AdminMod
-        component [Academic & Attendance Module\n(Grades, Daily Attendance Check)] as AcadMod
+    component [API Gateway / Global Pipe\n(Validation, Exception Filter, Logging)] as Gateway
+    component [RBAC & Firebase Auth Guard\n(Phân quyền: Admin, GVCN, GVBM, Parent)] as AuthGuard
+    
+    package "Core Business Modules" {
+        component [Auth Module\n(Firebase Authentication, User Profile)] as AuthMod
+        component [Admin Module\n(School, Classes, Grade Levels, Student Profiles)] as AdminMod
+        component [Academic & Attendance Module\n(Grades, Daily Attendance Check, Leaderboard)] as AcadMod
         component [Gamification & Quiz Module\n(Doc Parser, Question Generator, Game Engine)] as GameMod
         component [Fees & Insurance Module\n(Quản lý cờ nộp Học phí & BHYT boolean)] as FeeMod
-        component [Notification Module\n(Message Dispatcher, FCM Worker)] as NotiMod
+        component [Notification Module\n(Message Dispatcher, FCM Multicast Push)] as NotiMod
     }
     
-    component [Prisma ORM Data Access Layer] as PrismaDAL
-    component [Mongoose ODM Layer] as MongoDAL
-    component [BullMQ Job Queue Layer] as BullMQ
+    component [Firebase Admin SDK Data Access Layer\n(@google-cloud/firestore, firebase-admin)] as FirebaseSDK
 }
 
 ' ==============================================================================
-' 3. TẦNG DỮ LIỆU & LƯU TRỮ (DATA & STORAGE)
+' 3. TẦNG DỮ LIỆU & HẠ TẦNG GOOGLE FIREBASE
 ' ==============================================================================
 
-package "Storage & Cloud Infrastructure" {
-    database "PostgreSQL 15 (Managed)\n(users, classes, students, scores,\nattendances, fees_and_insurance,\nquizzes, questions, notifications)" as PostgresDB
-    database "MongoDB 6\n(News Feeds, Audit Logs)" as MongoDB
-    database "Redis 7\n(Session, Token Blacklist, BullMQ)" as RedisDB
-    queue "RabbitMQ\n(Event Exchange: Attendance, Grade, FeeReminder)" as RabbitBroker
+package "Google Firebase Cloud Platform" {
+    database "Google Cloud Firestore (NoSQL Document Store)\n(users, classes, students, scores,\nattendances, fees_and_insurance,\nquizzes, questions, quiz_results, notifications)" as FirestoreDB
+    [Firebase Cloud Storage\n(Lưu trữ file giáo án .docx, .pdf)] as FBStorage
+    [Firebase Cloud Messaging (FCM)\n(Push Notification Gateway)] as FBMessaging
+    [Firebase Authentication\n(SMS OTP, Email/Password)] as FBAuth
 }
 
-' ==============================================================================
-' 4. DỊCH VỤ NGOÀI (EXTERNAL CLOUD SERVICES)
-' ==============================================================================
-
-package "External Cloud Services" {
-    cloud "Firebase Cloud Platform" as FirebaseCloud {
-        [Firebase Storage\n(Lưu trữ file giáo án .docx, .pdf)] as FBStorage
-        [Firebase Cloud Messaging (FCM)\n(Push Notification Gateway)] as FBMessaging
-    }
+package "External AI Cloud Services" {
     cloud "Google Gemini API\n(gemini-1.5-flash)" as GeminiAI
 }
 
@@ -117,29 +68,30 @@ AuthGuard --> GameMod
 AuthGuard --> FeeMod
 AuthGuard --> NotiMod
 
-' Modules liên kết Data Access Layer
-AuthMod --> PrismaDAL
-AdminMod --> PrismaDAL
-AcadMod --> PrismaDAL
-FeeMod --> PrismaDAL
-GameMod --> PrismaDAL
+' Modules liên kết Firebase Admin SDK
+AuthMod --> FirebaseSDK
+AdminMod --> FirebaseSDK
+AcadMod --> FirebaseSDK
+FeeMod --> FirebaseSDK
+GameMod --> FirebaseSDK
+NotiMod --> FirebaseSDK
 
-PrismaDAL --> PostgresDB
-AdminMod --> MongoDAL
-MongoDAL --> MongoDB
+' Firebase Admin SDK tương tác Firestore
+FirebaseSDK --> FirestoreDB : Read / Write / Snapshot Listeners
 
-' Background Jobs & Cache
-AuthMod --> RedisDB : Caching session & Blacklist
-AcadMod --> RabbitBroker : Publish 'StudentAbsentEvent',\n'GradePublishedEvent'
-FeeMod --> RabbitBroker : Publish 'FeeReminderEvent'
-RabbitBroker --> NotiMod : Consume Events
-NotiMod --> BullMQ
-BullMQ --> RedisDB
+' Authentication
+AuthMod --> FBAuth : Verify ID Tokens / Manage Claims
 
-' Kết nối Third-Party
-GameMod --> FBStorage : Upload & đọc file .docx / .pdf
+' AI & Storage
+GameMod --> FBStorage : Upload & đọc file giáo án .docx / .pdf
 GameMod --> GeminiAI : Gửi văn bản trích xuất sinh câu hỏi & Game
+
+' Push Notifications
 NotiMod --> FBMessaging : Gửi Multicast Push Notification
 FBMessaging -.-> MobileClient : Đẩy thông báo tức thì (vắng học, điểm mới, nhắc BHYT)
+
+' Realtime Updates
+FirestoreDB -.-> WebClient : Realtime Listeners (Leaderboard, Sĩ số)
+FirestoreDB -.-> MobileClient : Realtime Snapshot
 
 @enduml

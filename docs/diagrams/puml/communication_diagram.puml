@@ -2,51 +2,38 @@
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
-skinparam object {
-    BackgroundColor #FFFFFF
-    BorderColor #1E88E5
-    ArrowColor #2E7D32
-    FontSize 11
-    FontStyle bold
-}
+skinparam defaultFontSize 11
 
-title Sơ Đồ Giao Tiếp Toàn Hệ Thống (System-Wide Communication Diagram) - GiaoVienHay\nBao Quát 3 Nhóm Tác Nhân: Quản Trị, Sư Phạm & Phụ Huynh (Theo Dõi Trạng Thái Nộp BHYT/Học Phí)
+title Sơ Đồ Giao Tiếp Tương Tác (Communication Diagram) - GiaoVienHay\nCơ Chế Trao Đổi Thông Điệp Hướng Đối Tượng Giữa Các Thành Phần (100% Nền Tảng Firebase)
 
 ' ==============================================================================
 ' 1. CÁC TÁC NHÂN NGƯỜI DÙNG (ACTORS)
 ' ==============================================================================
-object "<u>:Admin</u>\n(Quản trị viên / BGH)" as Admin
-object "<u>:Teacher</u>\n(GVCN & GVBM)" as Teacher
-object "<u>:Parent</u>\n(Phụ huynh)" as Parent
+object "<u>:Admin</u>" as Admin
+object "<u>:Teacher</u>" as Teacher
+object "<u>:Parent</u>" as Parent
 
 ' ==============================================================================
-' 2. TẦNG GIAO DIỆN CLIENT (PRESENTATION LAYER)
+' 2. TẦNG GIAO DIỆN CLIENT (PRESENTATION OBJECTS)
 ' ==============================================================================
-object "<u>:WebNextjsAdminUI</u>\n(Web Quản trị Next.js)" as WebAdminUI
-object "<u>:WebNextjsTeacherUI</u>\n(Web Giáo viên Next.js)" as WebTeacherUI
-object "<u>:MobileTeacherUI</u>\n(Mobile App Giáo viên)" as MobileTeacherUI
-object "<u>:MobileParentUI</u>\n(Mobile App Phụ huynh)" as MobileParentUI
+object "<u>:WebAdminUI</u>\n(Next.js App)" as WebAdminUI
+object "<u>:WebTeacherUI</u>\n(Next.js App)" as WebTeacherUI
+object "<u>:MobileTeacherUI</u>\n(React Native)" as MobileTeacherUI
+object "<u>:MobileParentUI</u>\n(React Native)" as MobileParentUI
 
 ' ==============================================================================
 ' 3. TẦNG BACKEND & API GATEWAY (NESTJS PLATFORM)
 ' ==============================================================================
-object "<u>:APIGateway</u>\n(Routing & RBAC Guard)" as Gateway
+object "<u>:APIGateway</u>\n(Routing & Firebase Auth Guard)" as Gateway
 object "<u>:AdminSchoolService</u>\n(NestJS Admin Module)" as AdminSvc
 object "<u>:AcademicService</u>\n(NestJS Academic Module)" as AcademicSvc
 object "<u>:FeesInsuranceService</u>\n(NestJS Fee/BHYT Module)" as FeeSvc
 object "<u>:NotificationService</u>\n(NestJS Noti Module)" as NotiSvc
 
 ' ==============================================================================
-' 4. TẦNG DỮ LIỆU & HÀNG ĐỢI (STORAGE & BROKER LAYER)
+' 4. TẦNG DỮ LIỆU & DỊCH VỤ GOOGLE FIREBASE
 ' ==============================================================================
-object "<u>:PostgreSQL</u>\n(Users, Classes, Students, Scores, Fees)" as Postgres
-object "<u>:MongoDB</u>\n(News Feeds, Audit Logs)" as Mongo
-object "<u>:RedisCache</u>\n(Session, FCM Tokens, BullMQ)" as Redis
-object "<u>:RabbitMQ</u>\n(Message Broker Events)" as RabbitMQ
-
-' ==============================================================================
-' 5. CÁC DỊCH VỤ NGOÀI (EXTERNAL SERVICES)
-' ==============================================================================
+object "<u>:CloudFirestore</u>\n(NoSQL Document Store)" as Firestore
 object "<u>:FirebaseFCM</u>\n(Cloud Messaging Service)" as FCM
 object "<u>:FirebaseStorage</u>\n(Lưu trữ tài liệu giáo án)" as FBStorage
 
@@ -55,30 +42,30 @@ object "<u>:FirebaseStorage</u>\n(Lưu trữ tài liệu giáo án)" as FBStorag
 ' ==============================================================================
 
 ' --- NHÓM 1: Quản trị Trường học & Cấu hình Hệ thống (Admin -> Web Next.js) ---
-Admin -- WebAdminUI : 1.1: login(credentials)\n1.2: manageSchoolStructure(classes, subjects)\n1.3: assignTeachers(homeroom, subjects)\n1.4: manageStudentParentLink(records)\n1.5: configureFeeAndInsuranceTerms(terms)\n1.6: postAnnouncement(newsContent)
+Admin -- WebAdminUI : 1.1: login(credentials)\n1.2: manageSchoolStructure(classes, subjects)\n1.3: assignTeachers(homeroom, subjects)\n1.4: manageStudentParentLink(records)\n1.5: configureFeeAndInsuranceTerms(terms)
 
-WebAdminUI -- Gateway : 1.7: HTTP POST /api/v1/auth/login\n1.8: HTTP REST /api/v1/admin/* (CRUD)\n1.9: HTTP POST /api/v1/fees/config\n1.10: HTTP POST /api/v1/feeds
+WebAdminUI -- Gateway : 1.6: HTTP POST /api/v1/auth/login\n1.7: HTTP REST /api/v1/admin/* (CRUD)\n1.8: HTTP POST /api/v1/fees/config
 
-Gateway -- AdminSvc : 1.11: forwardAdminRequest(validatedToken)
-Gateway -- FeeSvc : 1.12: forwardFeeConfigRequest(token)
-AdminSvc -- Postgres : 1.13: saveSchoolData(classes, assignments, linkages)
-AdminSvc -- Mongo : 1.14: saveAnnouncementFeed(content, audit)
+Gateway -- AdminSvc : 1.9: forwardAdminRequest(validatedToken)
+Gateway -- FeeSvc : 1.10: forwardFeeConfigRequest(token)
+AdminSvc -- Firestore : 1.11: saveSchoolData(/classes, /users, /students)
+FeeSvc -- Firestore : 1.12: initFeeRecords(/fees_and_insurance)
 
 ' --- NHÓM 2: Nghiệp vụ Sư phạm & Lớp học (Giáo viên -> Web & Mobile App) ---
-Teacher -- WebTeacherUI : 2.1: login(credentials)\n2.2: importDocsAndGenerateGame(file)\n2.3: runClassroomMiniGame(gameType)\n2.4: inputAndPublishGrades(classId, scores)\n2.5: checkFeesInsuranceList(homeroomClassId)\n2.6: togglePaidFlag(studentId, isPaidTuition, isPaidInsurance)
+Teacher -- WebTeacherUI : 2.1: login(credentials)\n2.2: importDocsAndGenerateGame(file)\n2.3: runClassroomMiniGame(gameType)\n2.4: inputInClassGrades(classId, scores)\n2.5: viewClassLeaderboard()\n2.6: checkFeesInsuranceList(homeroomClassId)\n2.7: togglePaidFlag(studentId, isPaidTuition, isPaidInsurance)
 
-Teacher -- MobileTeacherUI : 2.7: quickAttendance(classId, presentList, absentList)\n2.8: viewHomeroomFeeStatus()
+Teacher -- MobileTeacherUI : 2.8: quickAttendance(classId, presentList, absentList)\n2.9: viewHomeroomFeeStatus()
 
-WebTeacherUI -- Gateway : 2.9: HTTP POST /api/v1/quizzes/generate\n2.10: HTTP POST /api/v1/grades/publish\n2.11: HTTP PATCH /api/v1/fees-insurance/toggle
-MobileTeacherUI -- Gateway : 2.12: HTTP POST /api/v1/attendance/submit
+WebTeacherUI -- Gateway : 2.10: HTTP POST /api/v1/quizzes/generate\n2.11: HTTP POST /api/v1/academic/in-class-scores\n2.12: HTTP GET /api/v1/academic/leaderboard\n2.13: HTTP PATCH /api/v1/fees-insurance/toggle
+MobileTeacherUI -- Gateway : 2.14: HTTP POST /api/v1/attendance/submit
 
-Gateway -- AcademicSvc : 2.13: forwardAcademicRequest(teacherToken)
-Gateway -- FeeSvc : 2.14: forwardFeeUpdateRequest(teacherToken)
-FeeSvc -- Postgres : 2.15: updateBooleanFlags(is_paid_tuition, is_paid_insurance)
-FeeSvc -- RabbitMQ : 2.16: publishEvent(FeeReminderEvent)
-AcademicSvc -- Postgres : 2.17: persistGradesAndAttendance(ACID)
-AcademicSvc -- RabbitMQ : 2.18: publishEvent(GradePublishedEvent, StudentAbsentEvent)
+Gateway -- AcademicSvc : 2.15: forwardAcademicRequest(teacherToken)
+Gateway -- FeeSvc : 2.16: forwardFeeUpdateRequest(teacherToken)
+FeeSvc -- Firestore : 2.17: updateBooleanFlags(is_paid_tuition, is_paid_insurance)
+AcademicSvc -- Firestore : 2.18: persistGradesAndAttendance(/scores, /attendances, /quiz_results)
 AcademicSvc -- FBStorage : 2.19: uploadAndStoreDocFile(docx, pdf)
+AcademicSvc -- NotiSvc : 2.20: notifyGradePublished(classId, subjectCode)
+FeeSvc -- NotiSvc : 2.21: notifyFeeReminder(classId)
 
 ' --- NHÓM 3: Cổng Phụ huynh (Parent -> Mobile App React Native) ---
 Parent -- MobileParentUI : 3.1: login(credentials)\n3.2: switchChildProfile(childId)\n3.3: viewChildAcademicReport(grades, GPA)\n3.4: viewAttendanceHistory()\n3.5: viewTuitionAndInsuranceStatus(isPaidFlags)
@@ -86,15 +73,14 @@ Parent -- MobileParentUI : 3.1: login(credentials)\n3.2: switchChildProfile(chil
 MobileParentUI -- Gateway : 3.6: HTTP POST /api/v1/auth/login\n3.7: HTTP GET /api/v1/students/:id/academic\n3.8: HTTP GET /api/v1/students/:id/attendance\n3.9: HTTP GET /api/v1/students/:id/fees-insurance
 
 Gateway -- FeeSvc : 3.10: queryFeeStatus(studentId)
-FeeSvc -- Postgres : 3.11: fetchBooleanFlagsAndAmounts()
+FeeSvc -- Firestore : 3.11: fetchBooleanFlagsAndAmounts(/fees_and_insurance)
+Gateway -- AcademicSvc : 3.12: queryAcademicStatus(studentId)
+AcademicSvc -- Firestore : 3.13: fetchScoresAndAttendance(/scores, /attendances)
 
-' --- NHÓM 4: Xử lý Bất đồng bộ & Bắn Thông Báo Đẩy Thời Gian Thực ---
-RabbitMQ -- NotiSvc : 4.1: consumeEvent(GradePublishedEvent, StudentAbsentEvent, FeeReminderEvent)
-NotiSvc -- Postgres : 4.2: queryParentAccountByStudentId()
-NotiSvc -- Redis : 4.3: fetchDeviceFCMTokens(parentIds)
-NotiSvc -- FCM : 4.4: sendMulticastPushNotification(fcmTokens, payload)
-
-FCM -- MobileParentUI : 4.5: pushBackgroundNotification(alertTitle, alertBody)
-MobileParentUI -- Parent : 4.6: renderPushBannerNotification()
+' --- NHÓM 4: Bắn Thông Báo Đẩy Thời Gian Thực (FCM) ---
+NotiSvc -- Firestore : 4.1: queryParentAccountAndFCMTokens(/users)
+NotiSvc -- FCM : 4.2: sendMulticastPushNotification(fcmTokens, payload)
+FCM -- MobileParentUI : 4.3: pushBackgroundNotification(alertTitle, alertBody)
+MobileParentUI -- Parent : 4.4: renderPushBannerNotification()
 
 @enduml

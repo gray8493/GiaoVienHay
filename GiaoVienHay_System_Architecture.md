@@ -1,4 +1,4 @@
-﻿# GiaoVienHay – Master System Architecture Document
+# GiaoVienHay – Master System Architecture Document
 ## Hệ Thống Quản Lý & Tương Tác Học Sinh Cấp 1 & Cấp 2
 
 ---
@@ -13,8 +13,8 @@
   - **Backend API:** NestJS (TypeScript, Kiến trúc **Modular Monolith**).
   - **AI Engine:** Google Gemini API (`gemini-1.5-flash`) bóc tách tài liệu bài học.
   - **File Storage & Notifications:** Firebase Cloud Storage (lưu trữ file giáo án .docx/.pdf) & Firebase Cloud Messaging (FCM).
-  - **Cơ sở dữ liệu:** PostgreSQL 15 (10 bảng cốt lõi), Redis 7 (Caching & BullMQ), MongoDB 6 (Bảng tin trường học).
-  - **Hạ tầng Triển khai (PaaS):** Vercel (Next.js Web), Railway / Render (NestJS API, PostgreSQL, Redis, RabbitMQ).
+  - **Cơ sở dữ liệu:** **Google Cloud Firestore (100% Firebase NoSQL Document Store)**, đồng bộ Realtime Snapshot.
+  - **Hạ tầng Triển khai (PaaS & Cloud):** Vercel (Next.js Web), Railway / Render (NestJS API), Google Firebase Cloud Platform (Firestore, Storage, FCM, Auth).
 
 ---
 
@@ -54,7 +54,7 @@
 ### 4.1. Kiến Trúc & Thiết Kế Hệ Thống
 - 📄 **[system-overview.md](file:///e:/GiaoVienHay/docs/architecture/system-overview.md)**: Tổng quan hệ thống Cấp 1 & 2, Gamification và quyền hạn GVCN.
 - 📄 **[tech-stack.md](file:///e:/GiaoVienHay/docs/architecture/tech-stack.md)**: Đặc tả ngăn xếp công nghệ và sơ đồ kiến trúc tổng thể.
-- 📄 **[database-schema.md](file:///e:/GiaoVienHay/docs/architecture/database-schema.md)**: **Đặc tả chi tiết CSDL PostgreSQL (10 bảng cốt lõi, kiểu dữ liệu, quan hệ khóa ngoại, chiến lược chỉ mục indexing)**.
+- 📄 **[database-schema.md](file:///e:/GiaoVienHay/docs/architecture/database-schema.md)**: **Đặc tả chi tiết CSDL NoSQL Cloud Firestore (Collections, Subcollections, Composite Indexes, Security Rules)**.
 - 📄 **[actors_and_use_cases.md](file:///e:/GiaoVienHay/docs/architecture/actors_and_use_cases.md)**: Phân quyền chi tiết Admin, GVCN (kế thừa toàn bộ quyền giảng dạy), GVBM, Phụ huynh.
 - 📄 **[use_case_descriptions.md](file:///e:/GiaoVienHay/docs/architecture/use_case_descriptions.md)**: Đặc tả chi tiết Dò bài cũ, AI Quiz, 4 Mini-game lớp học và quản lý BHYT.
 - 📄 **[project-requirements.md](file:///e:/GiaoVienHay/docs/architecture/project-requirements.md)**: Yêu cầu chức năng FR và phi chức năng NFR.

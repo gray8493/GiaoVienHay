@@ -6,7 +6,7 @@ skinparam SequenceArrowThickness 1.2
 skinparam RoundCorner 8
 skinparam defaultFontSize 11
 
-title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - GiaoVienHay\nBao Quát Toàn Diện 3 Nhóm Tác Nhân: Quản Trị, Sư Phạm & Phụ Huynh
+title Sơ Đồ Tuần Tự Toàn Hệ Thống (System-Wide Sequence Diagram) - GiaoVienHay\n100% Nền Tảng Google Firebase: Cloud Firestore, Storage, FCM & Gemini AI
 
 ' ==============================================================================
 ' 1. ĐỊNH NGHĨA CÁC THÀNH PHẦN THEO TẦNG KIẾN TRÚC
@@ -25,19 +25,20 @@ box "Tầng Backend (NestJS Platform)" #FFF3E0
 boundary "API Gateway\n(Reverse Proxy & RBAC)" as Gateway
 control "Admin Module\n(School & Users)" as AdminModule
 control "Academic Module\n(Grades & Attend)" as AcadModule
+control "Gamification & AI\n(Quiz & Leaderboard)" as GameModule
 control "Fees & Insurance\n(Cờ Boolean)" as FeeModule
-control "Notification Module\n(BullMQ & FCM)" as NotiModule
+control "Notification Module\n(FCM Dispatcher)" as NotiModule
 end box
 
-box "Tầng Dữ Liệu & Hàng Đợi (Storage & Broker)" #E8F5E9
-database "PostgreSQL\n(Prisma ORM)" as Postgres
-database "Redis Cache\n(Session & FCM Tokens)" as Redis
-queue "RabbitMQ\n(Message Broker)" as RabbitMQ
-end box
-
-box "Dịch Vụ Bên Ngoài (Third-Party Cloud)" #FCE4EC
-boundary "Firebase FCM\n(Cloud Messaging)" as FCM
+box "Tầng Dữ Liệu & Dịch Vụ Google Firebase" #E8F5E9
+database "Google Cloud Firestore\n(NoSQL Database)" as Firestore
 boundary "Firebase Storage\n(Lưu File Giáo Án)" as FBStorage
+boundary "Firebase FCM\n(Cloud Messaging)" as FCM
+boundary "Firebase Auth\n(Token Verification)" as FBAuth
+end box
+
+box "Dịch Vụ AI (Google Cloud)" #FCE4EC
+boundary "Google Gemini AI\n(GenAI API)" as Gemini
 end box
 
 ' ==============================================================================
@@ -47,16 +48,19 @@ end box
 == GIAI ĐOẠN 1: THIẾT LẬP CƠ CẤU & ĐỢT THU NỘP BHYT/HỌC PHÍ (ADMIN) ==
 
 Admin -> WebAdminUI: Đăng nhập & thiết lập lớp học, phân công giảng dạy
-WebAdminUI -> Gateway: POST /api/v1/admin/classes/assign
-Gateway -> AdminModule: Forward request (Admin Token)
-AdminModule -> Postgres: Lưu thông tin phân công GVCN & GVBM
-Postgres --> AdminModule: Thành công
+WebAdminUI -> Gateway: POST /api/v1/admin/classes/assign (kèm Firebase ID Token)
+Gateway -> FBAuth: Verify ID Token & kiểm tra Custom Claim 'role == ADMIN'
+FBAuth --> Gateway: Token hợp lệ
+Gateway -> AdminModule: Forward request
+AdminModule -> Firestore: Lưu thông tin phân công vào /classes và /users
+Firestore --> AdminModule: Ghi nhận thành công
+AdminModule --> WebAdminUI: Phản hồi "Thiết lập thành công"
 
 Admin -> WebAdminUI: Cấu hình danh mục thu Học phí & BHYT theo năm
 WebAdminUI -> Gateway: POST /api/v1/fees-insurance/terms
 Gateway -> FeeModule: Forward request
-FeeModule -> Postgres: Khởi tạo bản ghi fees_and_insurance với cờ mặc định FALSE
-Postgres --> FeeModule: Khởi tạo danh sách theo dõi thành công
+FeeModule -> Firestore: Khởi tạo các bản ghi trong /fees_and_insurance với cờ FALSE
+Firestore --> FeeModule: Khởi tạo danh sách theo dõi thành công
 
 ' ==============================================================================
 ' GIAI ĐOẠN 2: NGHIỆP VỤ SƯ PHẠM - ĐIỂM DANH, CÔNG BỐ ĐIỂM & THEO DÕI BHYT (GV)
@@ -67,37 +71,53 @@ Postgres --> FeeModule: Khởi tạo danh sách theo dõi thành công
 Teacher -> TeacherUI: Mở App tại lớp, chọn học sinh vắng & nhấn "Lưu điểm danh"
 TeacherUI -> Gateway: POST /api/v1/attendance/submit
 Gateway -> AcadModule: Forward request (Teacher Token)
-AcadModule -> Postgres: Ghi nhận bản ghi điểm danh
-AcadModule -> RabbitMQ: Phát sự kiện 'StudentAbsentEvent' (kèm studentId vắng)
+AcadModule -> Firestore: Ghi nhận bản ghi điểm danh vào collection /attendances
+Firestore --> AcadModule: Lưu thành công
+AcadModule -> NotiModule: Kích hoạt thông báo vắng học (kèm studentId vắng)
 AcadModule --> TeacherUI: Phản hồi "Điểm danh hoàn tất"
 
-Teacher -> TeacherUI: Nhập cột điểm 1 tiết & nhấn "Phê duyệt công bố"
+Teacher -> TeacherUI: Tải giáo án (.docx/.pdf) & yêu cầu AI tạo bộ câu hỏi kiểm tra
+TeacherUI -> Gateway: POST /api/v1/quizzes/generate-ai (Multipart file)
+Gateway -> GameModule: Forward request
+GameModule -> FBStorage: Upload và lưu tệp giáo án an toàn
+GameModule -> Gemini: Gửi prompt bóc tách tài liệu bài giảng
+Gemini --> GameModule: Trả về danh sách câu hỏi trắc nghiệm kèm đáp án
+GameModule -> Firestore: Lưu bộ câu hỏi vào /quizzes & subcollection /questions
+GameModule --> TeacherUI: Trả về giao diện Mini-game sẵn sàng
+
+Teacher -> TeacherUI: Tổ chức kiểm tra bài cũ / Mini-game trên lớp, sau đó trực tiếp nhập điểm học sinh
+TeacherUI -> Gateway: POST /api/v1/academic/in-class-scores (Lớp, môn, danh sách điểm HS)
+Gateway -> AcadModule: Forward request (kèm danh sách điểm GV vừa nhập)
+AcadModule -> Firestore: Lưu điểm kiểm tra vào /quiz_results và sổ điểm /scores
+Firestore --> AcadModule: Đã cập nhật
+AcadModule -> AcadModule: Sắp xếp thứ hạng lớp học từ cao xuống thấp
+AcadModule --> TeacherUI: Trả về **BẢNG XẾP HẠNG (LEADERBOARD)** lớp học cho Giáo viên xem
+
+Teacher -> TeacherUI: Xem bảng xếp hạng lớp, điều chỉnh nếu cần & bấm "Công bố điểm"
 TeacherUI -> Gateway: POST /api/v1/grades/publish
 Gateway -> AcadModule: Forward request
-AcadModule -> Postgres: Lưu bảng điểm & tính lại điểm TB môn
-AcadModule -> RabbitMQ: Phát sự kiện 'GradePublishedEvent' (classId, subjectId)
-AcadModule --> TeacherUI: Phản hồi "Đã công bố điểm"
+AcadModule -> Firestore: Cập nhật cờ is_published = TRUE trong /scores
+AcadModule -> NotiModule: Kích hoạt thông báo điểm mới (classId, subjectCode)
+AcadModule --> TeacherUI: Thông báo "Đã công bố điểm cho phụ huynh"
 
 Teacher -> TeacherUI: Thu tiền BHYT trực tiếp tại lớp & tích chọn cờ đã nộp
 TeacherUI -> Gateway: PATCH /api/v1/fees-insurance/toggle
 Gateway -> FeeModule: Forward request (cập nhật is_paid_insurance = TRUE)
-FeeModule -> Postgres: Lưu trạng thái cờ boolean vào bảng fees_and_insurance
-Postgres --> FeeModule: Cập nhật thành công
+FeeModule -> Firestore: Cập nhật cờ boolean trong collection /fees_and_insurance
+Firestore --> FeeModule: Cập nhật thành công
 
 ' ==============================================================================
-' GIAI ĐOẠN 3: XỬ LÝ BẤT ĐỒNG BỘ & BẮN THÔNG BÁO TỨC THÌ (FCM)
+' GIAI ĐOẠN 3: XỬ LÝ THÔNG BÁO TỨC THÌ (FCM)
 ' ==============================================================================
 
-== GIAI ĐOẠN 3: XỬ LÝ SỰ KIỆN BẤT ĐỒNG BỘ & ĐẨY THÔNG BÁO (FCM) ==
+== GIAI ĐOẠN 3: GỬI THÔNG BÁO TỨC THÌ QUA FIREBASE CLOUD MESSAGING (FCM) ==
 
-RabbitMQ -> NotiModule: Chuyển giao các sự kiện (Vắng học, Điểm mới, Nhắc BHYT)
-NotiModule -> Postgres: Tra cứu phụ huynh liên kết với học sinh
-Postgres --> NotiModule: Danh sách ParentId
-NotiModule -> Redis: Lấy Device FCM Token của phụ huynh
-Redis --> NotiModule: Trả về FCM Tokens
-NotiModule -> FCM: Gửi multicast push notification
+NotiModule -> Firestore: Tra cứu phụ huynh từ /students (parent_uids) và /users (fcm_tokens)
+Firestore --> NotiModule: Danh sách FCM Device Tokens của phụ huynh
+NotiModule -> FCM: Gửi multicast notification payload
 FCM -> ParentApp: Đẩy thông báo tức thì tới thiết bị di động
 ParentApp -> Parent: Rung/Chuông & hiển thị Banner thông báo
+NotiModule -> Firestore: Lưu vết thông báo vào collection /notifications
 
 ' ==============================================================================
 ' GIAI ĐOẠN 4: CỔNG PHỤ HUYNH - TRA CỨU HỌC BẠ & TRẠNG THÁI BHYT/HỌC PHÍ (PARENT)
@@ -108,15 +128,15 @@ ParentApp -> Parent: Rung/Chuông & hiển thị Banner thông báo
 Parent -> ParentApp: Mở thông báo xem chi tiết bảng điểm / chuyên cần của con
 ParentApp -> Gateway: GET /api/v1/students/:id/academic
 Gateway -> AcadModule: Forward query
-AcadModule -> Postgres: Lấy chi tiết điểm số & chuyên cần
-Postgres --> AcadModule: Dữ liệu học tập
+AcadModule -> Firestore: Lấy chi tiết điểm số (/scores) & chuyên cần (/attendances)
+Firestore --> AcadModule: Dữ liệu học tập
 AcadModule --> ParentApp: Hiển thị bảng điểm chi tiết trực quan
 
 Parent -> ParentApp: Chuyển sang mục "Học phí & BHYT"
 ParentApp -> Gateway: GET /api/v1/students/:id/fees-insurance
 Gateway -> FeeModule: Forward query
-FeeModule -> Postgres: Lấy trạng thái cờ is_paid_tuition và is_paid_insurance
-Postgres --> FeeModule: Dữ liệu trạng thái nghĩa vụ tài chính
+FeeModule -> Firestore: Lấy trạng thái cờ is_paid_tuition và is_paid_insurance
+Firestore --> FeeModule: Dữ liệu trạng thái nghĩa vụ tài chính
 FeeModule --> ParentApp: Trả về trạng thái chi tiết
 ParentApp -> Parent: Hiển thị rõ ràng:\n- Học phí: ĐÃ NỘP (Tích xanh)\n- BHYT: CHƯA NỘP (Cảnh báo vàng kèm hạn nộp)
 

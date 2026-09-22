@@ -29,7 +29,7 @@ skinparam cloud {
     FontStyle bold
 }
 
-title Sơ Đồ Triển Khai Hạ Tầng (Deployment Diagram) - GiaoVienHay\nMô Hình PaaS Tối Ưu: Vercel, Railway/Render, Firebase Cloud & Mobile Stores
+title Sơ Đồ Triển Khai Hạ Tầng (Deployment Diagram) - GiaoVienHay\nNền Tảng Đám Mây Tối Ưu: Vercel, Railway/Render & Toàn Diện Google Firebase Cloud
 
 ' ==============================================================================
 ' 1. THIẾT BỊ ĐẦU CUỐI (CLIENT DEVICES)
@@ -44,7 +44,7 @@ node "Thiết Bị Di Động\n(Smartphone Android / iOS)" as Device_Mobile {
 }
 
 ' ==============================================================================
-' 2. NỀN TẢNG CLOUD PAAS (VERCEL & RAILWAY / RENDER)
+' 2. NỀN TẢNG CLOUD PAAS (VERCEL & COMPUTE SERVICE)
 ' ==============================================================================
 
 cloud "Vercel Global Edge Network (PaaS)" as VercelCloud {
@@ -53,35 +53,31 @@ cloud "Vercel Global Edge Network (PaaS)" as VercelCloud {
     }
 }
 
-cloud "PaaS Cloud Platform (Railway / Render)" as PaasCloud {
+cloud "PaaS Compute Platform (Railway / Render)" as PaasCloud {
     node "Compute Service (Docker Container)" as ApiNode {
         artifact "Backend API Server\n(NestJS Modular Monolith Runtime\nNode.js v20 LTS)" as NestjsApp
-    }
-
-    node "Managed Database Cluster" as DbNode {
-        database "PostgreSQL 15 (Managed DB)\n(10 Bảng cốt lõi, ACID)" as PostgresInstance
-    }
-
-    node "In-Memory & Cache Cluster" as CacheNode {
-        database "Redis 7 (Managed Service)\n(Session, Token Blacklist, BullMQ)" as RedisInstance
-    }
-
-    node "Message Queue Service" as QueueNode {
-        queue "RabbitMQ Instance\n(AMQP 0-9-1 Event Exchange)" as RabbitInstance
     }
 }
 
 ' ==============================================================================
-' 3. HỆ SINH THÁI GOOGLE FIREBASE & EXTERNAL APIS
+' 3. HỆ SINH THÁI GOOGLE FIREBASE CLOUD PLATFORM (DATABASE & SERVICES DUY NHẤT)
 ' ==============================================================================
 
-cloud "Google Firebase Cloud Platform" as FirebaseCloud {
+cloud "Google Firebase Cloud Platform (Dịch Vụ Dữ Liệu Duy Nhất)" as FirebaseCloud {
+    node "Managed NoSQL Database" {
+        database "Google Cloud Firestore\n(Collections: users, classes, students,\nattendances, scores, fees_and_insurance,\nquizzes, questions, quiz_results, notifications)" as FirestoreInstance
+    }
+
     node "Firebase Cloud Storage" {
-        artifact "File Lưu trữ Giáo án & Tài liệu\n(.docx, .pdf, avatar)" as StorageBucket
+        artifact "Bucket Lưu trữ Giáo án & Tài liệu\n(.docx, .pdf, ảnh avatar)" as StorageBucket
     }
     
     node "Firebase Cloud Messaging (FCM)" {
-        artifact "FCM Push Gateway Service" as FcmGateway
+        artifact "FCM Push Gateway Service\n(Gửi Multicast Notification)" as FcmGateway
+    }
+
+    node "Firebase Authentication" {
+        artifact "Identity & Access Management\n(Phone SMS OTP, Email/Password)" as FirebaseAuth
     }
 }
 
@@ -103,15 +99,16 @@ MobileApp --> NestjsApp : HTTPS REST API (:443)\n(Gửi điểm danh, tra cứu 
 ' Vercel Next.js giao tiếp với Backend
 NextjsApp --> NestjsApp : HTTPS RESTful Calls / Server Actions
 
-' Backend nội bộ trong PaaS Platform (Private Network)
-NestjsApp --> PostgresInstance : TCP / Prisma Driver (:5432)
-NestjsApp --> RedisInstance : TCP / Redis Protocol (:6379)
-NestjsApp --> RabbitInstance : AMQP Protocol (:5672)
-
-' Backend kết nối Firebase Cloud
+' Backend kết nối trực tiếp Firebase Cloud (Firebase Admin SDK)
+NestjsApp --> FirestoreInstance : gRPC / HTTPS Firebase Admin SDK\n(Đọc / ghi dữ liệu NoSQL, Realtime)
 NestjsApp --> StorageBucket : HTTPS Firebase Admin SDK\n(Upload & đọc tài liệu giáo án)
 NestjsApp --> FcmGateway : HTTPS FCM HTTP v1 API\n(Gửi thông báo đẩy vắng học, điểm mới, nhắc BHYT)
+NestjsApp --> FirebaseAuth : HTTPS Firebase Admin SDK\n(Verify ID Token, gán Custom Claims RBAC)
+
+' Client đồng bộ trực tiếp với Firebase
 FcmGateway -.-> MobileApp : Push Alert Notifications (APNs / FCM Native)
+FirestoreInstance -.-> NextjsApp : Realtime Snapshot Listeners (Leaderboard, Sĩ số)
+FirestoreInstance -.-> MobileApp : Realtime Updates
 
 ' Backend kết nối AI
 NestjsApp --> GeminiEndpoint : HTTPS API (@google/genai)\n(Gửi văn bản sinh câu hỏi & Game)

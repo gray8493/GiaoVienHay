@@ -1,4 +1,4 @@
-﻿# Tài Liệu Tổng Quan Hệ Thống (System Overview)
+# Tài Liệu Tổng Quan Hệ Thống (System Overview)
 # GiaoVienHay – Hệ Thống Quản Lý & Tương Tác Học Sinh Cấp 1 & Cấp 2
 
 ---
@@ -49,16 +49,17 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 
 ---
 
-## 3. Kiến trúc CSDL Cốt Lõi (PostgreSQL)
+## 3. Kiến trúc CSDL Cốt Lõi (Firebase Cloud Firestore)
+Hệ thống sử dụng **Google Cloud Firestore (NoSQL Document Store)** làm cơ sở dữ liệu duy nhất toàn diện:
 
-1. `users`: Tài khoản, hash mật khẩu, email, SĐT, vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`).
-2. `classes`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`.
-3. `students`: Hồ sơ học sinh, mã số định danh, lớp học.
-4. `student_parent_relations`: Quan hệ phụ huynh - học sinh.
-5. `scores`: Điểm số thành phần (miệng, 15p, 1 tiết, giữa kỳ, cuối kỳ).
-6. `attendances`: Điểm danh chuyên cần (Có mặt, Vắng có phép, Vắng không phép).
-7. `fees_and_insurance`: Quản lý đợt thu, cờ `is_paid_tuition`, cờ `is_paid_insurance`.
-8. `quizzes`: Bộ đề kiểm tra/trò chơi tạo từ tài liệu bài giảng.
-9. `questions`: Câu hỏi, 4 phương án, đáp án đúng, gợi ý, thời gian làm bài, cấu hình mini-game (`game_type`, `game_config`).
-10. `notifications`: Lịch sử thông báo đẩy gửi tới phụ huynh.
+1. `/users/{userId}`: Tài khoản, email, SĐT, vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`), FCM Device Tokens.
+2. `/classes/{classId}`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`.
+3. `/students/{studentId}`: Hồ sơ học sinh, mã số định danh, `classId`, danh sách phụ huynh liên kết.
+4. `/attendances/{attendanceId}`: Điểm danh chuyên cần theo ngày (`classId`, `studentId`, `date`, `status = PRESENT/ABSENT_EXCUSED/ABSENT_UNEXCUSED`).
+5. `/scores/{scoreId}`: Sổ điểm thành phần (`studentId`, `subjectCode`, `semester`, `scoreType`, `scoreValue`, `teacherId`, `isPublished`).
+6. `/fees_and_insurance/{recordId}`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi chú thu nộp.
+7. `/quizzes/{quizId}`: Bộ câu hỏi kiểm tra/trò chơi tạo từ tài liệu bài giảng giáo án.
+   - Subcollection `/questions/{questionId}`: Câu hỏi, 4 lựa chọn, đáp án đúng, giải thích, thời gian đếm ngược.
+8. `/quiz_results/{resultId}`: Điểm kiểm tra bài cũ / kết quả mini-game do Giáo viên nhập tại lớp, thứ hạng trong lớp (`rank_position`) phục vụ hiển thị Bảng xếp hạng.
+9. `/notifications/{notificationId}`: Nhật ký thông báo đẩy phát tới phụ huynh qua Firebase Cloud Messaging.
 

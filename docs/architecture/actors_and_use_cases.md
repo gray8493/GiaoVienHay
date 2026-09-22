@@ -1,4 +1,4 @@
-﻿# Tài Liệu Đặc Tả Tác Nhân & Trường Hợp Sử Dụng (Actors & Use Cases Specification)
+# Tài Liệu Đặc Tả Tác Nhân & Trường Hợp Sử Dụng (Actors & Use Cases Specification)
 # Hệ Thống GiaoVienHay – Quản Lý Học Sinh Cấp 1 & Cấp 2
 
 ---
@@ -56,6 +56,7 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 | **UC-ACA-04** | Dò bài cũ & Quay Random học sinh có mặt hôm nay | ✖ | ✔ | ✔ | ✖ |
 | **UC-ACA-05** | Import Docs/PDF bằng AI (Gemini) sinh câu hỏi bài cũ | ✖ | ✔ | ✔ | ✖ |
 | **UC-ACA-06** | Tạo & Khởi chạy Mini-game tương tác lớp học | ✖ | ✔ | ✔ | ✖ |
+| **UC-ACA-07** | Nhập điểm kiểm tra tại lớp & Xem Bảng xếp hạng | ✖ | ✔ | ✔ | ✖ |
 | **UC-FEE-01** | Quản lý cờ thu Học phí & BHYT (`fees_and_insurance`)| Xem | ✔ | ✖ | ✖ |
 | **UC-PAR-01** | Tra cứu điểm số & Học bạ điện tử của con | ✖ | ✖ | ✖ | ✔ |
 | **UC-PAR-02** | Theo dõi lịch sử chuyên cần & Cảnh báo vắng | ✖ | ✖ | ✖ | ✔ |

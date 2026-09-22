@@ -1,4 +1,4 @@
-﻿@startuml
+@startuml
 skinparam defaultTextAlignment center
 skinparam roundCorner 8
 skinparam BoxPadding 10
@@ -59,6 +59,7 @@ rectangle "Hệ Thống GiaoVienHay - Cấp 1 & Cấp 2" {
         usecase "UC-ACA-04\nDò bài cũ & Quay Random Học sinh\n(Lọc học sinh có mặt hôm nay)" as UC_RandomStudent
         usecase "UC-ACA-05\nImport Docs/PDF bằng AI (Gemini)\nSinh câu hỏi kiểm tra bài cũ" as UC_AIQuiz
         usecase "UC-ACA-06\nTạo & Khởi chạy Mini-game Lớp học\n(Rung chuông vàng, Đua xe, Hộp quà)" as UC_ClassroomGame
+        usecase "UC-ACA-07\nNhập Điểm Kiểm Tra Tại Lớp &\nXem Bảng Xếp Hạng (Leaderboard)" as UC_Leaderboard
     }
 
     package "Phân hệ Quản trị Lớp chủ nhiệm (Dành riêng cho GVCN)" {
@@ -90,6 +91,7 @@ GVBM --> UC_Grades
 GVBM --> UC_RandomStudent
 GVBM --> UC_AIQuiz
 GVBM --> UC_ClassroomGame
+GVBM --> UC_Leaderboard
 
 ' Quyền đặc thù của GVCN
 GVCN --> UC_Attendance
