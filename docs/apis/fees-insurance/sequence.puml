@@ -1,0 +1,62 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Học Phí & BHYT (Fees & Insurance Sequence) - GiaoVienHay
+
+box "Tầng Client (Mobile React Native App)" #E3F2FD
+actor "GVCN" as GVCN
+boundary "App Giáo Viên" as TeacherApp
+actor "Phụ huynh" as Parent
+boundary "App Phụ Huynh" as ParentApp
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Fees Controller" as Gateway
+control "Fees & Insurance Service" as FeeService
+control "Notification Service" as NotiService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/fees_and_insurance, /users)" as Firestore
+boundary "Firebase Messaging (FCM)" as FCM
+end box
+
+== 1. GVCN THU TIỀN TẠI LỚP & CẬP NHẬT CỜ BHYT KÈM NGÀY NỘP ==
+
+GVCN -> TeacherApp: Mở danh sách theo dõi BHYT của lớp chủ nhiệm
+TeacherApp -> Gateway: GET /api/v1/fees-insurance/class/{classId}
+Gateway -> FeeService: getClassFeeRecords(gvcnUid, classId)
+FeeService -> Firestore: Đọc collection /fees_and_insurance where class_id == classId
+Firestore --> FeeService: Trả về danh sách trạng thái
+FeeService --> Gateway: Danh mục thu nộp lớp
+Gateway --> TeacherApp: HTTP 200 OK (Danh sách học sinh kèm cờ & ngày nộp)
+
+GVCN -> TeacherApp: Tích chọn "Đã nộp BHYT" cho học sinh B & chọn ngày nộp (23/09/2026)
+TeacherApp -> Gateway: PATCH /api/v1/fees-insurance/toggle (record_id, fee_type, is_paid, paid_date)
+Gateway -> FeeService: togglePaymentStatus(gvcnUid, dto)
+FeeService -> Firestore: updateDoc(/fees_and_insurance/{record_id}, {\n  is_paid_insurance: true,\n  insurance_paid_date: "2026-09-23",\n  insurance_paid_at: now()\n})
+Firestore --> FeeService: Cập nhật thành công
+FeeService --> Gateway: Xác nhận trạng thái mới
+Gateway --> TeacherApp: HTTP 200 OK
+TeacherApp --> GVCN: Cập nhật dấu tích xanh "ĐÃ NỘP"
+
+== 2. LỌC DANH SÁCH CHƯA NỘP & BẮN FCM NHẮC NHỞ ==
+
+GVCN -> TeacherApp: Chọn bộ lọc "Chưa nộp BHYT" và nhấn "Nhắc nhở phụ huynh"
+TeacherApp -> Gateway: POST /api/v1/fees-insurance/remind (class_id, fee_type: "INSURANCE")
+Gateway -> FeeService: sendUnpaidReminder(gvcnUid, classId, feeType)
+FeeService -> Firestore: Query /fees_and_insurance where is_paid_insurance == false
+Firestore --> FeeService: Danh sách học sinh chưa hoàn thành
+FeeService -> NotiService: triggerFeeReminder(unpaidStudentList)
+NotiService -> FCM: Bắn thông báo đẩy Multicast đến phụ huynh các em chưa nộp
+FCM -> ParentApp: Hiển thị banner: "Nhắc nhở hoàn thành nộp BHYT cho con"
+ParentApp -> Parent: Xem thông báo nhắc nhở kèm hạn nộp
+FeeService --> Gateway: Báo cáo số lượng phụ huynh đã nhận
+Gateway --> TeacherApp: HTTP 200 OK (Số lượng thông báo đã phát)
+TeacherApp --> GVCN: Thông báo "Đã gửi lời nhắc nộp BHYT"
+
+@enduml

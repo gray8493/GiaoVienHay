@@ -1,0 +1,90 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Trợ Giảng AI & Game Hóa Lớp Học (Quizzes & Gamification Sequence)
+
+box "Tầng Client (Tablet / Điện Thoại Kết Nối Bảng Lớp)" #E3F2FD
+actor "Giáo viên\n(GVBM / GVCN)" as Teacher
+boundary "App Giáo Viên\n(Chế độ Trình chiếu)" as TeacherApp
+actor "Học sinh tại lớp\n(Tương tác trực tiếp)" as Student
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Quizzes Controller" as Gateway
+control "Quizzes & Game Service" as QuizService
+control "Gemini AI Service" as AIService
+end box
+
+box "Google Firebase & AI Services" #E8F5E9
+boundary "Firebase Storage" as Storage
+boundary "Google Gemini AI\n(gemini-1.5-flash)" as Gemini
+database "Cloud Firestore (/quizzes, /quiz_results, /scores)" as Firestore
+end box
+
+== 1. TẢI GIÁO ÁN, CHỌN SỐ CÂU & ĐỘ KHÓ ĐỂ AI GEMINI SINH CÂU HỎI ==
+
+Teacher -> TeacherApp: Chọn tệp giáo án (.docx/.pdf), chọn Số câu hỏi (num_questions) & Độ khó (difficulty_level)
+TeacherApp -> Gateway: POST /api/v1/quizzes/generate-ai (file, subject, num_questions, difficulty_level)
+Gateway -> QuizService: processDocumentWithAI(teacherUid, file, metadata)
+
+QuizService -> Storage: Upload tệp giáo án bài giảng gốc an toàn
+Storage --> QuizService: Trả về Download URL (source_doc_url)
+
+QuizService -> AIService: extractAndGenerateQuestions(fileBuffer, subject, numQuestions, difficultyLevel)
+AIService -> Gemini: Gửi Prompt sư phạm bóc tách kiến thức theo Số câu và Độ khó đã chọn
+Gemini --> AIService: Trả về JSON danh sách câu hỏi trắc nghiệm kèm 4 đáp án và lời giải
+QuizService -> Firestore: addDoc(/quizzes, { title, subject, teacher_id, source_doc_url, difficulty_level })
+QuizService -> Firestore: Batch Write lưu từng câu hỏi vào subcollection /quizzes/{id}/questions
+Firestore --> QuizService: Lưu bộ câu hỏi thành công
+
+QuizService --> Gateway: Trả về dữ liệu bộ câu hỏi hoàn chỉnh kèm đáp án
+Gateway --> TeacherApp: HTTP 201 Created (quiz_id, questions, difficulty_level)
+TeacherApp --> Teacher: Hiển thị bộ câu hỏi & sẵn sàng lựa chọn: Chế độ Quiz HOẶC Chế độ Game
+
+== 2. LỰA CHỌN CHẾ ĐỘ: TRẮC NGHIỆM QUIZ TIÊU CHUẨN HAY MINI-GAME ==
+
+alt [LỰA CHỌN A]: Trình chiếu Quiz trắc nghiệm tiêu chuẩn (kèm Vòng quay Random)
+    Teacher -> TeacherApp: Chọn "Chế độ Quiz Trắc Nghiệm"
+    TeacherApp -> Gateway: GET /api/v1/quizzes/{id}/wheel-candidates
+    Gateway -> QuizService: getWheelCandidates(quizId)
+    QuizService -> Firestore: Lấy danh sách học sinh có mặt hôm nay trong lớp
+    Firestore --> QuizService: Danh sách ứng viên có mặt
+    QuizService --> Gateway: Dữ liệu học sinh cho Vòng quay
+    Gateway --> TeacherApp: HTTP 200 OK (Danh sách học sinh)
+    
+    Teacher -> TeacherApp: Bấm "Quay số" chọn học sinh lên bảng
+    TeacherApp -> TeacherApp: Vòng quay dừng lại ở học sinh A
+    alt Học sinh A nghỉ học / vắng mặt
+        Teacher -> TeacherApp: Bấm nút **"Bỏ qua (Skip)"**
+        TeacherApp -> TeacherApp: Hệ thống tự động quay tiếp vòng mới chọn học sinh B (Có mặt sẵn sàng)
+    end
+    
+    TeacherApp -> Student: Trình chiếu câu hỏi Quiz lên bảng lớp (đếm ngược 30s)
+    Student -> Teacher: Học sinh trả lời trực tiếp miệng hoặc ghi bảng
+    Teacher -> TeacherApp: Bấm hiển thị đáp án đúng & giải thích chi tiết
+
+else [LỰA CHỌN B]: Nếu không muốn Quiz thì chọn "Chế độ Game"
+    Teacher -> TeacherApp: Chọn "Chế độ Game" & Lựa chọn 1 trong 3 Mini-game lớp học:\n1. Rung Chuông Vàng (Golden Bell)\n2. Đua Xe Vượt Chướng Ngại Vật (Classroom Racing)\n3. Hộp Quà Bí Mật (Mystery Box)
+    TeacherApp -> TeacherApp: Chuyển toàn bộ câu hỏi AI sang giao diện đồ họa Mini-game
+    TeacherApp -> Student: Chiếu Mini-game lên màn hình lớn phòng học
+    Student -> Teacher: Cả lớp / Các đội thi đua giơ bảng chọn đáp án hoặc mở hộp quà
+    Teacher -> TeacherApp: Bấm tương tác trên game (cộng điểm xe đua, mở quà, chốt chuông vàng)
+end
+
+== 3. GIÁO VIÊN TRỰC TIẾP CHẤM & NHẬP ĐIỂM VÀO SỔ ĐIỂM MÔN HỌC ==
+
+Teacher -> TeacherApp: Nhập điểm số đạt được của học sinh (Thang điểm 10)
+TeacherApp -> Gateway: POST /api/v1/quizzes/{id}/in-class-scores (student_id, score, mode_played)
+Gateway -> QuizService: recordInClassScore(teacherUid, dto)
+QuizService -> Firestore: addDoc(/quiz_results, { quiz_id, student_id, score, mode_played, teacher_id })
+QuizService -> Firestore: addDoc(/scores, { student_id, score_value: score, score_type: 'ORAL_TEST', is_published: false })
+Firestore --> QuizService: Ghi nhận điểm số thành công
+QuizService --> Gateway: Hoàn tất lưu điểm vào môn học
+Gateway --> TeacherApp: HTTP 201 Created (result_id, score)
+TeacherApp --> Teacher: Thông báo "Đã lưu điểm bài cũ vào Sổ điểm môn học"
+
+@enduml

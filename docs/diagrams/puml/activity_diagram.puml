@@ -137,24 +137,34 @@ else if ([Quản lý Sổ điểm Đa môn & Đa cột điểm])
 
 else if ([Khởi động bài cũ / Mini-game bằng AI])
     |Giáo viên (GVCN & GVBM)|
-    :Tải giáo án .docx/.pdf môn học trên App React Native;
+    :Tải giáo án .docx/.pdf trên App React Native;
+    :Chọn **Số lượng câu hỏi** (3, 5, 10...) & chọn **Độ khó** (Dễ, Vừa, Khó, Hỗn hợp);
     
     |Dịch Vụ Firebase & AI (Storage, FCM, Gemini)|
     :Firebase Storage lưu trữ tệp tài liệu an toàn;
-    :Google Gemini AI phân tích bóc tách giáo án và sinh bộ câu hỏi trắc nghiệm;
+    :Google Gemini AI bóc tách bài học sinh bộ câu hỏi trắc nghiệm theo số câu & độ khó;
     
     |Cơ Sở Dữ Liệu (Cloud Firestore)|
     :Lưu bộ câu hỏi vào /quizzes và subcollection /questions;
     
     |Giáo viên (GVCN & GVBM)|
-    :Tổ chức tương tác bài cũ / Mini-game tại lớp (chiếu từ Tablet/Phone lên màn hình/smartboard);
-    :Khởi động **Vòng quay Random** quay ngẫu nhiên chọn học sinh;
-    if (Học sinh quay trúng nghỉ học hoặc vắng mặt?) then ([Bấm Bỏ qua])
-        :Giáo viên bấm nút **"Bỏ qua (Skip)"**;
-        :Hệ thống tự động quay tiếp vòng mới chọn bạn khác;
-    else ([Có mặt sẵn sàng])
+    if (Lựa chọn hình thức tại lớp?) then ([Chế độ Quiz Trắc Nghiệm])
+        :Trình chiếu câu hỏi Quiz tiêu chuẩn (đếm ngược 30s);
+        :Khởi động **Vòng quay Random** bốc thăm học sinh lên bảng;
+        if (Học sinh quay trúng nghỉ học hoặc vắng mặt?) then ([Bấm Bỏ qua])
+            :Giáo viên bấm nút **"Bỏ qua (Skip)"**;
+            :Hệ thống tự động quay tiếp vòng mới chọn bạn khác;
+        else ([Có mặt sẵn sàng])
+        endif
+        :Học sinh trả lời trực tiếp; GV bấm hiện đáp án đúng & giải thích;
+    else ([Nếu không muốn Quiz -> Chọn Chế độ Game])
+        :Chuyển bộ câu hỏi sang 1 trong 3 Mini-game lớp học:
+        - Rung chuông vàng (cả lớp giơ bảng)
+        - Đua xe vượt chướng ngại vật (thi đua theo tổ)
+        - Hộp quà bí mật (mở quà nhận điểm);
+        :Học sinh tham gia hào hứng tương tác trực tiếp tại lớp;
     endif
-    :Học sinh lên bảng hoặc giơ bảng trả lời mini-game (không làm bài online);
+
     :Giáo viên trực tiếp chấm & nhập điểm vào môn học đang dạy;
     
     |App React Native (Phone/Tablet - GV & Phụ huynh)|

@@ -1,0 +1,187 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - Users & Profile API
+  description: Đặc tả OpenAPI cho Phân hệ Hồ sơ Người dùng & Thiết bị FCM
+  version: 1.0.0
+servers:
+  - url: https://api.giaovienhay.vn/api/v1
+    description: Production Server
+  - url: http://localhost:3000/api/v1
+    description: Local Dev Server
+
+tags:
+  - name: Users
+    description: Lấy thông tin cá nhân, cập nhật môn dạy, trường công tác và đăng ký FCM Token
+
+paths:
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Lấy thông tin tài khoản người dùng hiện tại
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lấy thông tin thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/profile:
+    patch:
+      tags:
+        - Users
+      summary: Cập nhật thông tin hồ sơ & môn học giảng dạy
+      description: Giáo viên có thể cập nhật Tên trường công tác (school_name) và Danh sách 1 hoặc nhiều môn trực tiếp giảng dạy (teaching_subjects).
+      operationId: updateProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                  example: Nguyễn Thị Lan
+                school_name:
+                  type: string
+                  example: Trường Tiểu Học Chu Văn An
+                avatar_url:
+                  type: string
+                  example: https://storage.googleapis.com/.../new_avatar.jpg
+                teaching_subjects:
+                  type: array
+                  items:
+                    type: string
+                  example: ["MATH", "LIT", "ETHICS"]
+      responses:
+        '200':
+          description: Cập nhật hồ sơ thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/device-token:
+    post:
+      tags:
+        - Users
+      summary: Đăng ký hoặc làm mới FCM Device Token nhận Push Notification
+      operationId: registerDeviceToken
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fcm_token
+              properties:
+                fcm_token:
+                  type: string
+                  example: eX_910...fcm_device_token_here
+                device_platform:
+                  type: string
+                  enum: [IOS, ANDROID, WEB]
+                  example: IOS
+      responses:
+        '200':
+          description: Đăng ký thiết bị thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Đăng ký thiết bị nhận thông báo thành công
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserProfile:
+      type: object
+      properties:
+        uid:
+          type: string
+          example: usr_teacher_lan_01
+        full_name:
+          type: string
+          example: Nguyễn Thị Lan
+        email:
+          type: string
+          example: teacher.lan@school.edu.vn
+        phone:
+          type: string
+          example: "0912345678"
+        school_name:
+          type: string
+          example: Trường Tiểu Học Chu Văn An
+        role:
+          type: string
+          enum: [ADMIN, TEACHER_HOMEROOM, TEACHER_SUBJECT, PARENT]
+          example: TEACHER_HOMEROOM
+        teaching_subjects:
+          type: array
+          items:
+            type: string
+          example: ["MATH", "LIT"]
+        avatar_url:
+          type: string
+          nullable: true
+          example: https://storage.googleapis.com/.../avatar.jpg
+        is_active:
+          type: boolean
+          example: true
+
+  responses:
+    Unauthorized:
+      description: Chưa xác thực hoặc Token không hợp lệ
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              status_code:
+                type: integer
+                example: 401
+              message:
+                type: string
+                example: Token không hợp lệ hoặc đã hết hạn

@@ -1,0 +1,304 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - Grades & Leaderboard API
+  version: 1.0.0
+  description: Đặc tả API phân hệ Sổ điểm điện tử đa môn học và Bảng xếp hạng vinh danh học sinh.
+servers:
+  - url: /api/v1
+    description: Production API Server
+paths:
+  /grades/class/{classId}:
+    get:
+      summary: Xem sổ điểm môn học theo lớp
+      tags:
+        - Grades
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: subject_code
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "MATH"
+        - name: semester
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Danh sách điểm các học sinh trong lớp theo môn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StudentGradeEntry'
+
+  /grades/batch:
+    post:
+      summary: Nhập hoặc cập nhật hàng loạt điểm thành phần (thang điểm 10)
+      tags:
+        - Grades
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradeBatchInput'
+      responses:
+        '200':
+          description: Lưu điểm thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Lưu bảng điểm thành phần thành công"
+                  data:
+                    type: object
+                    properties:
+                      class_id:
+                        type: string
+                      subject_code:
+                        type: string
+                      score_type:
+                        type: string
+                      updated_count:
+                        type: integer
+
+  /grades/publish:
+    post:
+      summary: Phê duyệt và công bố cột điểm cho phụ huynh xem
+      description: Đổi cờ is_published thành true và gửi thông báo FCM tới phụ huynh của các học sinh có điểm vừa công bố.
+      tags:
+        - Grades
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - class_id
+                - subject_code
+                - score_type
+                - semester
+              properties:
+                class_id:
+                  type: string
+                  example: "cls_1a_2026"
+                subject_code:
+                  type: string
+                  example: "MATH"
+                score_type:
+                  type: string
+                  enum: [ORAL_TEST, QUIZ, TEST_15P, TEST_1P, MID_TERM, FINAL]
+                  example: "TEST_15P"
+                semester:
+                  type: integer
+                  example: 1
+      responses:
+        '200':
+          description: Đã công bố điểm thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Đã công bố điểm môn học tới phụ huynh"
+                  data:
+                    type: object
+                    properties:
+                      notified_parents_count:
+                        type: integer
+                        example: 35
+                      published_at:
+                        type: string
+                        format: date-time
+
+  /grades/leaderboard/{classId}:
+    get:
+      summary: Lấy dữ liệu Bảng xếp hạng điểm môn học để vinh danh
+      tags:
+        - Grades
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: subject_code
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "MATH"
+        - name: semester
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 5
+      responses:
+        '200':
+          description: Top học sinh điểm môn học cao nhất
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      subject_code:
+                        type: string
+                      subject_name:
+                        type: string
+                      top_students:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LeaderboardStudent'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ScoreItem:
+      type: object
+      required:
+        - student_id
+        - score_value
+      properties:
+        student_id:
+          type: string
+          example: "stu_01"
+        score_value:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          example: 9.5
+        teacher_comment:
+          type: string
+          nullable: true
+          example: "Thuộc bảng cửu chương"
+
+    GradeBatchInput:
+      type: object
+      required:
+        - class_id
+        - subject_code
+        - semester
+        - score_type
+        - scores
+      properties:
+        class_id:
+          type: string
+          example: "cls_1a_2026"
+        subject_code:
+          type: string
+          example: "MATH"
+        semester:
+          type: integer
+          example: 1
+        score_type:
+          type: string
+          enum: [ORAL_TEST, QUIZ, TEST_15P, TEST_1P, MID_TERM, FINAL]
+          example: "ORAL_TEST"
+        scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreItem'
+
+    StudentGradeEntry:
+      type: object
+      properties:
+        student_id:
+          type: string
+        student_name:
+          type: string
+        scores:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              value:
+                type: number
+              comment:
+                type: string
+              is_published:
+                type: boolean
+
+    LeaderboardStudent:
+      type: object
+      properties:
+        rank:
+          type: integer
+          example: 1
+        student_name:
+          type: string
+          example: "Trần Bảo Nam"
+        score:
+          type: number
+          example: 9.8
+        badge:
+          type: string
+          enum: [GOLD, SILVER, BRONZE, NONE]
+          example: "GOLD"

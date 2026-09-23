@@ -115,20 +115,21 @@ Firestore --> AcadModule: Lưu thành công
 AcadModule -> NotiModule: Kích hoạt thông báo vắng học (kèm studentId vắng)
 AcadModule --> TeacherUI: Phản hồi "Điểm danh hoàn tất"
 
-Teacher -> TeacherUI: Tải giáo án (.docx/.pdf) & yêu cầu AI tạo câu hỏi mini-game
-TeacherUI -> Gateway: POST /api/v1/quizzes/generate-ai (Multipart file)
+Teacher -> TeacherUI: Tải giáo án (.docx/.pdf), chọn Số câu hỏi & Độ khó cho AI
+TeacherUI -> Gateway: POST /api/v1/quizzes/generate-ai (file, subject, num_questions, difficulty_level)
 Gateway -> GameModule: Forward request
 GameModule -> FBStorage: Upload và lưu tệp giáo án an toàn
-GameModule -> Gemini: Gửi prompt bóc tách tài liệu bài giảng
-Gemini --> GameModule: Trả về danh sách câu hỏi trắc nghiệm kèm đáp án
+GameModule -> Gemini: Gửi prompt bóc tách tài liệu bài giảng theo Số câu & Độ khó
+Gemini --> GameModule: Trả về danh sách câu hỏi trắc nghiệm kèm đáp án và giải thích
 GameModule -> Firestore: Lưu bộ câu hỏi vào /quizzes & subcollection /questions
-GameModule --> TeacherUI: Trả về giao diện Mini-game sẵn sàng trình chiếu
+GameModule --> TeacherUI: Trả về bộ câu hỏi & sẵn sàng lựa chọn: Chế độ Quiz HOẶC Chế độ Game
 
 note over Teacher, TeacherUI #FFF9C4
-  <b>Lưu ý nghiệp vụ:</b>
-  - Nếu Vòng quay gọi trúng bạn vắng mặt, GV bấm <b>"Bỏ qua (Skip)"</b> để quay bạn khác.
+  <b>Linh hoạt 2 Chế độ trình chiếu tại lớp:</b>
+  1. <b>Quiz Tiêu Chuẩn:</b> Slide câu hỏi + Vòng quay Random bốc HS (nút <b>"Bỏ qua - Skip"</b> nếu vắng).
+  2. <b>Chế độ Game:</b> Nếu không muốn Quiz, GV chuyển sang 3 Mini-game (Rung chuông, Đua xe, Hộp quà).
   - Học sinh tương tác trực tiếp tại lớp (không làm bài online).
-  - GVBM trực tiếp nhập điểm vào môn học mình phụ trách.
+  - GVBM/GVCN trực tiếp nhập điểm vào môn học mình phụ trách.
 end note
 
 Teacher -> TeacherUI: Quay Vòng quay, nếu học sinh vắng bấm "Bỏ qua (Skip)" để quay tiếp

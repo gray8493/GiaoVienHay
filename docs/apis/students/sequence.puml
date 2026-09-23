@@ -1,0 +1,49 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Cổng Phụ Huynh Tra Cứu (Students & Parent Portal Sequence) - GiaoVienHay
+
+box "Tầng Client (Mobile React Native App)" #E3F2FD
+actor "Phụ huynh\n(Parent)" as Parent
+boundary "App Phụ Huynh" as ParentApp
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Students Controller" as Gateway
+control "Students Service" as StudentService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/students, /scores, /fees_and_insurance, /remarks)" as Firestore
+end box
+
+== 1. PHỤ HUYNH TRA CỨU BẢNG ĐIỂM ĐA MÔN CỦA CON ==
+
+Parent -> ParentApp: Chọn xem "Sổ Điểm Điện Tử" của con
+ParentApp -> Gateway: GET /api/v1/students/{id}/academic (Bearer Parent Token)
+Gateway -> StudentService: getStudentAcademic(parentUid, studentId)
+StudentService -> Firestore: Đọc /students/{studentId} kiểm tra parent_uids
+Firestore --> StudentService: Xác nhận phụ huynh hợp lệ
+StudentService -> Firestore: Truy vấn /scores where student_id == studentId && is_published == true
+Firestore --> StudentService: Danh sách các đầu điểm (Miệng, 15p, 1 tiết, Giữa kỳ...)
+StudentService -> StudentService: Gom nhóm dữ liệu theo từng môn học (Toán, Tiếng Việt...)
+StudentService --> Gateway: Bảng điểm đa môn hoàn chỉnh
+Gateway --> ParentApp: HTTP 200 OK (Chi tiết điểm thành phần từng môn)
+ParentApp --> Parent: Hiển thị giao diện Sổ điểm trực quan, màu sắc sinh động
+
+== 2. PHỤ HUYNH TRA CỨU TÌNH TRẠNG NỘP HỌC PHÍ & BHYT ==
+
+Parent -> ParentApp: Chuyển sang mục "Học phí & BHYT"
+ParentApp -> Gateway: GET /api/v1/students/{id}/fees-insurance (Bearer Token)
+Gateway -> StudentService: getStudentFeesInsurance(parentUid, studentId)
+StudentService -> Firestore: Đọc document /fees_and_insurance where student_id == studentId
+Firestore --> StudentService: Trạng thái cờ (is_paid_tuition, is_paid_insurance, tuition_paid_date, insurance_paid_date)
+StudentService --> Gateway: Thông tin nghĩa vụ tài chính
+Gateway --> ParentApp: HTTP 200 OK
+ParentApp --> Parent: Hiển thị:\n- Học phí: ĐÃ NỘP (ngày 15/09/2026)\n- BHYT: CHƯA NỘP (Cảnh báo vàng kèm hướng dẫn nộp tại lớp)
+
+@enduml

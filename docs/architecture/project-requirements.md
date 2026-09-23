@@ -29,8 +29,14 @@
 
 ### FR-02: Import Docs/PDF bằng AI (Gemini API) Sinh Câu Hỏi Kiểm Tra Bài Cũ
 - **FR-02.1:** Cho phép giáo viên (cả GVCN và GVBM) tải lên tài liệu giáo trình bài học (`.docx`, `.pdf`).
-- **FR-02.2:** Backend NestJS tích hợp **Google Gemini API** (`gemini-1.5-flash`) tự động trích xuất nội dung và sinh từ 3-5 câu hỏi trắc nghiệm/tự luận ngắn phục vụ kiểm tra bài cũ 5-10 phút đầu giờ.
+- **FR-02.2 (Chủ động chọn Số câu & Độ khó):** Giáo viên chủ động chọn:
+  - **Số lượng câu hỏi:** Tùy chọn (3, 5, 10... câu).
+  - **Độ khó câu hỏi:** Dễ (`EASY`), Vừa (`MEDIUM`), Khó (`HARD`), hoặc Phân hóa hỗn hợp (`MIXED`).
+  - Backend NestJS tích hợp **Google Gemini API** (`gemini-1.5-flash`) tự động trích xuất nội dung và sinh đúng bộ câu hỏi trắc nghiệm tương ứng.
 - **FR-02.3:** Lưu trữ câu hỏi vào Firestore collections `/quizzes` và subcollection `/questions`, hỗ trợ chế độ xem trước (preview) và chỉnh sửa nội dung/đáp án.
+- **FR-02.4 (Linh hoạt 2 Chế độ trình chiếu tại lớp):**
+  - **Chế độ 1 - Quiz Trắc Nghiệm Tiêu Chuẩn:** Trình chiếu slide câu hỏi từng câu (kèm đồng hồ đếm ngược), kết hợp **Vòng quay may mắn (Lucky Wheel)** để bốc ngẫu nhiên học sinh lên bảng (có nút **Bỏ qua - Skip** nếu trúng bạn nghỉ học).
+  - **Chế độ 2 - Chế độ Game Tương Tác:** Nếu không muốn dùng giao diện Quiz thông thường, Giáo viên chuyển sang **Chế độ Game** và lựa chọn 1 trong 3 Mini-game lớp học: *Rung Chuông Vàng*, *Đua Xe*, *Hộp Quà Bí Mật*.
 
 ### FR-03: Tạo & Vận Hành Mini-Game Tương Tác Lớp Học (Classroom Gamification)
 - **FR-03.1:** Hỗ trợ tính năng 1-chạm: Chuyển đổi bộ câu hỏi AI thành trò chơi lớp học sinh động chiếu lên bảng tương tác / máy chiếu.

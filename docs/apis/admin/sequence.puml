@@ -1,0 +1,51 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Quản Trị Nền Tảng (Admin Sequence Diagram) - GiaoVienHay (Next.js Admin Portal)
+
+box "Tầng Client (Web Next.js - Dành Riêng Cho Admin)" #E3F2FD
+actor "Quản trị viên\n(Platform Admin)" as Admin
+boundary "Web Admin Portal" as WebAdmin
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Admin Controller" as Gateway
+control "Admin Service" as AdminService
+end box
+
+box "Google Firebase Services" #E8F5E9
+boundary "Firebase Auth" as FBAuth
+database "Cloud Firestore (/users, /system_configs)" as Firestore
+end box
+
+== 1. QUẢN LÝ NGƯỜI DÙNG & KHÓA TÀI KHOẢN (BAN USER) ==
+
+Admin -> WebAdmin: Truy cập màn hình /admin/users, chọn tài khoản vi phạm
+WebAdmin -> Gateway: PATCH /api/v1/admin/users/{id}/ban (reason, note)
+Gateway -> AdminService: banUser(adminUid, targetUserId, reason)
+AdminService -> FBAuth: updateUser(targetUserId, { disabled: true })
+FBAuth --> AdminService: Vô hiệu hóa tài khoản trên Firebase Auth
+AdminService -> FBAuth: revokeRefreshTokens(targetUserId)
+FBAuth --> AdminService: Thu hồi toàn bộ phiên đăng nhập
+AdminService -> Firestore: updateDoc(/users/{targetUserId}, { is_active: false, ban_reason, banned_at })
+Firestore --> AdminService: Cập nhật thành công
+AdminService --> Gateway: Xác nhận đã khóa tài khoản
+Gateway --> WebAdmin: HTTP 200 OK (User Banned)
+WebAdmin --> Admin: Hiển thị trạng thái "Đã khóa" kèm nhãn cảnh báo
+
+== 2. CẤU HÌNH HẠN MỨC TÀI NGUYÊN (LIMITS & QUOTAS) ==
+
+Admin -> WebAdmin: Truy cập /admin/limits, điều chỉnh số lớp/GV, hạn ngạch AI Gemini
+WebAdmin -> Gateway: PUT /api/v1/admin/system/limits (payload: quotaConfigs)
+Gateway -> AdminService: updateSystemLimits(adminUid, quotaConfigs)
+AdminService -> Firestore: setDoc(/system_configs/limits, quotaConfigs, { merge: true })
+Firestore --> AdminService: Ghi nhận cấu hình thành công
+AdminService --> Gateway: Thông báo cập nhật thành công
+Gateway --> WebAdmin: HTTP 200 OK (Cấu hình hạn ngạch mới)
+WebAdmin --> Admin: Hiển thị thông báo "Đã lưu cài đặt hạn mức tài nguyên"
+
+@enduml

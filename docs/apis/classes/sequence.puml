@@ -1,0 +1,55 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Lớp Học (Classes Sequence Diagram) - GVCN Tạo Lớp & PH Vào Lớp
+
+box "Tầng Client (Mobile React Native)" #E3F2FD
+actor "GVCN" as GVCN
+actor "Phụ huynh" as Parent
+boundary "App React Native" as AppClient
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Classes Controller" as Gateway
+control "Classes Service" as ClassService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/classes, /students, /fees_and_insurance)" as Firestore
+end box
+
+== 1. GVCN TẠO LỚP TỔNG, GÁN GVBM & SINH LINK MỜI ==
+
+GVCN -> AppClient: Nhập Tên lớp, Khối, DS học sinh & Phân công GVBM
+AppClient -> Gateway: POST /api/v1/classes (name, grade, students, subject_teachers)
+Gateway -> ClassService: createClass(gvcnUid, dto)
+ClassService -> Firestore: Đọc /users/{gvcnUid} để lấy teaching_subjects của GVCN
+Firestore --> ClassService: Danh sách môn GVCN dạy
+ClassService -> ClassService: Sinh mã mời ngẫu nhiên (invite_code: "GVH1A26")\nvà invite_link ("https://giaovienhay.vn/join?code=GVH1A26")
+ClassService -> Firestore: Batch Write tạo Document /classes/{id}
+ClassService -> Firestore: Batch Write tạo danh sách Document trong /students
+ClassService -> Firestore: Khởi tạo các bản ghi theo dõi BHYT trong /fees_and_insurance
+Firestore --> ClassService: Ghi nhận dữ liệu thành công
+ClassService --> Gateway: Thông tin Lớp học & Mã mời
+Gateway --> AppClient: HTTP 201 Created (class_id, invite_link, QR)
+AppClient --> GVCN: Hiển thị Link mời kèm nút "Sao chép" / "Gửi Zalo"
+
+== 2. PHỤ HUYNH NHẤP LINK MỜI & XÁC NHẬN CON EM ==
+
+GVCN -> Parent: Gửi Link mời vào nhóm Zalo phụ huynh
+Parent -> AppClient: Nhấp vào Link mời tham gia lớp học
+AppClient -> Gateway: POST /api/v1/classes/join (invite_code, student_id)
+Gateway -> ClassService: joinClassByInvite(parentUid, invite_code, student_id)
+ClassService -> Firestore: Kiểm tra mã mời trong /classes
+Firestore --> ClassService: Lớp học hợp lệ
+ClassService -> Firestore: Cập nhật /students/{student_id} -> arrayUnion(parentUid)
+Firestore --> ClassService: Liên kết thành công
+ClassService --> Gateway: Xác nhận liên kết thành công
+Gateway --> AppClient: HTTP 200 OK (Thông tin con em và lớp học)
+AppClient --> Parent: Hiển thị thông báo "Tham gia lớp học thành công"
+
+@enduml

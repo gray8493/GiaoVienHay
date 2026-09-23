@@ -79,7 +79,10 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 
 ### 4.1. Import Docs/PDF Bằng AI (Gemini) Để Tạo Quiz Kiểm Tra Bài Cũ (UC-ACA-05)
 - **Tác nhân thực hiện:** **Cả GVCN và GVBM đều có toàn quyền thực hiện.**
-- **Mô tả:** Giáo viên tải tệp giáo án (`.docx`, `.pdf`) bài giảng lên hệ thống. AI Gemini sẽ tự động phân tích và sinh bộ câu hỏi trắc nghiệm kiểm tra bài cũ (Quiz) 5-10 phút đầu giờ.
+- **Mô tả:** Giáo viên tải tệp giáo án (`.docx`, `.pdf`) bài giảng lên hệ thống, chủ động chọn **Số lượng câu hỏi** (3, 5, 10...) và **Độ khó** (`EASY`, `MEDIUM`, `HARD`, `MIXED`). AI Gemini sẽ tự động phân tích và sinh bộ câu hỏi trắc nghiệm kiểm tra bài cũ (Quiz) 5-10 phút đầu giờ theo đúng yêu cầu.
+- **Lựa chọn 2 hình thức tổ chức:**
+  1. Trình chiếu dạng Quiz trắc nghiệm tiêu chuẩn (kèm Vòng quay may mắn có nút Bỏ qua khi vắng).
+  2. Nếu không muốn Quiz thì chuyển đổi trực tiếp sang Chế độ Game (UC-ACA-06).
 - **Ý nghĩa thực tế:**
   - **Với GVCN Cấp 1:** Trực tiếp đứng lớp dạy hầu hết các môn (Toán, Tiếng Việt, Tự nhiên Xã hội...) nên GVCN thường xuyên tạo Quiz hàng ngày cho các môn này.
   - **Với GVCN Cấp 2:** Tạo Quiz cho môn chuyên môn mình dạy và tạo câu hỏi đố vui trong các tiết Sinh hoạt lớp cuối tuần.
@@ -87,7 +90,7 @@ Hệ thống phân định rõ rệt quyền hạn giữa các nhóm tác nhân,
 
 ### 4.2. Tạo & Vận Hành Mini-game Tương Tác Lớp Học (UC-ACA-06)
 - **Tác nhân thực hiện:** **GVCN hoặc GVBM.**
-- **Mô tả:** Sau khi AI sinh bộ câu hỏi Quiz từ giáo án, giáo viên chọn kiểu game để chiếu lên bảng lớp:
+- **Mô tả:** Khi giáo viên không muốn chiếu Quiz thông thường, giáo viên chọn Chế độ Game để nạp toàn bộ bộ câu hỏi AI vừa tạo vào 1 trong 3 Mini-game chiếu lên bảng lớp:
   - **Game 1 - Rung Chuông Vàng:** Học sinh trong lớp cùng giơ bảng chọn A/B/C/D, giáo viên bấm đáp án trên màn hình để kiểm tra ai ở lại sàn thi đấu.
   - **Game 2 - Vượt Chướng Ngại Vật (Đua xe):** Chia lớp thành các tổ thi đua, trả lời đúng câu hỏi thì xe của đội tiến 1 ô.
   - **Game 3 - Mở Hộp Quà May Mắn:** Chọn câu hỏi bất kỳ, trả lời đúng mở được phần thưởng điểm số hoặc sticker khen thưởng.

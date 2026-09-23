@@ -1,0 +1,398 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - Students & Parent Portal API
+  version: 1.0.0
+  description: Đặc tả API phân hệ Quản lý Học sinh và Cổng thông tin tra cứu toàn diện dành cho Phụ huynh.
+servers:
+  - url: /api/v1
+    description: Production API Server
+paths:
+  /students/{id}:
+    get:
+      summary: Lấy thông tin hồ sơ lý lịch học sinh
+      tags:
+        - Students
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Mã định danh học sinh (Firestore student_id)
+      responses:
+        '200':
+          description: Lấy thông tin học sinh thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/StudentProfile'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /students/{id}/academic:
+    get:
+      summary: Tra cứu bảng điểm đa môn học (Cổng phụ huynh)
+      tags:
+        - Students
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Mã học sinh
+      responses:
+        '200':
+          description: Trả về bảng điểm các môn của học sinh
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/AcademicRecord'
+
+  /students/{id}/attendance:
+    get:
+      summary: Tra cứu lịch sử chuyên cần của học sinh
+      tags:
+        - Students
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Mã học sinh
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-09"
+          description: Tháng cần lọc thống kê (YYYY-MM)
+      responses:
+        '200':
+          description: Lịch sử điểm danh chi tiết
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      student_id:
+                        type: string
+                      total_present:
+                        type: integer
+                      total_absent_excused:
+                        type: integer
+                      total_absent_unexcused:
+                        type: integer
+                      records:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AttendanceItem'
+
+  /students/{id}/fees-insurance:
+    get:
+      summary: Tra cứu tình trạng nộp Học phí & Bảo hiểm y tế
+      tags:
+        - Students
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Thông tin thu nộp học phí và BHYT
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/FeesInsuranceSummary'
+
+  /students/{id}/remarks:
+    get:
+      summary: Xem sổ nhận xét từ thầy cô gửi về
+      tags:
+        - Students
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách lời nhận xét
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RemarkItem'
+
+  /students/{id}/exam-reminders:
+    get:
+      summary: Xem lời nhắc lịch kiểm tra sắp tới của học sinh
+      tags:
+        - Students
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách lời nhắc lịch thi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExamReminderItem'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    StudentProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        full_name:
+          type: string
+        dob:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [MALE, FEMALE]
+        class_id:
+          type: string
+        class_name:
+          type: string
+        parent_uids:
+          type: array
+          items:
+            type: string
+
+    AcademicRecord:
+      type: object
+      properties:
+        student_id:
+          type: string
+        full_name:
+          type: string
+        class_name:
+          type: string
+        semester:
+          type: integer
+        subjects:
+          type: array
+          items:
+            type: object
+            properties:
+              subject_code:
+                type: string
+              subject_name:
+                type: string
+              scores:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      example: "ORAL_TEST"
+                    label:
+                      type: string
+                      example: "Kiểm tra miệng"
+                    value:
+                      type: number
+                      format: float
+                      example: 9.0
+                    comment:
+                      type: string
+
+    AttendanceItem:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [PRESENT, ABSENT_EXCUSED, ABSENT_UNEXCUSED]
+        note:
+          type: string
+
+    FeesInsuranceSummary:
+      type: object
+      properties:
+        student_id:
+          type: string
+        term_name:
+          type: string
+        tuition:
+          type: object
+          properties:
+            is_paid:
+              type: boolean
+            amount:
+              type: number
+            paid_date:
+              type: string
+              nullable: true
+            status_label:
+              type: string
+        insurance:
+          type: object
+          properties:
+            is_paid:
+              type: boolean
+            amount:
+              type: number
+            paid_date:
+              type: string
+              nullable: true
+            deadline:
+              type: string
+            status_label:
+              type: string
+        teacher_note:
+          type: string
+
+    RemarkItem:
+      type: object
+      properties:
+        remark_id:
+          type: string
+        teacher_name:
+          type: string
+        subject:
+          type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        parent_acknowledged:
+          type: boolean
+
+    ExamReminderItem:
+      type: object
+      properties:
+        id:
+          type: string
+        subject_name:
+          type: string
+        exam_type:
+          type: string
+        exam_date:
+          type: string
+          format: date-time
+        content_scope:
+          type: string
+
+  responses:
+    Forbidden:
+      description: Quyền truy cập bị từ chối (Không phải phụ huynh của học sinh này hoặc không có quyền giáo viên lớp)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: FORBIDDEN
+              message:
+                type: string
+                example: "Bạn không có quyền truy cập hồ sơ học sinh này."
+    NotFound:
+      description: Không tìm thấy học sinh
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: STUDENT_NOT_FOUND

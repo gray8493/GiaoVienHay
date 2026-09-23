@@ -1,0 +1,306 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - Auth API
+  description: Đặc tả OpenAPI cho Phân hệ Xác thực & Phiên làm việc (Firebase Authentication & JWT)
+  version: 1.0.0
+servers:
+  - url: https://api.giaovienhay.vn/api/v1
+    description: Production Server
+  - url: http://localhost:3000/api/v1
+    description: Local Dev Server
+
+tags:
+  - name: Auth
+    description: Quản lý đăng ký, đăng nhập, làm mới token và đăng xuất
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Đăng ký tài khoản người dùng mới (Giáo viên / Phụ huynh)
+      description: |
+        Khởi tạo tài khoản mới trên hệ thống. 
+        - Đối với Giáo viên: Bắt buộc cung cấp school_name và teaching_subjects.
+        - Đối với Phụ huynh: Chỉ cần Họ tên, SĐT, Email, Mật khẩu.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDto'
+      responses:
+        '201':
+          description: Đăng ký thành công và tự động cấp token đăng nhập
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email hoặc số điện thoại đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Đăng nhập bằng Email/SĐT và Mật khẩu
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/firebase-verify:
+    post:
+      tags:
+        - Auth
+      summary: Xác thực Firebase ID Token (SMS OTP / Social)
+      operationId: verifyFirebaseToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id_token
+              properties:
+                id_token:
+                  type: string
+                  description: Firebase ID Token nhận được từ Firebase Client SDK
+      responses:
+        '200':
+          description: Xác thực thành công và cấp quyền truy cập
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh-token:
+    post:
+      tags:
+        - Auth
+      summary: Làm mới Access Token bằng Refresh Token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Cấp Access Token mới thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                      expires_in:
+                        type: integer
+                        example: 3600
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Đăng xuất khỏi hệ thống
+      operationId: logoutUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Đăng xuất thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Đăng xuất thành công
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterDto:
+      type: object
+      required:
+        - full_name
+        - phone
+        - password
+        - role
+      properties:
+        full_name:
+          type: string
+          example: Nguyễn Thị Lan
+        email:
+          type: string
+          format: email
+          example: teacher.lan@school.edu.vn
+        phone:
+          type: string
+          example: "0912345678"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: Password123@
+        school_name:
+          type: string
+          description: Bắt buộc đối với Giáo viên
+          example: Trường Tiểu Học Chu Văn An
+        role:
+          type: string
+          enum: [TEACHER_HOMEROOM, TEACHER_SUBJECT, PARENT]
+          example: TEACHER_HOMEROOM
+        teaching_subjects:
+          type: array
+          items:
+            type: string
+          example: ["MATH", "LIT", "ETHICS"]
+
+    LoginDto:
+      type: object
+      required:
+        - identifier
+        - password
+      properties:
+        identifier:
+          type: string
+          description: Email hoặc Số điện thoại
+          example: teacher.lan@school.edu.vn
+        password:
+          type: string
+          format: password
+          example: Password123@
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Thành công
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+            refresh_token:
+              type: string
+            expires_in:
+              type: integer
+              example: 3600
+            user:
+              $ref: '#/components/schemas/UserProfile'
+
+    UserProfile:
+      type: object
+      properties:
+        uid:
+          type: string
+          example: usr_teacher_lan_01
+        full_name:
+          type: string
+          example: Nguyễn Thị Lan
+        email:
+          type: string
+          example: teacher.lan@school.edu.vn
+        phone:
+          type: string
+          example: "0912345678"
+        school_name:
+          type: string
+          example: Trường Tiểu Học Chu Văn An
+        role:
+          type: string
+          example: TEACHER_HOMEROOM
+        teaching_subjects:
+          type: array
+          items:
+            type: string
+          example: ["MATH", "LIT"]
+        is_active:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Yêu cầu không hợp lệ
+        error_code:
+          type: string
+          example: VALIDATION_ERROR
+
+  responses:
+    BadRequest:
+      description: Dữ liệu gửi lên không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token không hợp lệ / hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

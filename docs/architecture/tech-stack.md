@@ -43,6 +43,7 @@ erDiagram
         string email
         string phone
         string full_name
+        string school_name "Tên trường giảng dạy / công tác"
         string role "ADMIN, TEACHER_HOMEROOM, TEACHER_SUBJECT, PARENT"
         string avatar_url
         array fcm_tokens "Danh sách device tokens"

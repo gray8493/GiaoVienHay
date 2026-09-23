@@ -1,0 +1,60 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Nhận Xét (Remarks Sequence Diagram) - GiaoVienHay
+
+box "Tầng Client (Mobile React Native App)" #E3F2FD
+actor "Giáo viên\n(GVBM / GVCN)" as Teacher
+boundary "App Giáo Viên" as TeacherApp
+actor "Phụ huynh" as Parent
+boundary "App Phụ Huynh" as ParentApp
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Remarks Controller" as Gateway
+control "Remarks Service" as RemarkService
+control "Notification Service" as NotiService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/remarks, /students, /users)" as Firestore
+boundary "Firebase Messaging (FCM)" as FCM
+end box
+
+== 1. GIÁO VIÊN GỬI LỜI NHẬN XÉT ĐOẠN TEXT NGẮN CHO HỌC SINH ==
+
+Teacher -> TeacherApp: Chọn học sinh, nhập lời nhận xét ngắn gọn (không tags)
+TeacherApp -> Gateway: POST /api/v1/remarks (student_id, class_id, content)
+Gateway -> RemarkService: createRemark(teacherUid, dto)
+RemarkService -> Firestore: addDoc(/remarks, { student_id, content, teacher_id, created_at, parent_acknowledged: false })
+Firestore --> RemarkService: Ghi nhận nhận xét thành công
+
+RemarkService -> Firestore: Đọc /students/{student_id} lấy parent_uids
+Firestore --> RemarkService: Danh sách parent_uids
+RemarkService -> Firestore: Đọc /users lấy fcm_tokens của phụ huynh
+Firestore --> RemarkService: Danh sách FCM Tokens
+RemarkService -> NotiService: sendRemarkAlert(tokens, content)
+NotiService -> FCM: Bắn thông báo đẩy tức thì tới điện thoại Phụ huynh
+FCM -> ParentApp: Hiển thị banner: "Nhận xét mới từ giáo viên"
+ParentApp -> Parent: Thông báo có nhận xét mới
+
+RemarkService --> Gateway: Hoàn tất gửi nhận xét
+Gateway --> TeacherApp: HTTP 201 Created (remark_id)
+TeacherApp --> Teacher: Thông báo "Đã gửi nhận xét tới Phụ huynh"
+
+== 2. PHỤ HUYNH XÁC NHẬN ĐÃ ĐỌC ==
+
+Parent -> ParentApp: Xem nội dung nhận xét & bấm "Xác nhận đã đọc"
+ParentApp -> Gateway: PATCH /api/v1/remarks/{id}/acknowledge
+Gateway -> RemarkService: acknowledgeRemark(parentUid, remarkId)
+RemarkService -> Firestore: updateDoc(/remarks/{id}, { parent_acknowledged: true, acknowledged_at: now() })
+Firestore --> RemarkService: Cập nhật thành công
+RemarkService --> Gateway: Ghi nhận thành công
+Gateway --> ParentApp: HTTP 200 OK
+ParentApp --> Parent: Hiển thị trạng thái "Đã xác nhận với giáo viên"
+
+@enduml

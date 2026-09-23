@@ -1,0 +1,62 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Điểm Danh (Attendance Sequence Diagram) - GiaoVienHay
+
+box "Tầng Client (Mobile React Native App)" #E3F2FD
+actor "GVCN" as GVCN
+boundary "App Giáo Viên" as TeacherApp
+actor "Phụ huynh" as Parent
+boundary "App Phụ Huynh" as ParentApp
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Attendance Controller" as Gateway
+control "Attendance Service" as AttService
+control "Notification Service" as NotiService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/attendances, /students, /users)" as Firestore
+boundary "Firebase Messaging (FCM)" as FCM
+end box
+
+== 1. GVCN ĐIỂM DANH ĐẦU GIỜ & BẮN THÔNG BÁO VẮNG HỌC ==
+
+GVCN -> TeacherApp: Mở màn hình điểm danh, chạm đánh dấu học sinh vắng
+TeacherApp -> Gateway: POST /api/v1/attendance/submit (class_id, records)
+Gateway -> AttService: submitAttendance(gvcnUid, dto)
+AttService -> Firestore: Batch Write lưu các bản ghi vào collection /attendances
+Firestore --> AttService: Lưu thành công
+
+loop Với mỗi học sinh có trạng thái ABSENT_*
+    AttService -> Firestore: Đọc /students/{student_id} lấy parent_uids
+    Firestore --> AttService: Danh sách parent_uids
+    AttService -> Firestore: Đọc /users lấy fcm_tokens của các phụ huynh
+    Firestore --> AttService: Danh sách FCM Device Tokens
+    AttService -> NotiService: triggerAbsentNotification(tokens, studentName, status)
+    NotiService -> FCM: Gửi Multicast Message (Tiêu đề: "Cảnh báo vắng học hôm nay")
+    FCM -> ParentApp: Đẩy thông báo tức thì tới điện thoại Phụ huynh
+    ParentApp -> Parent: Rung / Chuông & hiển thị thông báo con vắng học
+end
+
+AttService --> Gateway: Báo cáo kết quả điểm danh
+Gateway --> TeacherApp: HTTP 201 Created (present_count, absent_count)
+TeacherApp --> GVCN: Hiển thị "Điểm danh hoàn tất"
+
+== 2. TRUY VẤN DANH SÁCH HỌC SINH CÓ MẶT CHO VÒNG QUAY RANDOM ==
+
+GVCN -> TeacherApp: Khởi động Vòng quay may mắn kiểm tra bài cũ
+TeacherApp -> Gateway: GET /api/v1/attendance/today/{classId}
+Gateway -> AttService: getTodayPresentStudents(classId)
+AttService -> Firestore: Query /attendances where class_id == classId && date == today && status == 'PRESENT'
+Firestore --> AttService: Danh sách học sinh CÓ MẶT
+AttService --> Gateway: Danh sách học sinh sẵn sàng
+Gateway --> TeacherApp: HTTP 200 OK
+TeacherApp --> GVCN: Nạp danh sách vào Vòng quay may mắn
+
+@enduml

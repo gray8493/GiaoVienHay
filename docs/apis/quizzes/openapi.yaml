@@ -1,0 +1,356 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - AI Quizzes & In-Class Gamification API
+  version: 1.0.0
+  description: Đặc tả API phân hệ Trợ giảng AI (Gemini sinh câu hỏi trắc nghiệm bài cũ từ giáo án) và Trình chiếu tương tác (Quiz trắc nghiệm có Vòng quay may mắn, hoặc 3 Mini-game Rung chuông vàng, Đua xe, Hộp quà bí mật).
+servers:
+  - url: /api/v1
+    description: Production API Server
+paths:
+  /quizzes/generate-ai:
+    post:
+      summary: Upload giáo án, chọn số câu, độ khó -> Gemini AI sinh ngân hàng câu hỏi
+      tags:
+        - Quizzes & Games
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - subject_code
+                - class_id
+                - title
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File giáo án (.pdf hoặc .docx, tối đa 15MB)
+                subject_code:
+                  type: string
+                  example: "MATH"
+                class_id:
+                  type: string
+                  example: "cls_1a_2026"
+                title:
+                  type: string
+                  example: "Kiểm tra bài 12: Phép cộng phân số"
+                num_questions:
+                  type: integer
+                  default: 5
+                  example: 5
+                  description: Số lượng câu hỏi do giáo viên lựa chọn
+                difficulty_level:
+                  type: string
+                  enum: [EASY, MEDIUM, HARD, MIXED]
+                  default: MIXED
+                  example: "MEDIUM"
+                preferred_mode:
+                  type: string
+                  enum: [STANDARD_QUIZ, GOLDEN_BELL, RACING, MYSTERY_BOX]
+                  default: STANDARD_QUIZ
+      responses:
+        '201':
+          description: AI sinh bộ câu hỏi thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "AI đã phân tích giáo án và sinh bộ câu hỏi thành công"
+                  data:
+                    $ref: '#/components/schemas/QuizDetail'
+
+  /quizzes:
+    get:
+      summary: Lấy danh sách các bộ câu hỏi/game đã tạo của giáo viên
+      tags:
+        - Quizzes & Games
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: class_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: subject_code
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách bộ câu hỏi kiểm tra bài cũ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuizSummary'
+
+  /quizzes/{id}:
+    get:
+      summary: Lấy chi tiết bộ câu hỏi kèm đáp án (để trình chiếu Quiz hoặc nạp vào 3 Mini-game)
+      tags:
+        - Quizzes & Games
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Chi tiết câu hỏi và đáp án
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/QuizDetail'
+
+  /quizzes/{id}/wheel-candidates:
+    get:
+      summary: Lấy danh sách học sinh có mặt hôm nay cho Vòng quay may mắn (Lucky Wheel)
+      description: Dùng để quay ngẫu nhiên học sinh lên bảng trả lời. Hỗ trợ nút Skip nếu trúng bạn vắng/nghỉ.
+      tags:
+        - Quizzes & Games
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách học sinh có mặt để quay vòng
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      quiz_id:
+                        type: string
+                      class_id:
+                        type: string
+                      total_candidates:
+                        type: integer
+                      students:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            student_code:
+                              type: string
+                      skip_policy:
+                        type: string
+                        example: "AUTO_SPIN_NEXT"
+
+  /quizzes/{id}/in-class-scores:
+    post:
+      summary: Giáo viên trực tiếp chấm và nhập điểm bài cũ tại lớp
+      description: Nhập điểm sau khi học sinh trả lời bằng Quiz hoặc Mini-game; tự động đồng bộ vào cột điểm miệng ORAL_TEST trong Sổ điểm môn học.
+      tags:
+        - Quizzes & Games
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - student_id
+                - score
+              properties:
+                student_id:
+                  type: string
+                  example: "stu_01"
+                score:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 10
+                  example: 9.0
+                mode_played:
+                  type: string
+                  enum: [STANDARD_QUIZ, GOLDEN_BELL, RACING, MYSTERY_BOX]
+                  example: "GOLDEN_BELL"
+                teacher_note:
+                  type: string
+                  example: "Trả lời dứt khoát, giải thích đúng quy tắc toán học"
+                sync_to_scores_table:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Đã lưu điểm và đồng bộ vào Sổ điểm môn học
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Đã lưu điểm bài cũ vào sổ điểm môn học"
+                  data:
+                    type: object
+                    properties:
+                      result_id:
+                        type: string
+                      student_id:
+                        type: string
+                      score:
+                        type: number
+                      score_type:
+                        type: string
+                        example: "ORAL_TEST"
+                      synced_to_scores:
+                        type: boolean
+                        example: true
+                      created_at:
+                        type: string
+                        format: date-time
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    QuestionItem:
+      type: object
+      properties:
+        question_index:
+          type: integer
+          example: 1
+        content:
+          type: string
+          example: "Muốn cộng hai phân số cùng mẫu số, ta làm thế nào?"
+        options:
+          type: array
+          items:
+            type: string
+          example:
+            - "Cộng tử số với tử số và giữ nguyên mẫu số"
+            - "Cộng cả tử số và mẫu số với nhau"
+            - "Nhân tử số với mẫu số"
+            - "Giữ nguyên tử số và cộng mẫu số"
+        correct_answer:
+          type: string
+          example: "A"
+        explanation:
+          type: string
+          example: "Theo quy tắc Toán: Muốn cộng hai phân số cùng mẫu số, ta cộng hai tử số với nhau và giữ nguyên mẫu số."
+        time_limit_seconds:
+          type: integer
+          example: 30
+
+    QuizSummary:
+      type: object
+      properties:
+        quiz_id:
+          type: string
+        title:
+          type: string
+        subject_code:
+          type: string
+        class_id:
+          type: string
+        total_questions:
+          type: integer
+        difficulty_level:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    QuizDetail:
+      type: object
+      properties:
+        quiz_id:
+          type: string
+        title:
+          type: string
+        subject_code:
+          type: string
+        class_id:
+          type: string
+        difficulty_level:
+          type: string
+          example: "MEDIUM"
+        total_questions:
+          type: integer
+          example: 5
+        source_doc_url:
+          type: string
+        available_modes:
+          type: array
+          items:
+            type: string
+          example: ["STANDARD_QUIZ", "GOLDEN_BELL", "RACING", "MYSTERY_BOX"]
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionItem'

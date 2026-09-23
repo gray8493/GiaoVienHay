@@ -1,0 +1,88 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Xác Thực & Đăng Nhập (Auth Sequence Diagram) - GiaoVienHay
+
+box "Tầng Client (Web Next.js / Mobile React Native)" #E3F2FD
+actor "Người dùng\n(User)" as User
+boundary "Client App" as Client
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Auth Controller" as Gateway
+control "Auth Service" as AuthService
+end box
+
+box "Google Firebase Services" #E8F5E9
+boundary "Firebase Auth" as FBAuth
+database "Cloud Firestore (/users)" as Firestore
+end box
+
+== 0. LUỒNG ĐĂNG KÝ TÀI KHOẢN MỚI (REGISTER) ==
+
+User -> Client: Điền form đăng ký (Họ tên, Email/SĐT, Mật khẩu, Tên trường công tác: school_name, Vai trò: GVCN/GVBM/PH)
+Client -> Gateway: POST /api/v1/auth/register (full_name, email, phone, password, school_name, role, teaching_subjects)
+Gateway -> AuthService: registerUser(dto)
+AuthService -> FBAuth: createUser({ email, password, phoneNumber, displayName })
+FBAuth --> AuthService: Cấp phát Firebase UID mới
+AuthService -> FBAuth: setCustomUserClaims(uid, { role })
+FBAuth --> AuthService: Gán Claims vai trò thành công
+AuthService -> Firestore: setDoc(/users/{uid}, { full_name, email, school_name, role, teaching_subjects, is_active: true, created_at })
+Firestore --> AuthService: Lưu hồ sơ người dùng thành công
+AuthService -> AuthService: Tự động sinh Access Token & Refresh Token (Auto-login)
+AuthService --> Gateway: Trả về Token và Thông tin User mới
+Gateway --> Client: HTTP 201 Created (access_token, user_profile)
+Client --> User: Chúc mừng đăng ký thành công & Tự động vào màn hình chính
+
+== 1. LUỒNG ĐĂNG NHẬP BẰNG TÀI KHOẢN (EMAIL / PASSWORD) ==
+
+User -> Client: Nhập thông tin đăng nhập (Email / Mật khẩu)
+Client -> Gateway: POST /api/v1/auth/login (identifier, password)
+Gateway -> AuthService: validateUserCredentials(identifier, password)
+AuthService -> FBAuth: Xác thực tài khoản với Firebase Auth SDK
+FBAuth --> AuthService: Xác thực thành công (UID hợp lệ)
+AuthService -> Firestore: Truy vấn /users/{uid} kiểm tra trạng thái is_active
+Firestore --> AuthService: Trả về User Profile (Role, Status, Subjects)
+
+alt Tài khoản bị khóa (is_active == false)
+    AuthService --> Gateway: Báo lỗi tài khoản bị khóa
+    Gateway --> Client: HTTP 401 Unauthorized (AUTH_ACCOUNT_BANNED)
+    Client --> User: Hiển thị thông báo tài khoản bị tạm khóa
+else Tài khoản hoạt động bình thường
+    AuthService -> AuthService: Sinh cặp Access Token (JWT) & Refresh Token
+    AuthService --> Gateway: Trả về Token kèm thông tin User Profile
+    Gateway --> Client: HTTP 200 OK (access_token, refresh_token, user)
+    Client -> Client: Lưu an toàn vào Keychain (Mobile) / Cookie (Web)
+    Client --> User: Chuyển hướng vào màn hình chính theo Vai trò
+end
+
+== 2. LUỒNG XÁC THỰC FIREBASE ID TOKEN (SMS OTP HOẶC SOCIAL) ==
+
+User -> Client: Đăng nhập SĐT nhận mã OTP qua Firebase Native SDK
+Client -> FBAuth: Xác minh OTP trực tiếp với Firebase
+FBAuth --> Client: Cấp phát Firebase ID Token
+Client -> Gateway: POST /api/v1/auth/firebase-verify (id_token)
+Gateway -> AuthService: verifyIdToken(id_token)
+AuthService -> FBAuth: Verify token signature qua Firebase Admin SDK
+FBAuth --> AuthService: Decoded Token (UID, Phone, Claims)
+AuthService -> Firestore: Kiểm tra & cập nhật thông tin trong /users/{uid}
+Firestore --> AuthService: Hoàn tất đồng bộ dữ liệu
+AuthService --> Gateway: Cấp quyền truy cập ứng dụng
+Gateway --> Client: HTTP 200 OK (access_token, user_profile)
+Client --> User: Đăng nhập thành công
+
+== 3. LUỒNG ĐĂNG XUẤT (LOGOUT) ==
+
+User -> Client: Nhấn "Đăng xuất"
+Client -> Gateway: POST /api/v1/auth/logout (Bearer Token)
+Gateway -> AuthService: revokeSession(token)
+AuthService --> Gateway: Xóa phiên thành công
+Gateway --> Client: HTTP 200 OK
+Client -> Client: Xóa Token khỏi bộ nhớ thiết bị
+Client --> User: Chuyển hướng về màn hình Login
+
+@enduml

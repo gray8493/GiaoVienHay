@@ -1,0 +1,65 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Sổ Điểm (Grades Sequence Diagram) - Vào Điểm & Công Bố
+
+box "Tầng Client (Mobile React Native App)" #E3F2FD
+actor "Giáo viên (GVBM / GVCN)" as Teacher
+boundary "App Giáo Viên" as TeacherApp
+actor "Phụ huynh" as Parent
+boundary "App Phụ Huynh" as ParentApp
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Grades Controller" as Gateway
+control "Grades Service" as GradeService
+control "Notification Service" as NotiService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/scores, /users)" as Firestore
+boundary "Firebase Messaging (FCM)" as FCM
+end box
+
+== 1. GIÁO VIÊN NHẬP ĐIỂM THÀNH PHẦN (BATCH INPUT) ==
+
+Teacher -> TeacherApp: Chọn Môn, Học kỳ, Cột điểm & nhập điểm từng em
+TeacherApp -> Gateway: POST /api/v1/grades/batch (class_id, subject_code, score_type, scores)
+Gateway -> GradeService: saveBatchGrades(teacherUid, dto)
+GradeService -> Firestore: Batch Write lưu/cập nhật các document trong /scores\n(Lưu các đầu điểm thành phần, không tự động tính GPA)
+Firestore --> GradeService: Ghi nhận thành công
+GradeService --> Gateway: Báo cáo số lượng điểm đã lưu
+Gateway --> TeacherApp: HTTP 200 OK (updated_count)
+TeacherApp --> Teacher: Thông báo "Lưu điểm thành công"
+
+== 2. CÔNG BỐ ĐIỂM & BẮN THÔNG BÁO CHO PHỤ HUYNH ==
+
+Teacher -> TeacherApp: Bấm nút "Công bố điểm môn học"
+TeacherApp -> Gateway: POST /api/v1/grades/publish (class_id, subject_code, score_type)
+Gateway -> GradeService: publishGrades(teacherUid, dto)
+GradeService -> Firestore: updateDoc(/scores) set is_published = true, published_at = now()
+Firestore --> GradeService: Cập nhật cờ công bố thành công
+GradeService -> NotiService: sendGradeAlert(class_id, subject_code, score_type)
+NotiService -> FCM: Phát thông báo multicast "Đã có điểm môn học mới"
+FCM -> ParentApp: Đẩy thông báo tức thì đến phụ huynh
+ParentApp -> Parent: Hiển thị banner "Điểm mới môn Toán học của con"
+GradeService --> Gateway: Hoàn tất công bố
+Gateway --> TeacherApp: HTTP 200 OK
+TeacherApp --> Teacher: Thông báo "Đã gửi điểm tới phụ huynh"
+
+== 3. TRÌNH CHIẾU BẢNG XẾP HẠNG (LEADERBOARD) TẠI LỚP ==
+
+Teacher -> TeacherApp: Bấm xem "Bảng Xếp Hạng Vinh Danh"
+TeacherApp -> Gateway: GET /api/v1/grades/leaderboard/{classId}?subject_code=MATH
+Gateway -> GradeService: getLeaderboard(classId, subjectCode)
+GradeService -> Firestore: Query /scores where class_id == classId && subject == MATH\norder by score_value DESC limit 5
+Firestore --> GradeService: Top học sinh điểm cao nhất
+GradeService --> Gateway: Danh sách xếp hạng Top 1, 2, 3
+Gateway --> TeacherApp: HTTP 200 OK (Leaderboard Data)
+TeacherApp --> Teacher: Trình chiếu hiệu ứng vinh danh lên màn hình lớp
+
+@enduml

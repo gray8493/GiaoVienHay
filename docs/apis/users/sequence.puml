@@ -1,0 +1,56 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Hồ Sơ Người Dùng (Users Sequence Diagram) - GiaoVienHay
+
+box "Tầng Client (Mobile React Native / Web Next.js)" #E3F2FD
+actor "Giáo viên / Phụ huynh" as User
+boundary "Client App" as Client
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Users Controller" as Gateway
+control "Users Service" as UsersService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/users)" as Firestore
+boundary "Firebase Messaging (FCM)" as FCM
+end box
+
+== 1. CẬP NHẬT HỒ SƠ & CHỌN MÔN GIẢNG DẠY (TEACHING SUBJECTS) ==
+
+User -> Client: Vào Cài đặt hồ sơ cá nhân
+Client -> Gateway: GET /api/v1/users/me (Bearer Token)
+Gateway -> UsersService: getUserProfile(uid)
+UsersService -> Firestore: Đọc document /users/{uid}
+Firestore --> UsersService: Trả về thông tin cá nhân & môn giảng dạy
+UsersService --> Gateway: Thông tin Profile
+Gateway --> Client: HTTP 200 OK
+Client --> User: Hiển thị form thông tin cá nhân
+
+User -> Client: Cập nhật Họ tên & Chọn 1 hoặc nhiều môn giảng dạy (Toán, Tiếng Việt...)
+Client -> Gateway: PATCH /api/v1/users/profile (teaching_subjects: ["MATH", "LIT"])
+Gateway -> UsersService: updateProfile(uid, dto)
+UsersService -> Firestore: updateDoc(/users/{uid}, { teaching_subjects, full_name, updated_at })
+Firestore --> UsersService: Cập nhật thành công
+UsersService --> Gateway: Hồ sơ mới cập nhật
+Gateway --> Client: HTTP 200 OK
+Client --> User: Thông báo "Cập nhật hồ sơ thành công"
+
+== 2. ĐĂNG KÝ FCM DEVICE TOKEN NHẬN THÔNG BÁO ==
+
+Client -> FCM: Yêu cầu cấp Device Token qua Firebase SDK
+FCM --> Client: Trả về FCM Token
+Client -> Gateway: POST /api/v1/users/device-token (fcm_token)
+Gateway -> UsersService: registerDeviceToken(uid, fcm_token)
+UsersService -> Firestore: /users/{uid} -> FieldValue.arrayUnion(fcm_token)
+Firestore --> UsersService: Lưu token thành công
+UsersService --> Gateway: Hoàn tất đăng ký
+Gateway --> Client: HTTP 200 OK
+
+@enduml

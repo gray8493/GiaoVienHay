@@ -1,0 +1,51 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Nhắc Lịch Kiểm Tra (Exam Reminders Sequence) - GiaoVienHay
+
+box "Tầng Client (Mobile React Native App)" #E3F2FD
+actor "Giáo viên\n(GVBM / GVCN)" as Teacher
+boundary "App Giáo Viên" as TeacherApp
+actor "Phụ huynh" as Parent
+boundary "App Phụ Huynh" as ParentApp
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Reminders Controller" as Gateway
+control "Exam Reminders Service" as ExamService
+control "Notification Service" as NotiService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/exam_reminders, /students, /users)" as Firestore
+boundary "Firebase Messaging (FCM)" as FCM
+end box
+
+== 1. GIÁO VIÊN TẠO LỜI NHẮC LỊCH KIỂM TRA SẮP TỚI ==
+
+Teacher -> TeacherApp: Chọn Lớp, Môn, Ngày thi & nhập lời dặn ôn bài
+TeacherApp -> Gateway: POST /api/v1/exam-reminders (class_id, subject_code, exam_date, message)
+Gateway -> ExamService: createExamReminder(teacherUid, dto)
+ExamService -> Firestore: addDoc(/exam_reminders, { class_id, subject_code, exam_date, message, created_at })
+Firestore --> ExamService: Ghi nhận bản ghi thành công
+
+ExamService -> Firestore: Query /students where class_id == classId để lấy danh sách parent_uids
+Firestore --> ExamService: Danh sách toàn bộ parent_uids trong lớp
+ExamService -> Firestore: Lấy fcm_tokens của các phụ huynh từ /users
+Firestore --> ExamService: Danh sách FCM Device Tokens
+
+ExamService -> NotiService: broadcastExamReminder(tokens, subject, examDate, message)
+NotiService -> FCM: Phát thông báo Multicast tới toàn bộ phụ huynh trong lớp
+FCM -> ParentApp: Đẩy thông báo tức thì lên điện thoại
+ParentApp -> Parent: Chuông / Banner: "Nhắc lịch kiểm tra môn Toán ngày 25/09"
+Parent -> ParentApp: Mở app xem chi tiết lời dặn và đôn đốc con học bài
+
+ExamService --> Gateway: Báo cáo số lượng phụ huynh đã nhận
+Gateway --> TeacherApp: HTTP 201 Created (reminder_id, notified_parents)
+TeacherApp --> Teacher: Thông báo "Đã phát lời nhắc kiểm tra tới phụ huynh"
+
+@enduml

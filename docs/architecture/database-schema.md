@@ -45,6 +45,7 @@ erDiagram
         string email "Email người dùng"
         string phone "Số điện thoại đăng nhập"
         string full_name "Họ và tên"
+        string school_name "Tên trường giảng dạy / công tác"
         string role "ADMIN, TEACHER_HOMEROOM, TEACHER_SUBJECT, PARENT"
         array teaching_subjects "Mảng mã môn giảng dạy (1 hoặc nhiều môn)"
         string avatar_url "Link ảnh đại diện Firebase Storage"
@@ -190,6 +191,7 @@ Quản lý tài khoản đăng nhập chung cho cả 4 nhóm vai trò. Document 
 - **`email`** (`string`, Nullable): Email xác thực và nhận thông báo.
 - **`phone`** (`string`, Nullable): Số điện thoại dùng để đăng nhập OTP.
 - **`full_name`** (`string`): Họ và tên đầy đủ.
+- **`school_name`** (`string`, Nullable): **Tên trường nơi Giáo viên trực tiếp công tác/giảng dạy** (Ví dụ: `"Trường Tiểu học Chu Văn An"`, `"Trường THCS Trần Hưng Đạo"`).
 - **`role`** (`string`): Vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`).
 - **`teaching_subjects`** (`array of string`, Nullable): Danh sách mã môn học giáo viên trực tiếp giảng dạy (Ví dụ: `["MATH", "LIT", "SCI"]`):
   - *Với GVCN Cấp 1:* Cho phép tích chọn **nhiều môn** (Toán, Tiếng Việt, TNXH, Đạo đức, HĐTN...).

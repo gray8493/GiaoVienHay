@@ -1,0 +1,265 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - Classes API
+  description: Đặc tả OpenAPI cho Phân hệ Quản lý Lớp học tổng, Phân công GVBM & Mã mời Phụ huynh
+  version: 1.0.0
+servers:
+  - url: https://api.giaovienhay.vn/api/v1
+    description: Production Server
+  - url: http://localhost:3000/api/v1
+    description: Local Dev Server
+
+tags:
+  - name: Classes
+    description: GVCN tạo lớp tổng, gán GVBM, sinh link mời và quản lý thành viên
+
+paths:
+  /classes:
+    post:
+      tags:
+        - Classes
+      summary: GVCN tạo Lớp học tổng, thêm học sinh & phân công GVBM
+      operationId: createClass
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClassDto'
+      responses:
+        '201':
+          description: Tạo lớp thành công kèm Invite Link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassDetailResponse'
+    get:
+      tags:
+        - Classes
+      summary: Lấy danh sách lớp giáo viên đang phụ trách (chủ nhiệm + dạy bộ môn)
+      operationId: getMyClasses
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Danh sách lớp học
+
+  /classes/{id}:
+    get:
+      tags:
+        - Classes
+      summary: Xem chi tiết thông tin lớp học, sĩ số và danh sách GVBM
+      operationId: getClassById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Chi tiết lớp học
+
+  /classes/{id}/my-subject:
+    get:
+      tags:
+        - Classes
+      summary: GVBM truy cập lớp tổng theo môn học mình phụ trách
+      operationId: getMySubjectInClass
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trả về danh sách học sinh và quyền hạn nhập điểm môn được phân công
+
+  /classes/{id}/invite:
+    get:
+      tags:
+        - Classes
+      summary: Lấy mã mời (invite_code), link mời và mã QR của lớp
+      operationId: getClassInviteInfo
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Thông tin mời tham gia lớp
+
+  /classes/join:
+    post:
+      tags:
+        - Classes
+      summary: Phụ huynh tham gia lớp học qua mã mời và xác nhận con em mình
+      operationId: joinClassByInvite
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - invite_code
+                - student_id
+              properties:
+                invite_code:
+                  type: string
+                  example: GVH1A26
+                student_id:
+                  type: string
+                  example: stu_01
+      responses:
+        '200':
+          description: Liên kết vào lớp của con thành công
+
+  /classes/{id}/students:
+    post:
+      tags:
+        - Classes
+      summary: GVCN thêm học sinh đơn lẻ hoặc import từ file Excel
+      operationId: addStudentsToClass
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                students:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/StudentInputDto'
+      responses:
+        '201':
+          description: Thêm học sinh vào lớp thành công
+
+  /classes/{id}/students/{studentId}:
+    delete:
+      tags:
+        - Classes
+      summary: GVCN xóa học sinh khỏi lớp
+      operationId: removeStudentFromClass
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Đã xóa học sinh khỏi lớp thành công
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateClassDto:
+      type: object
+      required:
+        - name
+        - grade_level
+        - academic_year
+      properties:
+        name:
+          type: string
+          example: 1A
+        grade_level:
+          type: integer
+          minimum: 1
+          maximum: 9
+          example: 1
+        academic_year:
+          type: string
+          example: 2026-2027
+        subject_teachers:
+          type: array
+          items:
+            type: object
+            properties:
+              teacher_id:
+                type: string
+              subject_code:
+                type: string
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentInputDto'
+
+    StudentInputDto:
+      type: object
+      required:
+        - student_code
+        - full_name
+        - gender
+      properties:
+        student_code:
+          type: string
+          example: HS001
+        full_name:
+          type: string
+          example: Trần Bảo Nam
+        gender:
+          type: string
+          enum: [MALE, FEMALE]
+          example: MALE
+        dob:
+          type: string
+          format: date
+          example: 2020-05-15
+
+    ClassDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            class_id:
+              type: string
+            name:
+              type: string
+            grade_level:
+              type: integer
+            invite_code:
+              type: string
+            invite_link:
+              type: string
+            total_students:
+              type: integer

@@ -1,0 +1,222 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - Attendance API
+  version: 1.0.0
+  description: Đặc tả API phân hệ Điểm danh & Theo dõi chuyên cần của học sinh (Tích hợp thông báo FCM vắng học).
+servers:
+  - url: /api/v1
+    description: Production API Server
+paths:
+  /attendance/submit:
+    post:
+      summary: Điểm danh chuyên cần đầu giờ (GVCN)
+      description: Ghi nhận chuyên cần từng học sinh theo buổi học, tự động kích hoạt thông báo đẩy FCM tới phụ huynh nếu học sinh vắng.
+      tags:
+        - Attendance
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceSubmitRequest'
+      responses:
+        '201':
+          description: Điểm danh hoàn tất
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Điểm danh hoàn tất và đã gửi thông báo vắng tới phụ huynh"
+                  data:
+                    type: object
+                    properties:
+                      attendance_date:
+                        type: string
+                        example: "2026-09-23"
+                      total_students:
+                        type: integer
+                        example: 35
+                      present_count:
+                        type: integer
+                        example: 33
+                      absent_count:
+                        type: integer
+                        example: 2
+                      notified_parents:
+                        type: integer
+                        example: 2
+
+  /attendance/class/{classId}:
+    get:
+      summary: Xem lịch sử điểm danh của lớp theo ngày/tháng
+      tags:
+        - Attendance
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Lọc theo ngày (YYYY-MM-DD)
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Lọc theo tháng (YYYY-MM)
+      responses:
+        '200':
+          description: Danh sách bản ghi điểm danh của lớp
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AttendanceRecord'
+
+  /attendance/today/{classId}:
+    get:
+      summary: Lấy danh sách học sinh có mặt hôm nay
+      description: Dùng cho phân hệ Kiểm tra bài cũ / Vòng quay ngẫu nhiên để lọc những em thực tế có mặt.
+      tags:
+        - Attendance
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách học sinh có mặt hôm nay
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      class_id:
+                        type: string
+                        example: "cls_1a_2026"
+                      today:
+                        type: string
+                        example: "2026-09-23"
+                      present_students:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: "stu_01"
+                            full_name:
+                              type: string
+                              example: "Trần Bảo Nam"
+                            student_code:
+                              type: string
+                              example: "HS001"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AttendanceItemInput:
+      type: object
+      required:
+        - student_id
+        - status
+      properties:
+        student_id:
+          type: string
+          example: "stu_01"
+        status:
+          type: string
+          enum: [PRESENT, ABSENT_EXCUSED, ABSENT_UNEXCUSED]
+          example: "PRESENT"
+        note:
+          type: string
+          nullable: true
+          example: "Phụ huynh xin nghỉ ốm"
+
+    AttendanceSubmitRequest:
+      type: object
+      required:
+        - class_id
+        - attendance_date
+        - records
+      properties:
+        class_id:
+          type: string
+          example: "cls_1a_2026"
+        attendance_date:
+          type: string
+          format: date
+          example: "2026-09-23"
+        period:
+          type: integer
+          example: 1
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttendanceItemInput'
+
+    AttendanceRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        student_id:
+          type: string
+        student_name:
+          type: string
+        attendance_date:
+          type: string
+        status:
+          type: string
+        note:
+          type: string
+        updated_at:
+          type: string
+          format: date-time

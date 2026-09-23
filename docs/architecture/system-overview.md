@@ -37,15 +37,18 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 
 ## 2. Các Tính Năng Đột Phá & Đặc Thù (Signature Features)
 
-### 2.1. AI Trợ Giảng: Sinh Câu Hỏi & Tạo Game Tương Tác Lớp Học Tự Động (Trình chiếu tại lớp)
-- **Từ Tài liệu đến Trò chơi chỉ trong 10 giây:**
+### 2.1. AI Trợ Giảng: Sinh Câu Hỏi & Linh Hoạt Chế Độ Quiz / Mini-Game (Trình chiếu tại lớp)
+- **Từ Tài liệu đến Trắc nghiệm & Trò chơi chỉ trong 10 giây:**
   - Giáo viên tải file giáo án bài học (`.docx`, `.pdf`).
-  - Backend NestJS tích hợp **Google Gemini API** bóc tách kiến thức trọng tâm và tự động sinh cấu trúc câu hỏi.
-  - Hệ thống tự động chuyển hóa ngân hàng câu hỏi này thành **3 chế độ Mini-game tương tác lớp học** để Giáo viên trình chiếu lên máy chiếu / bảng tương tác:
-    1. **Rung Chuông Vàng / Đấu Trí (Quiz Show):** Đếm ngược 30s, hiển thị câu hỏi trắc nghiệm với âm thanh hiệu ứng kịch tính, học sinh giơ bảng chọn đáp án tại chỗ, giáo viên bấm công bố và trao điểm thưởng.
-    2. **Đua Xe / Vượt Chướng Ngại Vật (Classroom Racing):** Chia lớp thành các tổ/đội thi đua, đội trả lời đúng sẽ được tăng tốc về đích.
-    3. **Hộp Quà Bí Mật / Vòng Quay May Mắn (Mystery Boxes):** Học sinh trả lời đúng câu hỏi bài cũ sẽ được tự tay chọn hộp quà chứa điểm cộng hoặc tràng pháo tay.
-- **Không có thi trực tuyến:** Học sinh không sử dụng app để làm bài kiểm tra cá nhân. Toàn bộ là trải nghiệm tương tác tập thể tại lớp học dưới sự điều phối của Giáo viên.
+  - Giáo viên chủ động chọn: **Số lượng câu hỏi** (3, 5, 10...) và **Độ khó** (Dễ, Vừa, Khó, Phân hóa hỗn hợp).
+  - Backend NestJS tích hợp **Google Gemini API** bóc tách kiến thức trọng tâm và tự động sinh cấu trúc câu hỏi trắc nghiệm tương ứng.
+  - **Linh hoạt 2 hình thức tổ chức tại lớp:**
+    1. **Chế độ Quiz Trắc Nghiệm Tiêu Chuẩn:** Chiếu từng slide câu hỏi kèm **Vòng quay may mắn (Lucky Wheel)** bốc ngẫu nhiên học sinh (có nút **Bỏ qua - Skip** nếu trúng bạn nghỉ học).
+    2. **Chế độ Game Tương Tác Lớp Học:** Nếu không muốn chiếu Quiz, giáo viên chuyển sang 3 chế độ Mini-game:
+       + *Rung Chuông Vàng / Đấu Trí (Quiz Show):* Đếm ngược 30s, học sinh giơ bảng chọn đáp án tại chỗ.
+       + *Đua Xe / Vượt Chướng Ngại Vật (Classroom Racing):* Chia tổ thi đua, trả lời đúng xe tiến lên.
+       + *Hộp Quà Bí Mật (Mystery Boxes):* Mở quà trúng điểm thưởng hoặc sticker khen thưởng.
+- **Không có thi trực tuyến:** Học sinh không sử dụng app để làm bài kiểm tra cá nhân. Toàn bộ là trải nghiệm tương tác tập thể tại lớp học dưới sự điều phối của Giáo viên; Giáo viên trực tiếp chấm và nhập điểm vào Sổ điểm môn học.
 
 ### 2.2. Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
 - **Cả GVCN và GVBM đều sử dụng linh hoạt trong tiết học.**

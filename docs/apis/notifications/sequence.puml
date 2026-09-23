@@ -1,0 +1,53 @@
+@startuml
+autonumber "<b>[00]</b>"
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+skinparam SequenceArrowThickness 1.2
+skinparam RoundCorner 8
+
+title Sơ Đồ Tuần Tự Phân Hệ Thông Báo Đẩy (Notifications Sequence Diagram) - GiaoVienHay
+
+box "Tầng Client (Mobile React Native App)" #E3F2FD
+actor "Người dùng\n(Phụ huynh / GV)" as User
+boundary "App Mobile" as AppClient
+end box
+
+box "Tầng Backend (NestJS Platform)" #FFF3E0
+boundary "API Gateway / Notifications Controller" as Gateway
+control "Notification Service" as NotiService
+end box
+
+box "Google Firebase Services" #E8F5E9
+database "Cloud Firestore (/notifications)" as Firestore
+boundary "Firebase Messaging (FCM)" as FCM
+end box
+
+== 1. NHẬN THÔNG BÁO TỨC THÌ QUA FIREBASE FCM ==
+
+NotiService -> FCM: Gửi payload thông báo đẩy (title, body, metadata)
+FCM -> AppClient: Đẩy thông báo đến thiết bị (Notification Banner & Sound)
+AppClient -> User: Hiển thị Banner trên thanh trạng thái
+NotiService -> Firestore: addDoc(/notifications, { recipient_user_id, title, body, type, is_read: false })
+Firestore --> NotiService: Lưu nhật ký thành công
+
+== 2. XEM LỊCH SỬ THÔNG BÁO & ĐÁNH DẤU ĐÃ ĐỌC ==
+
+User -> AppClient: Mở tab "Thông Báo"
+AppClient -> Gateway: GET /api/v1/notifications (page=1, limit=20)
+Gateway -> NotiService: getUserNotifications(userUid, query)
+NotiService -> Firestore: Query /notifications where recipient_user_id == userUid order by created_at DESC
+Firestore --> NotiService: Danh sách thông báo
+NotiService --> Gateway: Danh sách kèm unread_count
+Gateway --> AppClient: HTTP 200 OK (Danh sách thông báo)
+AppClient --> User: Hiển thị danh sách thông báo kèm chấm đỏ chưa đọc
+
+User -> AppClient: Chạm vào thông báo để xem chi tiết
+AppClient -> Gateway: PATCH /api/v1/notifications/{id}/read
+Gateway -> NotiService: markAsRead(userUid, notificationId)
+NotiService -> Firestore: updateDoc(/notifications/{id}, { is_read: true })
+Firestore --> NotiService: Cập nhật thành công
+NotiService --> Gateway: Xác nhận đã đọc
+Gateway --> AppClient: HTTP 200 OK
+AppClient --> User: Ẩn chấm đỏ và điều hướng đến màn hình chi tiết tương ứng
+
+@enduml

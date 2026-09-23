@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - Remarks API
+  version: 1.0.0
+  description: Đặc tả API phân hệ Nhận xét học sinh (Gửi text nhận xét ngắn gọn, đẩy FCM và phụ huynh xác nhận).
+servers:
+  - url: /api/v1
+    description: Production API Server
+paths:
+  /remarks:
+    post:
+      summary: Gửi lời nhận xét ngắn gọn cho học sinh
+      description: Gửi nhận xét dạng văn bản ngắn (không dùng tags phức tạp) và bắn FCM tới phụ huynh.
+      tags:
+        - Remarks
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - student_id
+                - class_id
+                - content
+              properties:
+                student_id:
+                  type: string
+                  example: "stu_01"
+                class_id:
+                  type: string
+                  example: "cls_1a_2026"
+                subject_code:
+                  type: string
+                  example: "MATH"
+                content:
+                  type: string
+                  maxLength: 500
+                  example: "Hôm nay em Nam tiếp thu bài rất nhanh và hăng hái xung phong lên bảng chữa bài tập."
+      responses:
+        '201':
+          description: Đã lưu nhận xét và gửi thông báo tới phụ huynh
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Đã lưu nhận xét và gửi thông báo tới phụ huynh"
+                  data:
+                    type: object
+                    properties:
+                      remark_id:
+                        type: string
+                      student_id:
+                        type: string
+                      content:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      fcm_delivered:
+                        type: boolean
+
+  /remarks/class/{classId}:
+    get:
+      summary: Xem danh sách các nhận xét đã gửi trong lớp học
+      tags:
+        - Remarks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: student_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Danh sách nhận xét
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RemarkDetail'
+
+  /remarks/{id}/acknowledge:
+    patch:
+      summary: Phụ huynh xác nhận đã đọc nhận xét
+      tags:
+        - Remarks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Đã ghi nhận phản hồi từ phụ huynh
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Đã ghi nhận xác nhận từ phụ huynh"
+                  data:
+                    type: object
+                    properties:
+                      remark_id:
+                        type: string
+                      parent_acknowledged:
+                        type: boolean
+                      acknowledged_at:
+                        type: string
+                        format: date-time
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RemarkDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        student_id:
+          type: string
+        student_name:
+          type: string
+        teacher_id:
+          type: string
+        teacher_name:
+          type: string
+        subject_code:
+          type: string
+        content:
+          type: string
+        parent_acknowledged:
+          type: boolean
+        acknowledged_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time

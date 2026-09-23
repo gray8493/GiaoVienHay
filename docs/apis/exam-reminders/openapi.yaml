@@ -1,0 +1,151 @@
+openapi: 3.0.3
+info:
+  title: GiaoVienHay - Exam Reminders API
+  version: 1.0.0
+  description: Đặc tả API phân hệ Lời nhắc lịch kiểm tra sắp tới (Gửi thông báo đẩy FCM tới phụ huynh toàn lớp).
+servers:
+  - url: /api/v1
+    description: Production API Server
+paths:
+  /exam-reminders:
+    post:
+      summary: Tạo lời nhắc lịch kiểm tra
+      description: Giáo viên tạo lời nhắc lịch kiểm tra sắp tới và hệ thống tự động bắn FCM tới toàn bộ phụ huynh trong lớp.
+      tags:
+        - Exam Reminders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - class_id
+                - subject_code
+                - exam_type
+                - exam_date
+                - message
+              properties:
+                class_id:
+                  type: string
+                  example: "cls_1a_2026"
+                subject_code:
+                  type: string
+                  example: "MATH"
+                exam_type:
+                  type: string
+                  enum: [ORAL_TEST, QUIZ, TEST_15P, TEST_1P, MID_TERM, FINAL]
+                  example: "TEST_15P"
+                exam_date:
+                  type: string
+                  format: date
+                  example: "2026-09-25"
+                message:
+                  type: string
+                  example: "Thứ Sáu tới lớp sẽ có bài kiểm tra 15 phút môn Toán về phép cộng trong phạm vi 10. Kính nhờ quý phụ huynh nhắc các con ôn kỹ bài 5 và 6."
+      responses:
+        '201':
+          description: Đã tạo lời nhắc và gửi FCM thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Đã tạo lời nhắc kiểm tra và phát thông báo tới toàn thể phụ huynh"
+                  data:
+                    type: object
+                    properties:
+                      reminder_id:
+                        type: string
+                      class_id:
+                        type: string
+                      subject_code:
+                        type: string
+                      exam_date:
+                        type: string
+                      notified_parents:
+                        type: integer
+                      created_at:
+                        type: string
+                        format: date-time
+
+  /exam-reminders/class/{classId}:
+    get:
+      summary: Lấy danh sách các lịch kiểm tra sắp tới của lớp học
+      tags:
+        - Exam Reminders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: subject_code
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách lịch kiểm tra
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExamReminderDetail'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ExamReminderDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        class_id:
+          type: string
+        teacher_id:
+          type: string
+        teacher_name:
+          type: string
+        subject_code:
+          type: string
+        subject_name:
+          type: string
+        exam_type:
+          type: string
+        exam_date:
+          type: string
+          format: date
+        message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
