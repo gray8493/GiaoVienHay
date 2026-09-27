@@ -29,6 +29,7 @@ Hệ thống cung cấp 2 giải pháp giao diện độc lập nhằm tối ưu
 
 - 🌐 **[fe-web-architecture.md](file:///e:/GiaoVienHay/docs/fe/web/fe-web-architecture.md)**: Đặc tả kiến trúc Web Next.js (App Router, Quản lý State, Cấu trúc Thư mục, Phân trang, Tối ưu SEO/Performance).
 - 📱 **[fe-mobile-architecture.md](file:///e:/GiaoVienHay/docs/fe/mobile/fe-mobile-architecture.md)**: Đặc tả kiến trúc Mobile App React Native (Navigation, Tích hợp FCM Push Notification, Quản lý State, Lưu trữ bảo mật Keychain).
+- 🎨 **[ui-ux-design-specs.md](file:///e:/GiaoVienHay/docs/fe/ui-ux-design-specs.md)**: Đặc tả Thiết kế UI/UX, Design System chuẩn, Project ID Stitch AI và trọn bộ Prompts sinh màn hình toàn hệ thống.
 
 ---
 
@@ -40,4 +41,7 @@ Hệ thống cung cấp 2 giải pháp giao diện độc lập nhằm tối ưu
    - Tự động gắn header `Authorization: Bearer <access_token>`.
    - Bắt lỗi `401 Unauthorized` để tự động gọi refresh token hoặc điều hướng về trang đăng nhập.
 4. **Quản lý Form & Validation:** Sử dụng `React Hook Form` kết hợp thư viện `Zod` để validate dữ liệu ngay tại client trước khi gửi lên API.
+5. **Lưu Trữ Tệp Tin & Media (Firebase Storage):**
+   - Mọi tệp ảnh avatar, tài liệu giáo án `.docx`/`.pdf`, ảnh chụp biên lai học phí/BHYT đều được tải lên trực tiếp bucket **Firebase Storage**.
+   - Phân quyền đọc/ghi chặt chẽ qua Firebase Storage Security Rules đồng bộ cùng Firebase Authentication.
 

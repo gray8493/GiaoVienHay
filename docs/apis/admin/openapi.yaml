@@ -74,8 +74,57 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/AdminUserItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/dashboard/stats:
+    get:
+      tags:
+        - Admin Monitoring
+      summary: Thống kê tổng quan nền tảng cho Dashboard Web Next.js
+      description: Thống kê tổng số giáo viên, phụ huynh, lớp học, học sinh và lượt sử dụng AI Gemini trong ngày.
+      operationId: getAdminDashboardStats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lấy số liệu thống kê thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      total_teachers:
+                        type: integer
+                        example: 350
+                      total_parents:
+                        type: integer
+                        example: 4500
+                      total_classes:
+                        type: integer
+                        example: 120
+                      total_students:
+                        type: integer
+                        example: 4200
+                      ai_calls_today:
+                        type: integer
+                        example: 850
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /admin/users/{id}/ban:
     patch:
@@ -119,8 +168,16 @@ paths:
                   message:
                     type: string
                     example: Đã khóa tài khoản người dùng thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /admin/users/{id}/unban:
     patch:
@@ -150,6 +207,16 @@ paths:
                   message:
                     type: string
                     example: Đã mở khóa tài khoản thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /admin/classes:
     get:
@@ -162,6 +229,12 @@ paths:
       responses:
         '200':
           description: Lấy danh sách lớp học thành công
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /admin/system/limits:
     get:
@@ -178,6 +251,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SystemLimitsDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     put:
       tags:
         - Admin System Limits
@@ -194,6 +273,16 @@ paths:
       responses:
         '200':
           description: Cập nhật cấu hình thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -245,20 +334,81 @@ components:
           type: integer
           example: 20
 
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "max_students_per_class"
+        issue:
+          type: string
+          example: "Thông số cấu hình hạn mức phải là số nguyên dương"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 403
+        message:
+          type: string
+          example: "Bạn không có quyền truy cập vào chức năng này"
+        error_code:
+          type: string
+          example: "AUTH_ROLE_FORBIDDEN"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
+
   responses:
-    Forbidden:
-      description: Từ chối truy cập - Yêu cầu vai trò ADMIN
+    BadRequest:
+      description: Dữ liệu yêu cầu không hợp lệ hoặc tài khoản đã ở trạng thái này
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-                example: false
-              status_code:
-                type: integer
-                example: 403
-              message:
-                type: string
-                example: Bạn không có quyền truy cập tài nguyên quản trị này
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token quản trị viên không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Từ chối truy cập - Yêu cầu tài khoản có vai trò ADMIN
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy người dùng hoặc tài nguyên yêu cầu
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Dữ liệu gửi lên sai định dạng validation DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

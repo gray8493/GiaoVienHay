@@ -13,6 +13,7 @@ dist/
 build/
 .next/
 out/
+*.tsbuildinfo
 
 # Environment variables
 .env
@@ -27,6 +28,12 @@ out/
 *.swp
 *.swo
 
+# Monorepo & Expo
+.turbo/
+.expo/
+.pnpm-store/
+
 # OS files
 .DS_Store
 Thumbs.db
+

@@ -56,6 +56,65 @@ paths:
                       notified_parents:
                         type: integer
                         example: 2
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /attendance/{id}:
+    patch:
+      summary: GVCN cập nhật lại trạng thái điểm danh của học sinh
+      description: Cho phép cập nhật khi học sinh đến muộn hoặc phụ huynh nộp đơn xin phép muộn.
+      tags:
+        - Attendance
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Mã bản ghi điểm danh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [PRESENT, ABSENT_EXCUSED, ABSENT_UNEXCUSED, LATE]
+                  example: "ABSENT_EXCUSED"
+                note:
+                  type: string
+                  example: "Phụ huynh gửi giấy xin phép nghỉ ốm"
+      responses:
+        '200':
+          description: Cập nhật điểm danh thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /attendance/class/{classId}:
     get:
@@ -101,6 +160,14 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/AttendanceRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /attendance/today/{classId}:
     get:
@@ -153,6 +220,14 @@ paths:
                             student_code:
                               type: string
                               example: "HS001"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -164,24 +239,30 @@ components:
   schemas:
     AttendanceItemInput:
       type: object
+      description: Dữ liệu điểm danh của 1 học sinh
       required:
         - student_id
         - status
       properties:
         student_id:
           type: string
+          description: "Mã định danh học sinh (Hệ thống tự nạp)"
           example: "stu_01"
         status:
           type: string
+          description: "Trạng thái chuyên cần (Chọn từ nút bấm nhanh UI Chip)"
           enum: [PRESENT, ABSENT_EXCUSED, ABSENT_UNEXCUSED]
           example: "PRESENT"
         note:
           type: string
           nullable: true
+          maxLength: 255
+          description: "Ghi chú lý do vắng hoặc lưu ý (Tùy chọn - Điền tự do từ bàn phím, tối đa 255 ký tự)"
           example: "Phụ huynh xin nghỉ ốm"
 
     AttendanceSubmitRequest:
       type: object
+      description: Payload gửi kết quả điểm danh đầu giờ
       required:
         - class_id
         - attendance_date
@@ -189,16 +270,25 @@ components:
       properties:
         class_id:
           type: string
+          description: "Mã lớp học (Chọn từ menu chọn lớp)"
           example: "cls_1a_2026"
         attendance_date:
           type: string
           format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: "Ngày điểm danh ISO YYYY-MM-DD (Gõ bàn phím / Chọn DatePicker). Bắt buộc phải là ngày tồn tại trong lịch thực tế (loại bỏ 2026-02-30) và không được ở tương lai (<= ngày hiện tại)."
           example: "2026-09-23"
         period:
           type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+          description: "Tiết học trong ngày (Tùy chọn - Gõ số từ bàn phím hoặc chọn dropdown, từ 1 đến 10)"
           example: 1
         records:
           type: array
+          minItems: 1
+          description: "Danh sách trạng thái điểm danh từng học sinh (Bắt buộc, tối thiểu 1 học sinh)"
           items:
             $ref: '#/components/schemas/AttendanceItemInput'
 
@@ -220,3 +310,91 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    ErrorDetail:
+      type: object
+      description: Chi tiết từng trường dữ liệu bị vi phạm validation
+      properties:
+        field:
+          type: string
+          description: Tên trường dữ liệu bị lỗi (ví dụ: attendance_date, records[0].note)
+          example: "attendance_date"
+        issue:
+          type: string
+          description: Mô tả chi tiết nguyên nhân vi phạm
+          example: "Giá trị '2026-02-30' không phải là ngày hợp lệ trong lịch thực tế (tháng 2 năm 2026 chỉ có 28 ngày)"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Dữ liệu điểm danh không hợp lệ"
+        error_code:
+          type: string
+          example: "ATTEND_ALREADY_EXISTS"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
+
+  responses:
+    BadRequest:
+      description: Dữ liệu gửi lên không hợp lệ hoặc sai ngày điểm danh
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token không hợp lệ / hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Không có quyền điểm danh lớp học này (chỉ dành cho GVCN)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy lớp học hoặc bản ghi điểm danh
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Tiết học hoặc buổi học này đã được điểm danh trước đó
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Sai định dạng dữ liệu đầu vào DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

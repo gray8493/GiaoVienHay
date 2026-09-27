@@ -27,7 +27,22 @@ Tài liệu này đặc tả chi tiết cấu trúc, quy tắc điều hướng 
 
 ---
 
-## 2. Cấu Trúc Thư Mục Chuẩn (Mobile Folder Structure)
+## 2. Thiết Kế Giao Diện Trực Quan (UI/UX Visual Highlights)
+
+### 2.1. Phân hệ Giáo viên (Teacher Mode)
+- **Trang chủ Giáo viên (Mobile 390×844):**
+![Teacher Mobile Home](screenshots/teacher/teacher-mobile-home.png)
+
+- **Vòng quay Dò bài cũ - Smartboard Display (16:9 Landscape):**
+![Lucky Wheel Smartboard](screenshots/teacher/lucky-wheel-smartboard.png)
+
+### 2.2. Phân hệ Phụ huynh (Parent Mode)
+- **Sổ liên lạc Điện tử Phụ huynh (Mobile 390×844):**
+![Parent Mobile Home](screenshots/parent/parent-mobile-home.png)
+
+---
+
+## 3. Cấu Trúc Thư Mục Chuẩn (Mobile Folder Structure)
 
 ```text
 mobile-app/

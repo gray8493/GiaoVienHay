@@ -32,6 +32,11 @@ Tài liệu này đặc tả chi tiết cấu trúc, giao diện và tính năng
 - **Hạn mức lưu trữ tệp (Storage Limit):**
   - Giới hạn dung lượng tải lên tài liệu giáo án `.docx`/`.pdf` lên Firebase Storage (ví dụ: tối đa 15MB/file).
 
+### 1.4. Thiết Kế Giao Diện Bảng Điều Khiển Nền Tảng (Admin Dashboard UI)
+Giao diện Cổng Quản trị được thiết kế chuẩn mực trên Stitch AI (Screen ID: `cb69c2989f0443549028b4dd6183bcc4`):
+
+![Platform Admin Web Dashboard](screenshots/admin-web-dashboard.png)
+
 ---
 
 ## 2. Cấu Trúc Thư Mục Chuẩn (Project Folder Structure)
