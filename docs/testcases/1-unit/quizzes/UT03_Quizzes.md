@@ -1,25 +1,223 @@
-# Kịch Bản Kiểm Thử Đơn Vị (Unit Test Specification) - Phân Hệ Trợ Giảng AI & Game Hóa
-# Module: Quizzes (`/api/v1/quizzes`)
-# Cấp Độ: Unit Test (UT) - Framework: Jest / NestJS Testing
-# Quy Tắc Tuân Thủ: rules/testcase-rules.md
+# TÀI LIỆU KỊCH BẢN KIỂM THỬ ĐƠN VỊ - PHÂN HỆ TRỢ GIẢNG AI & MINI-GAME LỚP HỌC
+# MÃ PHÂN HỆ: 03 - GRADEBOOK & ASSESSMENT MODULE
+# CẤP ĐỘ KIỂM THỬ: KIỂM THỬ ĐƠN VỊ (UNIT TEST)
 
 ---
 
-## 1. Thông Tin Chung
+## 1. THÔNG TIN CHUNG
 
-- **Phân hệ:** `03` - Gradebook & Assessment Module (Theo rules/testcase-rules.md)
-- **Module API:** Quizzes (`QuizzesService`, `QuizzesController`)
-- **Tập tin kiểm thử:** `src/features/academic/quizzes.service.spec.ts`
-- **Người thực hiện:** QA / Developer
-- **Môi trường:** Isolated Unit Testing (Mock Google Gemini AI Client, Mock Attendance Repository)
+- **PHÂN HỆ HỆ THỐNG:** `03` - Phân hệ Trợ giảng AI & Game hóa kiểm tra bài cũ
+- **MÔ TẢ MODULE API:** Quản lý ngân hàng câu hỏi AI và Vòng quay may mắn (`QuizzesService`, `QuizzesController`)
+- **TẬP TIN KIỂM THỬ:** 
+- **MÔI TRƯỜNG KIỂM THỬ:** Testing
 
 ---
 
-## 2. Bảng Danh Sách Unit Test Cases
+## 2. CHI TIẾT CÁC KỊCH BẢN KIỂM THỬ ĐƠN VỊ
 
-| Mã Testcase | Tên Kịch Bản | Mục Tiêu Kiểm Thử | Dữ Liệu Đầu Vào (Mock Input) | Kết Quả Mong Đợi (Assertion) | Trạng Thái |
-| :--- | :--- | :--- | :--- | :--- | :---: |
-| **UT03_Quizzes_TC01** | `generateAI()` tạo câu hỏi từ giáo án | Mock Gemini API phân tích file docx/pdf sinh 5 câu hỏi trắc nghiệm | File: `giao_an_toan.pdf`, `subject_code: "MATH"`, `num_questions: 5`, `difficulty_level: "MEDIUM"` | Trả về HTTP 201, `data.questions` có đúng 5 phần tử, mỗi câu có 4 đáp án A, B, C, D | **PASS** |
-| **UT03_Quizzes_TC02** | `getWheelCandidates()` lọc học sinh có mặt | Lấy danh sách học sinh CÓ MẶT trong buổi học cho Vòng quay may mắn | Param: `id = qz_88219`<br>Mock Attendance: `stu_01` (PRESENT), `stu_02` (ABSENT) | Trả về HTTP 200, `candidates` chỉ chứa `stu_01`, loại trừ bạn vắng mặt `stu_02` | **PASS** |
-| **UT03_Quizzes_TC03** | `saveInClassScores()` nhập điểm mini-game | Giáo viên nhập điểm khởi động trực tiếp lưu vào sổ điểm `/scores` | Body: `{ "student_id": "stu_01", "score_value": 10.0, "score_type": "QUIZ" }` | Trả về HTTP 201, document điểm được tạo mới trong `/scores` với `score_type === 'QUIZ'` | **PASS** |
-| **UT03_Quizzes_TC04** | `generateAI()` từ chối file quá 15MB | Chặn upload giáo án có dung lượng vượt ngưỡng giới hạn | File size: `16.5MB` | Ném `PayloadTooLargeException` (413), tin nhắn *"File giáo án vượt quá 15MB"* | **PASS** |
+---
+
+### UT03_Quizzes_TC01 : AI GEMINI PHÂN TÍCH GIÁO ÁN SINH BỘ CÂU HỎI TRẮC NGHIỆM THÀNH CÔNG
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên đã đăng nhập và được phân công dạy môn Toán tại lớp `cls_1a_2026`.
+  - Tệp giáo án định dạng `.pdf` hợp lệ (kích thước nhỏ hơn 15MB).
+  - Dịch vụ Google Gemini API hoạt động ổn định.
+
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Dữ liệu thân (Form-Data / JSON tương đương):**
+
+  ```json
+  {
+    "file": "giao_an_toan_lop_5_phep_cong_phan_so.pdf",
+    "subject_code": "MATH",
+    "class_id": "cls_1a_2026",
+    "title": "Kiểm tra bài 12: Phép cộng phân số",
+    "num_questions": 5,
+    "difficulty_level": "MEDIUM",
+    "preferred_mode": "STANDARD_QUIZ"
+  }
+  ```
+
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/quizzes/generate-ai`.
+  3. Chọn định dạng `multipart/form-data`, đính kèm tệp giáo án và nhập các trường dữ liệu như trên.
+  4. Bấm nút **Gửi (Send)** để thực thi request.
+
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO MỚI)**.
+  - Gemini AI phân tích thành công và trả về đúng 5 câu hỏi trắc nghiệm gồm 4 đáp án A, B, C, D.
+  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
+
+  ```json
+  {
+    "success": true,
+    "status_code": 201,
+    "message": "AI đã phân tích giáo án và sinh bộ câu hỏi thành công",
+    "data": {
+      "quiz_id": "qz_88219",
+      "title": "Kiểm tra bài 12: Phép cộng phân số",
+      "subject_code": "MATH",
+      "difficulty_level": "MEDIUM",
+      "total_questions": 5,
+      "questions": [
+        {
+          "question_number": 1,
+          "content": "Muốn cộng hai phân số cùng mẫu số, ta làm thế nào?",
+          "options": [
+            { "key": "A", "text": "Cộng hai tử số với nhau và giữ nguyên mẫu số" },
+            { "key": "B", "text": "Cộng cả tử số và mẫu số với nhau" },
+            { "key": "C", "text": "Nhân chéo hai phân số" },
+            { "key": "D", "text": "Quy đồng mẫu số trước" }
+          ],
+          "correct_answer": "A"
+        }
+      ]
+    }
+  }
+  ```
+
+- **TRẠNG THÁI KIỂM THỬ:** 
+
+---
+
+### UT03_Quizzes_TC02 : LỌC DANH SÁCH HỌC SINH CÓ MẶT TẠI LỚP CHO VÒNG QUAY MAY MẮN
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Bộ câu hỏi `qz_88219` đã được tạo thành công.
+  - Buổi học hôm nay đã có dữ liệu điểm danh: học sinh `stu_01` CÓ MẶT (`PRESENT`), học sinh `stu_02` VẮNG MẶT (`ABSENT`).
+
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Tham số đường dẫn (Path Params JSON):**
+
+  ```json
+  {
+    "id": "qz_88219"
+  }
+  ```
+
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/quizzes/qz_88219/wheel-candidates`.
+  3. Không cần truyền dữ liệu vào phần Body.
+  4. Bấm nút **Gửi (Send)** để thực thi request.
+
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Danh sách học sinh chỉ chứa các bạn có mặt (`stu_01`), tự động loại trừ bạn vắng mặt (`stu_02`).
+  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
+
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "data": {
+      "quiz_id": "qz_88219",
+      "class_id": "cls_1a_2026",
+      "total_candidates": 1,
+      "students": [
+        {
+          "id": "stu_01",
+          "name": "Trần Bảo Nam",
+          "student_code": "HS001"
+        }
+      ],
+      "skip_policy": "AUTO_SPIN_NEXT"
+    }
+  }
+  ```
+
+- **TRẠNG THÁI KIỂM THỬ:** 
+
+---
+
+### UT03_Quizzes_TC03 : GIÁO VIÊN NHẬP ĐIỂM BÀI CŨ ĐƯỢC ĐỒNG BỘ VÀO SỔ ĐIỂM MÔN HỌC
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Học sinh `stu_01` vừa hoàn thành câu hỏi trắc nghiệm hoặc mini-game trên bảng.
+  - Giáo viên có quyền nhập điểm môn học cho học sinh này.
+
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "student_id": "stu_01",
+    "score": 10.0,
+    "comment": "Trả lời câu hỏi khởi động xuất sắc"
+  }
+  ```
+
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/quizzes/qz_88219/in-class-scores`.
+  3. Thêm dữ liệu chấm điểm vào phần **Body** định dạng `raw (application/json)` theo cấu trúc trên.
+  4. Bấm nút **Gửi (Send)** để thực thi request.
+
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ LƯU ĐIỂM)**.
+  - Tự động tạo bản ghi điểm mới trong bộ sưu tập `/scores` với loại điểm `score_type: "QUIZ"`.
+  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
+
+  ```json
+  {
+    "success": true,
+    "status_code": 201,
+    "message": "Đã lưu điểm bài cũ vào Sổ điểm môn học",
+    "data": {
+      "score_id": "sc_auto_7712",
+      "student_id": "stu_01",
+      "score": 10.0,
+      "score_type": "QUIZ",
+      "saved_to_gradebook": true
+    }
+  }
+  ```
+
+- **TRẠNG THÁI KIỂM THỬ:** 
+
+---
+
+### UT03_Quizzes_TC04 : TỪ CHỐI TỆP GIÁO ÁN CÓ DUNG LƯỢNG VƯỢT QUÁ 15MB
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên đã đăng nhập vào hệ thống.
+  - Giáo viên chuẩn bị tệp giáo án có dung lượng thực tế là 16.5MB (vượt quá hạn mức 15MB).
+
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Dữ liệu tệp gửi lên (JSON mô phỏng payload):**
+
+  ```json
+  {
+    "file_name": "giao_an_dung_luong_lon.pdf",
+    "file_size_bytes": 17301504,
+    "max_allowed_bytes": 15728640
+  }
+  ```
+
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/quizzes/generate-ai`.
+  3. Đính kèm tệp có dung lượng 16.5MB vào form tải lên.
+  4. Bấm nút **Gửi (Send)** để thực thi request.
+
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống ném ra ngoại lệ dung lượng vượt quá **HTTP 413 (PAYLOAD TOO LARGE)**.
+  - Tuyệt đối không gọi tới Google Gemini API để tránh lãng phí chi phí xử lý.
+  - Dữ liệu lỗi trả về đúng định dạng JSON chuẩn như sau:
+
+  ```json
+  {
+    "success": false,
+    "status_code": 413,
+    "error_code": "FILE_TOO_LARGE",
+    "message": "File giáo án vượt quá 15MB, vui lòng nén hoặc chọn file khác"
+  }
+  ```
+
+- **TRẠNG THÁI KIỂM THỬ:** 
