@@ -1,6 +1,6 @@
 # TÀI LIỆU KỊCH BẢN KIỂM THỬ ĐƠN VỊ - PHÂN HỆ QUẢN LÝ LỚP HỌC & THÀNH VIÊN (CLASSES)
 
-# MÃ PHÂN HỆ: UT04_CLASSES - CLASS MANAGEMENT MODULE
+# MÃ PHÂN HỆ: 03 - CLASS MANAGEMENT MODULE
 
 # CẤP ĐỘ KIỂM THỬ: KIỂM THỬ ĐƠN VỊ (UNIT TEST)
 
@@ -8,7 +8,7 @@
 
 ## 1. THÔNG TIN CHUNG
 
-- **PHÂN HỆ HỆ THỐNG:** `UT04` - Phân hệ Quản lý Lớp học tổng, Phân công GVBM & Thành viên lớp học
+- **PHÂN HỆ HỆ THỐNG:** `03` - Phân hệ Quản lý Lớp học tổng, Phân công GVBM & Thành viên lớp học (`/api/v1/classes`)
 - **MÔ TẢ MODULE API:** GVCN khởi tạo Lớp tổng, thêm học sinh và phân công GVBM, cơ chế Vào lớp 1-chạm (sinh mã mời `invite_code`, link mời `invite_link`), Phụ huynh tham gia lớp xác nhận con em, GVBM truy cập lớp theo môn giảng dạy, quản lý thêm/xóa học sinh (`ClassesService`, `ClassesController`)
 - **NGƯỜI THỰC HIỆN / VIẾT TESTCASE:** Kim Chi Ha
 - **TẬP TIN KIỂM THỬ:** [API_Classes](https://github.com/gray8493/GiaoVienHay/tree/main/docs/apis/classes)
@@ -20,7 +20,7 @@
 
 ---
 
-### UT04_Classes_TC01 : GVCN TẠO LỚP HỌC TỔNG, THÊM HỌC SINH VÀ PHÂN CÔNG GVBM THÀNH CÔNG
+### UT03_Classes_TC01 : GVCN TẠO LỚP HỌC TỔNG, THÊM HỌC SINH VÀ PHÂN CÔNG GVBM THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -69,7 +69,7 @@
 
   1. Truyền mã `Bearer Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/classes`.
-  3. Thêm dữ liệu cấu hình lớp học vào phần **Body** định dạng `raw (application/json)` theo mẫu JSON trên.
+  3. Thêm dữ liệu cấu hình lớp học vào phần **Body** định dạng `raw (application/json)`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
@@ -105,7 +105,7 @@
 
 ---
 
-### UT04_Classes_TC02 : TỪ CHỐI TẠO LỚP HỌC KHI THIẾU TÊN HOẶC KHỐI LỚP KHÔNG HỢP LỆ
+### UT03_Classes_TC02 : TỪ CHỐI TẠO LỚP HỌC KHI KHỐI LỚP KHÔNG HỢP LỆ
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -119,7 +119,7 @@
 
   ```json
   {
-    "name": "",
+    "name": "1A",
     "grade_level": 15,
     "academic_year": "2026-2027"
   }
@@ -128,27 +128,34 @@
 
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/classes`.
-  3. Thêm dữ liệu có tên lớp rỗng và khối lớp vượt quá quy định (chỉ cho phép 1 đến 9) vào phần **Body**.
+  3. Thêm dữ liệu có khối lớp vượt quá quy định (chỉ cho phép từ 1 đến 9) vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Tuyệt đối không tạo document lớp học trong Firestore.
-  - Dữ liệu lỗi phản hồi định dạng JSON như sau:
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
 
   ```json
   {
     "success": false,
     "status_code": 400,
-    "error_code": "VALIDATION_FAILED",
-    "message": "Tên lớp học không được để trống và khối lớp (grade_level) phải từ 1 đến 9"
+    "message": "Khối lớp không hợp lệ, hệ thống chỉ hỗ trợ từ Khối 1 đến Khối 9",
+    "error_code": "CLASS_GRADE_LEVEL_INVALID",
+    "details": [
+      {
+        "field": "grade_level",
+        "issue": "Giá trị khối lớp phải nằm trong khoảng từ 1 đến 9"
+      }
+    ],
+    "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT04_Classes_TC03 : LẤY DANH SÁCH CÁC LỚP HỌC GIÁO VIÊN ĐANG PHỤ TRÁCH THÀNH CÔNG
+### UT03_Classes_TC03 : LẤY DANH SÁCH CÁC LỚP HỌC GIÁO VIÊN ĐANG PHỤ TRÁCH THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -202,7 +209,7 @@
 
 ---
 
-### UT04_Classes_TC04 : XEM THÔNG TIN CHI TIẾT LỚP HỌC THEO ID THÀNH CÔNG
+### UT03_Classes_TC04 : XEM THÔNG TIN CHI TIẾT LỚP HỌC THEO ID THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -226,7 +233,7 @@
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Trả về chi tiết thông tin lớp học, sĩ số, thông tin GVCN và danh sách GVBM các bộ môn.
-  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
+  - Dữ liệu trả về đúng định dạng JSON chuẩn:
 
   ```json
   {
@@ -256,7 +263,7 @@
 
 ---
 
-### UT04_Classes_TC05 : GVBM TRUY CẬP LỚP TỔNG THEO ĐÚNG MÔN ĐƯỢC PHÂN CÔNG THÀNH CÔNG
+### UT03_Classes_TC05 : GVBM TRUY CẬP LỚP TỔNG THEO ĐÚNG MÔN ĐƯỢC PHÂN CÔNG THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -278,8 +285,8 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Trả về danh sách học sinh của lớp tổng kèm quyền hạn nhập điểm chính xác đối với môn `ENG`.
-  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
+  - Trả về danh sách học sinh của lớp tổng kèm quyền hạn nhập điểm đối với môn `ENG`.
+  - Dữ liệu trả về đúng định dạng JSON chuẩn:
 
   ```json
   {
@@ -309,7 +316,7 @@
 
 ---
 
-### UT04_Classes_TC06 : CHẶN GVBM TRUY CẬP KHI KHÔNG ĐƯỢC PHÂN CÔNG BỘ MÔN NÀO TRONG LỚP
+### UT03_Classes_TC06 : CHẶN GVBM TRUY CẬP KHI KHÔNG ĐƯỢC PHÂN CÔNG BỘ MÔN NÀO TRONG LỚP
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -331,22 +338,23 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống ném ra ngoại lệ **HTTP 403 (FORBIDDEN - CẤM TRUY CẬP)**.
-  - Chặn quyền xem và sửa bảng điểm môn học của lớp này.
-  - Dữ liệu lỗi phản hồi định dạng JSON như sau:
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
 
   ```json
   {
     "success": false,
     "status_code": 403,
-    "error_code": "FORBIDDEN_SUBJECT_ACCESS",
-    "message": "Bạn không được phân công giảng dạy bộ môn nào trong lớp học này"
+    "message": "Bạn không có quyền truy cập vào chức năng này",
+    "error_code": "AUTH_ROLE_FORBIDDEN",
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT04_Classes_TC07 : GVCN LẤY MÃ MỜI VÀ LINK MỜI THAM GIA LỚP HỌC THÀNH CÔNG
+### UT03_Classes_TC07 : GVCN LẤY MÃ MỜI VÀ LINK MỜI THAM GIA LỚP HỌC THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -368,7 +376,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Trả về mã mời (`invite_code`), link mời trực tiếp (`invite_link`) và mã QR để GVCN sao chép gửi vào nhóm Zalo phụ huynh.
+  - Trả về mã mời (`invite_code`), link mời trực tiếp (`invite_link`) và mã QR để GVCN sao chép gửi phụ huynh.
   - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
 
   ```json
@@ -388,7 +396,7 @@
 
 ---
 
-### UT04_Classes_TC08 : PHỤ HUYNH THAM GIA LỚP QUA MÃ MỜI VÀ XÁC NHẬN LIÊN KẾT CON EM THÀNH CÔNG
+### UT03_Classes_TC08 : PHỤ HUYNH THAM GIA LỚP QUA MÃ MỜI VÀ XÁC NHẬN LIÊN KẾT CON EM THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -417,7 +425,6 @@
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Thêm UID của phụ huynh vào mảng `parent_uids` của document `/students/stu_01` trong Cloud Firestore.
-  - Phụ huynh chính thức được cấp quyền xem điểm, chuyên cần và nhận thông báo FCM liên quan đến con mình.
   - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
 
   ```json
@@ -440,7 +447,7 @@
 
 ---
 
-### UT04_Classes_TC09 : TỪ CHỐI PHỤ HUYNH VÀO LỚP KHI MÃ MỜI KHÔNG HỢP LỆ HOẶC HẾT HẠN
+### UT03_Classes_TC09 : TỪ CHỐI PHỤ HUYNH VÀO LỚP KHI MÃ MỜI KHÔNG HỢP LỆ
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -467,22 +474,23 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
-  - Tuyệt đối không liên kết phụ huynh vào bất kỳ lớp học hay học sinh nào.
-  - Dữ liệu lỗi phản hồi định dạng JSON như sau:
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
 
   ```json
   {
     "success": false,
     "status_code": 404,
-    "error_code": "INVALID_INVITE_CODE",
-    "message": "Mã mời lớp học không tồn tại hoặc đã hết hạn sử dụng"
+    "message": "Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn",
+    "error_code": "CLASS_INVITE_CODE_INVALID",
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT04_Classes_TC10 : GVCN THÊM HỌC SINH MỚI VÀO LỚP HỌC HIỆN TẠI THÀNH CÔNG
+### UT03_Classes_TC10 : GVCN THÊM HỌC SINH MỚI VÀO LỚP HỌC HIỆN TẠI THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -511,7 +519,7 @@
 
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/classes/cls_1a_2026/students`.
-  3. Thêm dữ liệu học sinh mới cần bổ sung vào phần **Body** định dạng `raw (application/json)`.
+  3. Thêm dữ liệu học sinh mới cần bổ sung vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 

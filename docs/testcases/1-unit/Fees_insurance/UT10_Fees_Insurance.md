@@ -1,6 +1,6 @@
 # TÀI LIỆU KỊCH BẢN KIỂM THỬ ĐƠN VỊ - PHÂN HỆ QUẢN LÝ HỌC PHÍ & BẢO HIỂM Y TẾ (FEES & INSURANCE)
 
-# MÃ PHÂN HỆ: UT06_FEES_INSURANCE - FEES & HEALTH INSURANCE MODULE
+# MÃ PHÂN HỆ: 10 - FEES & HEALTH INSURANCE MODULE
 
 # CẤP ĐỘ KIỂM THỬ: KIỂM THỬ ĐƠN VỊ (UNIT TEST)
 
@@ -8,7 +8,7 @@
 
 ## 1. THÔNG TIN CHUNG
 
-- **PHÂN HỆ HỆ THỐNG:** `UT06` - Phân hệ Quản lý Thu nộp Học phí & Bảo hiểm y tế (BHYT)
+- **PHÂN HỆ HỆ THỐNG:** `10` - Phân hệ Quản lý Thu nộp Học phí & Bảo hiểm y tế (BHYT - `/api/v1/fees-insurance`)
 - **MÔ TẢ MODULE API:** Quản lý theo dõi nghĩa vụ tài chính của học sinh lớp chủ nhiệm qua 2 cờ Boolean kèm ngày nộp thực tế (`is_paid_tuition`, `tuition_paid_date`, `is_paid_insurance`, `insurance_paid_date`), thu tiền mặt trực tiếp tại lớp (không qua cổng thanh toán online), lọc danh sách chưa nộp và phát thông báo đẩy FCM đôn đốc phụ huynh (`FeesInsuranceService`, `FeesInsuranceController`)
 - **NGƯỜI THỰC HIỆN / VIẾT TESTCASE:** Kim Chi Ha
 - **TẬP TIN KIỂM THỬ:** [API_Fees_Insurance](https://github.com/gray8493/GiaoVienHay/tree/main/docs/apis/fees-insurance)
@@ -20,7 +20,7 @@
 
 ---
 
-### UT06_FeesInsurance_TC01 : GVCN XEM TOÀN BỘ DANH SÁCH THU NỘP HỌC PHÍ & BHYT CỦA LỚP CHỦ NHIỆM THÀNH CÔNG
+### UT10_FeesInsurance_TC01 : GVCN XEM TOÀN BỘ DANH SÁCH THU NỘP HỌC PHÍ & BHYT CỦA LỚP CHỦ NHIỆM THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -42,8 +42,7 @@
 
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API kèm tham số: `/api/v1/fees-insurance/class/cls_1a_2026?fee_type=ALL&unpaid_only=false`.
-  3. Không cần truyền dữ liệu vào phần Body.
-  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
@@ -94,7 +93,7 @@
 
 ---
 
-### UT06_FeesInsurance_TC02 : LỌC DANH SÁCH HỌC SINH CHƯA NỘP BHYT CỦA LỚP THÀNH CÔNG
+### UT10_FeesInsurance_TC02 : LỌC DANH SÁCH HỌC SINH CHƯA NỘP BHYT CỦA LỚP THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -119,7 +118,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Chỉ lọc và hiển thị danh sách những học sinh có cờ `insurance.is_paid: false`, phục vụ việc GVCN rà soát nhanh.
+  - Chỉ lọc và hiển thị danh sách những học sinh có cờ `insurance.is_paid: false`.
   - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
 
   ```json
@@ -148,7 +147,7 @@
 
 ---
 
-### UT06_FeesInsurance_TC03 : CẬP NHẬT TRẠNG THÁI ĐÃ NỘP BHYT KÈM NGÀY NỘP THỰC TẾ THÀNH CÔNG
+### UT10_FeesInsurance_TC03 : CẬP NHẬT TRẠNG THÁI ĐÃ NỘP BHYT KÈM NGÀY NỘP THỰC TẾ THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -180,7 +179,7 @@
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Cập nhật trường `is_paid_insurance: true`, `insurance_paid_date: "2026-09-27"` trong Cloud Firestore.
-  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
+  - Dữ liệu trả về đúng định dạng JSON chuẩn:
 
   ```json
   {
@@ -199,7 +198,7 @@
 
 ---
 
-### UT06_FeesInsurance_TC04 : CẬP NHẬT TRẠNG THÁI ĐÃ NỘP HỌC PHÍ THÀNH CÔNG
+### UT10_FeesInsurance_TC04 : CẬP NHẬT TRẠNG THÁI ĐÃ NỘP HỌC PHÍ THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -230,7 +229,7 @@
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Cập nhật cờ `is_paid_tuition: true` và `tuition_paid_date: "2026-09-27"` trong Firestore.
-  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
+  - Dữ liệu trả về đúng định dạng JSON chuẩn:
 
   ```json
   {
@@ -249,7 +248,7 @@
 
 ---
 
-### UT06_FeesInsurance_TC05 : TỪ CHỐI CẬP NHẬT KHI LOẠI KHOẢN THU KHÔNG HỢP LỆ (ENUM ERROR)
+### UT10_FeesInsurance_TC05 : TỪ CHỐI CẬP NHẬT KHI NGÀY NỘP TIỀN Ở TƯƠNG LAI
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -264,36 +263,42 @@
   ```json
   {
     "record_id": "fee_02",
-    "fee_type": "TIEN_QUY_LOP",
+    "fee_type": "INSURANCE",
     "is_paid": true,
-    "paid_date": "2026-09-27"
+    "paid_date": "2026-12-31"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/fees-insurance/toggle`.
-  3. Thêm dữ liệu có `fee_type` không thuộc enum quy định (`TUITION`, `INSURANCE`) vào phần **Body**.
+  3. Thêm dữ liệu có ngày nộp tiền vượt quá ngày hiện tại vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
-  - Tuyệt đối không thay đổi bất kỳ trường dữ liệu nào trong Firestore.
-  - Dữ liệu lỗi phản hồi định dạng JSON như sau:
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
 
   ```json
   {
     "success": false,
     "status_code": 400,
-    "error_code": "INVALID_FEE_TYPE",
-    "message": "Loại khoản thu không hợp lệ. Chỉ chấp nhận TUITION hoặc INSURANCE"
+    "message": "Ngày nộp tiền không hợp lệ hoặc rơi vào tương lai",
+    "error_code": "FEE_PAID_DATE_INVALID",
+    "details": [
+      {
+        "field": "paid_date",
+        "issue": "Ngày hoàn thành nộp tiền không được vượt quá ngày hiện tại"
+      }
+    ],
+    "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT06_FeesInsurance_TC06 : BÁO LỖI KHI CẬP NHẬT BẢN GHI THU NỘP KHÔNG TỒN TẠI
+### UT10_FeesInsurance_TC06 : BÁO LỖI KHI CẬP NHẬT BẢN GHI THU NỘP KHÔNG TỒN TẠI
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -320,21 +325,23 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
-  - Dữ liệu lỗi phản hồi định dạng JSON như sau:
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
 
   ```json
   {
     "success": false,
     "status_code": 404,
+    "message": "Không tìm thấy bản ghi theo dõi học phí hoặc BHYT của học sinh",
     "error_code": "FEE_RECORD_NOT_FOUND",
-    "message": "Không tìm thấy bản ghi thu nộp với mã định danh đã cung cấp"
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT06_FeesInsurance_TC07 : GVCN GỬI THÔNG BÁO FCM ĐÔN ĐỐC PHỤ HUYNH CHƯA NỘP BHYT THÀNH CÔNG
+### UT10_FeesInsurance_TC07 : GVCN GỬI THÔNG BÁO FCM ĐÔN ĐỐC PHỤ HUYNH CHƯA NỘP BHYT THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -363,7 +370,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Backend lọc danh sách học sinh chưa nộp, tra cứu FCM token của phụ huynh và bắn thông báo đẩy Multicast Message.
+  - Backend lọc danh sách học sinh chưa nộp, tra cứu FCM token của phụ huynh và phát Multicast Message.
   - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
 
   ```json
@@ -381,7 +388,7 @@
 
 ---
 
-### UT06_FeesInsurance_TC08 : CHẶN GIÁO VIÊN KHÔNG PHẢI GVCN TRUY CẬP XEM THU NỘP CỦA LỚP
+### UT10_FeesInsurance_TC08 : CHẶN GIÁO VIÊN KHÔNG PHẢI GVCN TRUY CẬP XEM THU NỘP CỦA LỚP
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -405,22 +412,23 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống ném ra ngoại lệ **HTTP 403 (FORBIDDEN - CẤM TRUY CẬP)**.
-  - Bảo mật tuyệt đối dữ liệu thu nộp tài chính của lớp.
-  - Dữ liệu lỗi phản hồi định dạng JSON như sau:
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
 
   ```json
   {
     "success": false,
     "status_code": 403,
-    "error_code": "FORBIDDEN_HOMEROOM_ACCESS",
-    "message": "Chỉ Giáo viên Chủ nhiệm mới có quyền theo dõi và quản lý thu nộp nghĩa vụ tài chính của lớp"
+    "message": "Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này",
+    "error_code": "CLASS_NOT_HOMEROOM_TEACHER",
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT06_FeesInsurance_TC09 : CHẶN YÊU CẦU GỬI LỜI NHẮC KHI CHƯA XÁC THỰC (UNAUTHORIZED)
+### UT10_FeesInsurance_TC09 : CHẶN YÊU CẦU GỬI LỜI NHẮC KHI CHƯA XÁC THỰC (UNAUTHORIZED)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -444,51 +452,60 @@
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - CHƯA XÁC THỰC)**.
-  - Dữ liệu lỗi phản hồi định dạng JSON như sau:
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
 
   ```json
   {
     "success": false,
     "status_code": 401,
-    "message": "Yêu cầu cung cấp mã xác thực hợp lệ"
+    "message": "Yêu cầu truy cập chưa được xác thực danh tính",
+    "error_code": "AUTH_UNAUTHORIZED",
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT06_FeesInsurance_TC10 : BÁO LỖI KHI TRA CỨU DỮ LIỆU THU NỘP VỚI MÃ LỚP HỌC KHÔNG TỒN TẠI
+### UT10_FeesInsurance_TC10 : BÁO LỖI KHI CẬP NHẬT KHI ĐỢT THU PHÍ ĐÃ BỊ KHÓA SỔ
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
-  - Mã lớp học `cls_khong_ton_tai` hoàn toàn không có trong cơ sở dữ liệu hệ thống.
+  - Đợt thu học phí/BHYT học kỳ này đã được kế toán nhà trường khóa sổ (`is_locked = true`).
 - **DỮ LIỆU ĐẦU VÀO:**
 
-  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`
-  - **Tham số đường dẫn (Path Params):** `classId = cls_khong_ton_tai`
-  - **Tham số truy vấn (Query Params JSON):**
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_gvcn_hop_le>`
+    - `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):**
 
   ```json
   {
-    "fee_type": "ALL"
+    "record_id": "fee_02",
+    "fee_type": "INSURANCE",
+    "is_paid": true,
+    "paid_date": "2026-09-27"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
-  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/fees-insurance/class/cls_khong_ton_tai?fee_type=ALL`.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/fees-insurance/toggle`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
-  - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
-  - Dữ liệu lỗi phản hồi định dạng JSON như sau:
+  - Hệ thống phản hồi mã trạng thái **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
 
   ```json
   {
     "success": false,
-    "status_code": 404,
-    "error_code": "CLASS_NOT_FOUND",
-    "message": "Không tìm thấy thông tin lớp học với mã định danh đã cung cấp"
+    "status_code": 400,
+    "message": "Đợt thu nộp này đã được kế toán trường khóa sổ, không thể chỉnh sửa",
+    "error_code": "FEE_TERM_LOCKED",
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
