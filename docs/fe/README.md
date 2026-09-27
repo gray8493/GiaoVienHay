@@ -29,6 +29,7 @@ Hệ thống cung cấp 2 giải pháp giao diện độc lập nhằm tối ưu
 
 - 🌐 **[fe-web-architecture.md](file:///e:/GiaoVienHay/docs/fe/web/fe-web-architecture.md)**: Đặc tả kiến trúc Web Next.js (App Router, Quản lý State, Cấu trúc Thư mục, Phân trang, Tối ưu SEO/Performance).
 - 📱 **[fe-mobile-architecture.md](file:///e:/GiaoVienHay/docs/fe/mobile/fe-mobile-architecture.md)**: Đặc tả kiến trúc Mobile App React Native (Navigation, Tích hợp FCM Push Notification, Quản lý State, Lưu trữ bảo mật Keychain).
+- 🎨 **[ui-ux-design-specs.md](file:///e:/GiaoVienHay/docs/fe/ui-ux-design-specs.md)**: Đặc tả Thiết kế UI/UX, Design System chuẩn, Project ID Stitch AI và trọn bộ Prompts sinh màn hình toàn hệ thống.
 
 ---
 
