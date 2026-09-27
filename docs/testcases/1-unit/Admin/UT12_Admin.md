@@ -479,3 +479,280 @@
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC11 : TỪ CHỐI THỰC HIỆN KHI KHÔNG TRUYỀN HOẶC ĐỂ TRỐNG MÃ ĐỊNH DANH NGƯỜI DÙNG (ID RỖNG)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+- **DỮ LIỆU ĐẦU VÀO:**
+
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+    - `Content-Type: application/json`
+  - **Tham số đường dẫn (Path Params):** `id = ""` (để chuỗi rỗng hoặc chỉ khoảng trắng)
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "reason": "Vi phạm chia sẻ tài liệu sai quy định",
+    "note": "Khóa tài khoản kiểm tra"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API không truyền mã định danh: `/api/v1/admin/users//ban` hoặc truyền param rỗng.
+  3. Thêm nội dung Body JSON hợp lệ.
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  - Bộ lọc kiểm tra dữ liệu đầu vào (Validation Pipe / Middleware) chặn lại và ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
+  ```json
+  {
+    "success": false,
+    "status_code": 400,
+    "message": "Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng",
+    "error_code": "COMMON_VALIDATION_ERROR",
+    "details": [
+      {
+        "field": "id",
+        "issue": "Mã định danh người dùng (id) bắt buộc và không được để trống"
+      }
+    ],
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC12 : BÁO LỖI KHI THỰC HIỆN MỞ KHÓA TÀI KHOẢN NGƯỜI DÙNG KHÔNG TỒN TẠI
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Mã người dùng `usr_non_existent` hoàn toàn không tồn tại trong Firestore `/users` và Firebase Auth.
+- **DỮ LIỆU ĐẦU VÀO:**
+
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_admin_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `id = usr_non_existent`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {}
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_non_existent/unban`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "message": "Không tìm thấy người dùng trong hệ thống",
+    "error_code": "USER_NOT_FOUND",
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC13 : TỪ CHỐI KHÓA TÀI KHOẢN KHI ĐỘ DÀI LÝ DO KHÔNG THỎA MÃN RÀNG BUỘC (VALIDATION DƯỚI 5 KÝ TỰ HOẶC VƯỢT QUÁ 500 KÝ TỰ)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Tài khoản người dùng mục tiêu `usr_t01` tồn tại trên hệ thống.
+- **DỮ LIỆU ĐẦU VÀO:**
+
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+    - `Content-Type: application/json`
+  - **Tham số đường dẫn (Path Params):** `id = usr_t01`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "reason": "Spam"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_t01/ban`.
+  3. Nhập giá trị trường `reason` có độ dài chỉ 4 ký tự (vi phạm quy định tối thiểu 5 ký tự) vào phần **Body**.
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
+  ```json
+  {
+    "success": false,
+    "status_code": 400,
+    "message": "Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng",
+    "error_code": "COMMON_VALIDATION_ERROR",
+    "details": [
+      {
+        "field": "reason",
+        "issue": "Lý do khóa tài khoản phải có độ dài từ 5 đến 500 ký tự"
+      }
+    ],
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC14 : TỪ CHỐI CẬP NHẬT HẠN MỨC TÀI NGUYÊN KHI DỮ LIỆU ĐẦU VÀO SAI KIỂU DỮ LIỆU (DTO VALIDATION)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+- **DỮ LIỆU ĐẦU VÀO:**
+
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+    - `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "max_classes_per_teacher": "khong_gioi_han",
+    "max_students_per_class": 60,
+    "gemini_ai_daily_quota_per_teacher": 30,
+    "max_upload_size_mb": 20
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`PUT`**, nhập đường dẫn API: `/api/v1/admin/system/limits`.
+  3. Nhập dữ liệu trong đó `max_classes_per_teacher` là chuỗi văn bản thay vì số nguyên (Integer).
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  - Hệ thống ném ra ngoại lệ kiểm tra kiểu dữ liệu DTO **HTTP 422 (UNPROCESSABLE ENTITY - LỖI ĐỊNH DẠNG DTO)** (hoặc HTTP 400 Bad Request tùy cấu hình ValidationPipe).
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
+  ```json
+  {
+    "success": false,
+    "status_code": 422,
+    "message": "Dữ liệu đầu vào sai quy cách định dạng DTO Validation",
+    "error_code": "REQ_VALIDATION_ERROR",
+    "details": [
+      {
+        "field": "max_classes_per_teacher",
+        "issue": "Giá trị hạn mức lớp học phải là số nguyên (integer)"
+      }
+    ],
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC15 : XỬ LÝ NGOẠI LỆ LỖI HỆ THỐNG KHI KẾT NỐI FIREBASE / CƠ SỞ DỮ LIỆU THẤT BẠI (500 INTERNAL SERVER ERROR)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Dịch vụ Firebase Authentication SDK hoặc Cloud Firestore tạm thời mất kết nối mạng, timeout hoặc ném lỗi ngoại lệ nội bộ chưa được kiểm soát.
+- **DỮ LIỆU ĐẦU VÀO:**
+
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+    - `Content-Type: application/json`
+  - **Tham số đường dẫn (Path Params):** `id = usr_t01`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "reason": "Vi phạm chia sẻ tài liệu sai quy định",
+    "note": "Khóa tài khoản kiểm tra"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Giả lập / Mocking kết nối Firebase Admin SDK hoặc Firestore ném ra lỗi ngoại lệ `FirebaseError: Deadline Exceeded / Service Unavailable`.
+  3. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_t01/ban`.
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  - Bộ lọc ngoại lệ toàn cục (Global Exception Filter) bắt lỗi và chuyển đổi thành mã trạng thái **HTTP 500 (INTERNAL SERVER ERROR - LỖI MÁY CHỦ NỘI BỘ)** mà không làm crash tiến trình ứng dụng.
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
+  ```json
+  {
+    "success": false,
+    "status_code": 500,
+    "message": "Lỗi máy chủ nội bộ hoặc lỗi kết nối Firebase",
+    "error_code": "SYS_INTERNAL_ERROR",
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC16 : CHẶN HÀNH ĐỘNG KHÓA TÀI KHOẢN KHI NGƯỜI DÙNG MỤC TIÊU CÓ VAI TRÒ QUẢN TRỊ VIÊN CẤP CAO (ADMIN)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Tài khoản người dùng mục tiêu `usr_admin_senior` có vai trò `role: ADMIN` trong hệ thống.
+- **DỮ LIỆU ĐẦU VÀO:**
+
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+    - `Content-Type: application/json`
+  - **Tham số đường dẫn (Path Params):** `id = usr_admin_senior`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "reason": "Khóa thử nghiệm tài khoản quản trị",
+    "note": "Kiểm tra cơ chế tự bảo vệ của hệ thống"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_admin_senior/ban`.
+  3. Thêm nội dung Body JSON hợp lệ.
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  - Hệ thống kiểm tra vai trò tài khoản mục tiêu và ném ra ngoại lệ cấm thực thi **HTTP 403 (FORBIDDEN - CẤM TRUY CẬP)**.
+  - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
+  ```json
+  {
+    "success": false,
+    "status_code": 403,
+    "message": "Không thể khóa tài khoản có vai trò Quản trị viên cấp cao (ADMIN)",
+    "error_code": "ADM_CANNOT_BAN_ADMIN",
+    "details": null,
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
