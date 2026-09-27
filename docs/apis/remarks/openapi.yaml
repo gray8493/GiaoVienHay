@@ -70,6 +70,18 @@ paths:
                         format: date-time
                       fcm_delivered:
                         type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /remarks/class/{classId}:
     get:
@@ -113,6 +125,14 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/RemarkDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /remarks/{id}/acknowledge:
     patch:
@@ -154,6 +174,16 @@ paths:
                       acknowledged_at:
                         type: string
                         format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -189,3 +219,82 @@ components:
         created_at:
           type: string
           format: date-time
+
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "content"
+        issue:
+          type: string
+          example: "Nội dung nhận xét không được để trống"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Nội dung nhận xét không hợp lệ"
+        error_code:
+          type: string
+          example: "REMARK_CONTENT_EMPTY"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
+
+  responses:
+    BadRequest:
+      description: Dữ liệu gửi lên không hợp lệ hoặc đã xác nhận rồi
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token không hợp lệ / hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Không có quyền truy cập nhận xét này (không phải PH của học sinh hoặc GV lớp)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy nhận xét hoặc học sinh
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Sai định dạng dữ liệu đầu vào DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

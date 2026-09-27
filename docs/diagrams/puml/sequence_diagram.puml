@@ -50,15 +50,21 @@ end box
 Admin -> WebAdminUI: Đăng nhập Cổng Quản trị (Admin Portal trên Web Next.js)
 WebAdminUI -> Gateway: POST /api/v1/admin/auth/verify (Admin Token)
 Gateway -> FBAuth: Xác minh Custom Claims (role = ADMIN)
-FBAuth --> Gateway: Token Quản trị viên hợp lệ
-Gateway --> WebAdminUI: Truy cập thành công Dashboard Admin
+alt [Thất bại: Không có quyền ADMIN]
+    FBAuth --> Gateway: Từ chối xác thực vai trò
+    Gateway --> WebAdminUI: HTTP 403 Forbidden (AUTH_ROLE_FORBIDDEN)
+    WebAdminUI --> Admin: Thông báo "Từ chối truy cập cổng quản trị"
+else [Thành công]
+    FBAuth --> Gateway: Token Quản trị viên hợp lệ
+    Gateway --> WebAdminUI: HTTP 200 OK (Truy cập thành công Dashboard Admin)
+end
 
 Admin -> WebAdminUI: Cấu hình hạn mức (limit/quota: số lớp, học sinh/lớp, lượt AI Gemini) & Quản lý User/Ban
 WebAdminUI -> Gateway: PUT /api/v1/admin/system/limits (payload: quotaConfigs)
 Gateway -> AdminModule: Cập nhật hạn mức hệ thống & chính sách tài nguyên
 AdminModule -> Firestore: Ghi cấu hình vào /system_configs/limits
 Firestore --> AdminModule: Ghi nhận thành công
-AdminModule --> WebAdminUI: Cập nhật thông số hệ thống thành công
+AdminModule --> WebAdminUI: HTTP 200 OK (Cập nhật thông số hệ thống thành công)
 
 ' ==============================================================================
 ' GIAI ĐOẠN 1: GIÁO VIÊN TỰ TẠO LỚP, THÊM HỌC SINH & PHỤ HUYNH VÀO LỚP QUA LINK
@@ -75,21 +81,36 @@ Firestore --> AdminModule: Cập nhật thành công
 Teacher -> TeacherUI: GVCN tạo Lớp tổng (Tên lớp, Khối 1-9), hệ thống tự gán môn GVCN dạy, GVCN gán GVBM môn còn lại
 TeacherUI -> Gateway: POST /api/v1/classes (className, grade, students, subject_teachers)
 Gateway -> FBAuth: Verify ID Token (kiểm tra quyền TEACHER_HOMEROOM)
-FBAuth --> Gateway: Token hợp lệ
-Gateway -> AcadModule: Forward request (Tạo lớp tổng & sinh Invite Link)
-AcadModule -> Firestore: Lưu lớp học vào /classes (sinh invite_code, invite_link, subject_teachers)
-AcadModule -> Firestore: Lưu danh sách học sinh vào /students
-AcadModule -> FeeModule: Khởi tạo danh mục theo dõi BHYT cho lớp
-FeeModule -> Firestore: Khởi tạo bản ghi trong /fees_and_insurance (cờ mặc định FALSE)
-Firestore --> AcadModule: Ghi nhận thành công
-AcadModule --> TeacherUI: Phản hồi thành công kèm **Link mời tham gia lớp (Invite Link)**
+
+alt [Thất bại: Không phải GVCN hoặc vượt hạn mức số lớp]
+    Gateway --> TeacherUI: HTTP 403 / HTTP 400 (CLASS_NOT_HOMEROOM_TEACHER / LIMIT_EXCEEDED)
+    TeacherUI --> Teacher: Báo lỗi phân quyền hoặc vượt giới hạn tạo lớp
+else [Thất bại: Trùng mã học sinh trong danh sách]
+    AcadModule --> Gateway: Báo lỗi mã học sinh tồn tại
+    Gateway --> TeacherUI: HTTP 409 Conflict (CLASS_STUDENT_CODE_EXISTS)
+    TeacherUI --> Teacher: Báo lỗi trùng mã học sinh
+else [Thành công]
+    FBAuth --> Gateway: Token hợp lệ
+    Gateway -> AcadModule: Forward request (Tạo lớp tổng & sinh Invite Link)
+    AcadModule -> Firestore: Lưu lớp học vào /classes (sinh invite_code, invite_link, subject_teachers)
+    AcadModule -> Firestore: Lưu danh sách học sinh vào /students
+    AcadModule -> FeeModule: Khởi tạo danh mục theo dõi BHYT cho lớp
+    FeeModule -> Firestore: Khởi tạo bản ghi trong /fees_and_insurance (cờ mặc định FALSE)
+    Firestore --> AcadModule: Ghi nhận thành công
+    AcadModule --> TeacherUI: HTTP 201 Created kèm **Link mời tham gia lớp (Invite Link)**
+end
 
 Teacher -> TeacherUI: GVBM đăng nhập & truy cập Lớp tổng theo môn được phân công
 TeacherUI -> Gateway: GET /api/v1/classes/{classId}/my-subject
 Gateway -> AcadModule: Forward request (xác thực quyền GVBM của lớp)
-AcadModule -> Firestore: Truy vấn phân công giảng dạy môn học
-Firestore --> AcadModule: Trả về dữ liệu lớp và môn phụ trách
-AcadModule --> TeacherUI: Trả về danh sách học sinh để GVBM quản lý & vào điểm
+alt [Thất bại: GVBM chưa được phân công môn học này tại lớp]
+    AcadModule --> Gateway: Báo lỗi không có phân công
+    Gateway --> TeacherUI: HTTP 403 Forbidden (ACAD_NOT_ASSIGNED_TEACHER)
+else [Thành công]
+    AcadModule -> Firestore: Truy vấn phân công giảng dạy môn học
+    Firestore --> AcadModule: Trả về dữ liệu lớp và môn phụ trách
+    AcadModule --> TeacherUI: HTTP 200 OK (Danh sách học sinh để GVBM quản lý & vào điểm)
+end
 
 Teacher -> Parent: GVCN gửi Link mời vào nhóm phụ huynh của lớp
 Parent -> ParentApp: Nhấp vào Link mời tham gia lớp học
@@ -97,9 +118,16 @@ ParentApp -> FBAuth: Đăng nhập bằng SĐT (SMS OTP) hoặc Email
 FBAuth --> ParentApp: Đăng nhập thành công, nhận Firebase ID Token
 ParentApp -> Gateway: POST /api/v1/classes/join (invite_code, studentId được chọn)
 Gateway -> AcadModule: Xác thực và liên kết Phụ huynh với Học sinh
-AcadModule -> Firestore: Cập nhật parent_uids trong /students và gán classId cho /users
-Firestore --> AcadModule: Cập nhật liên kết thành công
-AcadModule --> ParentApp: Phản hồi "Tham gia lớp học thành công"
+
+alt [Thất bại: Mã mời không tồn tại hoặc đã hết hạn]
+    AcadModule --> Gateway: Báo lỗi mã mời
+    Gateway --> ParentApp: HTTP 404 Not Found (CLASS_INVITE_CODE_INVALID)
+    ParentApp --> Parent: Báo lỗi mã mời không hợp lệ
+else [Thành công]
+    AcadModule -> Firestore: Cập nhật parent_uids trong /students và gán classId cho /users
+    Firestore --> AcadModule: Cập nhật liên kết thành công
+    AcadModule --> ParentApp: HTTP 200 OK (Thông tin con em và lớp học)
+end
 
 ' ==============================================================================
 ' GIAI ĐOẠN 2: NGHIỆP VỤ SƯ PHẠM - ĐIỂM DANH, CÔNG BỐ ĐIỂM & THEO DÕI BHYT (GV)
@@ -110,19 +138,33 @@ AcadModule --> ParentApp: Phản hồi "Tham gia lớp học thành công"
 Teacher -> TeacherUI: Mở App tại lớp, chọn học sinh vắng & nhấn "Lưu điểm danh"
 TeacherUI -> Gateway: POST /api/v1/attendance/submit
 Gateway -> AcadModule: Forward request (Teacher Token)
-AcadModule -> Firestore: Ghi nhận bản ghi điểm danh vào collection /attendances
-Firestore --> AcadModule: Lưu thành công
-AcadModule -> NotiModule: Kích hoạt thông báo vắng học (kèm studentId vắng)
-AcadModule --> TeacherUI: Phản hồi "Điểm danh hoàn tất"
+alt [Thất bại: Tiết học này đã được điểm danh trước đó]
+    AcadModule --> Gateway: Báo lỗi xung đột điểm danh
+    Gateway --> TeacherUI: HTTP 409 Conflict (ATTEND_ALREADY_EXISTS)
+else [Thành công]
+    AcadModule -> Firestore: Ghi nhận bản ghi điểm danh vào collection /attendances
+    Firestore --> AcadModule: Lưu thành công
+    AcadModule -> NotiModule: Kích hoạt thông báo vắng học (kèm studentId vắng)
+    AcadModule --> TeacherUI: HTTP 201 Created (Điểm danh hoàn tất và đã gửi FCM tới PH)
+end
 
 Teacher -> TeacherUI: Tải giáo án (.docx/.pdf), chọn Số câu hỏi & Độ khó cho AI
 TeacherUI -> Gateway: POST /api/v1/quizzes/generate-ai (file, subject, num_questions, difficulty_level)
 Gateway -> GameModule: Forward request
-GameModule -> FBStorage: Upload và lưu tệp giáo án an toàn
-GameModule -> Gemini: Gửi prompt bóc tách tài liệu bài giảng theo Số câu & Độ khó
-Gemini --> GameModule: Trả về danh sách câu hỏi trắc nghiệm kèm đáp án và giải thích
-GameModule -> Firestore: Lưu bộ câu hỏi vào /quizzes & subcollection /questions
-GameModule --> TeacherUI: Trả về bộ câu hỏi & sẵn sàng lựa chọn: Chế độ Quiz HOẶC Chế độ Game
+
+alt [Thất bại: Tệp giáo án > 15MB hoặc sai định dạng]
+    GameModule --> Gateway: Báo lỗi tệp không hợp lệ
+    Gateway --> TeacherUI: HTTP 400 Bad Request (QUIZ_FILE_TOO_LARGE / QUIZ_FILE_INVALID_FORMAT)
+else [Thất bại: Vượt hạn ngạch AI Gemini trong ngày]
+    GameModule --> Gateway: Báo lỗi vượt hạn ngạch
+    Gateway --> TeacherUI: HTTP 429 Too Many Requests (QUIZ_DAILY_QUOTA_EXCEEDED)
+else [Thành công]
+    GameModule -> FBStorage: Upload và lưu tệp giáo án an toàn
+    GameModule -> Gemini: Gửi prompt bóc tách tài liệu bài giảng theo Số câu & Độ khó
+    Gemini --> GameModule: Trả về danh sách câu hỏi trắc nghiệm kèm đáp án và giải thích
+    GameModule -> Firestore: Lưu bộ câu hỏi vào /quizzes & subcollection /questions
+    GameModule --> TeacherUI: HTTP 201 Created (Trả về bộ câu hỏi & sẵn sàng lựa chọn: Chế độ Quiz HOẶC Chế độ Game)
+end
 
 note over Teacher, TeacherUI #FFF9C4
   <b>Linh hoạt 2 Chế độ trình chiếu tại lớp:</b>

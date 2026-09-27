@@ -37,10 +37,14 @@ paths:
                     example: 200
                   data:
                     $ref: '#/components/schemas/StudentProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /students/{id}/academic:
     get:
@@ -72,6 +76,14 @@ paths:
                     example: 200
                   data:
                     $ref: '#/components/schemas/AcademicRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /students/{id}/attendance:
     get:
@@ -123,6 +135,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/AttendanceItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /students/{id}/fees-insurance:
     get:
@@ -153,6 +173,14 @@ paths:
                     example: 200
                   data:
                     $ref: '#/components/schemas/FeesInsuranceSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /students/{id}/remarks:
     get:
@@ -185,6 +213,14 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/RemarkItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /students/{id}/exam-reminders:
     get:
@@ -217,6 +253,14 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/ExamReminderItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -366,33 +410,75 @@ components:
         content_scope:
           type: string
 
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "id"
+        issue:
+          type: string
+          example: "Không tìm thấy hồ sơ học sinh"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: "Không tìm thấy hồ sơ học sinh"
+        error_code:
+          type: string
+          example: "STUDENT_NOT_FOUND"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
+
   responses:
+    BadRequest:
+      description: Dữ liệu yêu cầu không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     Forbidden:
       description: Quyền truy cập bị từ chối (Không phải phụ huynh của học sinh này hoặc không có quyền giáo viên lớp)
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-                example: false
-              error:
-                type: string
-                example: FORBIDDEN
-              message:
-                type: string
-                example: "Bạn không có quyền truy cập hồ sơ học sinh này."
+            $ref: '#/components/schemas/ErrorResponse'
     NotFound:
       description: Không tìm thấy học sinh
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-                example: false
-              error:
-                type: string
-                example: STUDENT_NOT_FOUND
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

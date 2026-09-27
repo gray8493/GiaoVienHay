@@ -35,6 +35,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClassDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     get:
       tags:
         - Classes
@@ -45,6 +57,10 @@ paths:
       responses:
         '200':
           description: Danh sách lớp học
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /classes/{id}:
     get:
@@ -63,6 +79,14 @@ paths:
       responses:
         '200':
           description: Chi tiết lớp học
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /classes/{id}/my-subject:
     get:
@@ -81,6 +105,14 @@ paths:
       responses:
         '200':
           description: Trả về danh sách học sinh và quyền hạn nhập điểm môn được phân công
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /classes/{id}/invite:
     get:
@@ -99,6 +131,14 @@ paths:
       responses:
         '200':
           description: Thông tin mời tham gia lớp
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /classes/join:
     post:
@@ -127,6 +167,18 @@ paths:
       responses:
         '200':
           description: Liên kết vào lớp của con thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /classes/{id}/students:
     post:
@@ -156,6 +208,20 @@ paths:
       responses:
         '201':
           description: Thêm học sinh vào lớp thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /classes/{id}/students/{studentId}:
     delete:
@@ -179,6 +245,67 @@ paths:
       responses:
         '200':
           description: Đã xóa học sinh khỏi lớp thành công
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /classes/{id}/subject-teachers:
+    put:
+      tags:
+        - Classes
+      summary: GVCN cập nhật hoặc gán lại Giáo viên Bộ môn (GVBM) cho lớp
+      operationId: updateSubjectTeachers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject_teachers
+              properties:
+                subject_teachers:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - teacher_id
+                      - subject_code
+                    properties:
+                      teacher_id:
+                        type: string
+                        example: "usr_gvbm_math"
+                      subject_code:
+                        type: string
+                        example: "MATH"
+      responses:
+        '200':
+          description: Cập nhật phân công GVBM thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -263,3 +390,88 @@ components:
               type: string
             total_students:
               type: integer
+
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "invite_code"
+        issue:
+          type: string
+          example: "Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Yêu cầu không hợp lệ"
+        error_code:
+          type: string
+          example: "CLASS_INVITE_CODE_INVALID"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
+
+  responses:
+    BadRequest:
+      description: Dữ liệu gửi lên không hợp lệ hoặc vi phạm quy tắc lớp học
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token không hợp lệ / hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Không có quyền GVCN hoặc quyền truy cập lớp học này
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy lớp học hoặc mã mời
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Xung đột mã học sinh hoặc phụ huynh đã liên kết con
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Sai quy chuẩn dữ liệu đầu vào DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

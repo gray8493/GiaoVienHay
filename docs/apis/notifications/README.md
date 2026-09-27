@@ -23,7 +23,14 @@ Phân hệ **Notifications** quản lý toàn bộ nhật ký các thông báo �
 
 ### 2.1. GET `/api/v1/notifications` - Danh Sách Thông Báo
 - **Headers:** `Authorization: Bearer <access_token>`
-- **Query Params:** `page` (default: 1), `limit` (default: 20), `is_read` (`true`/`false`)
+
+#### Bảng Quy Định Dữ Liệu Đầu Vào (Input Specification)
+
+| Tên tham số (Parameter) | Vị trí | Bắt buộc / Tùy chọn | Phương thức nhập liệu | Kiểu dữ liệu & Ràng buộc validation |
+| :--- | :---: | :---: | :---: | :--- |
+| `page` | Query | **Tùy chọn** (Default: 1) | Hệ thống tự phân trang | Số nguyên dương `>= 1`. |
+| `limit` | Query | **Tùy chọn** (Default: 20) | Hệ thống tự cấu hình | Số nguyên từ `1` đến `100`. |
+| `is_read` | Query | **Tùy chọn** | **Bấm chọn Tab (Tất cả / Chưa đọc)** | Boolean: `true` hoặc `false`. |
 
 #### Response Thành Công (HTTP 200 OK)
 ```json
@@ -64,3 +71,29 @@ Phân hệ **Notifications** quản lý toàn bộ nhật ký các thông báo �
   "message": "Đã đánh dấu thông báo là đã đọc"
 }
 ```
+
+#### Response Thất Bại Thường Gặp
+##### Thông báo không tồn tại hoặc không thuộc tài khoản (HTTP 404 Not Found)
+```json
+{
+  "success": false,
+  "status_code": 404,
+  "message": "Không tìm thấy thông báo này trên hệ thống",
+  "error_code": "NOTI_NOT_FOUND",
+  "details": null,
+  "timestamp": "2026-09-27T08:30:00.000Z"
+}
+```
+
+---
+
+## 3. Bảng Tổng Hợp Mã Lỗi Phân Hệ Notifications
+
+| HTTP Status | Mã Lỗi (`error_code`) | Ý nghĩa & Tình huống xảy ra |
+| :---: | :--- | :--- |
+| `400` | `COMMON_VALIDATION_ERROR` | Tham số query pagination không hợp lệ. |
+| `401` | `AUTH_UNAUTHORIZED` | Bearer token không hợp lệ hoặc đã hết hạn. |
+| `403` | `AUTH_FORBIDDEN` | Người dùng cố tình đánh dấu đã đọc thông báo của tài khoản khác. |
+| `404` | `NOTI_NOT_FOUND` | `id` thông báo không tồn tại trong Firestore. |
+| `500` | `SYS_INTERNAL_ERROR` | Lỗi máy chủ cơ sở dữ liệu nội bộ. |
+

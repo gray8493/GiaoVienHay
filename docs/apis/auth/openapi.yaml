@@ -40,11 +40,11 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '409':
-          description: Email hoặc số điện thoại đã tồn tại
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /auth/login:
     post:
@@ -65,8 +65,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /auth/firebase-verify:
     post:
@@ -93,8 +101,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /auth/refresh-token:
     post:
@@ -132,8 +144,12 @@ paths:
                       expires_in:
                         type: integer
                         example: 3600
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /auth/logout:
     post:
@@ -159,6 +175,8 @@ paths:
                     example: Đăng xuất thành công
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -275,8 +293,24 @@ components:
           type: boolean
           example: true
 
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "email"
+        issue:
+          type: string
+          example: "Địa chỉ email không đúng định dạng"
+
     ErrorResponse:
       type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
       properties:
         success:
           type: boolean
@@ -286,20 +320,59 @@ components:
           example: 400
         message:
           type: string
-          example: Yêu cầu không hợp lệ
+          example: "Dữ liệu yêu cầu không hợp lệ"
         error_code:
           type: string
-          example: VALIDATION_ERROR
+          example: "AUTH_INVALID_CREDENTIALS"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
 
   responses:
     BadRequest:
-      description: Dữ liệu gửi lên không hợp lệ
+      description: Dữ liệu gửi lên không hợp lệ hoặc vi phạm quy tắc nghiệp vụ
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
     Unauthorized:
-      description: Chưa xác thực hoặc Token không hợp lệ / hết hạn
+      description: Chưa xác thực, sai thông tin hoặc Token không hợp lệ / hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Tài khoản bị khóa hoặc không đủ quyền thực hiện hành động
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy tài nguyên yêu cầu
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Xung đột dữ liệu (Email, Số điện thoại đã tồn tại)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Dữ liệu gửi lên sai định dạng validation DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ chưa kiểm soát
       content:
         application/json:
           schema:

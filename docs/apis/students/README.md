@@ -21,7 +21,15 @@ Phân hệ **Students** đóng vai trò là kho dữ liệu hồ sơ học sinh 
 
 ### 2.1. GET `/api/v1/students/:id/academic` - Tra Cứu Bảng Điểm Đa Môn
 - **Headers:** `Authorization: Bearer <parent_token>`
-- **Logic bảo mật:** Kiểm tra `parent_uids` trong `/students/{id}` có chứa UID của người gọi hay không.
+- **Logic bảo mật:** Kiểm tra `parent_uids` trong document `/students/{id}` có chứa UID của người gọi hay không (ngăn chặn phụ huynh tra cứu điểm con nhà người khác).
+
+#### Bảng Quy Định Dữ Liệu Đầu Vào (Input Specification)
+
+| Tên tham số (Parameter) | Vị trí | Bắt buộc / Tùy chọn | Phương thức nhập liệu | Kiểu dữ liệu & Ràng buộc validation |
+| :--- | :---: | :---: | :---: | :--- |
+| `id` | Path | **Bắt buộc** | Hệ thống tự truyền | Mã ID học sinh (Chuỗi UUID/ID, VD: `stu_01`). Phải tồn tại trong hệ thống. |
+| `semester` | Query | **Tùy chọn** (Default: kỳ hiện tại) | **Chọn Dropdown Học Kỳ** | Số nguyên: `1` hoặc `2`. |
+| `month` *(API chuyên cần)* | Query | **Tùy chọn** | **Gõ bàn phím / Chọn MonthPicker** | Chuỗi năm-tháng `YYYY-MM`. Tháng phải từ `01` đến `12`. Loại bỏ tháng ảo như `2026-15`. |
 
 #### Response Thành Công (HTTP 200 OK)
 ```json
@@ -108,3 +116,41 @@ Phân hệ **Students** đóng vai trò là kho dữ liệu hồ sơ học sinh 
   ]
 }
 ```
+
+#### Response Thất Bại Thường Gặp
+##### Phụ huynh truy cập hồ sơ học sinh không liên kết (HTTP 403 Forbidden)
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Bạn không có quyền truy cập thông tin của học sinh này",
+  "error_code": "PARENT_STUDENT_LINK_NOT_FOUND",
+  "details": null,
+  "timestamp": "2026-09-27T08:30:00.000Z"
+}
+```
+
+##### Học sinh không tồn tại (HTTP 404 Not Found)
+```json
+{
+  "success": false,
+  "status_code": 404,
+  "message": "Không tìm thấy hồ sơ học sinh trên hệ thống",
+  "error_code": "STUDENT_NOT_FOUND",
+  "details": null,
+  "timestamp": "2026-09-27T08:30:00.000Z"
+}
+```
+
+---
+
+## 3. Bảng Tổng Hợp Mã Lỗi Phân Hệ Students
+
+| HTTP Status | Mã Lỗi (`error_code`) | Ý nghĩa & Tình huống xảy ra |
+| :---: | :--- | :--- |
+| `400` | `COMMON_VALIDATION_ERROR` | Tham số ID học sinh hoặc tham số lọc không đúng định dạng. |
+| `401` | `AUTH_UNAUTHORIZED` | Bearer token không hợp lệ hoặc đã hết hạn. |
+| `403` | `PARENT_STUDENT_LINK_NOT_FOUND` | Phụ huynh tra cứu học sinh không nằm trong danh sách con em của mình. |
+| `404` | `STUDENT_NOT_FOUND` | `student_id` không tồn tại trong hệ thống. |
+| `500` | `SYS_INTERNAL_ERROR` | Lỗi máy chủ cơ sở dữ liệu nội bộ. |
+
