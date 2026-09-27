@@ -41,4 +41,7 @@ Hệ thống cung cấp 2 giải pháp giao diện độc lập nhằm tối ưu
    - Tự động gắn header `Authorization: Bearer <access_token>`.
    - Bắt lỗi `401 Unauthorized` để tự động gọi refresh token hoặc điều hướng về trang đăng nhập.
 4. **Quản lý Form & Validation:** Sử dụng `React Hook Form` kết hợp thư viện `Zod` để validate dữ liệu ngay tại client trước khi gửi lên API.
+5. **Lưu Trữ Tệp Tin & Media (Firebase Storage):**
+   - Mọi tệp ảnh avatar, tài liệu giáo án `.docx`/`.pdf`, ảnh chụp biên lai học phí/BHYT đều được tải lên trực tiếp bucket **Firebase Storage**.
+   - Phân quyền đọc/ghi chặt chẽ qua Firebase Storage Security Rules đồng bộ cùng Firebase Authentication.
 

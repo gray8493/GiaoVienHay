@@ -152,3 +152,18 @@ Thư mục lưu trữ: `docs/fe/smartboard/screenshots/`
   - Lắng nghe sự kiện WebSocket / Supabase Realtime từ điện thoại giáo viên để xoay vòng may mắn, đếm ngược thời gian Rung chuông vàng và kích hoạt Nitro đường đua xe 4 tổ.
   - Toàn bộ câu hỏi hiển thị công khai trên TV, nhưng đáp án bí mật chỉ hiển thị trên máy giáo viên cho đến khi học sinh trả lời xong.
 
+### 4.4. Quy Chuẩn Lưu Trữ Media & Tệp Tin (Firebase Storage Specifications)
+Toàn bộ hình ảnh, tệp tin phát sinh trong quá trình vận hành hệ thống được lưu trữ tập trung trên **Firebase Storage** nhằm đồng bộ bảo mật với Firebase Auth và thông báo đẩy Firebase Cloud Messaging (FCM):
+
+1. **Cấu trúc Cây Thư mục Bucket (Firebase Storage Paths):**
+   - `avatars/{userId}/`: Ảnh đại diện người dùng, học sinh (Định dạng WebP/JPEG, kích thước tối đa 2MB, tự động nén trước khi upload).
+   - `lesson-plans/{teacherId}/{classId}/`: Tệp giáo án Word (`.docx`) hoặc PDF của giáo viên tải lên để Gemini AI phân tích sinh câu hỏi (Kích thước tối đa 15MB/file).
+   - `receipts/{studentId}/{feeId}/`: Ảnh chụp màn hình hóa đơn / biên lai chuyển khoản học phí & BHYT do phụ huynh tải lên xác nhận.
+   - `ui-assets/`: Các icon, huy hiệu thưởng và asset đồ họa tĩnh nếu cần tải động qua CDN Google Cloud.
+
+2. **Quy tắc Bảo mật (Security Rules Chuẩn):**
+   - Tệp giáo án: Chỉ có chính giáo viên chủ sở hữu và Admin mới có quyền Đọc/Ghi.
+   - Biên lai học phí: Chỉ phụ huynh của học sinh đó và giáo viên chủ nhiệm lớp mới có quyền xem.
+   - Ảnh đại diện: Công khai quyền Đọc (`read: true`), chỉ tài khoản sở hữu mới có quyền Cập nhật/Xóa.
+
+
