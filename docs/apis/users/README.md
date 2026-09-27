@@ -49,7 +49,16 @@ Phân hệ **Users** cung cấp các API quản lý thông tin tài khoản, c�
   - *GVCN Cấp 2 hoặc GVBM:* Chọn môn chuyên môn của mình.
 - **Headers:** `Authorization: Bearer <access_token>`, `Content-Type: application/json`
 
-#### Request Body
+#### Bảng Quy Định Dữ Liệu Đầu Vào (Input Specification)
+
+| Tên trường (Field) | Vị trí | Bắt buộc / Tùy chọn | Phương thức nhập liệu | Kiểu dữ liệu & Ràng buộc validation |
+| :--- | :---: | :---: | :---: | :--- |
+| `full_name` | Body | **Tùy chọn** (Optional) | **Gõ tự do từ bàn phím** | Chuỗi `2 - 100` ký tự. Tự động `trim()`. Không chứa ký tự đặc biệt nguy hiểm. |
+| `school_name` | Body | **Tùy chọn** (Optional) | **Gõ bàn phím / Chọn gợi ý** | Chuỗi `5 - 150` ký tự. Tên trường công tác của giáo viên. |
+| `avatar_url` | Body | **Tùy chọn** (Optional) | **Chọn ảnh từ máy tải lên Storage** | Chuỗi URL hợp lệ định dạng `https://storage.googleapis.com/...` |
+| `teaching_subjects` | Body | **Tùy chọn** (Optional) | **Chọn danh sách UI Multi-Select** | Mảng mã môn học giảng dạy (VD: `["MATH", "LIT"]`). Các mã môn phải nằm trong danh mục đào tạo của trường. |
+
+#### Request Body Hợp Lệ
 ```json
 {
   "full_name": "Nguyễn Thị Lan",
@@ -98,3 +107,47 @@ Phân hệ **Users** cung cấp các API quản lý thông tin tài khoản, c�
 }
 ```
 - **Ràng buộc Firestore:** Token được thêm vào mảng `fcm_tokens` trong document `/users/{uid}` bằng toán tử `FieldValue.arrayUnion()`.
+
+#### Response Thất Bại Thường Gặp
+##### Danh sách môn dạy không hợp lệ (HTTP 400 Bad Request)
+```json
+{
+  "success": false,
+  "status_code": 400,
+  "message": "Dữ liệu hồ sơ cập nhật không hợp lệ",
+  "error_code": "COMMON_VALIDATION_ERROR",
+  "details": [
+    {
+      "field": "teaching_subjects",
+      "issue": "Mã môn học 'INVALID_SUBJECT' không tồn tại trong hệ thống chương trình đào tạo"
+    }
+  ],
+  "timestamp": "2026-09-27T08:30:00.000Z"
+}
+```
+
+##### Token hết hạn hoặc không hợp lệ (HTTP 401 Unauthorized)
+```json
+{
+  "success": false,
+  "status_code": 401,
+  "message": "Phiên đăng nhập đã hết hạn hoặc không hợp lệ",
+  "error_code": "AUTH_TOKEN_EXPIRED",
+  "details": null,
+  "timestamp": "2026-09-27T08:30:00.000Z"
+}
+```
+
+---
+
+## 3. Bảng Tổng Hợp Mã Lỗi Phân Hệ Users
+
+| HTTP Status | Mã Lỗi (`error_code`) | Ý nghĩa & Tình huống xảy ra |
+| :---: | :--- | :--- |
+| `400` | `COMMON_VALIDATION_ERROR` | Dữ liệu cập nhật hồ sơ hoặc FCM token không đúng định dạng. |
+| `401` | `AUTH_UNAUTHORIZED` | Bearer token không tồn tại. |
+| `401` | `AUTH_TOKEN_EXPIRED` | Bearer token đã quá thời hạn hiệu lực. |
+| `403` | `AUTH_FORBIDDEN` | Tài khoản bị tạm khóa hoặc không có quyền thao tác. |
+| `404` | `USER_NOT_FOUND` | Không tìm thấy hồ sơ người dùng trong Firestore. |
+| `500` | `SYS_INTERNAL_ERROR` | Lỗi máy chủ cơ sở dữ liệu nội bộ. |
+

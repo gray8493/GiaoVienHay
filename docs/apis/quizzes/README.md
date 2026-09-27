@@ -29,18 +29,17 @@ Phân hệ **Quizzes** là giải pháp toàn diện cho hoạt động **Kiểm
 ### 2.1. POST `/api/v1/quizzes/generate-ai` - AI Sinh Câu Hỏi Từ Giáo Án
 - **Mô tả:** Giáo viên tải tệp giáo án lên, chọn số lượng câu hỏi và độ khó mong muốn. Google Gemini AI phân tích nội dung bài học để sinh ra bộ câu hỏi trắc nghiệm tương ứng.
 - **Headers:** `Authorization: Bearer <token_gv>`, `Content-Type: multipart/form-data`
-- **Form Data:**
-  - `file`: Tệp giáo án bài giảng (`.docx` hoặc `.pdf`, tối đa 15MB).
-  - `subject_code`: Mã môn học (`MATH`, `LIT`, `ENG`...).
-  - `class_id`: ID lớp học áp dụng.
-  - `title`: Tiêu đề bài kiểm tra bài cũ (Ví dụ: *"Kiểm tra bài 12 - Phép cộng phân số"*).
-  - `num_questions`: **Số lượng câu hỏi do Giáo viên chọn** (Ví dụ: `3`, `5`, `10` câu - Mặc định: `5`).
-  - `difficulty_level`: **Độ khó câu hỏi do Giáo viên chọn**:
-    - `EASY`: Mức độ nhận biết, câu hỏi cơ bản.
-    - `MEDIUM`: Mức độ thông hiểu, vừa phải.
-    - `HARD`: Mức độ vận dụng, đòi hỏi suy luận.
-    - `MIXED`: Phân hóa hỗn hợp (Mặc định: 60% vừa, 40% khó).
-  - `preferred_mode`: Chế độ trình chiếu mặc định (`STANDARD_QUIZ`, `GOLDEN_BELL`, `RACING`, `MYSTERY_BOX`).
+#### Bảng Quy Định Dữ Liệu Đầu Vào (Input Specification)
+
+| Tên trường (Field) | Vị trí | Bắt buộc / Tùy chọn | Phương thức nhập liệu | Kiểu dữ liệu & Ràng buộc validation |
+| :--- | :---: | :---: | :---: | :--- |
+| `file` | FormData | **Bắt buộc** | **Tải lên tệp (File Picker)** | Định dạng hỗ trợ: `.docx`, `.pdf`. Dung lượng tối đa: `15MB`. Không tải file rỗng (0 bytes). |
+| `subject_code` | FormData | **Bắt buộc** | **Chọn Dropdown Môn Học** | Mã môn học chuẩn (VD: `MATH`, `LIT`, `SCI`). |
+| `class_id` | FormData | **Bắt buộc** | Chọn từ Menu Lớp | Chuỗi ID lớp học. |
+| `title` | FormData | **Bắt buộc** | **Gõ tự do từ bàn phím** | Tiêu đề bài kiểm tra bài cũ (từ `5` đến `200` ký tự). Tự động `trim()`. |
+| `num_questions` | FormData | **Tùy chọn** (Default: 5) | **Bấm nút (+ / -) hoặc gõ số** | Số nguyên từ `1` đến `20`. |
+| `difficulty_level` | FormData | **Tùy chọn** (Default: MIXED) | **Chọn nút bấm UI Segment** | Enum: `EASY` (Nhận biết), `MEDIUM` (Thông hiểu), `HARD` (Vận dụng), `MIXED` (Hỗn hợp). |
+| `preferred_mode` | FormData | **Tùy chọn** (Default: STANDARD_QUIZ) | **Chọn nút bấm UI Chip** | Enum: `STANDARD_QUIZ`, `GOLDEN_BELL`, `RACING`, `MYSTERY_BOX`. |
 
 #### Response Thành Công (HTTP 201 Created)
 ```json
@@ -166,3 +165,63 @@ Phân hệ **Quizzes** là giải pháp toàn diện cho hoạt động **Kiểm
   }
 }
 ```
+
+#### Response Thất Bại Thường Gặp
+##### Dung lượng file giáo án vượt quá 15MB (HTTP 400 Bad Request)
+```json
+{
+  "success": false,
+  "status_code": 400,
+  "message": "Dung lượng tệp giáo án vượt quá giới hạn cho phép (tối đa 15MB)",
+  "error_code": "QUIZ_FILE_TOO_LARGE",
+  "details": [
+    {
+      "field": "file",
+      "issue": "Kích thước tệp là 18.2MB, vượt quá ngưỡng 15MB"
+    }
+  ],
+  "timestamp": "2026-09-27T08:30:00.000Z"
+}
+```
+
+##### Vượt hạn mức gọi AI trong ngày (HTTP 429 Too Many Requests)
+```json
+{
+  "success": false,
+  "status_code": 429,
+  "message": "Tài khoản của bạn đã đạt giới hạn 20 lần sinh trắc nghiệm AI trong ngày",
+  "error_code": "QUIZ_DAILY_QUOTA_EXCEEDED",
+  "details": null,
+  "timestamp": "2026-09-27T08:30:00.000Z"
+}
+```
+
+##### Lỗi phân tích Gemini AI (HTTP 500 Internal Server Error)
+```json
+{
+  "success": false,
+  "status_code": 500,
+  "message": "Không thể trích xuất câu hỏi từ tệp giáo án này. Vui lòng kiểm tra định dạng nội dung tệp",
+  "error_code": "QUIZ_AI_GENERATION_FAILED",
+  "details": null,
+  "timestamp": "2026-09-27T08:30:00.000Z"
+}
+```
+
+---
+
+## 3. Bảng Tổng Hợp Mã Lỗi Phân Hệ Quizzes
+
+| HTTP Status | Mã Lỗi (`error_code`) | Ý nghĩa & Tình huống xảy ra |
+| :---: | :--- | :--- |
+| `400` | `QUIZ_FILE_TOO_LARGE` | Tệp giáo án tải lên vượt quá dung lượng tối đa 15MB. |
+| `400` | `QUIZ_FILE_UNSUPPORTED` | Tệp không thuộc định dạng được hỗ trợ (`.docx`, `.pdf`). |
+| `400` | `QUIZ_INVALID_DIFFICULTY` | Độ khó không thuộc `EASY`, `MEDIUM`, `HARD`, `MIXED`. |
+| `400` | `COMMON_VALIDATION_ERROR` | Thiếu trường bắt buộc (`subject_code`, `class_id`,...). |
+| `401` | `AUTH_UNAUTHORIZED` | Bearer token không hợp lệ hoặc đã hết hạn. |
+| `403` | `AUTH_FORBIDDEN` | Tài khoản không có vai trò Giáo viên (`TEACHER_*`). |
+| `404` | `QUIZ_NOT_FOUND` | Không tìm thấy bộ Quiz với ID đã cung cấp. |
+| `429` | `QUIZ_DAILY_QUOTA_EXCEEDED` | Giáo viên đã dùng hết hạn mức tạo bài kiểm tra AI trong ngày. |
+| `500` | `QUIZ_AI_GENERATION_FAILED` | Google Gemini API gặp sự cố hoặc tệp giáo án không thể parse text. |
+| `500` | `SYS_INTERNAL_ERROR` | Lỗi máy chủ cơ sở dữ liệu nội bộ. |
+

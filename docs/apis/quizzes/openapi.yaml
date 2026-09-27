@@ -72,6 +72,18 @@ paths:
                     example: "AI đã phân tích giáo án và sinh bộ câu hỏi thành công"
                   data:
                     $ref: '#/components/schemas/QuizDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /quizzes:
     get:
@@ -109,6 +121,12 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/QuizSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /quizzes/{id}:
     get:
@@ -139,6 +157,14 @@ paths:
                     example: 200
                   data:
                     $ref: '#/components/schemas/QuizDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /quizzes/{id}/wheel-candidates:
     get:
@@ -191,6 +217,14 @@ paths:
                       skip_policy:
                         type: string
                         example: "AUTO_SPIN_NEXT"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /quizzes/{id}/in-class-scores:
     post:
@@ -270,6 +304,18 @@ paths:
                       created_at:
                         type: string
                         format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -354,3 +400,88 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/QuestionItem'
+
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "file"
+        issue:
+          type: string
+          example: "Tệp tải lên vượt quá dung lượng cho phép 15MB"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Yêu cầu không hợp lệ"
+        error_code:
+          type: string
+          example: "QUIZ_FILE_TOO_LARGE"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
+
+  responses:
+    BadRequest:
+      description: Dữ liệu gửi lên không hợp lệ hoặc tệp sai định dạng
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token không hợp lệ / hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Giáo viên chưa được phân công hoặc không có quyền với lớp
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy bộ câu hỏi hoặc học sinh
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Đã hết hạn ngạch gọi AI Gemini miễn phí trong ngày
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Sai quy chuẩn dữ liệu đầu vào DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ hoặc lỗi từ Google Gemini AI API
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

@@ -58,6 +58,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/ClassFeeRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /fees-insurance/toggle:
     patch:
@@ -124,6 +132,18 @@ paths:
                       updated_at:
                         type: string
                         format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /fees-insurance/remind:
     post:
@@ -177,6 +197,16 @@ paths:
                       notified_parents_count:
                         type: integer
                         example: 12
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -214,3 +244,82 @@ components:
         note:
           type: string
           nullable: true
+
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "is_paid"
+        issue:
+          type: string
+          example: "Trạng thái nộp phí phải là boolean (true/false)"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: "Không tìm thấy bản ghi theo dõi học phí hoặc BHYT"
+        error_code:
+          type: string
+          example: "FEE_RECORD_NOT_FOUND"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
+
+  responses:
+    BadRequest:
+      description: Dữ liệu gửi lên không hợp lệ hoặc đợt thu đã kết thúc
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token không hợp lệ / hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Không có quyền quản lý BHYT/học phí lớp học này (chỉ dành cho GVCN)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy bản ghi học phí/BHYT hoặc lớp học
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Sai định dạng dữ liệu đầu vào DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

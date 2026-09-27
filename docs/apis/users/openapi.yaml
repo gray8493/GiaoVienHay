@@ -37,6 +37,10 @@ paths:
                     $ref: '#/components/schemas/UserProfile'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /users/profile:
     patch:
@@ -81,8 +85,14 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /users/device-token:
     post:
@@ -122,8 +132,14 @@ paths:
                   message:
                     type: string
                     example: Đăng ký thiết bị nhận thông báo thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -168,20 +184,81 @@ components:
           type: boolean
           example: true
 
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "teaching_subjects"
+        issue:
+          type: string
+          example: "Môn giảng dạy không hợp lệ"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+        - error_code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Dữ liệu yêu cầu không hợp lệ"
+        error_code:
+          type: string
+          example: "USER_NOT_FOUND"
+        details:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-09-27T08:30:00.000Z"
+
   responses:
-    Unauthorized:
-      description: Chưa xác thực hoặc Token không hợp lệ
+    BadRequest:
+      description: Dữ liệu gửi lên không hợp lệ hoặc sai quy tắc
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-                example: false
-              status_code:
-                type: integer
-                example: 401
-              message:
-                type: string
-                example: Token không hợp lệ hoặc đã hết hạn
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Chưa xác thực hoặc Token không hợp lệ / hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Không có quyền truy cập
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy người dùng
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Dữ liệu gửi lên sai định dạng validation DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Lỗi máy chủ nội bộ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

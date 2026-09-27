@@ -77,7 +77,7 @@ Tất cả các API của hệ thống GiaoVienHay đều trả về dữ liệu
 
 ## 3. Bảng Mã Lỗi Nghiệp Vụ (Business Error Codes Dictionary)
 
-### 3.1. Phân hệ Xác thực & Quyền hạn (AUTH_*)
+### 3.1. Phân hệ 01: Xác thực & Quyền hạn (AUTH_*)
 | Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
 | :--- | :---: | :--- |
 | `AUTH_INVALID_CREDENTIALS` | 401 | Email hoặc mật khẩu không chính xác. |
@@ -86,28 +86,99 @@ Tất cả các API của hệ thống GiaoVienHay đều trả về dữ liệu
 | `AUTH_ROLE_FORBIDDEN` | 403 | Bạn không có quyền truy cập vào chức năng này. |
 | `AUTH_ACCOUNT_LOCKED` | 403 | Tài khoản của bạn đã bị khóa bởi Quản trị viên. |
 
-### 3.2. Phân hệ Người dùng & Học sinh (USER_*)
+### 3.2. Phân hệ 02: Người dùng & Hồ sơ cá nhân (USER_*)
 | Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
 | :--- | :---: | :--- |
 | `USER_NOT_FOUND` | 404 | Không tìm thấy người dùng trong hệ thống. |
 | `USER_EMAIL_EXISTS` | 409 | Địa chỉ email này đã được sử dụng cho một tài khoản khác. |
 | `USER_PHONE_EXISTS` | 409 | Số điện thoại này đã được sử dụng. |
+
+### 3.3. Phân hệ 03: Lớp học & Phân công bộ môn (CLASS_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
+| `CLASS_NOT_FOUND` | 404 | Không tìm thấy lớp học. |
+| `CLASS_INVITE_CODE_INVALID` | 404 | Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn. |
+| `CLASS_NOT_HOMEROOM_TEACHER`| 403 | Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này. |
+| `CLASS_STUDENT_CODE_EXISTS` | 409 | Mã học sinh đã tồn tại trong danh sách của lớp. |
+| `CLASS_MAX_STUDENTS_EXCEEDED`| 400 | Lớp học đã đạt sĩ số tối đa theo quy định hạn mức hệ thống. |
+
+### 3.4. Phân hệ 04: Hồ sơ Học sinh & Cổng Phụ huynh (STUDENT_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
 | `STUDENT_NOT_FOUND` | 404 | Không tìm thấy hồ sơ học sinh. |
 | `PARENT_STUDENT_LINK_NOT_FOUND`| 403 | Bạn không có quyền xem thông tin của học sinh này. |
+| `STUDENT_ALREADY_LINKED` | 409 | Học sinh này đã được liên kết với tài khoản phụ huynh này. |
 
-### 3.3. Phân hệ Học vụ & Điểm số (ACAD_*)
+### 3.5. Phân hệ 05: Điểm danh & Chuyên cần (ATTEND_*)
 | Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
 | :--- | :---: | :--- |
-| `ACAD_CLASS_NOT_FOUND` | 404 | Không tìm thấy lớp học. |
-| `ACAD_NOT_ASSIGNED_TEACHER` | 403 | Giáo viên chưa được phân công giảng dạy lớp học này. |
+| `ATTEND_RECORD_NOT_FOUND` | 404 | Không tìm thấy bản ghi điểm danh yêu cầu. |
+| `ATTEND_ALREADY_EXISTS` | 409 | Tiết học/buổi học này đã được điểm danh trước đó. |
+| `ATTEND_DATE_IN_FUTURE` | 400 | Không thể thực hiện điểm danh cho ngày trong tương lai. |
+| `ATTEND_DATE_INVALID` | 400 | Ngày điểm danh không tồn tại trong lịch thực tế. |
+
+### 3.6. Phân hệ 06: Sổ điểm & Bảng xếp hạng (ACAD_* & GRADE_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
+| `ACAD_NOT_ASSIGNED_TEACHER` | 403 | Giáo viên chưa được phân công giảng dạy môn học này tại lớp. |
 | `ACAD_SCORE_OUT_OF_RANGE` | 400 | Điểm số phải nằm trong khoảng từ 0.0 đến 10.0. |
-| `ACAD_ATTENDANCE_ALREADY_EXISTS`| 409 | Buổi học này đã được điểm danh trước đó. |
 | `ACAD_SEMESTER_LOCKED` | 400 | Học kỳ đã kết thúc, không thể chỉnh sửa điểm số. |
+| `GRADE_RECORD_NOT_FOUND` | 404 | Không tìm thấy bản ghi điểm số của học sinh. |
+| `GRADE_NOT_PUBLISHED` | 400 | Bảng điểm môn học chưa được công bố tới phụ huynh. |
 
-### 3.4. Phân hệ Thông báo & Học phí/BHYT (NOTI_* & FEE_*)
+### 3.7. Phân hệ 07: Trợ giảng AI Gemini & Mini-game (QUIZ_* & GAME_*)
 | Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
 | :--- | :---: | :--- |
-| `NOTI_DEVICE_TOKEN_INVALID` | 400 | Thiết bị không hợp lệ để nhận thông báo đẩy FCM. |
+| `QUIZ_NOT_FOUND` | 404 | Không tìm thấy bộ câu hỏi kiểm tra bài cũ. |
+| `QUIZ_FILE_TOO_LARGE` | 400 | Tệp giáo án tải lên vượt quá dung lượng cho phép (tối đa 15MB). |
+| `QUIZ_FILE_INVALID_FORMAT` | 400 | Định dạng tệp không được hỗ trợ (chỉ chấp nhận .pdf và .docx). |
+| `QUIZ_AI_GENERATION_FAILED` | 500 | Lỗi khi Google Gemini xử lý giáo án hoặc sinh câu hỏi trắc nghiệm. |
+| `QUIZ_DAILY_QUOTA_EXCEEDED` | 429 | Giáo viên đã sử dụng hết hạn ngạch gọi AI Gemini miễn phí trong ngày. |
+| `QUIZ_INVALID_MODE` | 400 | Chế độ chơi hoặc hình thức kiểm tra không hợp lệ. |
+
+### 3.8. Phân hệ 08: Nhận xét Học sinh (REMARK_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
+| `REMARK_NOT_FOUND` | 404 | Không tìm thấy bản ghi nhận xét của học sinh. |
+| `REMARK_CONTENT_EMPTY` | 400 | Nội dung nhận xét không được để trống. |
+| `REMARK_ALREADY_ACKNOWLEDGED` | 400 | Nhận xét này đã được phụ huynh đọc và xác nhận trước đó. |
+
+### 3.9. Phân hệ 09: Lời nhắc Lịch kiểm tra (EXAM_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
+| `EXAM_REMINDER_NOT_FOUND` | 404 | Không tìm thấy lời nhắc lịch kiểm tra. |
+| `EXAM_DATE_INVALID` | 400 | Ngày kiểm tra không hợp lệ hoặc đã trôi qua trong quá khứ. |
+| `EXAM_TYPE_INVALID` | 400 | Loại hình kiểm tra không nằm trong danh mục chuẩn. |
+
+### 3.10. Phân hệ 10: Học phí & BHYT (FEE_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
 | `FEE_RECORD_NOT_FOUND` | 404 | Không tìm thấy bản ghi theo dõi học phí hoặc BHYT của học sinh. |
 | `FEE_TERM_LOCKED` | 400 | Đợt thu nộp đã kết thúc, không thể điều chỉnh trạng thái cờ nộp. |
+| `FEE_INVALID_FLAG` | 400 | Trạng thái cờ nộp phí không hợp lệ (chỉ nhận boolean true/false). |
+
+### 3.11. Phân hệ 11: Thông báo Đẩy FCM (NOTI_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
+| `NOTI_NOT_FOUND` | 404 | Không tìm thấy bản ghi thông báo trong hộp thư. |
+| `NOTI_DEVICE_TOKEN_INVALID` | 400 | Thiết bị không hợp lệ để nhận thông báo đẩy FCM. |
+| `NOTI_DISPATCH_FAILED` | 500 | Lỗi dịch vụ Google Firebase FCM khi gửi thông báo đẩy. |
+
+### 3.12. Phân hệ 12: Quản trị Nền tảng (ADM_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
+| `ADM_ACCOUNT_ALREADY_BANNED` | 400 | Tài khoản người dùng đã ở trạng thái bị khóa. |
+| `ADM_ACCOUNT_ALREADY_ACTIVE` | 400 | Tài khoản người dùng đang hoạt động bình thường, không thể mở khóa lại. |
+| `ADM_CANNOT_BAN_ADMIN` | 403 | Không thể khóa tài khoản có vai trò Quản trị viên cấp cao (ADMIN). |
+| `ADM_INVALID_LIMITS` | 400 | Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương). |
+
+### 3.13. Phân hệ Lỗi Hệ thống & Tham số Chung (COMMON_* & SYS_*)
+| Mã lỗi nghiệp vụ | HTTP Code | Thông báo gợi ý |
+| :--- | :---: | :--- |
+| `COMMON_VALIDATION_ERROR` | 400 | Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng. |
+| `REQ_VALIDATION_ERROR` | 422 | Dữ liệu đầu vào sai quy cách định dạng DTO Validation. |
+| `SYS_RATE_LIMIT_EXCEEDED` | 429 | Vượt quá tần suất yêu cầu tối đa cho phép trong 1 phút. |
+| `SYS_INTERNAL_ERROR` | 500 | Lỗi máy chủ nội bộ chưa được xử lý ngoại lệ. |
+| `SYS_SERVICE_UNAVAILABLE` | 503 | Dịch vụ cơ sở dữ liệu Firebase hoặc Google Cloud tạm thời không phản hồi. |
+
 

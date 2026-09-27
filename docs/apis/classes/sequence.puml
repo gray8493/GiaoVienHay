@@ -27,16 +27,27 @@ end box
 GVCN -> AppClient: Nhập Tên lớp, Khối, DS học sinh & Phân công GVBM
 AppClient -> Gateway: POST /api/v1/classes (name, grade, students, subject_teachers)
 Gateway -> ClassService: createClass(gvcnUid, dto)
-ClassService -> Firestore: Đọc /users/{gvcnUid} để lấy teaching_subjects của GVCN
-Firestore --> ClassService: Danh sách môn GVCN dạy
-ClassService -> ClassService: Sinh mã mời ngẫu nhiên (invite_code: "GVH1A26")\nvà invite_link ("https://giaovienhay.vn/join?code=GVH1A26")
-ClassService -> Firestore: Batch Write tạo Document /classes/{id}
-ClassService -> Firestore: Batch Write tạo danh sách Document trong /students
-ClassService -> Firestore: Khởi tạo các bản ghi theo dõi BHYT trong /fees_and_insurance
-Firestore --> ClassService: Ghi nhận dữ liệu thành công
-ClassService --> Gateway: Thông tin Lớp học & Mã mời
-Gateway --> AppClient: HTTP 201 Created (class_id, invite_link, QR)
-AppClient --> GVCN: Hiển thị Link mời kèm nút "Sao chép" / "Gửi Zalo"
+
+alt [Thất bại: GVCN vượt hạn mức số lớp cho phép]
+    ClassService --> Gateway: Báo lỗi vượt hạn mức tài nguyên
+    Gateway --> AppClient: HTTP 400 Bad Request (CLASS_MAX_STUDENTS_EXCEEDED / LIMIT_EXCEEDED)
+    AppClient --> GVCN: Báo lỗi "Bạn đã đạt giới hạn số lượng lớp tạo trên hệ thống"
+else [Thất bại: Trùng mã học sinh trong danh sách ban đầu]
+    ClassService --> Gateway: Báo lỗi trùng lặp mã học sinh
+    Gateway --> AppClient: HTTP 409 Conflict (CLASS_STUDENT_CODE_EXISTS)
+    AppClient --> GVCN: Báo lỗi "Mã học sinh bị trùng lặp trong danh sách"
+else [Thành công]
+    ClassService -> Firestore: Đọc /users/{gvcnUid} để lấy teaching_subjects của GVCN
+    Firestore --> ClassService: Danh sách môn GVCN dạy
+    ClassService -> ClassService: Sinh mã mời ngẫu nhiên (invite_code: "GVH1A26")\nvà invite_link ("https://giaovienhay.vn/join?code=GVH1A26")
+    ClassService -> Firestore: Batch Write tạo Document /classes/{id}
+    ClassService -> Firestore: Batch Write tạo danh sách Document trong /students
+    ClassService -> Firestore: Khởi tạo các bản ghi theo dõi BHYT trong /fees_and_insurance
+    Firestore --> ClassService: Ghi nhận dữ liệu thành công
+    ClassService --> Gateway: Thông tin Lớp học & Mã mời
+    Gateway --> AppClient: HTTP 201 Created (class_id, invite_link, QR)
+    AppClient --> GVCN: Hiển thị Link mời kèm nút "Sao chép" / "Gửi Zalo"
+end
 
 == 2. PHỤ HUYNH NHẤP LINK MỜI & XÁC NHẬN CON EM ==
 
@@ -45,11 +56,25 @@ Parent -> AppClient: Nhấp vào Link mời tham gia lớp học
 AppClient -> Gateway: POST /api/v1/classes/join (invite_code, student_id)
 Gateway -> ClassService: joinClassByInvite(parentUid, invite_code, student_id)
 ClassService -> Firestore: Kiểm tra mã mời trong /classes
-Firestore --> ClassService: Lớp học hợp lệ
-ClassService -> Firestore: Cập nhật /students/{student_id} -> arrayUnion(parentUid)
-Firestore --> ClassService: Liên kết thành công
-ClassService --> Gateway: Xác nhận liên kết thành công
-Gateway --> AppClient: HTTP 200 OK (Thông tin con em và lớp học)
-AppClient --> Parent: Hiển thị thông báo "Tham gia lớp học thành công"
+
+alt [Thất bại: Mã mời không tồn tại hoặc đã hết hạn]
+    Firestore --> ClassService: Không tìm thấy Document lớp
+    ClassService --> Gateway: Báo lỗi mã mời không hợp lệ
+    Gateway --> AppClient: HTTP 404 Not Found (CLASS_INVITE_CODE_INVALID)
+    AppClient --> Parent: Báo lỗi "Mã mời lớp học không hợp lệ hoặc đã hết hạn"
+else [Thất bại: Học sinh đã được liên kết với phụ huynh này]
+    ClassService -> Firestore: Kiểm tra parent_uids trong /students/{student_id}
+    Firestore --> ClassService: Đã tồn tại parentUid
+    ClassService --> Gateway: Báo lỗi liên kết trùng lặp
+    Gateway --> AppClient: HTTP 409 Conflict (STUDENT_ALREADY_LINKED)
+    AppClient --> Parent: Báo lỗi "Bạn đã liên kết với học sinh này trước đó"
+else [Thành công]
+    Firestore --> ClassService: Lớp học hợp lệ
+    ClassService -> Firestore: Cập nhật /students/{student_id} -> arrayUnion(parentUid)
+    Firestore --> ClassService: Liên kết thành công
+    ClassService --> Gateway: Xác nhận liên kết thành công
+    Gateway --> AppClient: HTTP 200 OK (Thông tin con em và lớp học)
+    AppClient --> Parent: Hiển thị thông báo "Tham gia lớp học thành công"
+end
 
 @enduml
