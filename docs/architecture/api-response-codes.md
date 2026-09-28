@@ -1,4 +1,5 @@
 # Quy Chuẩn Mã Phản Hồi & Cấu Trúc Dữ Liệu API (API Status & Response Codes Specification)
+
 # Dự Án GiaoVienHay
 
 Tài liệu này định nghĩa chuẩn mực cấu trúc phản hồi (**Response Envelope**) và danh mục toàn bộ mã trạng thái HTTP cùng mã lỗi nghiệp vụ (**Business Error Codes**) áp dụng cho Backend NestJS, Web Quản trị Next.js và Mobile App React Native.
@@ -60,18 +61,18 @@ Tất cả các API của hệ thống GiaoVienHay đều trả về dữ liệu
 
 ## 2. Danh Mục Mã Trạng Thái HTTP Chuẩn (Standard HTTP Status Codes)
 
-| HTTP Code | Ý nghĩa chuẩn | Ứng dụng trong GiaoVienHay |
-| :---: | :--- | :--- |
-| **200** | OK | Truy vấn dữ liệu thành công (`GET`), cập nhật thành công (`PUT`, `PATCH`). |
-| **201** | Created | Tạo mới thành công (`POST`): tạo người dùng, nộp điểm danh, nhập điểm mới. |
-| **400** | Bad Request | Dữ liệu đầu vào không hợp lệ hoặc sai quy tắc nghiệp vụ. |
-| **401** | Unauthorized | Thiếu Access Token, Token hết hạn hoặc không hợp lệ. |
-| **403** | Forbidden | Token hợp lệ nhưng không đủ quyền thực hiện hành động (vi phạm RBAC). |
-| **404** | Not Found | Không tìm thấy tài nguyên yêu cầu (Học sinh, Lớp học, Bài viết không tồn tại). |
-| **409** | Conflict | Xung đột dữ liệu (Email/SĐT đã tồn tại, Điểm danh trùng lặp cùng tiết). |
-| **422** | Unprocessable Entity | Dữ liệu gửi lên đúng định dạng JSON nhưng sai kiểu dữ liệu trường (DTO Validation). |
-| **429** | Too Many Requests | Vượt quá số lần gọi API cho phép trong 1 phút (Rate Limit). |
-| **500** | Internal Server Error | Lỗi nội bộ phía máy chủ chưa được kiểm soát (Database crash, bug mã nguồn). |
+|   HTTP Code   | Ý nghĩa chuẩn      | Ứng dụng trong GiaoVienHay                                                                       |
+| :-----------: | :-------------------- | :------------------------------------------------------------------------------------------------- |
+| **200** | OK                    | Truy vấn dữ liệu thành công (`GET`), cập nhật thành công (`PUT`, `PATCH`).          |
+| **201** | Created               | Tạo mới thành công (`POST`): tạo người dùng, nộp điểm danh, nhập điểm mới.        |
+| **400** | Bad Request           | Dữ liệu đầu vào không hợp lệ hoặc sai quy tắc nghiệp vụ.                               |
+| **401** | Unauthorized          | Thiếu Access Token, Token hết hạn hoặc không hợp lệ.                                        |
+| **403** | Forbidden             | Token hợp lệ nhưng không đủ quyền thực hiện hành động (vi phạm RBAC).                 |
+| **404** | Not Found             | Không tìm thấy tài nguyên yêu cầu (Học sinh, Lớp học, Bài viết không tồn tại).      |
+| **409** | Conflict              | Xung đột dữ liệu (Email/SĐT đã tồn tại, Điểm danh trùng lặp cùng tiết).             |
+| **422** | Unprocessable Entity  | Dữ liệu gửi lên đúng định dạng JSON nhưng sai kiểu dữ liệu trường (DTO Validation). |
+| **429** | Too Many Requests     | Vượt quá số lần gọi API cho phép trong 1 phút (Rate Limit).                                |
+| **500** | Internal Server Error | Lỗi nội bộ phía máy chủ chưa được kiểm soát (Database crash, bug mã nguồn).          |
 
 ---
 
@@ -180,5 +181,3 @@ Tất cả các API của hệ thống GiaoVienHay đều trả về dữ liệu
 | `SYS_RATE_LIMIT_EXCEEDED` | 429 | Vượt quá tần suất yêu cầu tối đa cho phép trong 1 phút. |
 | `SYS_INTERNAL_ERROR` | 500 | Lỗi máy chủ nội bộ chưa được xử lý ngoại lệ. |
 | `SYS_SERVICE_UNAVAILABLE` | 503 | Dịch vụ cơ sở dữ liệu Firebase hoặc Google Cloud tạm thời không phản hồi. |
-
-

@@ -169,4 +169,4 @@ Dưới đây là kịch bản kiểm thử mẫu hoàn chỉnh của Phân hệ
   }
   ```
 
-- **TRẠNG THÁI KIỂM THỬ:** 
+- **TRẠNG THÁI KIỂM THỬ:**

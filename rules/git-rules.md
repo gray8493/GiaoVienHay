@@ -1,4 +1,5 @@
-﻿# Bộ Quy Tắc Chung Khi Làm Việc Với Git (General Git & Workflow Rules)
+﻿
+# Bộ Quy Tắc Chung Khi Làm Việc Với Git (General Git & Workflow Rules)
 # Dự Án GiaoVienHay
 
 Tài liệu này quy định toàn bộ chuẩn mực và quy trình bắt buộc khi làm việc với Git (đặt tên nhánh, commit message, quy trình Pull Request và bảo vệ nhánh chính) cho các thành viên dự án **GiaoVienHay**.
