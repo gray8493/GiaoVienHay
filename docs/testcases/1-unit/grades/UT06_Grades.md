@@ -1,6 +1,6 @@
 # TÀI LIỆU KỊCH BẢN KIỂM THỬ ĐƠN VỊ - PHÂN HỆ SỔ ĐIỂM & BẢNG XẾP HẠNG
 
-# MÃ PHÂN HỆ: 03 - GRADEBOOK & ASSESSMENT MODULE
+# MÃ PHÂN HỆ: 06 - GRADEBOOK & ASSESSMENT MODULE
 
 # CẤP ĐỘ KIỂM THỬ: KIỂM THỬ ĐƠN VỊ (UNIT TEST)
 
@@ -8,41 +8,11 @@
 
 ## 1. THÔNG TIN CHUNG
 
-- **PHÂN HỆ HỆ THỐNG:** `03` - Phân hệ Quản lý Sổ điểm & Đánh giá học sinh
+- **PHÂN HỆ HỆ THỐNG:** `06` - Phân hệ Quản lý Sổ điểm & Đánh giá học sinh
 - **MÔ TẢ MODULE API:** Sổ điểm điện tử môn học (`GradesService`, `GradesController`)
-- **TẬP TIN KIỂM THỬ:** `src/grades/grades.service.spec.ts`, `src/grades/grades.controller.spec.ts`
-- **MÔI TRƯỜNG KIỂM THỬ:** Isolated Unit Testing (Mock Firestore, Mock FCM Push Notification, Mock Redis)
-
-### BẢNG TỔNG HỢP MA TRẬN KỊCH BẢN KIỂM THỬ (TEST MATRIX)
-
-| Mã Testcase | Phân Loại (Category) | Tên Kịch Bản | Dữ Liệu Đầu Vào Chính | Kết Quả Mong Đợi (HTTP / Mã Lỗi) |
-| :--- | :--- | :--- | :--- | :--- |
-| **UT03_Grades_TC01** | Happy Path (1 HS) | Nhập điểm thành phần cho 1 học sinh thành công | `score_value = 9.5` (số dương thập phân) | **HTTP 200** (OK, updated_count: 1) |
-| **UT03_Grades_TC02** | Validation (Range) | Chặn nhập điểm vượt quá thang điểm 10 (> 10) | `score_value = 12.0` | **HTTP 400** (`INVALID_SCORE_VALUE`) |
-| **UT03_Grades_TC03** | Happy Path (Publish) | Phê duyệt công bố điểm cho phụ huynh & gửi FCM | `score_type = TEST_15P`, `is_published: true` | **HTTP 200** (OK, notified_parents_count: 35) |
-| **UT03_Grades_TC04** | Happy Path (Rank) | Truy xuất bảng xếp hạng Top học sinh điểm cao | `limit = 5`, `class_id = cls_1a_2026` | **HTTP 200** (Trả về Top vinh danh có Badge) |
-| **UT03_Grades_TC05** | Security (RBAC) | Chặn giáo viên xem bảng điểm lớp không được phân công | Token giáo viên lớp khác | **HTTP 403** (`FORBIDDEN_CLASS_ACCESS`) |
-| **UT03_Grades_TC06** | Happy Path (Batch) | Cập nhật điểm đồng thời cho 30 học sinh cùng lúc | Mảng 30 học sinh, điểm từ `0.0` đến `10.0` | **HTTP 200** (OK, updated_count: 30) |
-| **UT03_Grades_TC07** | Validation (Range) | Chặn nhập điểm là số âm (< 0.0) | `score_value = -1.5` | **HTTP 400** (`INVALID_SCORE_RANGE`) |
-| **UT03_Grades_TC08** | Validation (Data Type) | Chặn nhập điểm bằng chữ cái thuần túy | `score_value = "muoi"` hoặc `"A"` | **HTTP 400** (`INVALID_DATA_TYPE`) |
-| **UT03_Grades_TC09** | Validation (Format) | Chặn nhập điểm chữ và số lộn xộn không đúng định dạng | `score_value = "9a"`, `"8.5xyz"`, `"0x1A"` | **HTTP 400** (`INVALID_SCORE_FORMAT`) |
-| **UT03_Grades_TC10** | Security / Sanitization | Chặn nhập điểm là ký tự lạ bậy bạ, XSS, NoSQL injection | `score_value = "@@@"`, comment chèn `<script>` | **HTTP 400** (`INVALID_INPUT_PAYLOAD`) |
-| **UT03_Grades_TC11** | Validation (Decimal) | Chặn số thập phân sai chuẩn (nhiều dấu chấm hoặc dấu phẩy) | `score_value = "7.5.5"` hoặc `"8,5"` | **HTTP 400** (`INVALID_DECIMAL_FORMAT`) |
-| **UT03_Grades_TC12** | Boundary (MaxLength) | Chặn dữ liệu vượt quá độ dài tối đa (lời phê > 500 ký tự) | `teacher_comment` dài hơn 1000 ký tự | **HTTP 400** (`MAX_LENGTH_EXCEEDED`) |
-| **UT03_Grades_TC13** | Integrity / Atomicity | Đảm bảo tính nguyên tố Rollback khi batch 30 hs có 1 hs lỗi | 29 hs hợp lệ, hs thứ 15 có `score_value = 15.0` | **HTTP 400** (`BATCH_VALIDATION_FAILED`, Rollback 100%) |
-| **UT03_Grades_TC14** | Validation (Required) | Chặn yêu cầu thiếu trường bắt buộc hoặc mảng điểm rỗng | Thiếu `subject_code`, `scores: []` | **HTTP 400** (`MISSING_REQUIRED_FIELDS`) |
-| **UT03_Grades_TC15** | Validation (Enum) | Chặn `score_type` hoặc `semester` sai quy định enum | `score_type = "EXTRA_TEST"`, `semester = 3` | **HTTP 400** (`INVALID_ENUM_VALUE`) |
-| **UT03_Grades_TC16** | Edge Case (Falsy) | Nhập và xử lý hợp lệ điểm số 0.0 (Điểm liệt / Vắng thi) | `score_value = 0.0` | **HTTP 200** (OK, lưu đúng 0.0) |
-| **UT03_Grades_TC17** | Business (Locking) | Chặn sửa điểm âm thầm khi cột điểm đã công bố mà thiếu lý do đính chính | Điểm đã công bố, thiếu `correction_reason` | **HTTP 400** (`CORRECTION_REASON_REQUIRED`) |
-| **UT03_Grades_TC18** | Business (Correction) | Cập nhật đính chính điểm số đã công bố hợp lệ & gửi thông báo riêng phụ huynh | Sửa từ 7.0 lên 8.5 kèm lý do phúc khảo | **HTTP 200** (OK, `notified_parents_count: 1`) |
-| **UT03_Grades_TC19** | Business (Validation) | Từ chối công bố điểm khi cột điểm chưa có dữ liệu điểm nào | Cột điểm chưa có bất kỳ học sinh nào có điểm | **HTTP 400** (`NO_SCORES_TO_PUBLISH`) |
-| **UT03_Grades_TC20** | Idempotency (Spam) | Xử lý an toàn khi bấm công bố điểm nhiều lần liên tiếp | Cột điểm đã công bố trước đó | **HTTP 200** (Không gửi trùng FCM spam phụ huynh) |
-| **UT03_Grades_TC21** | Fault Tolerance | Công bố điểm thành công khi dịch vụ Google FCM sự cố | Mock FCM `UNAVAILABLE` / Timeout | **HTTP 200** (`FCM_QUEUED_RETRY`, điểm vẫn công bố) |
-| **UT03_Grades_TC22** | Edge Case (Empty) | Xem sổ điểm lớp học mới chưa có dữ liệu điểm | Lớp mới tạo đầu năm, chưa có bản ghi điểm | **HTTP 200** (Trả về `scores: []`, không crash 500) |
-| **UT03_Grades_TC23** | Business (Tie-break) | Xử lý xếp hạng đồng hạng trên Bảng xếp hạng vinh danh | 2 học sinh cùng đạt 10.0, học sinh thứ 3 đạt 9.5 | **HTTP 200** (Cùng nhận Rank 1 & GOLD, hs tiếp Rank 3) |
-| **UT03_Grades_TC24** | Security (Auth) | Từ chối yêu cầu không có token hoặc token đã hết hạn | Thiếu header `Authorization` hoặc token hết hạn | **HTTP 401** (`UNAUTHORIZED_ACCESS`) |
-| **UT03_Grades_TC25** | Security (RBAC) | Chặn giáo viên bộ môn khác tự ý nhập điểm môn không dạy | Giáo viên Văn nhập điểm môn Toán | **HTTP 403** (`FORBIDDEN_TEACHER_ASSIGNMENT`) |
-| **UT03_Grades_TC26** | System Fault Tolerance | Xử lý lỗi khi cơ sở dữ liệu Firestore timeout / mất kết nối | Mock Firestore `DEADLINE_EXCEEDED` | **HTTP 500** (`DATABASE_SERVICE_UNAVAILABLE`) |
+- **TẬP TIN KIỂM THỬ:** `apps/api/src/modules/06-grades/grades.service.spec.ts`, `apps/api/src/modules/06-grades/grades.controller.spec.ts`
+- **NGƯỜI THỰC HIỆN:** Thái Bảo
+- **MÔI TRƯỜNG KIỂM THỬ:** Testing
 
 ---
 
@@ -50,7 +20,7 @@
 
 ---
 
-### UT03_Grades_TC01 : NHẬP BẢNG ĐIỂM THÀNH PHẦN CHO HỌC SINH THÀNH CÔNG
+### UT06_Grades_TC01 : NHẬP BẢNG ĐIỂM THÀNH PHẦN CHO HỌC SINH THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -85,10 +55,6 @@
   4. Bấm nút **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
-  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Cập nhật thành công 1 bản ghi điểm vào cơ sở dữ liệu Firestore.
-  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
-
   ```json
   {
     "success": true,
@@ -106,7 +72,7 @@
 
 ---
 
-### UT03_Grades_TC02 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM VƯỢT QUÁ THANG ĐIỂM 10
+### UT06_Grades_TC02 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM VƯỢT QUÁ THANG ĐIỂM 10
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -139,23 +105,19 @@
   4. Bấm nút **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
-  - Hệ thống ném ra ngoại lệ yêu cầu không hợp lệ **HTTP 400 (BAD REQUEST - YÊU CẦU SAI)**.
-  - Tuyệt đối không ghi dữ liệu sai vào Firestore.
-  - Dữ liệu lỗi trả về đúng định dạng JSON như sau:
-
   ```json
   {
     "success": false,
     "status_code": 400,
-    "error_code": "INVALID_SCORE_VALUE",
-    "message": "Điểm số phải trong khoảng từ 0.0 đến 10.0"
+    "error_code": "ACAD_SCORE_OUT_OF_RANGE",
+    "message": "Điểm số phải nằm trong khoảng từ 0.0 đến 10.0."
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT03_Grades_TC03 : PHÊ DUYỆT CÔNG BỐ ĐIỂM CHO PHỤ HUYNH VÀ KÍCH HOẠT THÔNG BÁO ĐẨY
+### UT06_Grades_TC03 : PHÊ DUYỆT CÔNG BỐ ĐIỂM CHO PHỤ HUYNH VÀ KÍCH HOẠT THÔNG BÁO ĐẨY
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -182,10 +144,6 @@
   4. Bấm nút **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
-  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Cờ `is_published` được cập nhật thành `true` và kích hoạt thông báo FCM tới phụ huynh.
-  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
-
   ```json
   {
     "success": true,
@@ -201,7 +159,7 @@
 
 ---
 
-### UT03_Grades_TC04 : TRUY XUẤT BẢNG XẾP HẠNG VINH DANH HỌC SINH CÓ ĐIỂM SỐ CAO NHẤT
+### UT06_Grades_TC04 : TRUY XUẤT BẢNG XẾP HẠNG VINH DANH HỌC SINH CÓ ĐIỂM SỐ CAO NHẤT
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -227,10 +185,6 @@
   4. Bấm nút **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
-  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Danh sách học sinh được sắp xếp giảm dần theo điểm và tự động phân bổ huy hiệu Vàng, Bạc, Đồng.
-  - Dữ liệu trả về đúng định dạng JSON chuẩn như sau:
-
   ```json
   {
     "success": true,
@@ -250,7 +204,7 @@
 
 ---
 
-### UT03_Grades_TC05 : CHẶN VÀ TỪ CHỐI GIÁO VIÊN XEM BẢNG ĐIỂM LỚP KHÔNG ĐƯỢC PHÂN CÔNG
+### UT06_Grades_TC05 : CHẶN VÀ TỪ CHỐI GIÁO VIÊN XEM BẢNG ĐIỂM LỚP KHÔNG ĐƯỢC PHÂN CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -274,22 +228,19 @@
   3. Bấm nút **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
-  - Hệ thống ném ra ngoại lệ từ chối quyền truy cập **HTTP 403 (FORBIDDEN - CẤM TRUY CẬP)**.
-  - Dữ liệu lỗi trả về đúng định dạng JSON như sau:
-
   ```json
   {
     "success": false,
     "status_code": 403,
-    "error_code": "FORBIDDEN_CLASS_ACCESS",
-    "message": "Giáo viên không có quyền truy cập bảng điểm lớp này"
+    "error_code": "ACAD_NOT_ASSIGNED_TEACHER",
+    "message": "Giáo viên chưa được phân công giảng dạy môn học này tại lớp."
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT03_Grades_TC06 : CẬP NHẬT ĐỒNG THỜI ĐIỂM THÀNH PHẦN CHO TOÀN BỘ LỚP HỌC (30 HỌC SINH CÙNG LÚC - BATCH UPDATE THÀNH CÔNG)
+### UT06_Grades_TC06 : CẬP NHẬT ĐỒNG THỜI ĐIỂM THÀNH PHẦN CHO TOÀN BỘ LỚP HỌC (30 HỌC SINH CÙNG LÚC - BATCH UPDATE THÀNH CÔNG)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên bộ môn Toán đã đăng nhập hợp lệ với token quyền hạn `TEACHER_SUBJECT`.
@@ -345,10 +296,6 @@
   3. Thêm payload chứa dữ liệu của đủ 30 học sinh vào phần **Body**.
   4. Bấm nút **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Cả 30 bản ghi điểm được ghi nhận chính xác trong một Database Transaction duy nhất.
-  - Bao phủ toàn diện các thang điểm hợp lệ: điểm cực cận `0.0`, điểm tối đa `10.0`, điểm nguyên `8.0`, điểm thập phân lẻ `8.75`, `6.25`.
-  - Dữ liệu trả về đúng chuẩn JSON:
 
   ```json
   {
@@ -367,7 +314,7 @@
 
 ---
 
-### UT03_Grades_TC07 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM SỐ ÂM (< 0.0)
+### UT06_Grades_TC07 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM SỐ ÂM (< 0.0)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
@@ -397,23 +344,20 @@
   3. Gửi payload có `score_value = -1.5`.
   4. Bấm **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống ném ngoại lệ kiểm tra tính hợp lệ **HTTP 400 (BAD REQUEST)**.
-  - Điểm số không được ghi vào cơ sở dữ liệu.
-  - Dữ liệu trả về:
 
   ```json
   {
     "success": false,
     "status_code": 400,
-    "error_code": "INVALID_SCORE_RANGE",
-    "message": "Điểm số không được nhỏ hơn 0.0 hoặc lớn hơn 10.0"
+    "error_code": "ACAD_SCORE_OUT_OF_RANGE",
+    "message": "Điểm số phải nằm trong khoảng từ 0.0 đến 10.0."
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT03_Grades_TC08 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM BẰNG CHỮ CÁI THUẦN TÚY (STRING / TEXT)
+### UT06_Grades_TC08 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM BẰNG CHỮ CÁI THUẦN TÚY (STRING / TEXT)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
@@ -443,9 +387,6 @@
   3. Đặt trường `score_value` là chuỗi chữ cái `"muoi"` (hoặc `"A"`, `"Ten"`).
   4. Bấm **Gửi (Send)**.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống ném ngoại lệ sai kiểu dữ liệu **HTTP 400 (BAD REQUEST)**.
-  - Bộ tiền xử lý Validation Pipe chặn ngay tại tầng Controller.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -459,7 +400,7 @@
 
 ---
 
-### UT03_Grades_TC09 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM CHỨA CHỮ CÁI VÀ SỐ LỘN XỘN (MALFORMED ALPHANUMERIC STRING)
+### UT06_Grades_TC09 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM CHỨA CHỮ CÁI VÀ SỐ LỘN XỘN (MALFORMED ALPHANUMERIC STRING)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
@@ -486,9 +427,6 @@
   1. Gửi request `POST /api/v1/grades/batch`.
   2. Dữ liệu `score_value` chứa các biến thể gõ sai lộn xộn như `"9a"`, `"8.5xyz"`, `"0x1A"`, `"1e2"`.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống ném ngoại lệ **HTTP 400 (BAD REQUEST)**.
-  - Chặn triệt để việc ép kiểu tự động sai lệch (implicit type coercion) trong Javascript/Node.js.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -502,7 +440,7 @@
 
 ---
 
-### UT03_Grades_TC10 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM LÀ KÝ TỰ ĐẶC BIỆT BẬY BẠ VÀ MÃ ĐỘC INJECTION ("@@@", XSS SCRIPT, NOSQL PAYLOAD)
+### UT06_Grades_TC10 : TỪ CHỐI VÀ CHẶN NHẬP ĐIỂM LÀ KÝ TỰ ĐẶC BIỆT BẬY BẠ VÀ MÃ ĐỘC INJECTION ("@@@", XSS SCRIPT, NOSQL PAYLOAD)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Người dùng gửi request có chứa các ký tự bậy bạ hoặc mã độc hại nhằm tấn công ứng dụng.
@@ -530,9 +468,6 @@
   2. `score_value` mang giá trị bậy bạ `"@@@"` (hoặc các ký tự lạ `#!$%^&*()`, emoji `😀👻`).
   3. `teacher_comment` mang payload mã script độc hại.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống ném ngoại lệ kiểm duyệt an ninh **HTTP 400 (BAD REQUEST)**.
-  - Dữ liệu bị bộ lọc đầu vào Sanitize/Validation reject hoàn toàn, không thực thi script, không lưu ký tự rác.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -546,7 +481,7 @@
 
 ---
 
-### UT03_Grades_TC11 : TỪ CHỐI VÀ CHẶN ĐỊNH DẠNG SỐ THẬP PHÂN SAI (NHIỀU DẤU CHẤM "7.5.5" HOẶC DÙNG DẤU PHẨY "8,5")
+### UT06_Grades_TC11 : TỪ CHỐI VÀ CHẶN ĐỊNH DẠNG SỐ THẬP PHÂN SAI (NHIỀU DẤU CHẤM "7.5.5" HOẶC DÙNG DẤU PHẨY "8,5")
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên thao tác nhập điểm số thập phân nhưng sai quy cách dấu ngăn cách.
@@ -573,9 +508,6 @@
   1. Gửi request `POST /api/v1/grades/batch` với giá trị `"7.5.5"` hoặc `"8,5"` (dùng dấu phẩy theo thói quen tiếng Việt nhưng hệ thống chuẩn yêu cầu dấu chấm float).
   2. Bấm **Gửi (Send)**.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi **HTTP 400 (BAD REQUEST)**.
-  - Từ chối parse chuỗi sai chuẩn số học.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -589,10 +521,10 @@
 
 ---
 
-### UT03_Grades_TC12 : TỪ CHỐI VÀ CHẶN DỮ LIỆU VƯỢT QUÁ ĐỘ DÀI TỐI ĐA (MAXLENGTH - LỜI PHÊ GIÁO VIÊN HOẶC CHUỖI ĐIỂM TRÀN SỐ)
+### UT06_Grades_TC12 : TỪ CHỐI VÀ CHẶN DỮ LIỆU VƯỢT QUÁ ĐỘ DÀI TỐI ĐA (LỜI PHÊ GIÁO VIÊN VƯỢT QUÁ 255 KÝ TỰ)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
-  - Giáo viên gửi trường dữ liệu chuỗi ghi chú vượt quá giới hạn thiết kế của schema (tối đa 500 ký tự).
+  - Giáo viên gửi trường dữ liệu lời phê vượt quá giới hạn thiết kế của schema (tối đa 255 ký tự).
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
   - **Dữ liệu thân (Body JSON):**
@@ -607,32 +539,29 @@
       {
         "student_id": "stu_01",
         "score_value": 8.0,
-        "teacher_comment": "Nội dung lời phê lặp lại hơn 1000 ký tự: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..."
+        "teacher_comment": "Nội dung lời phê lặp lại vượt quá 255 ký tự: Em tiếp thu bài nhanh, làm bài cẩn thận, tích cực xây dựng bài trên lớp, cần phát huy hơn nữa trong các tiết học sau để đạt kết quả xuất sắc toàn diện trong kỳ học này. Giáo viên rất khen ngợi tinh thần học tập của em..."
       }
     ]
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
-  1. Nhập chuỗi văn bản dài hơn 500 ký tự vào trường `teacher_comment` (hoặc chuỗi số float dài hơn 100 chữ số gây buffer overflow).
+  1. Nhập chuỗi văn bản dài hơn 255 ký tự vào trường `teacher_comment`.
   2. Gửi request `POST /api/v1/grades/batch`.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống ném ngoại lệ **HTTP 400 (BAD REQUEST)**.
-  - Ngăn ngừa tình trạng phình to bộ nhớ database và tấn công làm nghẽn bộ nhớ đệm (Buffer Bloat).
-  - Dữ liệu trả về:
 
   ```json
   {
     "success": false,
     "status_code": 400,
-    "error_code": "MAX_LENGTH_EXCEEDED",
-    "message": "Lời phê của giáo viên không được vượt quá 500 ký tự"
+    "error_code": "COMMON_VALIDATION_ERROR",
+    "message": "Nội dung lời phê vượt quá giới hạn độ dài cho phép"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT03_Grades_TC13 : ĐẢM BẢO TÍNH NGUYÊN TỐ (TRANSACTION ROLLBACK / ATOMICITY) KHI BATCH 30 HỌC SINH CÓ 1 HỌC SINH LỖI ĐIỂM
+### UT06_Grades_TC13 : ĐẢM BẢO TÍNH NGUYÊN TỐ (TRANSACTION ROLLBACK / ATOMICITY) KHI BATCH 30 HỌC SINH CÓ 1 HỌC SINH LỖI ĐIỂM
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên cập nhật điểm một lần cho toàn lớp 30 học sinh.
@@ -661,9 +590,6 @@
   1. Gửi request batch gồm 30 phần tử lên API `/api/v1/grades/batch`.
   2. Theo dõi phản hồi và kiểm tra trạng thái collection `/scores` trong Firestore.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống trả về mã lỗi **HTTP 400 (BAD REQUEST)**.
-  - Toàn bộ Transaction cơ sở dữ liệu bị **Rollback 100%**: Tuyệt đối không ghi nhận điểm của bất kỳ học sinh nào (kể cả 29 học sinh hợp lệ trước đó) nhằm tránh tính trạng bất toàn dữ liệu (Partial Update Inconsistency).
-  - Dữ liệu trả về chỉ rõ vị trí và nguyên nhân lỗi:
 
   ```json
   {
@@ -679,7 +605,7 @@
 
 ---
 
-### UT03_Grades_TC14 : TỪ CHỐI YÊU CẦU THIẾU CÁC TRƯỜNG DỮ LIỆU BẮT BUỘC HOẶC MẢNG ĐIỂM RỖNG
+### UT06_Grades_TC14 : TỪ CHỐI YÊU CẦU THIẾU CÁC TRƯỜNG DỮ LIỆU BẮT BUỘC HOẶC MẢNG ĐIỂM RỖNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên gửi request thiếu các trường bắt buộc theo DTO schema (`class_id`, `subject_code`, `semester`, `score_type`, `scores`).
@@ -697,15 +623,12 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Gửi request `POST /api/v1/grades/batch` với phần thân thiếu `subject_code`, thiếu `score_type` và mảng `scores` rỗng.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi **HTTP 400 (BAD REQUEST)**.
-  - Báo lỗi rõ ràng danh sách các trường bị thiếu.
-  - Dữ liệu trả về:
 
   ```json
   {
     "success": false,
     "status_code": 400,
-    "error_code": "MISSING_REQUIRED_FIELDS",
+    "error_code": "COMMON_VALIDATION_ERROR",
     "message": "Dữ liệu không hợp lệ",
     "errors": [
       "subject_code không được để trống",
@@ -718,7 +641,7 @@
 
 ---
 
-### UT03_Grades_TC15 : TỪ CHỐI LOẠI ĐIỂM (SCORE_TYPE) HOẶC HỌC KỲ (SEMESTER) SAI ĐỊNH DẠNG ENUM
+### UT06_Grades_TC15 : TỪ CHỐI LOẠI ĐIỂM (SCORE_TYPE) HOẶC HỌC KỲ (SEMESTER) SAI ĐỊNH DẠNG ENUM
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên gửi `score_type` không thuộc danh mục cho phép hoặc `semester` ngoài kỳ 1, 2.
@@ -744,8 +667,6 @@
   1. Gửi request với `score_type = "EXTRA_SPECIAL_TEST"` (quy định chỉ có `ORAL_TEST, QUIZ, TEST_15P, TEST_1P, MID_TERM, FINAL`).
   2. Trường `semester = 3` (năm học phổ thông chỉ gồm kỳ 1 và kỳ 2).
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi **HTTP 400 (BAD REQUEST)**.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -759,7 +680,7 @@
 
 ---
 
-### UT03_Grades_TC16 : NHẬP VÀ XỬ LÝ HỢP LỆ ĐIỂM SỐ 0.0 (ĐIỂM LIỆT / VẮNG THI CÓ LÝ DO - TRÁNH LỖI FALSY CHECK TRONG JS)
+### UT06_Grades_TC16 : NHẬP VÀ XỬ LÝ HỢP LỆ ĐIỂM SỐ 0.0 (ĐIỂM LIỆT / VẮNG THI CÓ LÝ DO - TRÁNH LỖI FALSY CHECK TRONG JS)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
@@ -787,10 +708,6 @@
   1. Gửi request `POST /api/v1/grades/batch` với `score_value = 0.0`.
   2. Bấm nút **Gửi (Send)**.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Backend nhận diện chính xác `0.0` là một số thực hợp lệ (không bị câu lệnh kiểm tra `if (!score_value)` coi là giá trị rỗng/falsy rồi báo lỗi nhầm).
-  - Bản ghi điểm được ghi nhận chính xác vào Firestore.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -809,7 +726,7 @@
 
 ---
 
-### UT03_Grades_TC17 : TỪ CHỐI VÀ CHẶN SỬA ĐIỂM ÂM THẦM KHI CỘT ĐIỂM ĐÃ CÔNG BỐ MÀ THIẾU LÝ DO ĐÍNH CHÍNH
+### UT06_Grades_TC17 : TỪ CHỐI VÀ CHẶN SỬA ĐIỂM ÂM THẦM KHI CỘT ĐIỂM ĐÃ CÔNG BỐ MÀ THIẾU LÝ DO ĐÍNH CHÍNH
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Cột điểm 15 phút (`TEST_15P`) môn Toán của lớp `cls_1a_2026` đã được giáo viên công bố tới phụ huynh (`is_published = true`).
@@ -835,9 +752,6 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Gửi request `POST /api/v1/grades/batch` nhằm thay đổi điểm của `stu_01` mà không đính kèm lý do đính chính (`teacher_comment` hoặc `correction_reason` bị để trống/null).
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống từ chối cập nhật và trả về mã lỗi **HTTP 400 (BAD REQUEST)**.
-  - Chặn triệt để hành vi âm thầm sửa điểm sau khi phụ huynh đã tiếp nhận thông tin nhằm đảm bảo tính minh bạch học đường.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -851,7 +765,7 @@
 
 ---
 
-### UT03_Grades_TC18 : CẬP NHẬT ĐÍNH CHÍNH ĐIỂM SỐ ĐÃ CÔNG BỐ HỢP LỆ VÀ TỰ ĐỘNG GỬI THÔNG BÁO ĐẾN RIÊNG PHỤ HUYNH
+### UT06_Grades_TC18 : CẬP NHẬT ĐÍNH CHÍNH ĐIỂM SỐ ĐÃ CÔNG BỐ HỢP LỆ VÀ TỰ ĐỘNG GỬI THÔNG BÁO ĐẾN RIÊNG PHỤ HUYNH
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Cột điểm 15 phút (`TEST_15P`) môn Toán đã công bố cho phụ huynh (`is_published = true`).
@@ -880,10 +794,6 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Gửi request `POST /api/v1/grades/batch` với cờ `is_correction = true` kèm điểm số mới và nội dung giải trình rõ ràng trong `teacher_comment`.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Điểm của học sinh `stu_01` trong Firestore được cập nhật từ `7.0` thành `8.5`.
-  - Hệ thống tự động kích hoạt Notification Service gửi thông báo FCM đích danh tới **riêng phụ huynh của học sinh `stu_01`** (`notified_parents_count: 1`), hoàn toàn không làm phiền 29 phụ huynh còn lại trong lớp.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -906,7 +816,7 @@
 
 ---
 
-### UT03_Grades_TC19 : TỪ CHỐI CÔNG BỐ ĐIỂM KHI CỘT ĐIỂM CHƯA CÓ DỮ LIỆU ĐIỂM NÀO TRONG HỆ THỐNG (NO SCORES TO PUBLISH)
+### UT06_Grades_TC19 : TỪ CHỐI CÔNG BỐ ĐIỂM KHI CỘT ĐIỂM CHƯA CÓ DỮ LIỆU ĐIỂM NÀO TRONG HỆ THỐNG (NO SCORES TO PUBLISH)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Cột điểm Cuối kỳ (`FINAL`) của lớp `cls_1a_2026` chưa được giáo viên nhập bất kỳ điểm số nào (bộ sưu tập `/scores` của cột này đang hoàn toàn rỗng).
@@ -925,9 +835,6 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Gửi request `POST /api/v1/grades/publish` để yêu cầu công bố cột điểm `FINAL`.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống ném ngoại lệ nghiệp vụ **HTTP 400 (BAD REQUEST)**.
-  - Ngăn ngừa việc hệ thống tự động phát thông báo "Đã có điểm mới" trống rỗng tới hàng chục phụ huynh học sinh.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -941,7 +848,7 @@
 
 ---
 
-### UT03_Grades_TC20 : XỬ LÝ AN TOÀN TRÁNH GỬI THÔNG BÁO TRÙNG LẶP KHI BẤM CÔNG BỐ ĐIỂM NHIỀU LẦN (IDEMPOTENCY / ALREADY PUBLISHED)
+### UT06_Grades_TC20 : XỬ LÝ AN TOÀN TRÁNH GỬI THÔNG BÁO TRÙNG LẶP KHI BẤM CÔNG BỐ ĐIỂM NHIỀU LẦN (IDEMPOTENCY / ALREADY PUBLISHED)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Cột điểm 1 tiết (`TEST_1P`) đã được công bố thành công trước đó (`is_published = true`).
@@ -961,9 +868,6 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Gửi request `POST /api/v1/grades/publish` lần thứ hai cho cột điểm đã được công bố.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi **HTTP 200 (OK)** với cơ chế Idempotent: ghi nhận trạng thái đã hoàn tất.
-  - Số lượng thông báo gửi mới là `0` (`notified_parents_count: 0`), tuyệt đối không gửi lại thông báo trùng lặp làm phiền ứng dụng di động của phụ huynh.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -981,7 +885,7 @@
 
 ---
 
-### UT03_Grades_TC21 : CÔNG BỐ ĐIỂM THÀNH CÔNG VỚI CƠ CHẾ CHỊU LỖI KHI DỊCH VỤ GOOGLE FCM GẶP SỰ CỐ TẠM THỜI (FCM FAULT-TOLERANCE)
+### UT06_Grades_TC21 : CÔNG BỐ ĐIỂM THÀNH CÔNG VỚI CƠ CHẾ CHỊU LỖI KHI DỊCH VỤ GOOGLE FCM GẶP SỰ CỐ TẠM THỜI (FCM FAULT-TOLERANCE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Cột điểm kiểm tra 15 phút có dữ liệu điểm hợp lệ.
@@ -1002,10 +906,6 @@
   1. Mocking dịch vụ FCM ném ra lỗi ngoại lệ `FirebaseMessagingError: UNAVAILABLE`.
   2. Gửi request `POST /api/v1/grades/publish`.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống bắt ngoại lệ FCM bằng khối `try-catch`, đảm bảo trạng thái `is_published = true` trong cơ sở dữ liệu Firestore vẫn được cập nhật thành công (không bị rollback nhầm).
-  - Tác vụ bắn thông báo được chuyển vào hàng đợi nền (Background Retry Queue) để gửi lại sau.
-  - Hệ thống trả về **HTTP 200 (OK)** thông báo rõ trạng thái để giáo viên yên tâm.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -1022,7 +922,7 @@
 
 ---
 
-### UT03_Grades_TC22 : XEM SỔ ĐIỂM LỚP HỌC MỚI THÀNH LẬP CHƯA CÓ DỮ LIỆU ĐIỂM (EMPTY STATE HANDLING - HTTP 200)
+### UT06_Grades_TC22 : XEM SỔ ĐIỂM LỚP HỌC MỚI THÀNH LẬP CHƯA CÓ DỮ LIỆU ĐIỂM (EMPTY STATE HANDLING - HTTP 200)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Lớp học `cls_1a_2026` mới được tạo lập đầu năm học, đã có danh sách học sinh nhưng chưa có bất kỳ bài kiểm tra nào được nhập điểm.
@@ -1032,10 +932,6 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Gửi request `GET /api/v1/grades/class/cls_1a_2026?subject_code=MATH&semester=1`.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Tuyệt đối không quăng lỗi `404 Not Found` hay crash lỗi mã nguồn `500 NullPointerException` khi duyệt mảng điểm trống.
-  - Trả về danh sách học sinh kèm mảng điểm trống `scores: []`.
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -1059,7 +955,7 @@
 
 ---
 
-### UT03_Grades_TC23 : XỬ LÝ XẾP HẠNG ĐỒNG HẠNG (TIE-BREAK) TRÊN BẢNG XẾP HẠNG VINH DANH HỌC SINH
+### UT06_Grades_TC23 : XỬ LÝ XẾP HẠNG ĐỒNG HẠNG (TIE-BREAK) TRÊN BẢNG XẾP HẠNG VINH DANH HỌC SINH
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Trong lớp `cls_1a_2026`, có 2 học sinh cùng đạt điểm tối đa `10.0` môn Toán (Trần Bảo Nam và Lê Ngọc Mai), học sinh thứ 3 đạt `9.5` (Hoàng Minh Khôi).
@@ -1069,11 +965,6 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Gửi request `GET /api/v1/grades/leaderboard/cls_1a_2026?subject_code=MATH&semester=1&limit=5`.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống phản hồi **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Thuật toán xếp hạng xử lý đúng trường hợp đồng hạng theo chuẩn thi đấu (Standard Competition Ranking):
-    - Cả 2 học sinh điểm `10.0` đều nhận vị trí **Hạng 1** (`rank: 1`) và Huy hiệu Vàng (`badge: "GOLD"`).
-    - Học sinh tiếp theo đạt `9.5` xếp **Hạng 3** (`rank: 3`) và nhận Huy hiệu Đồng (`badge: "BRONZE"`).
-  - Dữ liệu trả về:
 
   ```json
   {
@@ -1094,7 +985,7 @@
 
 ---
 
-### UT03_Grades_TC24 : TỪ CHỐI THAO TÁC DO KHÔNG CÓ TOKEN XÁC THỰC HOẶC TOKEN ĐÃ HẾT HẠN (401 UNAUTHORIZED)
+### UT06_Grades_TC24 : TỪ CHỐI THAO TÁC DO KHÔNG CÓ TOKEN XÁC THỰC HOẶC TOKEN ĐÃ HẾT HẠN (401 UNAUTHORIZED)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Người dùng chưa đăng nhập hoặc token JWT đã quá hạn 1800 giây.
@@ -1104,14 +995,12 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Gửi request `POST /api/v1/grades/batch` mà không có token hợp lệ.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống chặn ngay tại Guard xác thực với mã trạng thái **HTTP 401 (UNAUTHORIZED)**.
-  - Dữ liệu trả về:
 
   ```json
   {
     "success": false,
     "status_code": 401,
-    "error_code": "UNAUTHORIZED_ACCESS",
+    "error_code": "AUTH_UNAUTHORIZED",
     "message": "Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại."
   }
   ```
@@ -1119,7 +1008,7 @@
 
 ---
 
-### UT03_Grades_TC25 : CHẶN GIÁO VIÊN BỘ MÔN KHÁC TỰ Ý NHẬP ĐIỂM MÔN HỌC KHÔNG ĐƯỢC PHÂN CÔNG (403 FORBIDDEN)
+### UT06_Grades_TC25 : CHẶN GIÁO VIÊN BỘ MÔN KHÁC TỰ Ý NHẬP ĐIỂM MÔN HỌC KHÔNG ĐƯỢC PHÂN CÔNG (403 FORBIDDEN)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Giáo viên mang tài khoản `usr_teacher_literature` (chỉ được phân công dạy môn Ngữ văn `LIT` tại lớp `cls_1a_2026`).
@@ -1144,23 +1033,20 @@
 - **CÁC BƯỚC THỰC HIỆN:**
   1. Giáo viên môn Văn dùng token của mình gọi API cập nhật điểm môn Toán (`MATH`).
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống ném ngoại lệ phân quyền nghiêm ngặt **HTTP 403 (FORBIDDEN)**.
-  - Dữ liệu điểm không bị sửa đổi trái phép.
-  - Dữ liệu trả về:
 
   ```json
   {
     "success": false,
     "status_code": 403,
-    "error_code": "FORBIDDEN_TEACHER_ASSIGNMENT",
-    "message": "Giáo viên không được phân công giảng dạy môn MATH tại lớp cls_1a_2026"
+    "error_code": "ACAD_NOT_ASSIGNED_TEACHER",
+    "message": "Giáo viên chưa được phân công giảng dạy môn học này tại lớp."
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT03_Grades_TC26 : XỬ LÝ LỖI HỆ THỐNG KHI CƠ SỞ DỮ LIỆU FIRESTORE MẤT KẾT NỐI HOẶC TIMEOUT (500 INTERNAL SERVER ERROR)
+### UT06_Grades_TC26 : XỬ LÝ LỖI HỆ THỐNG KHI CƠ SỞ DỮ LIỆU FIRESTORE MẤT KẾT NỐI HOẶC TIMEOUT (500 INTERNAL SERVER ERROR)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
   - Yêu cầu đầu vào của giáo viên hoàn toàn hợp lệ.
@@ -1172,19 +1058,293 @@
   1. Giả lập (Mock) tầng Database Firestore ném lỗi kết nối `UNAVAILABLE` hoặc `DEADLINE_EXCEEDED`.
   2. Gửi request `POST /api/v1/grades/batch`.
 - **KẾT QUẢ MONG ĐỢI:**
-  - Hệ thống bắt ngoại lệ thông qua Global Exception Filter và trả về **HTTP 500 (INTERNAL SERVER ERROR)**.
-  - Ghi log chi tiết lỗi nội bộ vào hệ thống logging tập trung, tuyệt đối không để lộ thông tin connection string hoặc stack trace nhạy cảm ra ngoài client.
-  - Dữ liệu trả về:
 
   ```json
   {
     "success": false,
     "status_code": 500,
-    "error_code": "DATABASE_SERVICE_UNAVAILABLE",
-    "message": "Hệ thống cơ sở dữ liệu tạm thời gián đoạn. Vui lòng thử lại sau giây lát."
+    "error_code": "SYS_INTERNAL_ERROR",
+    "message": "Lỗi máy chủ cơ sở dữ liệu nội bộ. Vui lòng thử lại sau giây lát."
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
+---
 
+### UT06_Grades_TC27 : CHẶN NHẬP HOẶC CHỈNH SỬA ĐIỂM SỐ KHI HỌC KỲ ĐÃ KẾT THÚC HOẶC BỊ KHÓA SỔ (400 BAD REQUEST)
 
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên bộ môn Toán đã đăng nhập hợp lệ và được phân công giảng dạy tại lớp `cls_1a_2026`.
+  - Học kỳ 1 (`semester: 1`) đã kết thúc và được Quản trị viên (Admin/Hiệu trưởng) khóa sổ thành công (`semester_status: LOCKED` hoặc `is_closed: true`).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "class_id": "cls_1a_2026",
+    "subject_code": "MATH",
+    "semester": 1,
+    "score_type": "FINAL",
+    "scores": [
+      {
+        "student_id": "stu_01",
+        "score_value": 8.5,
+        "teacher_comment": "Bổ sung điểm thi kết thúc học kỳ 1"
+      }
+    ]
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Giáo viên truyền mã xác thực vào **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/grades/batch`.
+  3. Gửi payload cập nhật điểm vào học kỳ đã bị khóa sổ.
+  4. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  ```json
+  {
+    "success": false,
+    "status_code": 400,
+    "error_code": "ACAD_SEMESTER_LOCKED",
+    "message": "Học kỳ đã kết thúc, không thể chỉnh sửa điểm số."
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT06_Grades_TC28 : TỪ CHỐI YÊU CẦU KHI KHÔNG TÌM THẤY BẢN GHI ĐIỂM SỐ CỦA HỌC SINH (404 NOT FOUND)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên bộ môn đã đăng nhập hợp lệ với token phân quyền `TEACHER_SUBJECT`.
+  - Bản ghi điểm cụ thể với mã `score_id = "scr_nonexistent_999"` không tồn tại trong collection `/scores` trên Firestore.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Đường dẫn API (Path Params):** `/api/v1/grades/scores/scr_nonexistent_999`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "score_value": 9.0,
+    "correction_reason": "Đính chính do chấm phúc khảo"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Giáo viên truyền token xác thực hợp lệ vào **Headers**.
+  2. Chọn phương thức **`PUT`**, nhập URL: `/api/v1/grades/scores/scr_nonexistent_999`.
+  3. Gửi payload yêu cầu cập nhật bản ghi điểm.
+  4. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "error_code": "GRADE_RECORD_NOT_FOUND",
+    "message": "Không tìm thấy bản ghi điểm số của học sinh."
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT06_Grades_TC29 : CHẶN PHỤ HUYNH TRA CỨU BẢNG ĐIỂM MÔN HỌC CHƯA ĐƯỢC CÔNG BỐ (400 BAD REQUEST)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Phụ huynh đã đăng nhập hợp lệ vào ứng dụng với tài khoản `usr_parent_01` (liên kết với học sinh `stu_01` của lớp `cls_1a_2026`).
+  - Giáo viên bộ môn Toán đã nhập điểm thi học kỳ (`FINAL`) nhưng **chưa phê duyệt công bố** (`is_published: false`).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_phu_huynh>`
+  - **Tham số truy vấn (Query Params):**
+
+  ```json
+  {
+    "student_id": "stu_01",
+    "subject_code": "MATH",
+    "semester": 1,
+    "score_type": "FINAL"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Phụ huynh truyền mã xác thực vào **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/grades/parent/lookup?student_id=stu_01&subject_code=MATH&semester=1&score_type=FINAL`.
+  3. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  ```json
+  {
+    "success": false,
+    "status_code": 400,
+    "error_code": "GRADE_NOT_PUBLISHED",
+    "message": "Bảng điểm môn học chưa được công bố tới phụ huynh."
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT06_Grades_TC30 : LẤY BẢNG ĐIỂM CHI TIẾT MÔN HỌC THEO LỚP VÀ HỌC KỲ THÀNH CÔNG (HTTP 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên bộ môn Toán đã đăng nhập hợp lệ và được phân công giảng dạy tại lớp `cls_1a_2026`.
+  - Lớp `cls_1a_2026` đã có sẵn dữ liệu các đầu điểm thành phần môn Toán học kỳ 1 trong cơ sở dữ liệu.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Tham số truy vấn (Query Params):** `subject_code=MATH`, `semester=1`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của giáo viên vào **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/grades/class/cls_1a_2026?subject_code=MATH&semester=1`.
+  3. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "data": {
+      "class_id": "cls_1a_2026",
+      "subject_code": "MATH",
+      "semester": 1,
+      "students": [
+        {
+          "student_id": "stu_01",
+          "student_name": "Trần Bảo Nam",
+          "scores": {
+            "ORAL_TEST": [9.5],
+            "TEST_15P": [8.5],
+            "TEST_1P": [9.0],
+            "MID_TERM": [8.5],
+            "FINAL": [9.0]
+          }
+        },
+        {
+          "student_id": "stu_02",
+          "student_name": "Lê Ngọc Mai",
+          "scores": {
+            "ORAL_TEST": [9.0],
+            "TEST_15P": [9.0],
+            "TEST_1P": [8.5],
+            "MID_TERM": [9.0],
+            "FINAL": [9.5]
+          }
+        }
+      ]
+    }
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT06_Grades_TC31 : TỪ CHỐI THAO TÁC KHI MÃ LỚP HỌC KHÔNG TỒN TẠI TRONG HỆ THỐNG (404 NOT FOUND)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
+  - Mã lớp học `class_id = "cls_nonexistent_999"` không tồn tại trong hệ thống trường học.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "class_id": "cls_nonexistent_999",
+    "subject_code": "MATH",
+    "semester": 1,
+    "score_type": "ORAL_TEST",
+    "scores": [
+      {
+        "student_id": "stu_01",
+        "score_value": 8.5
+      }
+    ]
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request `POST /api/v1/grades/batch` với `class_id` không tồn tại.
+  2. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "error_code": "CLASS_NOT_FOUND",
+    "message": "Lớp học không tồn tại trong hệ thống."
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT06_Grades_TC32 : TỪ CHỐI LƯU BẢNG ĐIỂM KHI MÃ HỌC SINH KHÔNG THUỘC DANH SÁCH LỚP (404 NOT FOUND)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học `cls_1a_2026` tồn tại hợp lệ.
+  - Học sinh có mã `stu_unknown_888` không thuộc danh sách học sinh của lớp này hoặc không tồn tại trong hệ thống.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "class_id": "cls_1a_2026",
+    "subject_code": "MATH",
+    "semester": 1,
+    "score_type": "ORAL_TEST",
+    "scores": [
+      {
+        "student_id": "stu_unknown_888",
+        "score_value": 8.0,
+        "teacher_comment": "Nhập điểm cho học sinh không thuộc lớp"
+      }
+    ]
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request `POST /api/v1/grades/batch` chứa học sinh lạ không có tên trong lớp.
+  2. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "error_code": "STUDENT_NOT_FOUND",
+    "message": "Học sinh không tồn tại hoặc không thuộc danh sách lớp đã chọn."
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT06_Grades_TC33 : TỪ CHỐI CÔNG BỐ ĐIỂM KHI THIẾU CÁC TRƯỜNG DỮ LIỆU BẮT BUỘC (400 BAD REQUEST)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Dữ liệu thân (Body JSON):**
+
+  ```json
+  {
+    "class_id": "cls_1a_2026"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/grades/publish`.
+  2. Gửi payload thiếu `subject_code`, `score_type` và `semester`.
+  3. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+
+  ```json
+  {
+    "success": false,
+    "status_code": 400,
+    "error_code": "COMMON_VALIDATION_ERROR",
+    "message": "Dữ liệu không hợp lệ. Vui lòng cung cấp đầy đủ class_id, subject_code, score_type và semester."
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
