@@ -19,6 +19,8 @@
   },
   "dependencies": {
     "@giaovienhay/shared-types": "workspace:*",
+    "@google-cloud/firestore": "^9.2.0",
+    "@google-cloud/storage": "^8.2.0",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.0",

@@ -60,6 +60,12 @@ importers:
       '@giaovienhay/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@google-cloud/firestore':
+        specifier: ^9.2.0
+        version: 9.2.0
+      '@google-cloud/storage':
+        specifier: ^8.2.0
+        version: 8.2.0
       '@google/generative-ai':
         specifier: ^0.24.1
         version: 0.24.1
@@ -1047,7 +1053,7 @@ packages:
 
   '@expo/bunyan@4.0.1':
     resolution: {integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==}
-    engines: {'0': node >=0.10.0}
+    engines: {node: '>=0.10.0'}
 
   '@expo/cli@0.18.31':
     resolution: {integrity: sha512-v9llw9fT3Uv+TCM6Xllo54t672CuYtinEQZ2LPJ2EJsCwuTc4Cd2gXQaouuIVD21VoeGQnr5JtJuWbF97sBKzQ==}
@@ -8484,7 +8490,6 @@ snapshots:
       google-gax: 5.0.8
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   '@google-cloud/firestore@9.2.0':
     dependencies:
@@ -8496,18 +8501,14 @@ snapshots:
       protobufjs: 7.6.6
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   '@google-cloud/paginator@7.1.0':
     dependencies:
       extend: 3.0.2
-    optional: true
 
-  '@google-cloud/projectify@6.1.0':
-    optional: true
+  '@google-cloud/projectify@6.1.0': {}
 
-  '@google-cloud/promisify@6.1.0':
-    optional: true
+  '@google-cloud/promisify@6.1.0': {}
 
   '@google-cloud/storage@8.2.0':
     dependencies:
@@ -8528,7 +8529,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   '@google/generative-ai@0.24.1': {}
 
@@ -8540,7 +8540,6 @@ snapshots:
     dependencies:
       '@grpc/proto-loader': 0.8.1
       '@js-sdsl/ordered-map': 4.4.2
-    optional: true
 
   '@grpc/grpc-js@1.9.16':
     dependencies:
@@ -8560,7 +8559,6 @@ snapshots:
       long: 5.3.2
       protobufjs: 7.6.6
       yargs: 17.7.3
-    optional: true
 
   '@hapi/hoek@9.3.0': {}
 
@@ -8810,8 +8808,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@js-sdsl/ordered-map@4.4.2':
-    optional: true
+  '@js-sdsl/ordered-map@4.4.2': {}
 
   '@ljharb/through@2.3.14':
     dependencies:
@@ -9010,8 +9007,7 @@ snapshots:
   '@next/swc-win32-x64-msvc@14.2.33':
     optional: true
 
-  '@nodable/entities@3.1.0':
-    optional: true
+  '@nodable/entities@3.1.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -9039,8 +9035,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@opentelemetry/api@1.9.1':
-    optional: true
+  '@opentelemetry/api@1.9.1': {}
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
@@ -10013,8 +10008,7 @@ snapshots:
       normalize-path: 3.0.0
       picomatch: 2.3.2
 
-  anynum@1.0.1:
-    optional: true
+  anynum@1.0.1: {}
 
   appdirsjs@1.2.8: {}
 
@@ -10122,7 +10116,6 @@ snapshots:
   async-retry@1.3.3:
     dependencies:
       retry: 0.13.1
-    optional: true
 
   asynckit@0.4.0: {}
 
@@ -10834,7 +10827,6 @@ snapshots:
       inherits: 2.0.4
       readable-stream: 3.6.2
       stream-shift: 1.0.3
-    optional: true
 
   eastasianwidth@0.2.0: {}
 
@@ -11391,7 +11383,6 @@ snapshots:
     dependencies:
       path-expression-matcher: 1.6.2
       xml-naming: 0.3.0
-    optional: true
 
   fast-xml-parser@4.5.7:
     dependencies:
@@ -11405,7 +11396,6 @@ snapshots:
       path-expression-matcher: 1.6.2
       strnum: 2.4.2
       xml-naming: 0.3.0
-    optional: true
 
   fastq@1.20.3:
     dependencies:
@@ -11689,8 +11679,7 @@ snapshots:
       is-callable: 1.2.7
       is-document.all: 1.0.0
 
-  functional-red-black-tree@1.0.1:
-    optional: true
+  functional-red-black-tree@1.0.1: {}
 
   functions-have-names@1.2.3: {}
 
@@ -11704,7 +11693,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   gaxios@7.1.3:
     dependencies:
@@ -11714,7 +11702,6 @@ snapshots:
       rimraf: 5.0.10
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   gaxios@7.3.1:
     dependencies:
@@ -11732,7 +11719,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   gcp-metadata@8.1.4:
     dependencies:
@@ -11741,7 +11727,6 @@ snapshots:
       json-bigint: 1.0.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   gcp-metadata@9.0.4:
     dependencies:
@@ -11884,7 +11869,6 @@ snapshots:
       jws: 4.0.1
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   google-auth-library@11.1.0:
     dependencies:
@@ -11908,7 +11892,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   google-gax@5.0.8:
     dependencies:
@@ -11925,7 +11908,6 @@ snapshots:
       rimraf: 5.0.10
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   google-gax@6.9.0:
     dependencies:
@@ -11942,13 +11924,10 @@ snapshots:
       retry-request: 9.0.1
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
-  google-logging-utils@0.0.2:
-    optional: true
+  google-logging-utils@0.0.2: {}
 
-  google-logging-utils@1.1.3:
-    optional: true
+  google-logging-utils@1.1.3: {}
 
   google-logging-utils@2.0.1: {}
 
@@ -11972,7 +11951,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   gtoken@8.0.0:
     dependencies:
@@ -11980,7 +11958,6 @@ snapshots:
       jws: 4.0.1
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   handlebars@4.7.9:
     dependencies:
@@ -12041,8 +12018,7 @@ snapshots:
     dependencies:
       lru-cache: 10.4.3
 
-  html-entities@2.6.0:
-    optional: true
+  html-entities@2.6.0: {}
 
   html-escaper@2.0.2: {}
 
@@ -12070,7 +12046,6 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   https-proxy-agent@5.0.1:
     dependencies:
@@ -12336,8 +12311,7 @@ snapshots:
 
   is-unicode-supported@0.1.0: {}
 
-  is-unsafe@2.0.2:
-    optional: true
+  is-unsafe@2.0.2: {}
 
   is-valid-path@0.1.1:
     dependencies:
@@ -13334,8 +13308,7 @@ snapshots:
 
   mime@2.6.0: {}
 
-  mime@3.0.0:
-    optional: true
+  mime@3.0.0: {}
 
   mimic-fn@1.2.0: {}
 
@@ -13533,8 +13506,7 @@ snapshots:
 
   object-assign@4.1.1: {}
 
-  object-hash@3.0.0:
-    optional: true
+  object-hash@3.0.0: {}
 
   object-inspect@1.13.4: {}
 
@@ -13728,8 +13700,7 @@ snapshots:
 
   path-exists@4.0.0: {}
 
-  path-expression-matcher@1.6.2:
-    optional: true
+  path-expression-matcher@1.6.2: {}
 
   path-is-absolute@1.0.1: {}
 
@@ -13855,12 +13826,10 @@ snapshots:
   proto3-json-serializer@3.0.4:
     dependencies:
       protobufjs: 7.6.6
-    optional: true
 
   proto3-json-serializer@4.0.2:
     dependencies:
       protobufjs: 7.6.6
-    optional: true
 
   protobufjs@7.6.6:
     dependencies:
@@ -14146,7 +14115,6 @@ snapshots:
       teeny-request: 10.1.4
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   retry-request@9.0.1:
     dependencies:
@@ -14154,10 +14122,8 @@ snapshots:
       teeny-request: 11.0.1
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
-  retry@0.13.1:
-    optional: true
+  retry@0.13.1: {}
 
   reusify@1.1.0: {}
 
@@ -14172,7 +14138,6 @@ snapshots:
   rimraf@5.0.10:
     dependencies:
       glob: 10.5.0
-    optional: true
 
   rimraf@6.1.3:
     dependencies:
@@ -14451,10 +14416,8 @@ snapshots:
   stream-events@1.0.5:
     dependencies:
       stubs: 3.0.0
-    optional: true
 
-  stream-shift@1.0.3:
-    optional: true
+  stream-shift@1.0.3: {}
 
   streamsearch@1.1.0: {}
 
@@ -14563,7 +14526,6 @@ snapshots:
   strnum@2.4.2:
     dependencies:
       anynum: 1.0.1
-    optional: true
 
   strtok3@10.3.5:
     dependencies:
@@ -14571,8 +14533,7 @@ snapshots:
 
   structured-headers@0.4.1: {}
 
-  stubs@3.0.0:
-    optional: true
+  stubs@3.0.0: {}
 
   styled-jsx@5.1.1(react@18.2.0):
     dependencies:
@@ -14633,7 +14594,6 @@ snapshots:
       stream-events: 1.0.5
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   teeny-request@11.0.1:
     dependencies:
@@ -14643,7 +14603,6 @@ snapshots:
       stream-events: 1.0.5
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   temp-dir@1.0.0: {}
 
@@ -15006,8 +14965,7 @@ snapshots:
 
   uuid@8.3.2: {}
 
-  uuid@9.0.1:
-    optional: true
+  uuid@9.0.1: {}
 
   v8-compile-cache-lib@3.0.1: {}
 
@@ -15216,8 +15174,7 @@ snapshots:
       simple-plist: 1.3.1
       uuid: 7.0.3
 
-  xml-naming@0.3.0:
-    optional: true
+  xml-naming@0.3.0: {}
 
   xml2js@0.6.0:
     dependencies:
