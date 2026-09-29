@@ -3,13 +3,19 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { CreateClassDto, AddStudentToClassDto, JoinClassDto } from './dto/classes.dto';
 
 @Injectable()
 export class ClassesService {
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly firebaseService: FirebaseService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   async createClass(teacherId: string, teacherSchool: string, dto: CreateClassDto) {
     const classId = 'cls_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
@@ -35,10 +41,20 @@ export class ClassesService {
       } catch (e) {}
     }
 
+    // Xóa cache danh sách lớp của giáo viên
+    await this.cacheManager.del(`classes_teacher_${teacherId}`);
+
     return newClass;
   }
 
   async getMyClasses(teacherId: string) {
+    const cacheKey = `classes_teacher_${teacherId}`;
+    const cached = await this.cacheManager.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    let classes: any[] = [];
     if (this.firebaseService.firestore) {
       try {
         const snap = await this.firebaseService.firestore
@@ -47,23 +63,30 @@ export class ClassesService {
           .get();
 
         if (!snap.empty) {
-          return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          classes = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         }
       } catch (e) {}
     }
 
-    return [
-      {
-        id: 'cls_1a_2026',
-        name: '1A',
-        grade_level: 1,
-        academic_year: '2026-2027',
+    if (classes.length === 0) {
+      classes = [
+        {
+          id: 'cls_1a_2026',
+          name: '1A',
+          grade_level: 1,
+          academic_year: '2026-2027',
         school_name: 'Trường Tiểu Học Chu Văn An',
         homeroom_teacher_id: teacherId,
         student_count: 35,
         invite_code: 'INV-1A-2026',
       },
     ];
+  }
+
+    // Cache kết quả trong 10 phút (600,000 ms)
+    await this.cacheManager.set(cacheKey, classes, 600000);
+
+    return classes;
   }
 
   async getClassDetail(classId: string, userId: string) {

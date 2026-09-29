@@ -1,17 +1,31 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { UpdateProfileDto, RegisterDeviceTokenDto } from './dto/users.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly firebaseService: FirebaseService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   async getMe(userId: string) {
+    const cacheKey = `user_profile_${userId}`;
+    const cached = await this.cacheManager.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const user = await this.getUserById(userId);
     if (!user) {
       throw new NotFoundException('Không tìm thấy thông tin tài khoản');
     }
     const { password_hash, ...safeUser } = user;
+
+    // Lưu vào RAM cache trong 5 phút (300 giây)
+    await this.cacheManager.set(cacheKey, safeUser, 300 * 1000);
     return safeUser;
   }
 
@@ -32,6 +46,9 @@ export class UsersService {
         await this.firebaseService.firestore.collection('users').doc(userId).update(updatedData);
       } catch (e) {}
     }
+
+    // Xóa cache cũ để dữ liệu mới được cập nhật tức thời
+    await this.cacheManager.del(`user_profile_${userId}`);
 
     const { password_hash, ...safeUser } = updatedData;
     return safeUser;

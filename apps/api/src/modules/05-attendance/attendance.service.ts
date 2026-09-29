@@ -1,13 +1,36 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { SubmitAttendanceDto } from './dto/attendance.dto';
 import { AttendanceStatus, NotificationType } from '@giaovienhay/shared-types';
+
+export interface AbsentEventPayload {
+  classId: string;
+  absentStudentIds: string[];
+  date: string;
+}
+
+export interface TodayPresentStudentsResponse {
+  class_id: string;
+  today: string;
+  present_students: Array<{
+    id: string;
+    full_name: string;
+    student_code: string;
+  }>;
+}
 
 @Injectable()
 export class AttendanceService {
   private readonly logger = new Logger(AttendanceService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly firebaseService: FirebaseService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async submitAttendance(teacherId: string, dto: SubmitAttendanceDto) {
     let presentCount = 0;
@@ -42,10 +65,18 @@ export class AttendanceService {
       }
     }
 
-    // Tự động kích hoạt Push Notification cho phụ huynh của các em vắng
-    let notifiedParentsCount = 0;
+    // Xóa cache danh sách học sinh có mặt hôm nay của lớp này để làm mới dữ liệu
+    const cacheKey = `att_present_${dto.class_id}_${dto.attendance_date}`;
+    await this.cacheManager.del(cacheKey);
+
+    // Bắn Event xử lý ngầm (Message Queue/Event-driven) cho FCM Notifications
+    // Không làm block luồng HTTP response của giáo viên!
     if (absentStudentIds.length > 0) {
-      notifiedParentsCount = await this.triggerAbsentFCM(dto.class_id, absentStudentIds, dto.attendance_date);
+      this.eventEmitter.emit('attendance.absent', {
+        classId: dto.class_id,
+        absentStudentIds,
+        date: dto.attendance_date,
+      } as AbsentEventPayload);
     }
 
     return {
@@ -53,7 +84,7 @@ export class AttendanceService {
       total_students: dto.records.length,
       present_count: presentCount,
       absent_count: absentCount,
-      notified_parents: notifiedParentsCount,
+      notified_parents_queued: absentStudentIds.length,
     };
   }
 
@@ -80,8 +111,15 @@ export class AttendanceService {
     ];
   }
 
-  async getTodayPresentStudents(classId: string) {
+  async getTodayPresentStudents(classId: string): Promise<TodayPresentStudentsResponse> {
     const today = new Date().toISOString().split('T')[0];
+    const cacheKey = `att_present_${classId}_${today}`;
+
+    // Kiểm tra trong In-Memory RAM Cache trước (0ms)
+    const cached = await this.cacheManager.get<TodayPresentStudentsResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
     // Trích xuất danh sách học sinh CÓ MẶT HÔM NAY để nạp vào Vòng quay may mắn
     let presentStudents = [
@@ -111,17 +149,27 @@ export class AttendanceService {
       } catch (e) {}
     }
 
-    return {
+    const result = {
       class_id: classId,
       today,
       present_students: presentStudents,
     };
+
+    // Cache kết quả trong 15 phút (900,000 ms)
+    await this.cacheManager.set(cacheKey, result, 900000);
+
+    return result;
   }
 
-  private async triggerAbsentFCM(classId: string, absentStudentIds: string[], date: string): Promise<number> {
-    this.logger.log(`Triggering FCM absent notification for ${absentStudentIds.length} students on ${date}`);
+  /**
+   * Listener xử lý ngầm (Event-Driven Worker) khi có học sinh vắng
+   * Hoạt động như một queue worker phi tập trung không tốn tiền server
+   */
+  @OnEvent('attendance.absent', { async: true })
+  async handleAbsentNotificationEvent(payload: AbsentEventPayload) {
+    const { classId, absentStudentIds, date } = payload;
+    this.logger.log(`[Worker] Xử lý ngầm gửi thông báo FCM cho ${absentStudentIds.length} học sinh vắng ngày ${date}`);
 
-    // Ghi nhận thông báo vào collection /notifications
     if (this.firebaseService.firestore) {
       try {
         for (const stuId of absentStudentIds) {
@@ -136,9 +184,10 @@ export class AttendanceService {
             created_at: new Date().toISOString(),
           });
         }
-      } catch (e) {}
+        this.logger.log(`[Worker] Đã tạo thành công ${absentStudentIds.length} thông báo FCM phụ huynh.`);
+      } catch (e: any) {
+        this.logger.error(`[Worker] Lỗi tạo thông báo: ${e?.message}`);
+      }
     }
-
-    return absentStudentIds.length;
   }
 }
