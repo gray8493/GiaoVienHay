@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import {
   RegisterDto,
@@ -217,13 +217,16 @@ export class AuthService {
   private async findUserByPhone(phone: string): Promise<any | null> {
     if (this.firebaseService.firestore) {
       try {
-        const snap = await this.firebaseService.firestore
-          .collection('users')
-          .where('phone', '==', phone)
-          .limit(1)
-          .get();
+        const snap = await Promise.race([
+          this.firebaseService.firestore
+            .collection('users')
+            .where('phone', '==', phone)
+            .limit(1)
+            .get(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500)),
+        ]) as any;
 
-        if (!snap.empty) {
+        if (snap && !snap.empty) {
           return { id: snap.docs[0].id, ...snap.docs[0].data() };
         }
       } catch (err) {
@@ -236,8 +239,11 @@ export class AuthService {
   private async findUserById(id: string): Promise<any | null> {
     if (this.firebaseService.firestore) {
       try {
-        const doc = await this.firebaseService.firestore.collection('users').doc(id).get();
-        if (doc.exists) {
+        const doc = await Promise.race([
+          this.firebaseService.firestore.collection('users').doc(id).get(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500)),
+        ]) as any;
+        if (doc && doc.exists) {
           return { id: doc.id, ...doc.data() };
         }
       } catch (err) {}
@@ -252,7 +258,10 @@ export class AuthService {
     this.inMemoryUsers.set(user.phone, user);
     if (this.firebaseService.firestore) {
       try {
-        await this.firebaseService.firestore.collection('users').doc(user.id).set(user);
+        await Promise.race([
+          this.firebaseService.firestore.collection('users').doc(user.id).set(user),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500)),
+        ]);
       } catch (err) {}
     }
   }
