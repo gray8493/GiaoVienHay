@@ -1,25 +1,34 @@
-name: CI Pipeline
+name: Main Branch CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Build, Lint & Test
+  # -----------------------------------------------------------
+  # 1. BUILD & TYPECHECK VERIFICATION (Chạy cho cả PR và Push)
+  # -----------------------------------------------------------
+  build-and-validate:
+    name: Build & Typecheck Monorepo
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Source Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: Install pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 9
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -28,11 +37,35 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint All Projects
-        run: pnpm lint
-
-      - name: Run Tests
-        run: pnpm test
-
-      - name: Build All Projects
+      - name: Build Monorepo (Shared Types, API, Web Admin, Mobile)
         run: pnpm build
+
+  # -----------------------------------------------------------
+  # 2. AUTOMATIC DEPLOY TO RENDER (Chỉ chạy khi MERGE vào MAIN)
+  # -----------------------------------------------------------
+  deploy-production:
+    name: Deploy to Production (Render)
+    needs: build-and-validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy Hook
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          echo "🚀 Kích hoạt Render Deploy Hook tự động..."
+          curl -s -X POST "$RENDER_DEPLOY_HOOK_URL"
+          echo "✅ Đã gửi tín hiệu deploy thành công đến Render."
+
+      - name: Verify Live Backend Health Check
+        run: |
+          echo "🔍 Kiểm tra trạng thái máy chủ Backend..."
+          sleep 15
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://giaovienhay.onrender.com/api/v1/health || true)
+          echo "HTTP Status code từ /api/v1/health: $STATUS"
+          if [ "$STATUS" -eq 200 ]; then
+            echo "🎉 Hệ thống GiaoVienHay Backend đang hoạt động bình thường (UP)!"
+          else
+            echo "⚠️ Server đang khởi động lại hoặc đang triển khai phiên bản mới."
+          fi

@@ -29,7 +29,7 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     // 1. Kiểm tra tồn tại qua số điện thoại
-    let existingUser = await this.findUserByPhone(dto.phone);
+    const existingUser = await this.findUserByPhone(dto.phone);
     if (existingUser) {
       throw new ConflictException({
         message: 'Số điện thoại này đã được đăng ký trong hệ thống',
