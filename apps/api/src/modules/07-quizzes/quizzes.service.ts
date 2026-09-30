@@ -53,6 +53,8 @@ export class QuizzesService {
       ],
       questions,
       created_by: teacherId,
+      is_deleted: false,
+      deleted_at: null,
       created_at: new Date().toISOString(),
     };
 
@@ -63,6 +65,31 @@ export class QuizzesService {
     }
 
     return quizData;
+  }
+
+  /**
+   * Xóa mềm bài Quiz (is_deleted = 1/true)
+   */
+  async deleteQuiz(quizId: string) {
+    const now = new Date().toISOString();
+    if (this.firebaseService.firestore) {
+      try {
+        await this.firebaseService.firestore.collection('quizzes').doc(quizId).set(
+          {
+            is_deleted: true,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
+      } catch (e) {}
+    }
+
+    return {
+      message: 'Xóa mềm bài Quiz thành công',
+      quiz_id: quizId,
+      is_deleted: true,
+      deleted_at: now,
+    };
   }
 
   async getMyQuizzes(teacherId: string, classId?: string, subjectCode?: string) {

@@ -62,4 +62,29 @@ export class NotificationsService {
       message: 'Đã đánh dấu toàn bộ thông báo là đã đọc',
     };
   }
+
+  /**
+   * Xóa mềm thông báo (is_deleted = 1/true)
+   */
+  async deleteNotification(notifId: string) {
+    const now = new Date().toISOString();
+    if (this.firebaseService.firestore) {
+      try {
+        await this.firebaseService.firestore.collection('notifications').doc(notifId).set(
+          {
+            is_deleted: true,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
+      } catch (e) {}
+    }
+
+    return {
+      message: 'Xóa mềm thông báo thành công',
+      id: notifId,
+      is_deleted: true,
+      deleted_at: now,
+    };
+  }
 }

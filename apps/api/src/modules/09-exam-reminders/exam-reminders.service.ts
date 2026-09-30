@@ -21,6 +21,8 @@ export class ExamRemindersService {
       exam_date: dto.exam_date,
       message: dto.message,
       created_by: teacherId,
+      is_deleted: false,
+      deleted_at: null,
       created_at: now,
     };
 
@@ -40,6 +42,31 @@ export class ExamRemindersService {
       exam_date: dto.exam_date,
       notified_parents: 36,
       created_at: now,
+    };
+  }
+
+  /**
+   * Xóa mềm lịch nhắc kiểm tra (is_deleted = 1/true)
+   */
+  async deleteReminder(reminderId: string) {
+    const now = new Date().toISOString();
+    if (this.firebaseService.firestore) {
+      try {
+        await this.firebaseService.firestore.collection('exam_reminders').doc(reminderId).set(
+          {
+            is_deleted: true,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
+      } catch (e) {}
+    }
+
+    return {
+      message: 'Xóa mềm lịch nhắc kiểm tra thành công',
+      reminder_id: reminderId,
+      is_deleted: true,
+      deleted_at: now,
     };
   }
 

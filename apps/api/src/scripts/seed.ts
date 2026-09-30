@@ -14,8 +14,15 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
+// Helper tự động gắn cờ xóa mềm is_deleted (0 = false: active, 1 = true: deleted)
+const withSoftDelete = <T extends Record<string, any>>(data: T): T & { is_deleted: boolean; deleted_at: null } => ({
+  ...data,
+  is_deleted: false,
+  deleted_at: null,
+});
+
 async function seedData() {
-  console.log('🚀 Bắt đầu nạp dữ liệu mẫu vào Firebase Firestore (Project: giaovienhay)...');
+  console.log('🚀 Bắt đầu nạp dữ liệu mẫu vào Firebase Firestore có trường is_deleted (Project: giaovienhay)...');
 
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
@@ -86,7 +93,7 @@ async function seedData() {
   ];
 
   for (const u of users) {
-    await setDoc(doc(db, 'users', u.id), u);
+    await setDoc(doc(db, 'users', u.id), withSoftDelete(u));
   }
 
   // 2. Classes Collection
@@ -104,7 +111,7 @@ async function seedData() {
     created_at: now,
     updated_at: now,
   };
-  await setDoc(doc(db, 'classes', class1A.id), class1A);
+  await setDoc(doc(db, 'classes', class1A.id), withSoftDelete(class1A));
 
   // 3. Students Collection
   console.log('3. Đang nạp dữ liệu Students...');
@@ -172,7 +179,7 @@ async function seedData() {
   ];
 
   for (const s of students) {
-    await setDoc(doc(db, 'students', s.id), s);
+    await setDoc(doc(db, 'students', s.id), withSoftDelete(s));
   }
 
   // 4. Attendances Collection
@@ -187,7 +194,7 @@ async function seedData() {
 
   for (const att of attendances) {
     const docId = `att_cls_1a_2026_${att.student_id}_${today}`;
-    await setDoc(doc(db, 'attendances', docId), {
+    await setDoc(doc(db, 'attendances', docId), withSoftDelete({
       class_id: 'cls_1a_2026',
       student_id: att.student_id,
       student_name: att.student_name,
@@ -197,29 +204,26 @@ async function seedData() {
       note: att.note,
       recorded_by: 'usr_gv_01',
       updated_at: now,
-    });
+    }));
   }
 
   // 5. Scores Collection (Grades)
   console.log('5. Đang nạp dữ liệu Scores...');
   const scores = [
-    // Em Nam
     { student_id: 'stu_01', subject_code: 'MATH', score_type: 'ORAL_TEST', score_value: 9.5, comment: 'Học thuộc bảng cộng' },
     { student_id: 'stu_01', subject_code: 'MATH', score_type: 'TEST_15P', score_value: 8.5, comment: null },
     { student_id: 'stu_01', subject_code: 'MATH', score_type: 'MID_TERM', score_value: 9.5, comment: null },
     { student_id: 'stu_01', subject_code: 'LITERATURE', score_type: 'ORAL_TEST', score_value: 8.0, comment: 'Đọc diễn cảm tốt' },
     { student_id: 'stu_01', subject_code: 'LITERATURE', score_type: 'TEST_15P', score_value: 9.0, comment: 'Chính tả sạch đẹp' },
-    // Em Mai
     { student_id: 'stu_02', subject_code: 'MATH', score_type: 'ORAL_TEST', score_value: 8.0, comment: 'Cần tính nhẩm nhanh hơn' },
     { student_id: 'stu_02', subject_code: 'MATH', score_type: 'TEST_15P', score_value: 9.0, comment: null },
-    // Em Khôi
     { student_id: 'stu_03', subject_code: 'MATH', score_type: 'ORAL_TEST', score_value: 9.0, comment: null },
     { student_id: 'stu_03', subject_code: 'MATH', score_type: 'TEST_15P', score_value: 9.2, comment: null },
   ];
 
   for (const sc of scores) {
     const docId = `score_cls_1a_2026_${sc.subject_code}_${sc.student_id}_${sc.score_type}`;
-    await setDoc(doc(db, 'scores', docId), {
+    await setDoc(doc(db, 'scores', docId), withSoftDelete({
       class_id: 'cls_1a_2026',
       student_id: sc.student_id,
       subject_code: sc.subject_code,
@@ -230,7 +234,7 @@ async function seedData() {
       is_published: true,
       recorded_by: 'usr_gv_01',
       updated_at: now,
-    });
+    }));
   }
 
   // 6. Quizzes Collection
@@ -269,7 +273,7 @@ async function seedData() {
     created_by: 'usr_gv_01',
     created_at: now,
   };
-  await setDoc(doc(db, 'quizzes', sampleQuiz.quiz_id), sampleQuiz);
+  await setDoc(doc(db, 'quizzes', sampleQuiz.quiz_id), withSoftDelete(sampleQuiz));
 
   // 7. Remarks Collection
   console.log('7. Đang nạp dữ liệu Remarks...');
@@ -285,7 +289,7 @@ async function seedData() {
     acknowledged_at: now,
     created_at: now,
   };
-  await setDoc(doc(db, 'remarks', remark.id), remark);
+  await setDoc(doc(db, 'remarks', remark.id), withSoftDelete(remark));
 
   // 8. Exam Reminders Collection
   console.log('8. Đang nạp dữ liệu Exam Reminders...');
@@ -299,7 +303,7 @@ async function seedData() {
     created_by: 'usr_gv_01',
     created_at: now,
   };
-  await setDoc(doc(db, 'exam_reminders', reminder.id), reminder);
+  await setDoc(doc(db, 'exam_reminders', reminder.id), withSoftDelete(reminder));
 
   // 9. Fees & Insurance Collection
   console.log('9. Đang nạp dữ liệu Fees & Insurance...');
@@ -329,7 +333,7 @@ async function seedData() {
   ];
 
   for (const f of fees) {
-    await setDoc(doc(db, 'fees_insurance', f.id), f);
+    await setDoc(doc(db, 'fees_insurance', f.id), withSoftDelete(f));
   }
 
   // 10. Notifications Collection
@@ -356,10 +360,10 @@ async function seedData() {
   ];
 
   for (const n of notifs) {
-    await setDoc(doc(db, 'notifications', n.id), n);
+    await setDoc(doc(db, 'notifications', n.id), withSoftDelete(n));
   }
 
-  console.log('🎉 Hoàn tất 100% nạp dữ liệu mẫu vào Firebase Firestore!');
+  console.log('🎉 Hoàn tất 100% nạp dữ liệu mẫu có is_deleted vào Firebase Firestore!');
   process.exit(0);
 }
 

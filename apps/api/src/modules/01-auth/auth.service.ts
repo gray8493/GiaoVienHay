@@ -51,6 +51,8 @@ export class AuthService {
       school_name: dto.school_name || null,
       teaching_subjects: dto.teaching_subjects || [],
       is_active: true,
+      is_deleted: false,
+      deleted_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -82,7 +84,7 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const user = await this.findUserByPhone(dto.phone);
-    if (!user) {
+    if (!user || user.is_deleted) {
       throw new UnauthorizedException({
         message: 'Số điện thoại hoặc mật khẩu không chính xác',
         error_code: ErrorCode.AUTH_INVALID_CREDENTIALS,

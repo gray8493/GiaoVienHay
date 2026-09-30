@@ -23,6 +23,8 @@ export class RemarksService {
       content: dto.content,
       parent_acknowledged: false,
       acknowledged_at: null,
+      is_deleted: false,
+      deleted_at: null,
       created_at: now,
     };
 
@@ -41,6 +43,31 @@ export class RemarksService {
       content: dto.content,
       created_at: now,
       fcm_delivered: true,
+    };
+  }
+
+  /**
+   * Xóa mềm lời phê (is_deleted = 1/true)
+   */
+  async deleteRemark(remarkId: string) {
+    const now = new Date().toISOString();
+    if (this.firebaseService.firestore) {
+      try {
+        await this.firebaseService.firestore.collection('remarks').doc(remarkId).set(
+          {
+            is_deleted: true,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
+      } catch (e) {}
+    }
+
+    return {
+      message: 'Xóa mềm lời phê thành công',
+      remark_id: remarkId,
+      is_deleted: true,
+      deleted_at: now,
     };
   }
 

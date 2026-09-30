@@ -104,3 +104,136 @@ export interface ApiErrorResponse {
   details?: any;
   timestamp: string;
 }
+
+// ---------------------------------------------------------------------------
+// DB Base Entity & Soft Delete (is_deleted: false/0: Active, true/1: Deleted)
+// ---------------------------------------------------------------------------
+export interface SoftDeletable {
+  /** 
+   * Trạng thái xóa mềm: 
+   * - false hoặc 0: Đang hoạt động (chưa xóa)
+   * - true hoặc 1: Đã xóa mềm (không hiển thị trong các truy vấn thông thường)
+   */
+  is_deleted: boolean;
+  deleted_at?: string | null;
+}
+
+export interface BaseEntity extends SoftDeletable {
+  id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserEntity extends BaseEntity {
+  full_name: string;
+  phone: string;
+  email: string | null;
+  role: UserRole;
+  school_name?: string | null;
+  teaching_subjects?: Subject[] | string[];
+  is_active: boolean;
+}
+
+export interface ClassEntity extends BaseEntity {
+  name: string;
+  grade_level: number;
+  academic_year: string;
+  school_name: string;
+  homeroom_teacher_id: string;
+  subject_teacher_ids: string[];
+  invite_code: string;
+  student_count: number;
+}
+
+export interface StudentEntity extends BaseEntity {
+  class_id: string;
+  class_name: string;
+  student_code: string;
+  full_name: string;
+  dob?: string | null;
+  gender: Gender | string;
+  parent_phone?: string | null;
+  parent_uids?: string[];
+}
+
+export interface AttendanceEntity extends BaseEntity {
+  class_id: string;
+  student_id: string;
+  student_name?: string;
+  attendance_date: string;
+  period: number;
+  status: AttendanceStatus;
+  note?: string | null;
+  recorded_by: string;
+}
+
+export interface ScoreEntity extends BaseEntity {
+  class_id: string;
+  student_id: string;
+  subject_code: string;
+  semester: number;
+  score_type: GradeType | string;
+  score_value: number;
+  teacher_comment?: string | null;
+  is_published: boolean;
+  recorded_by: string;
+}
+
+export interface QuizEntity extends BaseEntity {
+  quiz_id: string;
+  title: string;
+  subject_code: string;
+  class_id: string;
+  difficulty_level: DifficultyLevel | string;
+  total_questions: number;
+  available_modes: GameMode[] | string[];
+  questions: any[];
+  created_by: string;
+}
+
+export interface RemarkEntity extends BaseEntity {
+  student_id: string;
+  class_id: string;
+  subject_code: string;
+  teacher_id: string;
+  teacher_name: string;
+  content: string;
+  parent_acknowledged: boolean;
+  acknowledged_at?: string | null;
+}
+
+export interface ExamReminderEntity extends BaseEntity {
+  class_id: string;
+  subject_code: string;
+  exam_type: string;
+  exam_date: string;
+  message: string;
+  created_by: string;
+}
+
+export interface FeeInsuranceEntity extends BaseEntity {
+  student_id: string;
+  student_name: string;
+  class_id: string;
+  term_name: string;
+  tuition?: {
+    is_paid: boolean;
+    paid_date?: string | null;
+    amount: number;
+  };
+  insurance?: {
+    is_paid: boolean;
+    paid_date?: string | null;
+    amount: number;
+    deadline?: string | null;
+  };
+  note?: string | null;
+}
+
+export interface NotificationEntity extends BaseEntity {
+  title: string;
+  body: string;
+  type: NotificationType;
+  is_read: boolean;
+  metadata?: Record<string, any>;
+}

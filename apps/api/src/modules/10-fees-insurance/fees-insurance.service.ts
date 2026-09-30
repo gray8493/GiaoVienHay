@@ -60,6 +60,31 @@ export class FeesInsuranceService {
     };
   }
 
+  /**
+   * Xóa mềm bản ghi học phí/bảo hiểm (is_deleted = 1/true)
+   */
+  async deleteFeeRecord(recordId: string) {
+    const now = new Date().toISOString();
+    if (this.firebaseService.firestore) {
+      try {
+        await this.firebaseService.firestore.collection('fees_insurance').doc(recordId).set(
+          {
+            is_deleted: true,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
+      } catch (e) {}
+    }
+
+    return {
+      message: 'Xóa mềm bản ghi học phí thành công',
+      record_id: recordId,
+      is_deleted: true,
+      deleted_at: now,
+    };
+  }
+
   async sendFeeReminder(teacherId: string, dto: RemindFeesDto) {
     const feeName = dto.fee_type === FeeType.INSURANCE ? 'Bảo hiểm y tế (BHYT)' : 'Học phí';
     const message = dto.custom_message || `Kính nhờ quý phụ huynh chưa hoàn thành ${feeName} vui lòng nộp cho cô Lan tại lớp.`;

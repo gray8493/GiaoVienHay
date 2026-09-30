@@ -47,6 +47,8 @@ export class GradesService {
             score_value: item.score_value,
             teacher_comment: item.teacher_comment || null,
             is_published: false, // Mặc định chưa công bố
+            is_deleted: false,
+            deleted_at: null,
             recorded_by: teacherId,
             updated_at: now,
           });
@@ -59,6 +61,32 @@ export class GradesService {
       subject_code: dto.subject_code,
       score_type: dto.score_type,
       updated_count: dto.scores.length,
+    };
+  }
+
+  /**
+   * Xóa mềm điểm số (is_deleted = 1/true)
+   */
+  async deleteScore(classId: string, subjectCode: string, studentId: string, scoreType: string) {
+    const docId = `score_${classId}_${subjectCode}_${studentId}_${scoreType}`;
+    const now = new Date().toISOString();
+    if (this.firebaseService.firestore) {
+      try {
+        await this.firebaseService.firestore.collection('scores').doc(docId).set(
+          {
+            is_deleted: true,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
+      } catch (e) {}
+    }
+
+    return {
+      message: 'Xóa mềm điểm số thành công',
+      doc_id: docId,
+      is_deleted: true,
+      deleted_at: now,
     };
   }
 

@@ -71,12 +71,43 @@ export class UsersService {
     };
   }
 
+  /**
+   * Xóa mềm tài khoản người dùng (is_deleted = 1/true)
+   */
+  async deleteUser(userId: string) {
+    const now = new Date().toISOString();
+    if (this.firebaseService.firestore) {
+      try {
+        await this.firebaseService.firestore.collection('users').doc(userId).set(
+          {
+            is_deleted: true,
+            is_active: false,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
+      } catch (e) {}
+    }
+
+    // Xóa cache profile
+    await this.cacheManager.del(`user_profile_${userId}`);
+
+    return {
+      message: 'Xóa mềm tài khoản người dùng thành công',
+      user_id: userId,
+      is_deleted: true,
+      deleted_at: now,
+    };
+  }
+
   private async getUserById(userId: string): Promise<any | null> {
     if (this.firebaseService.firestore) {
       try {
         const doc = await this.firebaseService.firestore.collection('users').doc(userId).get();
         if (doc.exists) {
-          return { id: doc.id, ...doc.data() };
+          const data = doc.data();
+          if (data?.is_deleted) return null;
+          return { id: doc.id, ...data };
         }
       } catch (e) {}
     }
@@ -88,6 +119,7 @@ export class UsersService {
       school_name: 'Trường Tiểu Học Chu Văn An',
       teaching_subjects: ['MATH'],
       is_active: true,
+      is_deleted: false,
     };
   }
 }

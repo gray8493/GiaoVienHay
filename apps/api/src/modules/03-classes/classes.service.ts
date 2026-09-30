@@ -31,6 +31,8 @@ export class ClassesService {
       subject_teacher_ids: [teacherId],
       invite_code: inviteCode,
       student_count: 0,
+      is_deleted: false,
+      deleted_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -63,7 +65,9 @@ export class ClassesService {
           .get();
 
         if (!snap.empty) {
-          classes = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          classes = snap.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .filter((c: any) => !c.is_deleted);
         }
       } catch (e) {}
     }
@@ -165,6 +169,8 @@ export class ClassesService {
       gender: dto.gender || 'MALE',
       parent_phone: dto.parent_phone || null,
       parent_uids: [],
+      is_deleted: false,
+      deleted_at: null,
       created_at: new Date().toISOString(),
     };
 
@@ -177,17 +183,57 @@ export class ClassesService {
     return newStudent;
   }
 
+  /**
+   * Xóa mềm học sinh khỏi lớp (chuyển is_deleted = 1/true thay vì xóa vật lý khỏi DB)
+   */
   async removeStudent(classId: string, studentId: string) {
+    const now = new Date().toISOString();
     if (this.firebaseService.firestore) {
       try {
-        await this.firebaseService.firestore.collection('students').doc(studentId).delete();
+        await this.firebaseService.firestore.collection('students').doc(studentId).set(
+          {
+            is_deleted: true,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
       } catch (e) {}
     }
 
     return {
-      message: 'Xóa học sinh khỏi lớp thành công',
+      message: 'Xóa mềm học sinh khỏi lớp thành công',
       student_id: studentId,
       class_id: classId,
+      is_deleted: true,
+      deleted_at: now,
+    };
+  }
+
+  /**
+   * Xóa mềm lớp học (is_deleted = 1/true)
+   */
+  async deleteClass(classId: string, teacherId: string) {
+    const now = new Date().toISOString();
+    if (this.firebaseService.firestore) {
+      try {
+        await this.firebaseService.firestore.collection('classes').doc(classId).set(
+          {
+            is_deleted: true,
+            deleted_at: now,
+          },
+          { merge: true },
+        );
+      } catch (e) {}
+    }
+
+    // Xóa cache danh sách lớp của giáo viên
+    await this.cacheManager.del(`classes_teacher_${teacherId}`);
+
+    return {
+      message: 'Xóa mềm lớp học thành công',
+      class_id: classId,
+      is_deleted: true,
+      deleted_at: now,
     };
   }
 
@@ -200,15 +246,17 @@ export class ClassesService {
           .get();
 
         if (!snap.empty) {
-          return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          return snap.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .filter((s: any) => !s.is_deleted);
         }
       } catch (e) {}
     }
 
     return [
-      { id: 'stu_01', full_name: 'Trần Bảo Nam', student_code: 'HS001', gender: 'MALE', dob: '2019-05-15' },
-      { id: 'stu_02', full_name: 'Lê Ngọc Mai', student_code: 'HS002', gender: 'FEMALE', dob: '2019-08-20' },
-      { id: 'stu_03', full_name: 'Hoàng Minh Khôi', student_code: 'HS003', gender: 'MALE', dob: '2019-11-10' },
+      { id: 'stu_01', full_name: 'Trần Bảo Nam', student_code: 'HS001', gender: 'MALE', dob: '2019-05-15', is_deleted: false },
+      { id: 'stu_02', full_name: 'Lê Ngọc Mai', student_code: 'HS002', gender: 'FEMALE', dob: '2019-08-20', is_deleted: false },
+      { id: 'stu_03', full_name: 'Hoàng Minh Khôi', student_code: 'HS003', gender: 'MALE', dob: '2019-11-10', is_deleted: false },
     ];
   }
 }
