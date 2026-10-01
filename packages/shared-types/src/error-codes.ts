@@ -96,6 +96,8 @@ export enum ErrorCode {
   COMMON_VALIDATION_ERROR = 'COMMON_VALIDATION_ERROR',
   REQ_VALIDATION_ERROR = 'REQ_VALIDATION_ERROR',
   SYS_RATE_LIMIT_EXCEEDED = 'SYS_RATE_LIMIT_EXCEEDED',
+  SYS_ROUTE_NOT_FOUND = 'SYS_ROUTE_NOT_FOUND',
+  SYS_SERVICE_UNAVAILABLE = 'SYS_SERVICE_UNAVAILABLE',
   SYS_INTERNAL_ERROR = 'SYS_INTERNAL_ERROR',
 }
 
@@ -196,5 +198,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ErrorCode.COMMON_VALIDATION_ERROR]: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng.',
   [ErrorCode.REQ_VALIDATION_ERROR]: 'Dữ liệu đầu vào sai quy cách định dạng DTO Validation.',
   [ErrorCode.SYS_RATE_LIMIT_EXCEEDED]: 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng chờ 1 phút trước khi thử lại.',
+  [ErrorCode.SYS_ROUTE_NOT_FOUND]: 'Đường dẫn API yêu cầu không tồn tại trên hệ thống.',
+  [ErrorCode.SYS_SERVICE_UNAVAILABLE]: 'Dịch vụ tạm thời không khả dụng do máy chủ đang bảo trì hoặc quá tải.',
   [ErrorCode.SYS_INTERNAL_ERROR]: 'Lỗi máy chủ nội bộ. Vui lòng liên hệ đội ngũ kỹ thuật.',
 };
