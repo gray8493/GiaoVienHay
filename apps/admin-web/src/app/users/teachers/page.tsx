@@ -441,18 +441,13 @@ export default function TeachersPage() {
                       {/* Role */}
                       <td className="py-3.5 px-6 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                             teacher.role === 'TEACHER_HOMEROOM'
                               ? 'bg-blue-50 text-blue-700 border-blue-200/80'
                               : 'bg-purple-50 text-purple-700 border-purple-200/80'
                           }`}
                         >
-                          <span className="material-symbols-outlined text-[14px]">
-                            {teacher.role === 'TEACHER_HOMEROOM' ? 'stars' : 'menu_book'}
-                          </span>
-                          <span>
-                            {teacher.role === 'TEACHER_HOMEROOM' ? 'GV Chủ nhiệm' : 'GV Bộ môn'}
-                          </span>
+                          {teacher.role === 'TEACHER_HOMEROOM' ? 'GV Chủ nhiệm' : 'GV Bộ môn'}
                         </span>
                       </td>
 
