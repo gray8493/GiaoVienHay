@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { getStoredUser, AdminUser } from '@/lib/auth';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -9,9 +10,14 @@ interface HeaderProps {
 }
 
 export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderProps) {
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [currentDateStr, setCurrentDateStr] = useState('Thứ Sáu, 02/10/2026');
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setCurrentUser(getStoredUser());
+  }, []);
 
   useEffect(() => {
     try {
@@ -127,12 +133,13 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
         <Link
           href="/settings"
           className="flex items-center gap-2.5 py-1 pl-1.5 pr-3 rounded-full hover:bg-slate-100/80 active:bg-slate-200/60 transition-all cursor-pointer group"
+          title={currentUser ? `${currentUser.full_name} (${currentUser.role})` : 'Cài đặt tài khoản'}
         >
           <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shadow-xs ring-2 ring-white">
-            H
+            {currentUser?.full_name ? currentUser.full_name.trim().charAt(currentUser.full_name.trim().lastIndexOf(' ') + 1) || currentUser.full_name.charAt(0) : 'H'}
           </div>
-          <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors">
-            Admin Hoàng
+          <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors max-w-[140px] truncate">
+            {currentUser?.full_name || 'Admin Hoàng'}
           </span>
         </Link>
       </div>

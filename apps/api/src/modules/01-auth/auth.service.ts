@@ -1,5 +1,6 @@
 import {
   Injectable,
+  OnModuleInit,
   ConflictException,
   UnauthorizedException,
   BadRequestException,
@@ -17,7 +18,7 @@ import {
 import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   // In-memory fallback map for test/emulator without Firestore connection
   private inMemoryUsers: Map<string, any> = new Map();
 
@@ -26,6 +27,31 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
+
+  async onModuleInit() {
+    // Seed default Admin account for testing & full portal connectivity
+    const adminPhone = '0988888888';
+    const existing = await this.findUserByPhone(adminPhone);
+    if (!existing) {
+      const hashedPassword = await bcrypt.hash('Admin@123', 10);
+      const adminUser = {
+        id: 'usr_admin_root',
+        full_name: 'Quản trị viên Hệ thống',
+        phone: adminPhone,
+        email: 'admin@giaovienhay.vn',
+        password_hash: hashedPassword,
+        role: UserRole.ADMIN,
+        school_name: 'Sở GD&ĐT / Hệ thống GiaoVienHay',
+        teaching_subjects: [],
+        is_active: true,
+        is_deleted: false,
+        deleted_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await this.saveUser(adminUser);
+    }
+  }
 
   async register(dto: RegisterDto) {
     // 1. Kiểm tra tồn tại qua số điện thoại

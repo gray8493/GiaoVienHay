@@ -2,10 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { clearAuthSession } from '@/lib/auth';
 
 type SettingsTab = 'PROFILE' | 'ACADEMIC' | 'NOTIFICATIONS' | 'SECURITY';
 
 export default function SystemSettingsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<SettingsTab>('PROFILE');
 
   // 1. Profile States
@@ -834,7 +837,13 @@ export default function SystemSettingsPage() {
 
         <button
           type="button"
-          onClick={() => showToast('Đăng xuất thành công khỏi hệ thống!')}
+          onClick={() => {
+            clearAuthSession();
+            showToast('Đang đăng xuất khỏi hệ thống...');
+            setTimeout(() => {
+              router.push('/login');
+            }, 400);
+          }}
           className="inline-flex items-center justify-center gap-2 h-10 px-5 text-xs font-semibold text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 hover:border-rose-300 rounded-xl transition shadow-2xs cursor-pointer active:scale-95 shrink-0"
         >
           <span className="material-symbols-outlined !text-[18px] text-rose-500">logout</span>
