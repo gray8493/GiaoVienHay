@@ -265,7 +265,7 @@ export default function LimitsAndAiPage() {
                     <input
                       checked={limits.ai_model === 'gemini-1.5-flash'}
                       onChange={() => setLimits({ ...limits, ai_model: 'gemini-1.5-flash' })}
-                      className="w-4 h-4 text-slate-900 border-slate-300 focus:ring-slate-900 cursor-pointer"
+                      className="w-4 h-4 accent-slate-900 text-slate-900 border-slate-300 focus:ring-slate-900 cursor-pointer"
                       name="gemini_model"
                       type="radio"
                       value="flash"
@@ -289,7 +289,7 @@ export default function LimitsAndAiPage() {
                     <input
                       checked={limits.ai_model === 'gemini-1.5-pro'}
                       onChange={() => setLimits({ ...limits, ai_model: 'gemini-1.5-pro' })}
-                      className="w-4 h-4 text-slate-900 border-slate-300 focus:ring-slate-900 cursor-pointer"
+                      className="w-4 h-4 accent-slate-900 text-slate-900 border-slate-300 focus:ring-slate-900 cursor-pointer"
                       name="gemini_model"
                       type="radio"
                       value="pro"
@@ -309,7 +309,7 @@ export default function LimitsAndAiPage() {
               <input
                 checked={limits.enable_fallback_cache}
                 onChange={(e) => setLimits({ ...limits, enable_fallback_cache: e.target.checked })}
-                className="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900 cursor-pointer"
+                className="w-4 h-4 accent-slate-900 text-slate-900 border-slate-300 rounded focus:ring-slate-900 cursor-pointer"
                 id="fallback-cache"
                 type="checkbox"
               />
@@ -385,7 +385,7 @@ export default function LimitsAndAiPage() {
                     allow_subject_teacher_create_class: e.target.checked,
                   })
                 }
-                className="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900 cursor-pointer"
+                className="w-4 h-4 accent-slate-900 text-slate-900 border-slate-300 rounded focus:ring-slate-900 cursor-pointer"
                 type="checkbox"
               />
             </div>

@@ -204,7 +204,7 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
+                  className="w-4 h-4 rounded accent-slate-900 text-slate-900 border-slate-300 focus:ring-slate-900 cursor-pointer"
                 />
                 <span>Ghi nhớ phiên đăng nhập</span>
               </label>

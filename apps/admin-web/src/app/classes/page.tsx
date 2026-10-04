@@ -2257,7 +2257,7 @@ export default function ClassesAndStudentsManagementPage() {
                     type="checkbox"
                     checked={studentInsuranceInput}
                     onChange={(e) => setStudentInsuranceInput(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                    className="w-4 h-4 accent-slate-900 text-slate-900 rounded border-slate-300 focus:ring-slate-900 cursor-pointer"
                   />
                   <span>Đã hoàn thành thu nộp BHYT &amp; Học phí kỳ này</span>
                 </label>

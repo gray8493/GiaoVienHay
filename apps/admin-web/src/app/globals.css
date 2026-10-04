@@ -19,6 +19,17 @@
     background-size: 24px 24px;
     background-attachment: fixed;
   }
+
+  /* Hệ thống chọn Black/Slate-900 cho toàn bộ checkbox và radio button */
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: #0f172a !important;
+  }
+
+  input[type='checkbox']:focus,
+  input[type='radio']:focus {
+    outline-color: #0f172a;
+  }
 }
 
 .material-symbols-outlined {
