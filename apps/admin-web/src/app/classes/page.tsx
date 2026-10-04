@@ -678,14 +678,6 @@ export default function ClassesAndStudentsManagementPage() {
             <div className="flex items-center gap-2.5 shrink-0">
               <button
                 type="button"
-                onClick={handleImportExcel}
-                className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg transition shadow-2xs cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[16px] text-slate-500">file_upload</span>
-                <span>Nhập Excel</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => showToast('Mở cửa sổ thêm trường học mới')}
                 className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-black rounded-lg transition shadow-xs cursor-pointer"
               >
@@ -830,47 +822,6 @@ export default function ClassesAndStudentsManagementPage() {
                   }`}
                 >
                   Đang chờ duyệt <span className="text-[11px] text-slate-400 ml-0.5">(0)</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Action Toolbar */}
-            <div className="px-5 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 bg-white">
-              <div className="text-xs text-slate-500 font-medium">
-                {schoolSearch ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400">Đang tìm kiếm:</span>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">
-                      "{schoolSearch}"
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSchoolSearch('');
-                          if (typeof window !== 'undefined') {
-                            window.dispatchEvent(new CustomEvent('app-global-search', { detail: '' }));
-                          }
-                        }}
-                        className="hover:text-blue-900 transition cursor-pointer"
-                        title="Xóa bộ lọc"
-                      >
-                        <span className="material-symbols-outlined text-[13px]">close</span>
-                      </button>
-                    </span>
-                    <span className="text-[11px] text-slate-400">({filteredSchools.length} trường phù hợp)</span>
-                  </div>
-                ) : (
-                  <span>Danh sách trường học và cơ sở giáo dục trên toàn hệ thống ({filteredSchools.length})</span>
-                )}
-              </div>
-              {/* Right action buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => showToast('Mở cửa sổ thêm trường học mới')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-black rounded-lg transition shadow-xs cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[16px]">add</span>
-                  <span>Thêm trường</span>
                 </button>
               </div>
             </div>
