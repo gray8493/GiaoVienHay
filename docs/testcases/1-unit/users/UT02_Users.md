@@ -409,3 +409,45 @@
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
+
+### UT02_Users_TC12 : TRUY XUẤT HỒ SƠ TỪ IN-MEMORY RAM CACHE VÀ TỰ ĐỘNG XÓA CACHE KHI CẬP NHẬT
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Người dùng `usr_01` đã đăng nhập và hồ sơ đã được nạp vào RAM cache với key `user_profile_usr_01` (TTL 300 giây).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_usr_01>`
+  - **Dữ liệu thân (Body JSON):** Cập nhật tên trường hoặc môn giảng dạy:
+  ```json
+  {
+    "school_name": "Trường THCS Thăng Long",
+    "teaching_subjects": ["MATH", "PHYSICS"]
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request `GET /api/v1/users/me` -> Phản hồi tức thì từ RAM cache (< 5ms).
+  2. Gửi request `PATCH /api/v1/users/profile` với dữ liệu mới.
+  3. Hệ thống cập nhật Firestore và gọi `cacheManager.del("user_profile_usr_01")`.
+  4. Gửi lại request `GET /api/v1/users/me`.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi **HTTP 200 (OK)** với dữ liệu mới cập nhật (`Trường THCS Thăng Long`).
+  - Cache cũ được làm mới an toàn, không trả về dữ liệu lỗi thời (stale cache).
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT02_Users_TC13 : XÓA MỀM TÀI KHOẢN NGƯỜI DÙNG THÀNH CÔNG (SOFT DELETE)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Tài khoản người dùng `usr_01` đang hoạt động (`is_deleted: false`).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Mã người dùng:** `usr_01`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Thực hiện gọi hàm `deleteUser("usr_01")` từ UsersService.
+  2. Kiểm tra tài liệu Firestore `/users/usr_01`.
+  3. Gửi request `GET /api/v1/users/me`.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Không xóa vật lý bản ghi khỏi cơ sở dữ liệu.
+  - Firestore cập nhật `is_deleted = true`, `is_active = false`, `deleted_at = <ISO timestamp>`.
+  - Cache `user_profile_usr_01` bị xóa.
+  - Yêu cầu truy xuất `GET /api/v1/users/me` bị từ chối với mã **HTTP 404 (NOT FOUND)** hoặc **HTTP 401 (UNAUTHORIZED)** do tài khoản đã bị đánh dấu xóa mềm.
+- **TRẠNG THÁI KIỂM THỬ:**

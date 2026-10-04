@@ -1167,14 +1167,22 @@
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Xóa hoặc đánh dấu lưu trữ học sinh trong collection `/students` và giảm sĩ số `total_students` của lớp.
+  - Phản hồi kèm Header: `X-Response-Time`.
+  - Không xóa vật lý bản ghi khỏi cơ sở dữ liệu; Firestore cập nhật cờ xóa mềm `is_deleted: true` và mốc thời gian `deleted_at: <ISO timestamp>` trên tài liệu `/students/stu_99`.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
   ```json
   {
     "success": true,
     "status_code": 200,
-    "message": "Đã xóa học sinh khỏi lớp thành công",
-    "timestamp": "2026-09-27T08:30:00.000Z"
+    "message": "Xóa mềm học sinh khỏi lớp thành công",
+    "data": {
+      "message": "Xóa mềm học sinh khỏi lớp thành công",
+      "student_id": "stu_99",
+      "class_id": "cls_1a_2026",
+      "is_deleted": true,
+      "deleted_at": "2026-10-04T08:30:00.000Z"
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
@@ -1223,4 +1231,57 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT03_Classes_TC29 : XÓA MỀM LỚP HỌC VÀ TỰ ĐỘNG XÓA IN-MEMORY RAM CACHE CỦA GIÁO VIÊN THÀNH CÔNG
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - GVCN phụ trách lớp `cls_1a_2026` đã đăng nhập thành công.
+  - Danh sách lớp của giáo viên đang được cache trong RAM với key `classes_teacher_<teacherId>`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `id = cls_1a_2026`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request xóa mềm lớp học: `DELETE /api/v1/classes/cls_1a_2026`.
+  2. Backend cập nhật `is_deleted = true`, `deleted_at = now`.
+  3. Backend gọi `cacheManager.del("classes_teacher_" + teacherId)` để xóa cache danh sách lớp.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Kèm header `X-Response-Time`.
+  - Dữ liệu trả về:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Xóa mềm lớp học thành công",
+    "data": {
+      "message": "Xóa mềm lớp học thành công",
+      "class_id": "cls_1a_2026",
+      "is_deleted": true,
+      "deleted_at": "2026-10-04T08:30:00.000Z"
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT03_Classes_TC30 : TRUY VẤN DANH SÁCH LỚP HỌC VÀ HỌC SINH TỰ ĐỘNG LỌC BỎ CÁC BẢN GHI ĐÃ XÓA MỀM
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp `cls_1a_2026` có 35 học sinh, trong đó học sinh `stu_99` đã bị xóa mềm (`is_deleted = true`).
+  - Giáo viên đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gv>`
+  - **Endpoint & Method:** `GET /api/v1/classes/cls_1a_2026`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request `GET /api/v1/classes/cls_1a_2026`.
+  2. Kiểm tra danh sách mảng `students` trả về trong payload.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi **HTTP 200 (OK)**.
+  - Danh sách học sinh của lớp chỉ chứa các học sinh có `is_deleted = false`.
+  - Học sinh `stu_99` không xuất hiện trong danh sách kết quả trả về.
 - **TRẠNG THÁI KIỂM THỬ:**

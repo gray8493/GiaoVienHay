@@ -986,3 +986,38 @@
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT01_Auth_TC24 : TỪ CHỐI ĐĂNG NHẬP KHI TÀI KHOẢN ĐÃ BỊ XÓA MỀM (IS_DELETED = TRUE)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Tài khoản người dùng có số điện thoại `0912345678` đã bị xóa mềm trong hệ thống (`is_deleted: true`).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):**
+  ```json
+  {
+    "phone": "0912345678",
+    "password": "Password123@"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/login`.
+  2. Gửi request đăng nhập với thông tin tài khoản đã xóa mềm.
+  3. Bấm nút **Gửi (Send)** trên Postman.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 401 (UNAUTHORIZED - TỪ CHỐI XÁC THỰC)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Cấu trúc lỗi:
+  ```json
+  {
+    "success": false,
+    "status_code": 401,
+    "message": "Số điện thoại hoặc mật khẩu không chính xác",
+    "error_code": "AUTH_INVALID_CREDENTIALS",
+    "details": null,
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**

@@ -683,22 +683,24 @@
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
+  - Phản hồi kèm Header đo lường hiệu năng: `X-Response-Time: <duration>ms`.
   - Ghi nhận 3 bản ghi điểm danh vào cơ sở dữ liệu Cloud Firestore tại collection `/attendances`.
-  - Hệ thống tự động kích hoạt gửi Multicast FCM Notification đến thiết bị của 2 phụ huynh có học sinh vắng (`stu_02`, `stu_03`).
+  - Tự động xóa bộ nhớ đệm In-Memory RAM Cache danh sách học sinh có mặt hôm nay của lớp (`att_present_cls_1a_2026_2026-09-23`).
+  - Hệ thống tự động phát sự kiện xử lý ngầm (Event-driven qua `EventEmitter2` sự kiện `attendance.absent`) để Worker gửi Multicast FCM Notification đến 2 phụ huynh có học sinh vắng (`stu_02`, `stu_03`) mà không block luồng phản hồi HTTP của giáo viên.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
   ```json
   {
     "success": true,
     "status_code": 201,
-    "message": "Điểm danh hoàn tất và đã gửi thông báo vắng tới phụ huynh",
+    "message": "Điểm danh hoàn tất",
     "data": {
-      "attendance_date": "2026-09-23",
+      "message": "Điểm danh hoàn tất",
       "total_students": 3,
       "present_count": 1,
       "absent_count": 2,
-      "notified_parents": 2
+      "notified_parents_queued": 2
     },
-    "timestamp": "2026-09-27T08:30:00.000Z"
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
@@ -746,22 +748,23 @@
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
   - Lưu đầy đủ 3 bản ghi điểm danh vào Cloud Firestore.
-  - Số lượng phụ huynh cần thông báo `notified_parents = 0`, không kích hoạt dịch vụ FCM.
+  - Số lượng phụ huynh cần thông báo `notified_parents_queued = 0`, không kích hoạt sự kiện FCM ngầm.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
   ```json
   {
     "success": true,
     "status_code": 201,
-    "message": "Điểm danh hoàn tất và đã gửi thông báo vắng tới phụ huynh",
+    "message": "Điểm danh hoàn tất",
     "data": {
-      "attendance_date": "2026-09-24",
+      "message": "Điểm danh hoàn tất",
       "total_students": 3,
       "present_count": 3,
       "absent_count": 0,
-      "notified_parents": 0
+      "notified_parents_queued": 0
     },
-    "timestamp": "2026-09-27T08:30:00.000Z"
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
@@ -868,16 +871,18 @@
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time` với độ trễ cực thấp (< 5ms khi Cache-hit).
+  - Kết quả được lưu tạm vào bộ nhớ RAM In-Memory Cache (`att_present_cls_1a_2026_<today>`) với thời gian tồn tại (TTL) 15 phút.
   - Trả về danh sách chính xác các học sinh thực tế có mặt hôm nay (loại trừ các học sinh vắng) phục vụ nạp danh sách vào tính năng Vòng quay may mắn kiểm tra bài cũ.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
   ```json
   {
     "success": true,
     "status_code": 200,
-    "message": "Lấy danh sách học sinh có mặt thành công",
+    "message": "Thao tác thành công",
     "data": {
       "class_id": "cls_1a_2026",
-      "today": "2026-09-23",
+      "today": "2026-10-04",
       "present_students": [
         {
           "id": "stu_01",
@@ -891,7 +896,26 @@
         }
       ]
     },
-    "timestamp": "2026-09-27T08:30:00.000Z"
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT05_Attendance_TC19 : TỰ ĐỘNG XÓA BỘ NHỚ ĐỆM RAM CACHE KHI ĐIỂM DANH LẠI THÀNH CÔNG
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Danh sách học sinh có mặt hôm nay của lớp `cls_1a_2026` đang được lưu cache tại key `att_present_cls_1a_2026_<today>`.
+  - Học sinh `stu_02` đến muộn và được GVCN cập nhật lại từ `ABSENT` sang `PRESENT`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`, `Content-Type: application/json`
+  - **Body JSON:** Gửi điểm danh cập nhật bổ sung cho lớp `cls_1a_2026`.
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request `POST /api/v1/attendance/submit` để điểm danh bổ sung học sinh đến muộn.
+  2. Hệ thống thực thi hàm `this.cacheManager.del(cacheKey)`.
+  3. Gửi lại request `GET /api/v1/attendance/today/cls_1a_2026`.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Cache cũ bị vô hiệu hóa ngay lập tức.
+  - Lần truy vấn `GET /today` tiếp theo truy xuất trực tiếp từ Firestore với danh sách học sinh có mặt mới nhất (bao gồm cả `stu_02`), sau đó lưu lại vào cache mới.
 - **TRẠNG THÁI KIỂM THỬ:**

@@ -46,11 +46,11 @@
 | Mã Testcase | Tên Kịch Bản Tích Hợp | Các Thành Phần Tương Tác | Dữ Liệu Đầu Vào Chính | Kết Quả Tích Hợp Kỳ Vọng | Trạng Thái |
 | :--- | :--- | :--- | :--- | :--- | :---: |
 | **IT01_Admin_Limits** | Áp dụng cấu hình hạn mức tài nguyên từ Admin sang các Module | AdminModule $\leftrightarrow$ Firestore $\leftrightarrow$ ClassesModule & QuizzesModule | `PUT /api/v1/admin/system/limits` (quota lớp, quota AI) | Cập nhật `/system_configs/limits`, Guard các module áp dụng chặn tức thì |           |
-| **IT02_Admin_Ban_User** | Khóa tài khoản thu hồi phiên và chặn quyền truy cập Gateway | AdminModule $\leftrightarrow$ Firebase Auth $\leftrightarrow$ Firestore $\leftrightarrow$ API Gateway | `PATCH /api/v1/admin/users/:id/ban` kèm lý do vi phạm | `is_active=false`, Firebase Auth `disabled=true`, chặn token ngay lập tức với HTTP 403 |           |
+| **IT02_Admin_Ban_User** | Khóa tài khoản thu hồi phiên và chặn quyền truy cập Gateway | AdminModule $\leftrightarrow$ Firebase Auth $\leftrightarrow$ Firestore $\leftrightarrow$ API Gateway | `PATCH /api/v1/admin/users/:id/status` `{ "is_active": false }` | `is_active=false`, cập nhật `status_reason`, chặn token với HTTP 403 |           |
 | **IT03_Class_Create_Fees_Init** | GVCN tạo lớp tổng, lưu học sinh và tự động khởi tạo danh mục BHYT/học phí | ClassesService $\leftrightarrow$ Firestore $\leftrightarrow$ FeesInsuranceService | `POST /api/v1/classes` (thông tin lớp, HS, phân công GVBM) | Tạo document `/classes`, `/students`, tự động tạo `/fees_and_insurance` với cờ FALSE |           |
 | **IT04_Subject_Teacher_Assign** | GVBM đăng nhập truy cập lớp tổng theo phân công bộ môn | ClassesService $\leftrightarrow$ UsersModule $\leftrightarrow$ Firestore `/classes` | `GET /api/v1/classes/:id/my-subject` với token GVBM | Xác thực quyền theo `subject_teachers`, trả về danh sách học sinh để vào điểm |           |
 | **IT05_Parent_Join_Class** | Phụ huynh tham gia lớp qua link mời và xác nhận liên kết con em | ClassesService $\leftrightarrow$ StudentsService $\leftrightarrow$ UsersService $\leftrightarrow$ Firestore | `POST /api/v1/classes/join` (`invite_code`, `student_id`) | Cập nhật `parent_uids` trong `/students`, gán `class_id` vào `/users` phụ huynh |           |
-| **IT06_Attendance_FCM_Push** | Điểm danh học sinh vắng tự động ghi Firestore và phát thông báo FCM | AttendanceService $\leftrightarrow$ Firestore $\leftrightarrow$ NotificationsModule $\leftrightarrow$ FCM SDK | `POST /api/v1/attendance/submit` (danh sách có vắng mặt) | HTTP 201, lưu `/attendances`, trigger FCM multicast tới phụ huynh học sinh vắng |           |
+| **IT06_Attendance_FCM_Push** | Điểm danh học sinh vắng tự động ghi Firestore và phát thông báo FCM | AttendanceService $\leftrightarrow$ EventEmitter2 $\leftrightarrow$ NotificationsModule $\leftrightarrow$ FCM SDK | `POST /api/v1/attendance/submit` (danh sách có vắng mặt) | HTTP 201 (`notified_parents_queued`), sự kiện `attendance.absent` xử lý ngầm không block HTTP |           |
 | **IT07_LuckyWheel_Scoring** | Dò bài cũ lấy học sinh có mặt hôm nay và nhập điểm miệng vào sổ điểm | AttendanceService $\leftrightarrow$ QuizzesService $\leftrightarrow$ GradesService $\leftrightarrow$ Firestore | `GET wheel-candidates` $\rightarrow$ `POST in-class-scores` | Lọc đúng `PRESENT` hôm nay, hỗ trợ Skip, lưu đồng thời vào `/quiz_results` và `/scores` |           |
 | **IT08_AI_Gemini_Quiz_Gen** | Tải giáo án lên Storage, Gemini AI sinh trắc nghiệm và lưu đề thi | QuizzesService $\leftrightarrow$ Firebase Storage $\leftrightarrow$ Gemini API $\leftrightarrow$ Firestore | `POST /api/v1/quizzes/generate-ai` (file .docx/.pdf, options) | Upload Storage, Gemini sinh JSON câu hỏi, lưu document `/quizzes` và subcollection `/questions` |           |
 | **IT09_Gamification_Grades_Sync** | Chơi Mini-game lớp học (Rung chuông/Đua xe/Hộp quà) và đồng bộ điểm | Web Next.js $\leftrightarrow$ QuizzesService $\leftrightarrow$ GradesService $\leftrightarrow$ Firestore | `POST /api/v1/quizzes/:id/in-class-scores` (điểm mini-game) | Lưu điểm thưởng vào `/quiz_results`, chuyển trực tiếp vào cột điểm môn học `/scores` |           |
@@ -63,6 +63,7 @@
 | **IT16_FCM_Invalid_Token_Cleanup** | Xử lý lỗi Token thiết bị FCM không hợp lệ hoặc hết hạn mà không ngắt luồng | NotificationsService $\leftrightarrow$ FCM SDK Mock (Token Not Registered) | Trigger thông báo sự kiện điểm danh/điểm số | Bắt ngoại lệ graceful, ghi log, tự động xóa token hỏng khỏi `/users`, luồng chính thành công |           |
 | **IT17_Storage_Failure_Rollback** | Upload file giáo án lên Firebase Storage thất bại do lỗi đường truyền | QuizzesService $\leftrightarrow$ Firebase Storage Mock (Network Error) | `POST /api/v1/quizzes/generate-ai` (file hỏng/ngắt mạng) | Hủy giao dịch, không gọi Gemini AI, không tạo dữ liệu dở dang trong Firestore |           |
 | **IT18_Attendance_Duplicate_Block** | Chặn xung đột khi gửi điểm danh trùng lặp cùng lớp, ngày và tiết học | AttendanceService $\leftrightarrow$ Firestore Composite Index Query | `POST /api/v1/attendance/submit` (gửi lại lần 2 cùng tiết) | Trả về HTTP 409 Conflict (`ATTEND_ALREADY_EXISTS`), giữ nguyên bản ghi trước đó |           |
+| **IT23_Soft_Delete_Cascade** | Xóa mềm thực thể và tự động loại trừ khỏi mọi API truy vấn liên quan | ClassesService $\leftrightarrow$ StudentsService $\leftrightarrow$ Attendance $\leftrightarrow$ Firestore | `DELETE /api/v1/classes/:id/students/:stuId` | `is_deleted=true`, không xuất hiện trong sổ điểm, điểm danh và vòng quay |           |
 | **IT19_Class_Create_Rollback** | Rollback toàn bộ giao dịch tạo lớp khi trùng mã học sinh trong danh sách | ClassesService $\leftrightarrow$ Firestore Batched Write / Transaction | `POST /api/v1/classes` (danh sách có mã học sinh bị trùng) | Trả về HTTP 409 (`CLASS_STUDENT_CODE_EXISTS`), rollback sạch lớp và học sinh |           |
 | **IT20_Subject_Teacher_RBAC_Block** | Chặn GVBM cố tình nhập điểm cho môn học không được phân công giảng dạy | GradesService $\leftrightarrow$ ClassesService $\leftrightarrow$ RBAC Guard | `POST /api/v1/grades/batch` (GVBM môn Văn nhập điểm môn Toán) | Trả về HTTP 403 Forbidden (`ACAD_NOT_ASSIGNED_TEACHER`), từ chối ghi dữ liệu |           |
 | **IT21_Parent_IDOR_Access_Block** | Chặn phụ huynh cố tình xem điểm và BHYT của học sinh khác (lỗi IDOR) | Gateway $\leftrightarrow$ StudentsService $\leftrightarrow$ Firestore Security Check | `GET /api/v1/students/:otherId/academic` với token PH A | Trả về HTTP 403 (`PARENT_STUDENT_LINK_NOT_FOUND`), bảo mật dữ liệu học sinh |           |
@@ -144,23 +145,24 @@
   - `AuthGuard` (Kiểm tra trạng thái tài khoản thời gian thực khi token cũ gửi request).
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_admin_hop_le>`
-  - **Endpoint & Method:** `PATCH /api/v1/admin/users/usr_gv_violation/ban`
+  - **Endpoint & Method:** `PATCH /api/v1/admin/users/usr_gv_violation/status`
   - **Body JSON:**
     ```json
     {
+      "is_active": false,
       "reason": "Phát tán tài liệu không phù hợp chuẩn mực sư phạm"
     }
     ```
 - **CÁC BƯỚC THỰC HIỆN:**
-  1. Gửi request khóa tài khoản từ Admin Portal.
+  1. Gửi request khóa tài khoản từ Admin Portal với `is_active: false`.
   2. Kiểm tra phản hồi từ Admin API.
   3. Lấy lại token phiên cũ của người dùng `usr_gv_violation` và thực hiện gửi request `GET /api/v1/classes`.
   4. Kiểm tra phản hồi trả về từ API Gateway.
 - **KẾT QUẢ MONG ĐỢI (ASSERTIONS):**
-  - **Phản hồi Admin API:** HTTP 200 (OK), `message: "Khóa tài khoản người dùng thành công"`.
-  - **Trạng thái Firebase Auth:** User record có thuộc tính `disabled: true`, token revocation timestamp được cập nhật.
-  - **Trạng thái Database (Firestore):** Document `/users/usr_gv_violation` có `is_active: false`, `ban_reason: "Phát tán tài liệu..."`.
-  - **Xác thực Bảo mật Tích hợp:** Khi người dùng bị khóa dùng token cũ truy cập bất kỳ API nào, `AuthGuard` lập tức từ chối và trả về **HTTP 403 (FORBIDDEN)** kèm `error_code: "AUTH_ACCOUNT_LOCKED"`.
+  - **Phản hồi Admin API:** HTTP 200 (OK), `message: "Đã khóa tài khoản người dùng"`.
+  - Phản hồi kèm Header: `X-Response-Time`.
+  - **Trạng thái Database (Firestore):** Document `/users/usr_gv_violation` có `is_active: false`, `status_reason: "Phát tán tài liệu..."`.
+  - **Xác thực Bảo mật Tích hợp:** Khi người dùng bị khóa dùng token cũ truy cập bất kỳ API nào, `RolesGuard` hoặc `JwtAuthGuard` lập tức từ chối và trả về **HTTP 403 (FORBIDDEN)** kèm `error_code: "AUTH_ROLE_FORBIDDEN"` hoặc `AUTH_ACCOUNT_LOCKED`.
 - **TRẠNG THÁI KIỂM THỬ:** 
 
 ---
@@ -324,14 +326,13 @@
   1. Gửi request điểm danh nề nếp qua method **`POST`** tới: `/api/v1/attendance/submit`.
   2. Backend xác thực GVCN, kiểm tra tính hợp lệ của ngày và tiết học.
   3. Lưu bản ghi điểm danh vào Firestore `/attendances`.
-  4. Lọc danh sách học sinh có trạng thái `ABSENT_UNEXCUSED` hoặc `ABSENT_EXCUSED`.
-  5. NotificationsModule truy vấn mảng `parent_uids` và gửi thông báo đẩy multicast qua FCM.
+  4. Tự động xóa bộ nhớ đệm RAM Cache danh sách học sinh có mặt hôm nay (`att_present_cls_6a1_auto_id_2026-10-01`).
+  5. Lọc danh sách học sinh có trạng thái `ABSENT_UNEXCUSED` hoặc `ABSENT_EXCUSED`.
+  6. Backend phát sự kiện bất đồng bộ `attendance.absent` qua `EventEmitter2` (Event-driven background worker).
 - **KẾT QUẢ MONG ĐỢI (ASSERTIONS):**
-  - **Phản hồi API:** HTTP 201 (CREATED) với thống kê: `total_students: 2`, `present_count: 1`, `absent_count: 1`, `notified_parents: 1`.
-  - **Trạng thái Database (Firestore):**
-    - 2 document mới được tạo trong collection `/attendances` cho ngày `2026-10-01`, tiết `1`.
-    - 1 document thông báo mới được tạo trong `/notifications` với `recipient_user_id: "uid_parent_long"`, `type: "ATTENDANCE_ALERT"`, `title: "Thông báo vắng học tiết 1"`.
-  - **Tương tác Ngoại vi (FCM):** Mock FCM SDK nhận lệnh gọi `sendMulticast()` với đúng token `fcm_token_parent_long_device1` và payload cảnh báo vắng học.
+  - **Phản hồi API:** HTTP 201 (CREATED) trả về tức thì (thời gian phản hồi < 100ms) với thống kê: `total_students: 2`, `present_count: 1`, `absent_count: 1`, `notified_parents_queued: 1`.
+  - Phản hồi kèm Header: `X-Response-Time`.
+  - **Xử lý ngầm (Async Background Worker):** Worker lắng nghe sự kiện `attendance.absent` tự động ghi nhận document vào `/notifications` và kích hoạt Mock FCM SDK gửi multicast tới phụ huynh mà không block luồng xử lý của giáo viên.
 - **TRẠNG THÁI KIỂM THỬ:** 
 
 ---
@@ -906,13 +907,33 @@
     }
     ```
   - Không tốn tài nguyên upload file lên Storage và không gọi API Gemini tiêu tốn chi phí.
-- **TRẠNG THÁI KIỂM THỬ:** 
+---
+
+##### IT23_Soft_Delete_Cascade : VÒNG ĐỜI XÓA MỀM (SOFT DELETE) VÀ TÍNH TOÀN VẸN DỮ LIỆU LIÊN THÔNG GIỮA CÁC MODULE
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp `cls_6a1_auto_id` có học sinh `stu_long_01` đang hoạt động (`is_deleted: false`).
+  - GVCN đã đăng nhập thành công.
+- **CÁC THÀNH PHẦN THAM GIA TÍCH HỢP:**
+  - `ClassesService` $\leftrightarrow$ `StudentsService` $\leftrightarrow$ `AttendanceService` $\leftrightarrow$ `QuizzesService` $\leftrightarrow$ `GradesService` $\leftrightarrow$ `Cloud Firestore`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - Gửi request `DELETE /api/v1/classes/cls_6a1_auto_id/students/stu_long_01`.
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. GVCN gửi yêu cầu xóa học sinh khỏi lớp học.
+  2. Backend cập nhật `is_deleted = true`, `deleted_at = now` trong `/students/stu_long_01`.
+  3. GVBM gọi API lấy danh sách học sinh của lớp để vào điểm: `GET /api/v1/classes/cls_6a1_auto_id`.
+  4. GVBM gọi API lấy ứng viên vòng quay may mắn: `GET /api/v1/quizzes/qz_01/wheel-candidates`.
+- **KẾT QUẢ MONG ĐỢI (ASSERTIONS):**
+  - **Xóa mềm thành công:** HTTP 200 (OK), Firestore không xóa vật lý bản ghi.
+  - **Tính toàn vẹn & Tự động loại trừ (Auto-exclusion):** Học sinh `stu_long_01` không xuất hiện trong danh sách học sinh của lớp, không xuất hiện trong ứng viên Vòng quay may mắn.
+  - **Bảo lưu dữ liệu lịch sử:** Các điểm số cũ trong `/scores` và chuyên cần trong `/attendances` trước đây vẫn được giữ nguyên tính toàn vẹn để phục vụ báo cáo học bạ.
+- **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
 ## 4. KẾT LUẬN & HƯỚNG DẪN THỰC THI KIỂM THỬ TÍCH HỢP TỰ ĐỘNG
 
-1. **Bộ Test Suite Chuẩn Hóa:** Tài liệu này bao quát trọn vẹn 22 kịch bản kiểm thử tích hợp (14 kịch bản Positive Flows và 8 kịch bản Failure/Resilience/Security Cases), bao quát 100% vòng đời vận hành thực tế của hệ thống GiaoVienHay từ cấp độ Quản trị Nền tảng, Giáo viên Chủ nhiệm, Giáo viên Bộ môn đến Cổng Phụ huynh.
+1. **Bộ Test Suite Chuẩn Hóa:** Tài liệu này bao quát trọn vẹn 23 kịch bản kiểm thử tích hợp (15 kịch bản Positive Flows và 8 kịch bản Failure/Resilience/Security Cases), bao quát 100% vòng đời vận hành thực tế của hệ thống GiaoVienHay từ cấp độ Quản trị Nền tảng, Giáo viên Chủ nhiệm, Giáo viên Bộ môn đến Cổng Phụ huynh.
 2. **Khởi chạy trên Firebase Emulator Suite:**
    ```bash
    # Khởi động cụm giả lập Firebase (Firestore, Auth, Storage)
