@@ -125,16 +125,16 @@ export default function ParentsPage() {
       )}
 
       {/* 1. TOP BREADCRUMB NAVIGATION & BACK ARROW BUTTON */}
-      <nav className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <Link href="/" className="hover:text-slate-700 transition-colors cursor-pointer">
+      <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+        <Link href="/" className="hover:text-slate-900 transition-colors cursor-pointer">
           Trang chủ
         </Link>
         <span className="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
-        <Link href="/users" className="hover:text-slate-700 transition-colors cursor-pointer">
+        <Link href="/users" className="hover:text-slate-900 transition-colors cursor-pointer">
           Quản lý Người dùng
         </Link>
         <span className="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
-        <span className="text-blue-600 font-semibold">Danh sách Phụ huynh</span>
+        <span className="text-slate-900 font-semibold">Danh sách Phụ huynh</span>
 
         {/* Back Button */}
         <Link

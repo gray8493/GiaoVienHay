@@ -104,13 +104,13 @@ export default function SystemSettingsPage() {
       )}
 
       {/* Breadcrumb & Navigation */}
-      <nav className="flex items-center gap-2 text-slate-500 text-xs">
-        <Link href="/" className="hover:text-blue-600 transition-colors flex items-center gap-1">
-          <span className="material-symbols-outlined text-[16px]">home</span>
+      <nav className="flex items-center gap-2 text-slate-500 text-xs font-medium">
+        <Link href="/" className="hover:text-slate-900 transition-colors flex items-center gap-1">
+          <span className="material-symbols-outlined text-[16px] text-slate-400">home</span>
           <span>Trang chủ</span>
         </Link>
         <span className="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
-        <span className="text-blue-600 font-semibold">Cài đặt &amp; Hồ sơ cá nhân</span>
+        <span className="text-slate-900 font-semibold">Cài đặt &amp; Hồ sơ cá nhân</span>
       </nav>
 
       {/* Page Title & Hero Header */}

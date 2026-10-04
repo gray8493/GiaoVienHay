@@ -64,16 +64,16 @@ export default function LimitsAndAiPage() {
       <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4" data-purpose="page-title-and-actions">
         <div>
           {/* Breadcrumb navigation */}
-          <div className="flex items-center space-x-2 text-xs text-slate-400 mb-1.5 font-medium">
-            <Link className="hover:text-slate-600 transition" href="/">
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5 font-medium">
+            <Link className="hover:text-slate-900 transition-colors" href="/">
               Trang chủ
             </Link>
-            <span>&gt;</span>
-            <Link className="hover:text-slate-600 transition" href="/">
+            <span className="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
+            <Link className="hover:text-slate-900 transition-colors" href="/">
               Quản trị hệ thống
             </Link>
-            <span>&gt;</span>
-            <span className="text-slate-600 font-semibold">Hạn mức &amp; Quota AI</span>
+            <span className="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
+            <span className="text-slate-900 font-semibold">Hạn mức &amp; Quota AI</span>
           </div>
 
           {/* Title & Subtitle */}

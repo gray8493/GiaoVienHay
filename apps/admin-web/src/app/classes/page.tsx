@@ -578,16 +578,16 @@ export default function ClassesAndStudentsManagementPage() {
 
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-slate-500 text-xs">
-        <Link href="/" className="hover:text-blue-600 transition-colors flex items-center gap-1">
-          <span className="material-symbols-outlined text-[16px]">home</span>
+        <Link href="/" className="hover:text-slate-900 transition-colors flex items-center gap-1 font-medium">
+          <span className="material-symbols-outlined text-[16px] text-slate-400">home</span>
           <span>Trang chủ</span>
         </Link>
         <span className="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
         <button
           type="button"
           onClick={handleGoToSchools}
-          className={`hover:text-blue-600 transition-colors cursor-pointer ${
-            currentLevel === 'SCHOOLS' ? 'text-blue-600 font-semibold' : 'text-slate-500'
+          className={`hover:text-slate-900 transition-colors cursor-pointer ${
+            currentLevel === 'SCHOOLS' ? 'text-slate-900 font-semibold' : 'text-slate-500 font-medium'
           }`}
         >
           Quản lý Lớp &amp; Học sinh
@@ -596,7 +596,7 @@ export default function ClassesAndStudentsManagementPage() {
         {currentLevel === 'SCHOOLS' && (
           <>
             <span className="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
-            <span className="text-blue-600 font-semibold">Danh sách Trường học</span>
+            <span className="text-slate-900 font-semibold">Danh sách Trường học</span>
           </>
         )}
 
@@ -606,8 +606,8 @@ export default function ClassesAndStudentsManagementPage() {
             <button
               type="button"
               onClick={handleGoToGrades}
-              className={`hover:text-blue-600 transition-colors cursor-pointer ${
-                currentLevel === 'GRADES' ? 'text-blue-600 font-semibold' : 'text-slate-500'
+              className={`hover:text-slate-900 transition-colors cursor-pointer ${
+                currentLevel === 'GRADES' ? 'text-slate-900 font-semibold' : 'text-slate-500 font-medium'
               }`}
             >
               {selectedSchool.name}
@@ -621,8 +621,8 @@ export default function ClassesAndStudentsManagementPage() {
             <button
               type="button"
               onClick={handleGoToClasses}
-              className={`hover:text-blue-600 transition-colors cursor-pointer ${
-                currentLevel === 'CLASSES' ? 'text-blue-600 font-semibold' : 'text-slate-500'
+              className={`hover:text-slate-900 transition-colors cursor-pointer ${
+                currentLevel === 'CLASSES' ? 'text-slate-900 font-semibold' : 'text-slate-500 font-medium'
               }`}
             >
               Khối {selectedGrade}
@@ -633,7 +633,7 @@ export default function ClassesAndStudentsManagementPage() {
         {selectedClass && currentLevel === 'STUDENTS' && (
           <>
             <span className="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
-            <span className="text-blue-600 font-semibold">Lớp {selectedClass.name}</span>
+            <span className="text-slate-900 font-semibold">Lớp {selectedClass.name}</span>
           </>
         )}
 
