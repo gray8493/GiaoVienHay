@@ -1,4 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  InternalServerErrorException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
 @ApiTags('Health Check')
@@ -26,5 +31,27 @@ export class HealthController {
       environment: process.env.NODE_ENV || 'production',
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Get('test-500')
+  @ApiOperation({
+    summary: 'Mô phỏng lỗi 500 Internal Server Error để kiểm thử',
+    description: 'Endpoint này cố tình ném lỗi 500 để test giao diện hiển thị lỗi của Frontend & Exception Filter.',
+  })
+  test500() {
+    throw new InternalServerErrorException(
+      'Mô phỏng lỗi máy chủ 500 (Internal Server Error) thành công! Hệ thống Exception Filter đã bắt và format chuẩn xác.',
+    );
+  }
+
+  @Get('test-503')
+  @ApiOperation({
+    summary: 'Mô phỏng lỗi 503 Service Unavailable để kiểm thử',
+    description: 'Endpoint này cố tình ném lỗi 503 để test phản ứng khi dịch vụ quá tải hoặc bảo trì.',
+  })
+  test503() {
+    throw new ServiceUnavailableException(
+      'Mô phỏng lỗi 503 (Service Unavailable) thành công! Hệ thống đang tạm thời gián đoạn để bảo trì hoặc quá tải.',
+    );
   }
 }

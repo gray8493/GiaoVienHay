@@ -31,7 +31,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof res === 'object' && res !== null) {
         const resObj = res as any;
         message = resObj.message || message;
-        errorCode = resObj.error_code || resObj.error || this.mapStatusToErrorCode(status);
+        errorCode = resObj.error_code || this.mapStatusToErrorCode(status);
         details = resObj.details || (Array.isArray(resObj.message) ? resObj.message : undefined);
 
         if (Array.isArray(resObj.message)) {
@@ -65,7 +65,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       case HttpStatus.FORBIDDEN:
         return ErrorCode.AUTH_ROLE_FORBIDDEN;
       case HttpStatus.NOT_FOUND:
-        return ErrorCode.USER_NOT_FOUND;
+        return ErrorCode.SYS_ROUTE_NOT_FOUND;
+      case HttpStatus.TOO_MANY_REQUESTS:
+        return ErrorCode.SYS_RATE_LIMIT_EXCEEDED;
+      case HttpStatus.SERVICE_UNAVAILABLE:
+        return ErrorCode.SYS_SERVICE_UNAVAILABLE;
       default:
         return ErrorCode.SYS_INTERNAL_ERROR;
     }
