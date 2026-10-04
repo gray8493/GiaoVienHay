@@ -89,8 +89,14 @@ export default function LoginPage() {
         <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-8 sm:p-10 shadow-xl shadow-slate-200/50 transition-all">
           {/* Brand Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-900 via-slate-800 to-blue-900 text-white shadow-md shadow-slate-900/10 mb-4 ring-4 ring-slate-100">
-              <span className="material-symbols-outlined text-[30px]">admin_panel_settings</span>
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-slate-900 via-slate-800 to-blue-950 p-1 shadow-lg shadow-slate-900/20 mb-4 ring-4 ring-slate-100/80">
+              <div className="w-full h-full rounded-[14px] overflow-hidden bg-slate-900 flex items-center justify-center">
+                <img
+                  src="/logo.jpg"
+                  alt="GiaoVienHay Logo"
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               Cổng Quản trị GiaoVienHay
