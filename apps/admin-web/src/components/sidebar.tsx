@@ -15,13 +15,23 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const navItems = [
-    { href: '/', label: 'Tổng quan', icon: 'grid_view' },
-    { href: '/users', label: 'Quản lý Người dùng', icon: 'group' },
-    { href: '/classes', label: 'Lớp & Học sinh', icon: 'school' },
-    { href: '/limits', label: 'Hạn mức & AI', icon: 'tune' },
-    { href: '/logs', label: 'Nhật ký hệ thống', icon: 'history' },
-    { href: '/settings', label: 'Cài đặt', icon: 'settings' },
+  const sections = [
+    {
+      title: 'QUẢN TRỊ',
+      items: [
+        { href: '/', label: 'Tổng quan', icon: 'grid_view' },
+        { href: '/users', label: 'Quản lý Người dùng', icon: 'group' },
+        { href: '/classes', label: 'Lớp & Học sinh', icon: 'school' },
+      ],
+    },
+    {
+      title: 'HỆ THỐNG',
+      items: [
+        { href: '/limits', label: 'Hạn mức & AI', icon: 'tune' },
+        { href: '/logs', label: 'Nhật ký hệ thống', icon: 'history' },
+        { href: '/settings', label: 'Cài đặt', icon: 'settings' },
+      ],
+    },
   ];
 
   const handleLogout = (e: React.MouseEvent) => {
@@ -32,127 +42,133 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`h-screen flex-shrink-0 bg-gradient-to-b from-[#0d0f14] via-[#090a0e] to-[#050608] border-r border-white/[0.08] flex flex-col justify-between py-5 select-none z-40 transition-all duration-300 ease-in-out relative shadow-[4px_0_30px_rgba(0,0,0,0.85),inset_-1px_0_0_rgba(255,255,255,0.05)] ${
-        isCollapsed ? 'w-20 px-2.5' : 'w-64 px-4'
+      className={`h-screen flex-shrink-0 bg-[#0B0C0E] border-r border-zinc-800/80 flex flex-col justify-between py-5 select-none z-40 transition-all duration-300 ease-in-out relative ${
+        isCollapsed ? 'w-20 px-3' : 'w-64 px-4'
       }`}
     >
-      {/* 3D Top Specular Rim Light */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+      {/* Floating Circular Toggle Button on Border (As in Reference Image) */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="absolute -right-3 top-8 w-6 h-6 rounded-full bg-white text-slate-800 shadow-md border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer z-50"
+        title={isCollapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
+        aria-label="Thu gọn hoặc mở rộng thanh điều hướng"
+      >
+        <span className="material-symbols-outlined text-[15px] font-bold">
+          {isCollapsed ? 'chevron_right' : 'chevron_left'}
+        </span>
+      </button>
 
       <div className="space-y-6">
-        {/* 1. BRAND HEADER (LOGO + APP NAME IN 3D ELEVATED FRAME) */}
+        {/* 1. BRAND HEADER (LOGO + APP NAME) */}
         <div
-          className={`flex items-center gap-2.5 px-1 ${
-            isCollapsed ? 'flex-col justify-center' : 'justify-between'
+          className={`flex items-center px-1 ${
+            isCollapsed ? 'justify-center' : 'justify-start'
           }`}
         >
           <Link
             href="/"
-            className={`flex items-center gap-3 group cursor-pointer overflow-hidden min-w-0 ${
-              isCollapsed ? 'justify-center' : ''
-            }`}
+            className="flex items-center gap-3 group cursor-pointer overflow-hidden min-w-0"
             title="GiaoVienHay - Quản trị hệ thống"
           >
-            {/* 3D Embossed Container for Logo */}
-            <div className="relative p-0.5 rounded-2xl bg-gradient-to-b from-white/30 via-white/10 to-transparent shadow-[0_8px_18px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.4)] border border-white/15 ring-1 ring-black shrink-0 group-hover:scale-105 group-hover:shadow-[0_10px_24px_rgba(59,130,246,0.35)] transition-all duration-300">
-              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-[14px] overflow-hidden bg-slate-900 flex items-center justify-center relative shadow-inner">
-                <Image
-                  src="/logo.jpg"
-                  alt="GiaoVienHay Logo"
-                  width={40}
-                  height={40}
-                  priority
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                />
-              </div>
+            {/* Logo Container with Rounded Corners */}
+            <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0">
+              <Image
+                src="/logo.jpg"
+                alt="GiaoVienHay Logo"
+                width={40}
+                height={40}
+                priority
+                className="w-full h-full object-cover"
+              />
             </div>
 
             {!isCollapsed && (
-              <div className="min-w-0 transition-opacity duration-200">
-                <span className="text-[16px] font-bold text-white tracking-tight block truncate group-hover:text-blue-400 transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              <div className="min-w-0">
+                <span className="text-[17px] font-bold text-white tracking-tight block truncate">
                   GiaoVienHay
                 </span>
-                <span className="text-[11px] text-slate-400 font-medium block truncate tracking-wide">
-                  Quản trị hệ thống
+                <span className="text-[10px] font-bold text-slate-500 tracking-wider uppercase block truncate">
+                  DASHBOARD
                 </span>
               </div>
             )}
           </Link>
-
-          {/* 3D Tactile Toggle Sidebar Button */}
-          <button
-            type="button"
-            onClick={onToggle}
-            className={`w-7 h-7 rounded-lg bg-[#141720] hover:bg-[#1c2130] text-slate-400 hover:text-white border border-white/10 shadow-[0_2px_5px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.12)] active:translate-y-0.5 flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-              isCollapsed ? 'mt-2' : ''
-            }`}
-            title={isCollapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
-            aria-label="Thu gọn hoặc mở rộng thanh điều hướng"
-          >
-            <span className="material-symbols-outlined text-[17px]">
-              {isCollapsed ? 'chevron_right' : 'chevron_left'}
-            </span>
-          </button>
         </div>
 
-        {/* 2. NAVIGATION LINKS (3D TACTILE & INSET EFFECTS) */}
-        <nav className="space-y-1.5">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === '/'
-                ? pathname === '/'
-                : pathname?.startsWith(item.href);
+        {/* 2. NAVIGATION SECTIONS */}
+        <div className="space-y-5">
+          {sections.map((section, sIdx) => (
+            <div key={sIdx} className="space-y-1.5">
+              {/* Category Header */}
+              {!isCollapsed ? (
+                <div className="px-3 flex items-center justify-between text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  <span>{section.title}</span>
+                  <span className="material-symbols-outlined text-[14px] text-zinc-600">
+                    expand_more
+                  </span>
+                </div>
+              ) : (
+                <div className="h-2" />
+              )}
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={isCollapsed ? item.label : undefined}
-                className={`flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
-                  isCollapsed ? 'justify-center py-2.5 px-0' : 'px-3.5 py-2.5'
-                } ${
-                  isActive
-                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white font-semibold shadow-[0_6px_20px_rgba(37,99,235,0.45),inset_0_1px_1px_rgba(255,255,255,0.35),0_1px_0_rgba(255,255,255,0.15)] border border-blue-400/40'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06] hover:border hover:border-white/[0.08] hover:translate-x-1 hover:shadow-[0_4px_12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)]'
-                }`}
-              >
-                {/* 3D Active Indicator Pill on Left Edge */}
-                {isActive && !isCollapsed && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-white rounded-r shadow-[0_0_10px_rgba(255,255,255,0.9)]" />
-                )}
+              {/* Items in Section */}
+              <nav className="space-y-1">
+                {section.items.map((item) => {
+                  const isActive =
+                    item.href === '/'
+                      ? pathname === '/'
+                      : pathname?.startsWith(item.href);
 
-                <span
-                  className={`material-symbols-outlined text-[20px] shrink-0 transition-transform duration-200 group-hover:scale-110 ${
-                    isActive
-                      ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]'
-                      : 'text-slate-400 group-hover:text-blue-400'
-                  }`}
-                  style={{
-                    fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-                  }}
-                >
-                  {item.icon}
-                </span>
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={isCollapsed ? item.label : undefined}
+                      className={`flex items-center gap-3 rounded-xl text-xs font-medium transition-all duration-150 group ${
+                        isCollapsed ? 'justify-center py-2.5 px-0' : 'px-3.5 py-2.5'
+                      } ${
+                        isActive
+                          ? 'border border-emerald-500 bg-emerald-950/20 text-emerald-400 font-semibold'
+                          : 'text-zinc-400 hover:text-white hover:bg-zinc-900/60 border border-transparent'
+                      }`}
+                    >
+                      <span
+                        className={`material-symbols-outlined text-[19px] shrink-0 ${
+                          isActive
+                            ? 'text-emerald-400'
+                            : 'text-zinc-400 group-hover:text-white'
+                        }`}
+                      >
+                        {item.icon}
+                      </span>
 
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
+                      {!isCollapsed && (
+                        <span className="truncate flex-1">{item.label}</span>
+                      )}
 
-                {/* Subtle Right Indicator on Active */}
-                {isActive && !isCollapsed && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+                      {/* Optional minimal count indicator for active */}
+                      {isActive && !isCollapsed && item.href === '/classes' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-900/50 text-emerald-400">
+                          Mới
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* 3. FOOTER NAVIGATION (3D EMBOSSED BUTTONS) */}
-      <div className="space-y-1.5 pt-4 border-t border-white/[0.08]">
+      {/* 3. FOOTER NAVIGATION */}
+      <div className="space-y-1 pt-4 border-t border-zinc-800/80">
         <Link
           href="/settings"
-          title={isCollapsed ? 'Trợ giúp kỹ thuật' : undefined}
-          className={`flex items-center gap-3 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] hover:border hover:border-white/[0.06] transition-all ${
-            isCollapsed ? 'justify-center py-2 px-0' : 'px-3 py-2'
+          title={isCollapsed ? 'Trợ giúp' : undefined}
+          className={`flex items-center gap-3 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-900/60 transition-colors ${
+            isCollapsed ? 'justify-center py-2 px-0' : 'px-3.5 py-2'
           }`}
         >
           <span className="material-symbols-outlined text-[18px] shrink-0">help</span>
@@ -163,11 +179,11 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           type="button"
           onClick={handleLogout}
           title={isCollapsed ? 'Đăng xuất' : undefined}
-          className={`w-full flex items-center gap-3 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-200 hover:bg-rose-500/15 hover:border hover:border-rose-500/25 transition-all cursor-pointer shadow-xs active:scale-[0.98] ${
-            isCollapsed ? 'justify-center py-2 px-0' : 'px-3 py-2'
+          className={`w-full flex items-center gap-3 rounded-xl text-xs font-semibold text-rose-400/90 hover:text-rose-300 hover:bg-rose-950/20 transition-colors cursor-pointer ${
+            isCollapsed ? 'justify-center py-2 px-0' : 'px-3.5 py-2'
           }`}
         >
-          <span className="material-symbols-outlined text-[18px] shrink-0 text-rose-400">logout</span>
+          <span className="material-symbols-outlined text-[18px] shrink-0">logout</span>
           {!isCollapsed && <span className="truncate">Đăng xuất</span>}
         </button>
       </div>
