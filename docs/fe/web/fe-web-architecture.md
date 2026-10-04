@@ -1,5 +1,7 @@
 # Kiến Trúc Web Quản Trị Nền Tảng Next.js (Platform Admin Web Architecture)
+
 # Nền tảng: Next.js 14+ (App Router / TypeScript)
+
 # Đối tượng sử dụng: DUY NHẤT Platform Admin (Quản trị viên Nền tảng)
 
 Tài liệu này đặc tả chi tiết cấu trúc, giao diện và tính năng trên ứng dụng **Web Quản trị Next.js** phục vụ **chỉ riêng Quản trị viên Nền tảng (Platform Admin - "chúng tôi")**. Toàn bộ các nghiệp vụ sư phạm của Giáo viên (GVCN & GVBM) và Phụ huynh được vận hành độc lập trên ứng dụng **Mobile & Tablet App (React Native)**.
@@ -11,19 +13,22 @@ Tài liệu này đặc tả chi tiết cấu trúc, giao diện và tính năng
 Ứng dụng Web Next.js được tinh gọn tối đa, tập trung duy nhất vào 3 trụ cột quản trị kỹ thuật nền tảng:
 
 ### 1.1. Quản Trị Người Dùng & Dữ Liệu Toàn Hệ Thống (CRUD & Ban/Unban)
-- **Tra cứu & Quản lý danh sách tài khoản:** Xem danh sách toàn bộ Giáo viên (GVCN, GVBM), Phụ huynh trên hệ thống kèm trạng thái kích hoạt, ngày tạo, số điện thoại, email.
-- **Khóa & Mở khóa tài khoản (Ban / Unban User):** 
+
+- **Tra cứu & Quản lý danh sách tài khoản:** Xem danh sách toàn bộ Giáo viên (GVCN, GVBM), Phụ huynh trên hệ thống kèm trạng                                   thái kích hoạt, ngày tạo, số điện thoại, email.
+- **Khóa & Mở khóa tài khoản (Ban / Unban User):**
   - Khóa tài khoản vi phạm chính sách hoặc có hành vi bất thường (`is_active = false`, vô hiệu hóa trên Firebase Auth).
   - Thu hồi tức thì phiên đăng nhập của tài khoản bị khóa.
   - Mở khóa (`Unban`) khôi phục quyền truy cập cho người dùng khi giải quyết xong khiếu nại.
 - **Hỗ trợ cập nhật thông tin:** Hỗ trợ điều chỉnh thông tin tài khoản khi người dùng yêu cầu trợ giúp kỹ thuật.
 
 ### 1.2. Giám Sát Dữ Liệu Lớp Học Toàn Nền Tảng (System Classes Monitoring)
+
 - Tra cứu danh sách lớp học tổng được tạo bởi các GVCN.
 - Theo dõi sĩ số học sinh, danh sách phân công GVBM theo từng lớp.
 - Giám sát mã mời (`invite_code`) và link mời (`invite_link`) của các lớp để hỗ trợ kỹ thuật khi phụ huynh gặp sự cố kết nối.
 
 ### 1.3. Cấu Hình Hạn Mức Tài Nguyên Hệ Thống (System Limits & Quotas)
+
 - **Hạn mức lớp học & sĩ số:**
   - Cấu hình số lớp tối đa một Giáo viên được phép tạo (ví dụ: mặc định 5 lớp/GV).
   - Cấu hình số học sinh tối đa trong một lớp (ví dụ: tối đa 55 học sinh/lớp).
@@ -33,6 +38,7 @@ Tài liệu này đặc tả chi tiết cấu trúc, giao diện và tính năng
   - Giới hạn dung lượng tải lên tài liệu giáo án `.docx`/`.pdf` lên Firebase Storage (ví dụ: tối đa 15MB/file).
 
 ### 1.4. Thiết Kế Giao Diện Bảng Điều Khiển Nền Tảng (Admin Dashboard UI)
+
 Giao diện Cổng Quản trị được thiết kế chuẩn mực trên Stitch AI (Screen ID: `cb69c2989f0443549028b4dd6183bcc4`):
 
 ![Platform Admin Web Dashboard](screenshots/admin-web-dashboard.png)
