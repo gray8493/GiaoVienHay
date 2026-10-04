@@ -145,15 +145,17 @@
      - Trên **Thiết bị 1 (App GVCN)**, Cô Lan mở màn hình "Điểm danh chuyên cần" của lớp `6A1` tiết 1.
      - Đánh dấu: Em Long (Có mặt), Em Mai (Vắng mặt), Em Tuấn (Có mặt).
      - Nhấn nút **"Lưu điểm danh"**.
+     - Backend tiếp nhận `POST /api/v1/attendance/submit`, lưu 3 bản ghi vào Firestore `/attendances`, tự động xóa bộ nhớ đệm RAM Cache danh sách học sinh có mặt hôm nay (`att_present_cls_6a1_2026_<today>`), và phát sự kiện ngầm `attendance.absent` qua `EventEmitter2`. Luồng phản hồi HTTP trả về ngay lập tức với `notified_parents_queued: 1`.
 
   2. **Bước 2 (Kiểm tra cảnh báo tức thì tới Phụ huynh học sinh vắng):**
+     - Worker xử lý ngầm (Event-driven) tạo document trong `/notifications` và kích hoạt FCM Multicast.
      - Quan sát **Thiết bị 2 (Điện thoại Phụ huynh em Mai)**.
      - Trong vòng < 3 giây, kiểm tra thanh trạng thái xuất hiện Push Notification FCM: *"Học sinh Trần Phương Mai vắng mặt tiết 1 ngày hôm nay tại lớp 6A1..."*.
      - Phụ huynh chạm vào thông báo $\rightarrow$ App mở đúng vào màn hình Chi tiết chuyên cần của con.
 
   3. **Bước 3 (GVBM mở Vòng quay may mắn kiểm tra bài cũ trên màn chiếu):**
      - Trên **Thiết bị 3 (Màn chiếu GVBM)**, Thầy Tuấn mở tính năng **"Dò bài cũ & Vòng quay học sinh"** môn Toán.
-     - Hệ thống gọi API lấy danh sách ứng viên vòng quay.
+     - Hệ thống gọi API `GET /api/v1/attendance/today/cls_6a1_2026` hoặc `/quizzes/:id/wheel-candidates`, tự động nạp danh sách 2 học sinh có mặt hôm nay vào In-Memory RAM Cache (thời gian phản hồi < 5ms).
      - Quan sát các nan quạt hiển thị trên vòng quay may mắn trên màn chiếu.
 
   4. **Bước 4 (Kiểm tra thao tác Quay số và nút Bỏ qua - Skip):**
@@ -173,7 +175,7 @@
      - Kiểm tra cột điểm kiểm tra miệng (`ORAL_TEST`) của học sinh Nguyễn Hoàng Long.
 
 - **KẾT QUẢ MONG ĐỢI TOÀN HỆ THỐNG (END-TO-END CRITERIA):**
-  1. **Tại Bước 1 & 2:** Điểm danh lưu thành công vào collection `/attendances` trong < 1 giây; Điện thoại Phụ huynh em Mai nhận thông báo đẩy FCM trong < 3 giây với nội dung rõ ràng, chuẩn xác.
+  1. **Tại Bước 1 & 2:** Điểm danh lưu thành công vào collection `/attendances` trong < 100ms; Kèm response header `X-Response-Time`; Điện thoại Phụ huynh em Mai nhận thông báo đẩy FCM do Worker ngầm gửi trong < 3 giây với nội dung rõ ràng, chuẩn xác.
   2. **Tại Bước 3:** Vòng quay may mắn trên màn chiếu chỉ hiển thị duy nhất **2 nan quạt (Em Long và Em Tuấn)**. Học sinh Mai (vắng mặt) **tuyệt đối không xuất hiện** trên vòng quay.
   3. **Tại Bước 4:** Nút **"Bỏ qua (Skip)"** hoạt động trơn tru, vòng quay tự động tiếp tục và chọn học sinh mới một cách khách quan, công bằng.
   4. **Tại Bước 5 & 6:**
@@ -461,7 +463,7 @@
 - **CÁC BƯỚC THỰC HIỆN CHI TIẾT (CHUỖI HÀNH ĐỘNG E2E):**
 
   1. **Bước 1 (Admin thiết lập hạn mức tài nguyên hệ thống):**
-     - Trên **Thiết bị 1 (Web Admin)**, Admin vào mục "Cấu hình Hạn mức & Giới hạn".
+     - Trên **Thiết bị 1 (Web Admin)**, Admin vào mục "Cấu hình Hạn mức & Giới hạn", hệ thống gọi `GET /api/v1/admin/system-limits` lấy thông số hiện tại.
      - Thiết lập số lớp tối đa cho mỗi giáo viên: `5`.
      - Nhấn nút **"Lưu cấu hình"**.
      - Backend lưu vào `/system_configs/limits`.
@@ -472,13 +474,20 @@
      - Quan sát phản hồi trên màn hình ứng dụng của giáo viên.
 
   3. **Bước 3 (Admin thực hiện Khóa tài khoản Giáo viên vi phạm):**
-     - Trên **Thiết bị 1 (Web Admin)**, Admin vào mục "Quản lý Người dùng", tìm kiếm tài khoản `usr_teacher_bad`.
-     - Nhấn nút **"Khóa tài khoản (Ban User)"**, nhập lý do vi phạm và xác nhận.
+     - Trên **Thiết bị 1 (Web Admin)**, Admin vào mục "Quản lý Người dùng", tìm kiếm tài khoản với tham số `keyword = "usr_teacher_bad"` qua API `GET /api/v1/admin/users?keyword=usr_teacher_bad`.
+     - Nhấn nút **"Khóa tài khoản"**, nhập lý do vi phạm và xác nhận.
+     - Web Admin gọi API `PATCH /api/v1/admin/users/usr_teacher_bad/status` với body:
+       ```json
+       {
+         "is_active": false,
+         "reason": "Vi phạm quy tắc ứng xử học đường"
+       }
+       ```
 
-  4. **Bước 4 (Backend xử lý đồng bộ Firebase Auth & Firestore):**
-     - Backend NestJS gọi Firebase Admin SDK: `updateUser(uid, { disabled: true })`.
-     - Backend gọi `revokeRefreshTokens(uid)` để vô hiệu hóa phiên làm việc của người dùng.
-     - Cập nhật trường `is_active = false`, `ban_reason = "..."` trong document `/users/usr_teacher_bad`.
+  4. **Bước 4 (Backend xử lý đồng bộ trạng thái và xóa Cache):**
+     - Backend cập nhật document `/users/usr_teacher_bad`: `is_active = false`, `status_reason = "..."`, `status_updated_at = now`.
+     - Backend tự động xóa bộ nhớ đệm In-Memory RAM Cache profile: `user_profile_usr_teacher_bad`.
+     - Phản hồi HTTP 200 kèm Header `X-Response-Time`.
 
   5. **Bước 5 (Kiểm tra thu hồi phiên tức thời trên thiết bị của Giáo viên):**
      - Trên **Thiết bị 2 (App của Giáo viên)**, giáo viên cố tình chạm vào bất kỳ chức năng nào (ví dụ: mở danh sách học sinh hoặc điểm danh).
@@ -486,8 +495,8 @@
 
 - **KẾT QUẢ MONG ĐỢI TOÀN HỆ THỐNG (END-TO-END CRITERIA):**
   1. **Tại Bước 2:** Yêu cầu tạo lớp thứ 6 bị chặn ngay lập tức tại API Gateway / Guard với mã **HTTP 400 Bad Request** kèm mã lỗi `LIMIT_EXCEEDED`; Màn hình ứng dụng hiển thị thông báo rõ ràng: *"Bạn đã đạt giới hạn tối đa 5 lớp học theo quy định của nhà trường"*.
-  2. **Tại Bước 3 & 4:** Thao tác Ban hoàn thành trong < 1 giây; Tài khoản bị vô hiệu hóa trên cả Firebase Authentication và Firestore.
-  3. **Tại Bước 5:** Mọi request từ thiết bị của giáo viên gửi lên Gateway lập tức bị từ chối với mã **HTTP 403 Forbidden** kèm lỗi `AUTH_USER_BANNED`; App React Native lập tức hiển thị thông báo tài khoản bị khóa kèm lý do, xóa sạch token lưu trữ nội bộ (Secure Storage) và điều hướng người dùng ra màn hình Đăng nhập.
+  2. **Tại Bước 3 & 4:** Thao tác khóa tài khoản hoàn thành trong < 500ms; Tài khoản bị chuyển trạng thái `is_active: false` và xóa cache tức thì.
+  3. **Tại Bước 5:** Mọi request từ thiết bị của giáo viên gửi lên Gateway lập tức bị `RolesGuard` hoặc `JwtAuthGuard` từ chối với mã **HTTP 403 Forbidden** kèm lỗi `AUTH_ROLE_FORBIDDEN` hoặc `AUTH_ACCOUNT_LOCKED`; App React Native lập tức hiển thị thông báo tài khoản bị khóa kèm lý do, xóa sạch token lưu trữ nội bộ (Secure Storage) và điều hướng người dùng ra màn hình Đăng nhập.
 
 - **TRẠNG THÁI KIỂM THỬ:** 
 
@@ -546,6 +555,37 @@
 
 ---
 
+### ST10_E2E_Soft_Delete_Lifecycle_And_Data_Consistency_TC01 : QUY TRÌNH KIỂM THỬ XÓA MỀM (SOFT DELETE) VÀ TÍNH TOÀN VẸN DỮ LIỆU TOÀN HỆ THỐNG
+
+- **MỤC TIÊU KIỂM THỬ:**
+  Xác minh toàn diện chu trình Xóa Mềm (Soft Delete) trên toàn bộ hệ thống: Khi giáo viên thực hiện xóa học sinh khỏi lớp học (`DELETE /api/v1/classes/:id/students/:studentId`), hệ thống chỉ cập nhật cờ `is_deleted = true` và `deleted_at = now` thay vì xóa vật lý khỏi cơ sở dữ liệu; đồng thời tự động loại trừ khỏi mọi màn hình hiển thị của giáo viên (Sổ điểm, Điểm danh, Vòng quay may mắn), nhưng vẫn bảo lưu toàn vẹn 100% dữ liệu lịch sử điểm số và chuyên cần cũ trong Firestore để phục vụ báo cáo học vụ.
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp `6A1` có học sinh `stu_long_01` (Nguyễn Hoàng Long) đã có điểm số môn Toán và lịch sử điểm danh các tuần trước.
+  - GVCN và GVBM Toán đã đăng nhập vào hệ thống.
+
+- **CÁC BƯỚC THỰC HIỆN CHI TIẾT (CHUỖI HÀNH ĐỘNG E2E):**
+  1. **Bước 1 (GVCN thực hiện xóa học sinh chuyển trường):**
+     - Trên App Mobile của GVCN, mở danh sách học sinh lớp `6A1`, chọn học sinh `stu_long_01` và bấm "Xóa khỏi lớp học".
+     - Xác nhận hộp thoại cảnh báo.
+     - Backend tiếp nhận `DELETE /api/v1/classes/cls_6a1_2026/students/stu_long_01`, cập nhật `is_deleted: true`, `deleted_at: now` trên Firestore document `/students/stu_long_01`. Phản hồi HTTP 200 kèm Header `X-Response-Time`.
+  2. **Bước 2 (Kiểm tra tự động làm sạch giao diện giáo viên):**
+     - Danh sách lớp học lập tức ẩn em Long, sĩ số hiển thị giảm 1.
+     - GVBM mở màn hình "Sổ điểm môn Toán": Tên em Long không còn nằm trong danh sách nhập điểm mới.
+     - GVBM mở tính năng "Vòng quay may mắn": Danh sách quay số nạp từ RAM Cache tự động loại bỏ em Long.
+  3. **Bước 3 (Kiểm tra bảo lưu dữ liệu lịch sử học bạ trong CSDL):**
+     - Truy vấn trực tiếp Firestore: Bản ghi `/students/stu_long_01`, toàn bộ điểm số cũ trong `/scores` và chuyên cần trong `/attendances` vẫn tồn tại nguyên vẹn với cờ `is_deleted = true`.
+     - Dữ liệu học vụ cũ không bị mất mát hay mồ côi (No orphan records), đảm bảo tính đối soát minh bạch.
+
+- **KẾT QUẢ MONG ĐỢI TOÀN HỆ THỐNG (END-TO-END CRITERIA):**
+  - Giao diện UI cập nhật tức thời (< 500ms), không còn hiển thị học sinh đã xóa.
+  - Toàn bộ các API `GET` tự động lọc bỏ bản ghi `is_deleted = true`.
+  - Cơ sở dữ liệu Firestore duy trì 100% tính toàn vẹn lịch sử phục vụ công tác thanh tra học vụ.
+
+- **TRẠNG THÁI KIỂM THỬ:** 
+
+---
+
 ## 4. TỔNG KẾT & MA TRẬN ĐÁNH GIÁ MỨC ĐỘ BAO PHỦ HỆ THỐNG (TRACEABILITY MATRIX)
 
 | Mã Use Case Nghiệp Vụ | Tên Use Case Tương Ứng | Mã System Test Case (E2E) Bao Phủ | Kết Quả Đánh Giá E2E |
@@ -562,6 +602,7 @@
 | **UC-FEE-01** | Quản lý thu nộp BHYT/Học phí 1-chạm & Gửi nhắc nhở | **ST06_E2E_Fees_Insurance_Checklist_Remind_TC01** |           |
 | **UC-PAR-01, 02, 03, 04, 05** | Cổng phụ huynh tra cứu điểm, chuyên cần, BHYT & Chống IDOR | **ST07_E2E_Parent_Portal_Multi_Child_Sync_TC01** |           |
 | **HẠ TẦNG & CHỊU LỖI** | Offline Sync, Token Cleanup, Gemini Timeout Resilience | **ST09_E2E_Resilience_Offline_Sync_And_Fault_Tolerance_TC01** |           |
+| **XÓA MỀM & BẢO LƯU** | Chu trình xóa mềm 10 collection, bảo toàn lịch sử | **ST10_E2E_Soft_Delete_Lifecycle_And_Data_Consistency_TC01** |           |
 
 ---
 *Tài liệu được biên soạn và chuẩn hóa bởi Đội ngũ QA/QC Dự án GiaoVienHay - Phiên bản 1.0 (2026).*
