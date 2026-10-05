@@ -1348,3 +1348,66 @@
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
+
+### UT06_Grades_TC34 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI TRUY XUẤT BẢNG XẾP HẠNG VINH DANH CHƯA CÓ DỮ LIỆU ĐIỂM (EMPTY LEADERBOARD - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học `cls_1a_2026` chưa có bất kỳ cột điểm nào của môn `MATH` được nhập hoặc công bố trong học kỳ 1 (collection `/scores` không có bản ghi nào khớp).
+  - Giáo viên bộ môn đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Tham số đường dẫn & truy vấn (Params):** `classId = cls_1a_2026`, `subject_code = MATH`, `semester = 1`, `limit = 5`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token xác thực của giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/grades/leaderboard/cls_1a_2026?subject_code=MATH&semester=1&limit=5`.
+  3. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc danh sách rỗng an toàn, mảng học sinh vinh danh rỗng `top_students: []`, không bị lỗi chia cho 0 hoặc null pointer:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Truy xuất bảng xếp hạng vinh danh thành công",
+    "data": {
+      "class_id": "cls_1a_2026",
+      "subject_code": "MATH",
+      "subject_name": "Toán học",
+      "semester": 1,
+      "total_ranked": 0,
+      "top_students": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT06_Grades_TC35 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI XEM SỔ ĐIỂM CỦA LỚP CHƯA CÓ HỌC SINH NÀO TRONG HỆ THỐNG (EMPTY CLASS - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học `cls_new_empty` vừa khởi tạo trên hệ thống và chưa có học sinh nào trong cơ sở dữ liệu.
+  - Giáo viên bộ môn đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Tham số truy vấn (Query Params):** `subject_code = MATH`, `semester = 1`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/grades/class/cls_new_empty?subject_code=MATH&semester=1`.
+  3. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Mảng dữ liệu sổ điểm trả về rỗng an toàn `data: []`, giao diện hiển thị Empty State hướng dẫn thêm học sinh vào lớp trước khi nhập điểm:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lấy sổ điểm chi tiết thành công",
+    "data": [],
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

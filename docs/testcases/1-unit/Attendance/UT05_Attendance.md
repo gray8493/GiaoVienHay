@@ -919,3 +919,74 @@
   - Cache cũ bị vô hiệu hóa ngay lập tức.
   - Lần truy vấn `GET /today` tiếp theo truy xuất trực tiếp từ Firestore với danh sách học sinh có mặt mới nhất (bao gồm cả `stu_02`), sau đó lưu lại vào cache mới.
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT05_Attendance_TC20 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỚP HỌC CHƯA CÓ DỮ LIỆU LỊCH SỬ ĐIỂM DANH TRONG CƠ SỞ DỮ LIỆU (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học mới tạo hoặc trong tháng truy vấn (`2026-08`) chưa từng có bất kỳ buổi học nào được ghi nhận điểm danh trong Firestore collection `/attendances`.
+  - Giáo viên chủ nhiệm đã đăng nhập hợp lệ với vai trò `TEACHER_HOMEROOM`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `classId = cls_new_2026`
+  - **Tham số truy vấn (Query Params):** `month = "2026-08"`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/attendance/history/cls_new_2026?month=2026-08`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Cơ sở dữ liệu không có dữ liệu khớp nhưng hệ thống xử lý an toàn, trả về mảng rỗng `records: []` kèm thống kê `total: 0`, không gây ra lỗi máy chủ nội bộ (500) hoặc lỗi crash frontend:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Truy xuất lịch sử chuyên cần thành công",
+    "data": {
+      "class_id": "cls_new_2026",
+      "month": "2026-08",
+      "total_records": 0,
+      "records": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT05_Attendance_TC21 : XỬ LÝ TRẠNG THÁI AN TOÀN KHI TRÍCH XUẤT DANH SÁCH CÓ MẶT NHƯNG CHƯA ĐIỂM DANH HOẶC CẢ LỚP ĐỀU VẮNG HÔM NAY (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp `cls_1a_2026` trong ngày hôm nay chưa được thực hiện điểm danh buổi sáng (chưa có bản ghi điểm danh trong DB hôm nay), hoặc ngày hôm nay cả lớp đều vắng mặt (không có học sinh nào có trạng thái `PRESENT`).
+  - Giáo viên bộ môn hoặc GVCN đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `classId = cls_1a_2026`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token Giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/attendance/today/cls_1a_2026`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Trả về danh sách rỗng an toàn `present_students: []` và `total_present: 0`.
+  - Tính năng Vòng quay may mắn (Random Wheel) nhận được mảng rỗng và hiển thị thông báo giao diện "Chưa có học sinh có mặt hôm nay để thực hiện quay số", hệ thống không bị crash:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Trích xuất danh sách học sinh có mặt hôm nay thành công",
+    "data": {
+      "class_id": "cls_1a_2026",
+      "date": "2026-10-04",
+      "is_attended_today": false,
+      "total_present": 0,
+      "present_students": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

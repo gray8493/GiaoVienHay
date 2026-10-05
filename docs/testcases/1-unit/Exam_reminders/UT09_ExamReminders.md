@@ -1038,3 +1038,76 @@
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT09_ExamReminders_TC25 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỚP HỌC CHƯA CÓ LỜI NHẮC LỊCH KIỂM TRA NÀO TRONG CƠ SỞ DỮ LIỆU (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học `cls_1a_2026` hiện tại chưa có bất kỳ lời nhắc kiểm tra nào được tạo trong cơ sở dữ liệu Cloud Firestore `/exam_reminders` (thời điểm đầu năm học hoặc tuần không có lịch kiểm tra).
+  - Phụ huynh hoặc Giáo viên của lớp đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_hop_le>`
+  - **Tham số truy vấn (Query Params):** `class_id = cls_1a_2026`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token xác thực vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/exam-reminders?class_id=cls_1a_2026`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc Envelope chuẩn với mảng rỗng `reminders: []` và tổng số lượng `total: 0`, ứng dụng hiển thị Empty State "Không có bài kiểm tra nào sắp tới":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lấy danh sách lời nhắc lịch kiểm tra thành công",
+    "data": {
+      "class_id": "cls_1a_2026",
+      "total": 0,
+      "reminders": []
+    },
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT09_ExamReminders_TC26 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỌC DANH SÁCH LỊCH KIỂM TRA THEO MÔN HỌC KHÔNG CÓ DỮ LIỆU TRONG DB (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp `cls_1a_2026` có lịch kiểm tra các môn khác, nhưng đối với môn Tin học (`subject_code = TIN`) thì chưa có bất kỳ lịch kiểm tra nào trong cơ sở dữ liệu.
+  - Giáo viên bộ môn hoặc Phụ huynh đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_hop_le>`
+  - **Tham số truy vấn (Query Params):**
+  ```json
+  {
+    "class_id": "cls_1a_2026",
+    "subject_code": "TIN"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/exam-reminders?class_id=cls_1a_2026&subject_code=TIN`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Xử lý bộ lọc an toàn, trả về mảng rỗng `reminders: []` và `total: 0`, không gây lỗi Null Pointer hoặc lỗi cú pháp Firestore query:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lấy danh sách lời nhắc lịch kiểm tra theo môn học thành công",
+    "data": {
+      "class_id": "cls_1a_2026",
+      "subject_code": "TIN",
+      "total": 0,
+      "reminders": []
+    },
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

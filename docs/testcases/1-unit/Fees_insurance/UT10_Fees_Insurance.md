@@ -1188,3 +1188,123 @@
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT10_FeesInsurance_TC29 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỚP HỌC CHƯA KHỞI TẠO BẢN GHI THU NỘP NÀO TRONG CƠ SỞ DỮ LIỆU (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học mới tạo `cls_new_2026` chưa khởi tạo đợt thu học phí hoặc bảo hiểm y tế nào trong cơ sở dữ liệu Cloud Firestore `/fee_records`.
+  - Giáo viên chủ nhiệm đã đăng nhập hợp lệ với vai trò `TEACHER_HOMEROOM`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `classId = cls_new_2026`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/fees-insurance/class/cls_new_2026`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc danh sách rỗng an toàn, các số liệu thống kê trả về 0, không gây lỗi null pointer hoặc crash màn hình quản lý thu nộp:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lấy danh sách thu nộp học phí & BHYT thành công",
+    "data": {
+      "class_id": "cls_new_2026",
+      "total_students": 0,
+      "unpaid_tuition_count": 0,
+      "unpaid_insurance_count": 0,
+      "records": []
+    },
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT10_FeesInsurance_TC30 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỌC DANH SÁCH CHƯA NỘP NHƯNG 100% HỌC SINH ĐÃ HOÀN THÀNH NGHĨA VỤ (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Toàn bộ học sinh trong lớp `cls_1a_2026` đã hoàn thành 100% nghĩa vụ nộp tiền học phí (`is_paid_tuition: true` trên mọi bản ghi trong DB).
+  - GVCN đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `classId = cls_1a_2026`
+  - **Tham số truy vấn (Query Params):**
+  ```json
+  {
+    "status": "UNPAID",
+    "fee_type": "TUITION"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token GVCN vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/fees-insurance/class/cls_1a_2026?status=UNPAID&fee_type=TUITION`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi mảng rỗng `records: []` kèm số lượng nợ `unpaid_tuition_count: 0`.
+  - Giao diện GVCN hiển thị huy hiệu hoặc thông báo trạng thái "Tuyệt vời! 100% học sinh đã hoàn thành nộp học phí":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lọc danh sách thu nộp học phí thành công",
+    "data": {
+      "class_id": "cls_1a_2026",
+      "filtered_fee_type": "TUITION",
+      "filtered_status": "UNPAID",
+      "unpaid_count": 0,
+      "records": []
+    },
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT10_FeesInsurance_TC31 : XỬ LÝ AN TOÀN KHI GỬI THÔNG BÁO ĐÔN ĐỐC NHƯNG CƠ SỞ DỮ LIỆU KHÔNG CÓ PHỤ HUYNH NÀO CÒN NỢ TIỀN (ZERO NOTIFIED - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Toàn bộ học sinh trong lớp `cls_1a_2026` đã đóng đủ Bảo hiểm y tế (`is_paid_insurance: true`).
+  - GVCN đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_gvcn_hop_le>`
+    - `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):**
+  ```json
+  {
+    "class_id": "cls_1a_2026",
+    "fee_type": "INSURANCE",
+    "custom_message": "Nhắc nhở nộp BHYT."
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token GVCN vào mục **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/fees-insurance/remind`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Hệ thống kiểm tra DB, xác nhận không có học sinh nào còn nợ khoản phí này, bỏ qua việc gọi Firebase FCM Multicast để tránh gửi thông báo rác tới phụ huynh.
+  - Phản hồi số lượng gửi là 0:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Không có phụ huynh nào chưa hoàn thành khoản phí này để gửi thông báo nhắc nhở",
+    "data": {
+      "class_id": "cls_1a_2026",
+      "fee_type": "INSURANCE",
+      "notified_parents_count": 0
+    },
+    "timestamp": "2026-09-27T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

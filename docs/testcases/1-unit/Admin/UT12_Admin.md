@@ -889,3 +889,115 @@
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC20 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI TÌM KIẾM NGƯỜI DÙNG KHÔNG CÓ KẾT QUẢ TRONG HỆ THỐNG (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên (Platform Admin) đã đăng nhập thành công và sở hữu Firebase ID Token hợp lệ mang vai trò `role: ADMIN`.
+  - Cơ sở dữ liệu Cloud Firestore `/users` không có tài khoản nào thỏa mãn từ khóa tìm kiếm hoặc collection `/users` đang rỗng.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_admin_hop_le>`
+  - **Tham số truy vấn (Query Params):**
+  ```json
+  {
+    "page": 1,
+    "limit": 20,
+    "keyword": "TenNguoiDungKhongHeTonTaiTrongHeThong123"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/admin/users?page=1&limit=20&keyword=TenNguoiDungKhongHeTonTaiTrongHeThong123`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc Envelope chuẩn với mảng rỗng `items: []` và tổng số lượng `total: 0`, không xảy ra lỗi sập máy chủ hoặc ngoại lệ null pointer:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Truy vấn danh sách người dùng thành công",
+    "data": {
+      "total": 0,
+      "page": 1,
+      "limit": 20,
+      "items": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC21 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI HỆ THỐNG CHƯA CÓ DỮ LIỆU LỚP HỌC TRÊN NỀN TẢNG (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Cơ sở dữ liệu Cloud Firestore collection `/classes` chưa có lớp học nào được khởi tạo (hệ thống mới vận hành) hoặc bộ lọc năm học không khớp với lớp nào trong DB.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_admin_hop_le>`
+  - **Tham số truy vấn (Query Params):**
+  ```json
+  {
+    "page": 1,
+    "limit": 20,
+    "academic_year": "2035-2036"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/admin/classes?page=1&limit=20&academic_year=2035-2036`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Trả về cấu trúc danh sách rỗng an toàn, giúp giao diện Admin Portal hiển thị đúng Empty State "Không tìm thấy lớp học nào trên nền tảng":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lấy danh sách giám sát lớp học thành công",
+    "data": {
+      "total": 0,
+      "page": 1,
+      "limit": 20,
+      "items": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC22 : TỪ CHỐI XÓA MỀM TÀI KHOẢN KHI MÃ NGƯỜI DÙNG KHÔNG TỒN TẠI TRONG CƠ SỞ DỮ LIỆU (USER_NOT_FOUND - 404)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Mã định danh người dùng `usr_not_exist_99999` hoàn toàn không tồn tại trong cơ sở dữ liệu Cloud Firestore `/users`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `id = usr_not_exist_99999`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`DELETE`**, nhập đường dẫn API: `/api/v1/users/usr_not_exist_99999`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống ném ra ngoại lệ **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY DỮ LIỆU)**.
+  - Phản hồi dữ liệu lỗi chuẩn Envelope:
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "message": "Không tìm thấy hồ sơ người dùng trong hệ thống",
+    "error_code": "USER_NOT_FOUND",
+    "details": null,
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

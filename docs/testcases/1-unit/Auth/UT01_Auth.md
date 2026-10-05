@@ -1021,3 +1021,113 @@
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT01_Auth_TC25 : TỪ CHỐI ĐĂNG NHẬP KHI TÀI KHOẢN (EMAIL HOẶC SỐ ĐIỆN THOẠI) HOÀN TOÀN KHÔNG TỒN TẠI TRONG CƠ SỞ DỮ LIỆU (AUTH_INVALID_CREDENTIALS - 401)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Email `notfound.user@school.edu.vn` hoặc số điện thoại `0999888777` chưa từng được đăng ký trong hệ thống (không có tài liệu tương ứng trong Cloud Firestore `/users`).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):**
+  ```json
+  {
+    "identifier": "notfound.user@school.edu.vn",
+    "password": "Password123@"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/login`.
+  3. Gửi thông tin đăng nhập với tài khoản chưa từng tồn tại trong cơ sở dữ liệu.
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - TỪ CHỐI XÁC THỰC)**.
+  - Thông báo lỗi trung lập để bảo mật, chống tấn công dò quét tài khoản (User Enumeration Attack): `"Email/Số điện thoại hoặc mật khẩu không chính xác"`.
+  - Tuyệt đối không sinh mã Access Token hay Refresh Token.
+  - Phản hồi đúng cấu trúc Envelope chuẩn:
+  ```json
+  {
+    "success": false,
+    "status_code": 401,
+    "message": "Email hoặc mật khẩu không chính xác",
+    "error_code": "AUTH_INVALID_CREDENTIALS",
+    "details": null,
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT01_Auth_TC26 : XỬ LÝ KHI XÁC THỰC FIREBASE ID TOKEN HỢP LỆ NHƯNG HỒ SƠ NGƯỜI DÙNG CHƯA ĐƯỢC TẠO TRONG DATABASE (USER_NOT_FOUND - 404)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Người dùng vừa xác thực OTP qua Firebase Auth hoặc đăng nhập bằng tài khoản Google thành công (chuỗi `id_token` hợp lệ do Firebase phát hành).
+  - Tuy nhiên, người dùng này chưa hoàn tất bước tạo hồ sơ cá nhân và chưa có bản ghi thông tin trong Firestore collection `/users`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):**
+  ```json
+  {
+    "id_token": "<firebase_id_token_hop_le_chua_co_profile>"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền chuỗi `id_token` hợp lệ từ Firebase Auth vào phần **Body**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/firebase-verify`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống xác thực tính hợp lệ của token Firebase thành công, nhưng khi truy vấn Firestore collection `/users` theo `uid` thì không tìm thấy dữ liệu hồ sơ.
+  - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - CHƯA CÓ HỒ SƠ NGƯỜI DÙNG)**.
+  - Cung cấp mã lỗi `AUTH_USER_NOT_REGISTERED` để ứng dụng di động điều hướng người dùng tới màn hình Onboarding (chọn vai trò Giáo viên/Phụ huynh và nhập thông tin cá nhân):
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "message": "Tài khoản chưa được thiết lập hồ sơ trong hệ thống. Vui lòng hoàn tất đăng ký thông tin.",
+    "error_code": "AUTH_USER_NOT_REGISTERED",
+    "details": {
+      "firebase_uid": "fb_uid_new_9999",
+      "email": "newbie@gmail.com",
+      "is_registered": false
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT01_Auth_TC27 : TỪ CHỐI LÀM MỚI PHIÊN KHI REFRESH TOKEN KHÔNG TỒN TẠI TRONG DATABASE PHIÊN LÀM VIỆC (AUTH_SESSION_NOT_FOUND - 401)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Chuỗi Refresh Token có cấu trúc JWT hợp lệ về mặt mã hóa nhưng không tồn tại trong bộ lưu trữ phiên làm việc của hệ thống (do đã bị thu hồi sau khi đăng xuất hoặc người dùng đã đăng xuất trên mọi thiết bị).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):**
+  ```json
+  {
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token_khong_ton_tai_trong_db_sessions"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/refresh-token`.
+  2. Gửi request làm mới token với Refresh Token không có trong DB.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống kiểm tra trong Database phiên làm việc và không tìm thấy bản ghi phiên hợp lệ tương ứng với chuỗi token này.
+  - Ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - PHIÊN KHÔNG TỒN TẠI HOẶC ĐÃ BỊ THU HỒI)**:
+  ```json
+  {
+    "success": false,
+    "status_code": 401,
+    "message": "Phiên làm việc không tồn tại hoặc đã bị thu hồi. Vui lòng đăng nhập lại.",
+    "error_code": "AUTH_SESSION_NOT_FOUND",
+    "details": null,
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
