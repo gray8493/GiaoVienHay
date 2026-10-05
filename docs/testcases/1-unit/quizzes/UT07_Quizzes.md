@@ -1001,3 +1001,73 @@
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
+
+### UT07_Quizzes_TC27 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI GIÁO VIÊN MỚI CHƯA TỪNG TẠO BỘ CÂU HỎI QUIZ NÀO TRONG CƠ SỞ DỮ LIỆU (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên mới đăng nhập hợp lệ vào hệ thống.
+  - Trong cơ sở dữ liệu Cloud Firestore `/quizzes`, chưa có bất kỳ bộ câu hỏi nào được tạo bởi giáo viên này.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien_moi>`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã token xác thực của giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/quizzes`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc danh sách rỗng an toàn với `total: 0` và `items: []`, giao diện hiển thị Empty State hướng dẫn "Bạn chưa có bộ đề kiểm tra bài cũ nào. Hãy tải lên giáo án để AI hỗ trợ tạo câu hỏi":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Truy xuất danh sách bộ câu hỏi thành công",
+    "data": {
+      "total": 0,
+      "items": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT07_Quizzes_TC28 : TỪ CHỐI LƯU ĐIỂM BÀI CŨ KHI MÃ HỌC SINH KHÔNG TỒN TẠI TRONG CƠ SỞ DỮ LIỆU (STUDENT_NOT_FOUND - 404)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Bộ câu hỏi `qz_88219` tồn tại trong cơ sở dữ liệu và thuộc quyền quản lý của giáo viên.
+  - Mã học sinh `stu_not_exist_9999` hoàn toàn không tồn tại trong cơ sở dữ liệu học sinh của lớp học.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_giao_vien>`
+    - `Content-Type: application/json`
+  - **Tham số đường dẫn (Path Params):** `id = "qz_88219"`
+  - **Dữ liệu thân (Body JSON):**
+  ```json
+  {
+    "student_id": "stu_not_exist_9999",
+    "score": 8.5,
+    "note": "Trả lời câu hỏi tốt"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/quizzes/qz_88219/in-class-scores`.
+  3. Gửi payload lưu điểm với mã học sinh không tồn tại trong DB.
+  4. Bấm nút **Gửi (Send)** trên Postman.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống ném ra ngoại lệ **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY HỌC SINH)**.
+  - Phản hồi cấu trúc Envelope lỗi chuẩn, không ghi nhận bất kỳ điểm số sai lệch nào vào cơ sở dữ liệu:
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "message": "Không tìm thấy học sinh trong cơ sở dữ liệu của lớp",
+    "error_code": "STUDENT_NOT_FOUND",
+    "details": null,
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

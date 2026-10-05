@@ -1167,14 +1167,22 @@
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Xóa hoặc đánh dấu lưu trữ học sinh trong collection `/students` và giảm sĩ số `total_students` của lớp.
+  - Phản hồi kèm Header: `X-Response-Time`.
+  - Không xóa vật lý bản ghi khỏi cơ sở dữ liệu; Firestore cập nhật cờ xóa mềm `is_deleted: true` và mốc thời gian `deleted_at: <ISO timestamp>` trên tài liệu `/students/stu_99`.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
   ```json
   {
     "success": true,
     "status_code": 200,
-    "message": "Đã xóa học sinh khỏi lớp thành công",
-    "timestamp": "2026-09-27T08:30:00.000Z"
+    "message": "Xóa mềm học sinh khỏi lớp thành công",
+    "data": {
+      "message": "Xóa mềm học sinh khỏi lớp thành công",
+      "student_id": "stu_99",
+      "class_id": "cls_1a_2026",
+      "is_deleted": true,
+      "deleted_at": "2026-10-04T08:30:00.000Z"
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
@@ -1224,3 +1232,156 @@
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT03_Classes_TC29 : XÓA MỀM LỚP HỌC VÀ TỰ ĐỘNG XÓA IN-MEMORY RAM CACHE CỦA GIÁO VIÊN THÀNH CÔNG
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - GVCN phụ trách lớp `cls_1a_2026` đã đăng nhập thành công.
+  - Danh sách lớp của giáo viên đang được cache trong RAM với key `classes_teacher_<teacherId>`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `id = cls_1a_2026`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request xóa mềm lớp học: `DELETE /api/v1/classes/cls_1a_2026`.
+  2. Backend cập nhật `is_deleted = true`, `deleted_at = now`.
+  3. Backend gọi `cacheManager.del("classes_teacher_" + teacherId)` để xóa cache danh sách lớp.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Kèm header `X-Response-Time`.
+  - Dữ liệu trả về:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Xóa mềm lớp học thành công",
+    "data": {
+      "message": "Xóa mềm lớp học thành công",
+      "class_id": "cls_1a_2026",
+      "is_deleted": true,
+      "deleted_at": "2026-10-04T08:30:00.000Z"
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT03_Classes_TC30 : TRUY VẤN DANH SÁCH LỚP HỌC VÀ HỌC SINH TỰ ĐỘNG LỌC BỎ CÁC BẢN GHI ĐÃ XÓA MỀM
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp `cls_1a_2026` có 35 học sinh, trong đó học sinh `stu_99` đã bị xóa mềm (`is_deleted = true`).
+  - Giáo viên đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gv>`
+  - **Endpoint & Method:** `GET /api/v1/classes/cls_1a_2026`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request `GET /api/v1/classes/cls_1a_2026`.
+  2. Kiểm tra danh sách mảng `students` trả về trong payload.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi **HTTP 200 (OK)**.
+  - Danh sách học sinh của lớp chỉ chứa các học sinh có `is_deleted = false`.
+  - Học sinh `stu_99` không xuất hiện trong danh sách kết quả trả về.
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT03_Classes_TC31 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI GIÁO VIÊN MỚI CHƯA ĐƯỢC PHÂN CÔNG LỚP HỌC NÀO TRONG HỆ THỐNG (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Tài khoản giáo viên mới đăng ký (`usr_teacher_fresh`) đã xác thực thành công.
+  - Trong cơ sở dữ liệu Cloud Firestore `/classes`, giáo viên này chưa từng tạo lớp chủ nhiệm nào (`homeroom_teacher_id != usr_teacher_fresh`) và chưa được phân công làm giáo viên bộ môn của lớp nào.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gv_moi>`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token xác thực của giáo viên mới vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/classes`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc danh sách rỗng an toàn, giúp ứng dụng hiển thị màn hình Empty State "Bạn chưa phụ trách lớp học nào. Hãy bấm nút Tạo Lớp Mới để bắt đầu":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lấy danh sách lớp học thành công",
+    "data": {
+      "total": 0,
+      "classes": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT03_Classes_TC32 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI XEM CHI TIẾT LỚP HỌC CHƯA CÓ HỌC SINH NÀO TRONG CƠ SỞ DỮ LIỆU (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học `cls_new_empty` vừa được GVCN tạo mới thành công trên hệ thống nhưng chưa kịp import danh sách học sinh (danh sách học sinh trong DB collection `/classes/cls_new_empty/students` đang rỗng).
+  - Giáo viên chủ nhiệm đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn>`
+  - **Tham số đường dẫn (Path Params):** `id = cls_new_empty`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token GVCN vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/classes/cls_new_empty`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Trả về thông tin lớp học đầy đủ (tên lớp, niên khóa, mã mời), mảng học sinh rỗng `students: []`, tổng số lượng học sinh `total_students: 0`, không gây ra lỗi null pointer:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "data": {
+      "id": "cls_new_empty",
+      "name": "Lớp 6A3",
+      "grade_level": 6,
+      "academic_year": "2026-2027",
+      "homeroom_teacher_name": "Cô Hoàng Lan",
+      "invite_code": "CL6A39",
+      "total_students": 0,
+      "students": [],
+      "subject_teachers": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+#### UT03_Classes_TC33 : TỪ CHỐI XÓA HỌC SINH KHI MÃ HỌC SINH KHÔNG TỒN TẠI TRONG DANH SÁCH LỚP HỌC (STUDENT_NOT_FOUND - 404)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học `cls_1a_2026` tồn tại trên hệ thống và GVCN đã đăng nhập hợp lệ.
+  - Mã định danh học sinh `stu_not_found_9999` hoàn toàn không tồn tại trong danh sách học sinh của lớp này trên Cloud Firestore.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`
+  - **Tham số đường dẫn (Path Params):**
+    - `id = cls_1a_2026`
+    - `student_id = stu_not_found_9999`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token GVCN vào mục **Headers**.
+  2. Chọn phương thức **`DELETE`**, nhập đường dẫn API: `/api/v1/classes/cls_1a_2026/students/stu_not_found_9999`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống ném ra ngoại lệ **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY HỌC SINH TRONG LỚP)**.
+  - Phản hồi cấu trúc Envelope lỗi chuẩn, giữ nguyên toàn vẹn dữ liệu sĩ số lớp hiện tại:
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "message": "Không tìm thấy học sinh này trong danh sách lớp học",
+    "error_code": "STUDENT_NOT_FOUND",
+    "details": null,
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
