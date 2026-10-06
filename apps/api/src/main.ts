@@ -15,7 +15,9 @@ async function bootstrap() {
     exposedHeaders: 'X-Response-Time',
   });
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/'],
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

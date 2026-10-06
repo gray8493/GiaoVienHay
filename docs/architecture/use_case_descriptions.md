@@ -51,7 +51,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 
 ---
 
-### UC-ACA-02: Nhập Sổ Điểm Môn Học Phụ Trách 
+### UC-ACA-02: Nhập Sổ Điểm Môn Học Phụ Trách
 
 - **Mã Use Case:** `UC-ACA-02`
 - **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
@@ -195,7 +195,7 @@ Tài liệu này đặc tả chi tiết từng bước cho các trường hợp 
 - **Mã Use Case:** `UC-ACA-08`
 - **Tác nhân chính:** Giáo viên Bộ môn (GVBM), Giáo viên Chủ nhiệm (GVCN).
 - **Tác nhân hỗ trợ:** Backend NestJS, Google Cloud Firestore (Collection `/exam_reminders`), Firebase FCM.
-- **Mô tả:** Giáo viên tạo thông báo lời nhắc về lịch kiểm tra sắp tới (15 phút, 1 tiết, Giữa kỳ, Cuối kỳ) gửi tới điện thoại của toàn bộ phụ huynh trong lớp, kèm lời dặn dò trọng tâm ôn tập để bố mẹ đôn đốc con học bài ở nhà.
+- **Mô tả:** Giáo viên tạo thông báo lời nhắc về lịch kiểm tra sắp tới (15 phút, 1 tiết, Giữa kỳ, Cuối kỳ) gửi tới điện thoại của toàn bộ phụ huynh trong lớp, kèm lời dặn dò trọng tâm ôn tập để bố mẹ đôn đốc con học bài ở nhà.g
 - **Tiền điều kiện:** Giáo viên đã đăng nhập và truy cập lớp học.
 - **Hậu điều kiện:** Lời nhắc được lưu vào `/exam_reminders`, thông báo đẩy FCM được phát tới phụ huynh lớp.
 - **Luồng sự kiện chính (Main Flow):**
