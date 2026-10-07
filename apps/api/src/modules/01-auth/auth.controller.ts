@@ -13,6 +13,7 @@ import {
   LoginDto,
   FirebaseVerifyDto,
   RefreshTokenDto,
+  ChangePasswordDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -53,6 +54,18 @@ export class AuthController {
   @ApiOperation({ summary: 'Làm mới Access Token khi hết hạn' })
   async refreshToken(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đổi mật khẩu tài khoản' })
+  async changePassword(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(userId, dto);
   }
 
   @Post('logout')

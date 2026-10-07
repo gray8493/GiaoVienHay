@@ -3,6 +3,13 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { UpdateProfileDto, RegisterDeviceTokenDto } from './dto/users.dto';
+import {
+  getAppFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from '../../common/firebase/firestore-client';
 
 @Injectable()
 export class UsersService {
@@ -41,11 +48,10 @@ export class UsersService {
       updated_at: new Date().toISOString(),
     };
 
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('users').doc(userId).update(updatedData);
-      } catch (e) {}
-    }
+    try {
+      const db = getAppFirestore();
+      await updateDoc(doc(db, 'users', userId), updatedData);
+    } catch (e) {}
 
     // Xóa cache cũ để dữ liệu mới được cập nhật tức thời
     await this.cacheManager.del(`user_profile_${userId}`);
@@ -55,15 +61,14 @@ export class UsersService {
   }
 
   async registerDeviceToken(userId: string, dto: RegisterDeviceTokenDto) {
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('users').doc(userId).update({
-          fcm_token: dto.device_token,
-          device_type: dto.device_type || 'ANDROID',
-          token_updated_at: new Date().toISOString(),
-        });
-      } catch (e) {}
-    }
+    try {
+      const db = getAppFirestore();
+      await updateDoc(doc(db, 'users', userId), {
+        fcm_token: dto.device_token,
+        device_type: dto.device_type || 'ANDROID',
+        token_updated_at: new Date().toISOString(),
+      });
+    } catch (e) {}
 
     return {
       message: 'Đăng ký Device Token FCM thành công',
@@ -76,18 +81,18 @@ export class UsersService {
    */
   async deleteUser(userId: string) {
     const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('users').doc(userId).set(
-          {
-            is_deleted: true,
-            is_active: false,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
+    try {
+      const db = getAppFirestore();
+      await setDoc(
+        doc(db, 'users', userId),
+        {
+          is_deleted: true,
+          is_active: false,
+          deleted_at: now,
+        },
+        { merge: true },
+      );
+    } catch (e) {}
 
     // Xóa cache profile
     await this.cacheManager.del(`user_profile_${userId}`);
@@ -101,25 +106,16 @@ export class UsersService {
   }
 
   private async getUserById(userId: string): Promise<any | null> {
-    if (this.firebaseService.firestore) {
-      try {
-        const doc = await this.firebaseService.firestore.collection('users').doc(userId).get();
-        if (doc.exists) {
-          const data = doc.data();
-          if (data?.is_deleted) return null;
-          return { id: doc.id, ...data };
-        }
-      } catch (e) {}
-    }
-    return {
-      id: userId,
-      full_name: 'Giáo viên Nguyễn Thị Lan',
-      phone: '0912345678',
-      role: 'TEACHER_HOMEROOM',
-      school_name: 'Trường Tiểu Học Chu Văn An',
-      teaching_subjects: ['MATH'],
-      is_active: true,
-      is_deleted: false,
-    };
+    try {
+      const db = getAppFirestore();
+      const docSnap = await getDoc(doc(db, 'users', userId));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data?.is_deleted) return null;
+        return { id: docSnap.id, ...data };
+      }
+    } catch (e) {}
+    return null;
   }
 }
+

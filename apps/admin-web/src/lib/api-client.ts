@@ -1,20 +1,22 @@
 /**
- * Generic API Client with Authorization Bearer Interceptor
+ * Generic API Client with Authorization Bearer Interceptor & Silent Refresh
+ * Complies with GiaoVienHay API standards (Module 01-auth)
  */
-import { getAuthToken, clearAuthSession } from './auth';
+import { getAuthToken, refreshAuthToken, clearAuthSession } from './auth';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
 export interface RequestOptions extends RequestInit {
   requiresAuth?: boolean;
+  _isRetry?: boolean;
 }
 
 export async function apiFetch<T = any>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<{ success: boolean; data?: T; error?: string; status?: number }> {
-  const { requiresAuth = true, headers = {}, ...rest } = options;
+  const { requiresAuth = true, _isRetry = false, headers = {}, ...rest } = options;
 
   const url = endpoint.startsWith('http')
     ? endpoint
@@ -42,10 +44,30 @@ export async function apiFetch<T = any>(
     const body = await res.json().catch(() => null);
 
     if (status === 401) {
-      // Token invalid or expired
+      // Nếu request yêu cầu auth và chưa retry lần nào -> Thử silent refresh token
+      if (requiresAuth && !_isRetry) {
+        const refreshResult = await refreshAuthToken();
+        if (refreshResult.success && refreshResult.token) {
+          // Thử lại request một lần với token mới
+          return apiFetch<T>(endpoint, {
+            ...options,
+            _isRetry: true,
+            headers: {
+              ...headers,
+              Authorization: `Bearer ${refreshResult.token}`,
+            },
+          });
+        }
+      }
+
+      // Refresh thất bại hoặc token không còn hợp lệ -> Xóa phiên và redirect về /login
       if (typeof window !== 'undefined' && requiresAuth) {
         clearAuthSession();
+        if (window.location.pathname !== '/login') {
+          window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        }
       }
+
       return {
         success: false,
         status,
@@ -80,3 +102,15 @@ export async function apiFetch<T = any>(
     };
   }
 }
+
+export async function apiRequest<T = any>(
+  endpoint: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const res = await apiFetch<T>(endpoint, options);
+  if (!res.success) {
+    throw new Error(res.error || 'Yêu cầu thất bại');
+  }
+  return res.data as T;
+}
+

@@ -14,8 +14,17 @@ import {
   LoginDto,
   FirebaseVerifyDto,
   RefreshTokenDto,
+  ChangePasswordDto,
 } from './dto/auth.dto';
 import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
+import {
+  getAppFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  collection,
+} from '../../common/firebase/firestore-client';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -121,6 +130,13 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException({
         message: 'Tài khoản của bạn đã bị khóa hoặc tạm dừng hoạt động',
         error_code: ErrorCode.AUTH_ACCOUNT_LOCKED,
+      });
+    }
+
+    if (!user.password_hash) {
+      throw new UnauthorizedException({
+        message: 'Tài khoản chưa thiết lập mật khẩu đăng nhập',
+        error_code: ErrorCode.AUTH_INVALID_CREDENTIALS,
       });
     }
 
@@ -241,41 +257,60 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  // --- Database Helpers ---
-  private async findUserByPhone(phone: string): Promise<any | null> {
-    if (this.firebaseService.firestore) {
-      try {
-        const snap = await Promise.race([
-          this.firebaseService.firestore
-            .collection('users')
-            .where('phone', '==', phone)
-            .limit(1)
-            .get(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500)),
-        ]) as any;
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new BadRequestException({
+        code: ErrorCode.USER_NOT_FOUND,
+        message: 'Tài khoản không tồn tại trên hệ thống',
+      });
+    }
 
-        if (snap && !snap.empty) {
-          return { id: snap.docs[0].id, ...snap.docs[0].data() };
-        }
-      } catch (err) {
-        // Fallback to in-memory
+    if (user.password_hash) {
+      const isMatch = await bcrypt.compare(dto.current_password, user.password_hash);
+      if (!isMatch) {
+        throw new BadRequestException({
+          code: ErrorCode.AUTH_INVALID_CREDENTIALS,
+          message: 'Mật khẩu hiện tại không chính xác',
+        });
       }
     }
+
+    const newHashedPassword = await bcrypt.hash(dto.new_password, 10);
+    user.password_hash = newHashedPassword;
+    user.updated_at = new Date().toISOString();
+
+    await this.saveUser(user);
+
+    return {
+      success: true,
+      message: 'Đổi mật khẩu thành công',
+    };
+  }
+
+  // --- Database Helpers ---
+  private async findUserByPhone(phone: string): Promise<any | null> {
+    try {
+      const db = getAppFirestore();
+      const snap = await getDocs(collection(db, 'users'));
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.phone === phone && !data.is_deleted) {
+          return { id: d.id, ...data };
+        }
+      }
+    } catch (err) {}
     return this.inMemoryUsers.get(phone) || null;
   }
 
   private async findUserById(id: string): Promise<any | null> {
-    if (this.firebaseService.firestore) {
-      try {
-        const doc = await Promise.race([
-          this.firebaseService.firestore.collection('users').doc(id).get(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500)),
-        ]) as any;
-        if (doc && doc.exists) {
-          return { id: doc.id, ...doc.data() };
-        }
-      } catch (err) {}
-    }
+    try {
+      const db = getAppFirestore();
+      const docSnap = await getDoc(doc(db, 'users', id));
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+    } catch (err) {}
     for (const u of this.inMemoryUsers.values()) {
       if (u.id === id) return u;
     }
@@ -284,14 +319,10 @@ export class AuthService implements OnModuleInit {
 
   private async saveUser(user: any): Promise<void> {
     this.inMemoryUsers.set(user.phone, user);
-    if (this.firebaseService.firestore) {
-      try {
-        await Promise.race([
-          this.firebaseService.firestore.collection('users').doc(user.id).set(user),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500)),
-        ]);
-      } catch (err) {}
-    }
+    try {
+      const db = getAppFirestore();
+      await setDoc(doc(db, 'users', user.id), user);
+    } catch (err) {}
   }
 
   private async generateTokens(payload: any) {

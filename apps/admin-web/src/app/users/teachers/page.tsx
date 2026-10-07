@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { INITIAL_TEACHERS, TeacherUser } from '../../../lib/users-data';
+import { TeacherUser } from '../../../lib/users-data';
+import { getTeachersList, createAdminUser, updateUserStatus } from '../../../lib/users.service';
 import UserCrudModal from '../../../components/UserCrudModal';
 
 export default function TeachersPage() {
-  const [teachers, setTeachers] = useState<TeacherUser[]>(INITIAL_TEACHERS);
+  const [teachers, setTeachers] = useState<TeacherUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'TEACHER_HOMEROOM' | 'TEACHER_SUBJECT' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [subjectFilter, setSubjectFilter] = useState('ALL');
@@ -23,6 +26,29 @@ export default function TeachersPage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // Nạp danh sách giáo viên từ Backend khi mở trang
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        const res = await getTeachersList();
+        if (isMounted) {
+          setTeachers(res.teachers || []);
+          setIsLiveBackend(!res.isMock);
+        }
+      } catch (err) {
+        console.warn('Lỗi tải danh sách giáo viên:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // KPI Metrics
   const stats = useMemo(() => {
@@ -81,31 +107,56 @@ export default function TeachersPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveTeacher = (saved: TeacherUser, isNew: boolean) => {
+  const handleSaveTeacher = async (saved: TeacherUser, isNew: boolean) => {
     if (isNew) {
-      setTeachers((prev) => [saved, ...prev]);
-      showToast(`Đã thêm mới giáo viên ${saved.full_name}`);
+      showToast(`Đang khởi tạo tài khoản giáo viên...`);
+      const res = await createAdminUser({
+        full_name: saved.full_name,
+        phone: saved.phone,
+        email: saved.email,
+        role: saved.role,
+        school_name: saved.school_name,
+        subject: saved.subject,
+        assigned_class: saved.assigned_class,
+      });
+
+      if (res.success) {
+        const createdTeacher: TeacherUser = {
+          ...saved,
+          id: res.data?.id || saved.id,
+        };
+        setTeachers((prev) => [createdTeacher, ...prev]);
+        showToast(`Đã thêm mới giáo viên ${saved.full_name}`);
+      } else {
+        showToast(res.error || 'Lỗi tạo giáo viên');
+      }
     } else {
       setTeachers((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
       showToast(`Đã lưu thay đổi cho ${saved.full_name}`);
     }
   };
 
-  const handleToggleStatus = (userId: string, newStatus: boolean, reason?: string) => {
-    setTeachers((prev) =>
-      prev.map((t) => {
-        if (t.id === userId) {
-          return { ...t, is_active: newStatus, status_reason: reason || undefined };
-        }
-        return t;
-      })
-    );
+  const handleToggleStatus = async (userId: string, newStatus: boolean, reason?: string) => {
     const teacher = teachers.find((t) => t.id === userId);
-    showToast(
-      newStatus
-        ? `Đã kích hoạt lại tài khoản ${teacher?.full_name}`
-        : `Đã khóa tài khoản ${teacher?.full_name}`
-    );
+    const res = await updateUserStatus(userId, newStatus, reason);
+
+    if (res.success) {
+      setTeachers((prev) =>
+        prev.map((t) => {
+          if (t.id === userId) {
+            return { ...t, is_active: newStatus, status_reason: reason || undefined };
+          }
+          return t;
+        })
+      );
+      showToast(
+        newStatus
+          ? `Đã kích hoạt lại tài khoản ${teacher?.full_name}`
+          : `Đã khóa tài khoản ${teacher?.full_name}`
+      );
+    } else {
+      showToast(res.error || 'Cập nhật trạng thái thất bại');
+    }
   };
 
   const handleResetPassword = (user: any) => {
@@ -159,7 +210,7 @@ export default function TeachersPage() {
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               Danh sách Giáo viên
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
               {stats.total} Giáo viên
             </span>
           </div>
@@ -169,15 +220,6 @@ export default function TeachersPage() {
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => showToast('Đang tạo file xuất Excel danh sách giáo viên...')}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition shadow-2xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined !text-[16px] text-slate-500">download</span>
-            <span>Xuất Excel</span>
-          </button>
-
           <button
             type="button"
             onClick={handleOpenCreate}
@@ -203,7 +245,7 @@ export default function TeachersPage() {
               <span>100% hồ sơ đã định danh</span>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
             <span className="material-symbols-outlined text-[20px]">school</span>
           </div>
         </div>
@@ -395,7 +437,29 @@ export default function TeachersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {filteredTeachers.length === 0 ? (
+              {teachers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center text-slate-500">
+                    <div className="max-w-sm mx-auto flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 mb-3 shadow-2xs">
+                        <span className="material-symbols-outlined !text-[24px]">school</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 mb-1">Chưa có giáo viên nào</h4>
+                      <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                        Hệ thống chưa có tài khoản giáo viên. Bấm nút bên dưới để tạo tài khoản giáo viên đầu tiên.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleOpenCreate}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-black transition-colors cursor-pointer shadow-xs"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">add</span>
+                        <span>Thêm giáo viên mới</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredTeachers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <span className="material-symbols-outlined text-[36px] text-slate-300 block mb-2">
@@ -423,11 +487,11 @@ export default function TeachersPage() {
                       {/* Teacher Profile */}
                       <td className="py-3.5 px-6 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-xs shrink-0">
                             {initials}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-1.5">
+                            <div className="font-semibold text-slate-900 group-hover:text-black transition-colors flex items-center gap-1.5">
                               <span>{teacher.full_name}</span>
                               <span className="text-[10px] text-slate-400 font-medium">#{teacher.code}</span>
                             </div>
@@ -443,7 +507,7 @@ export default function TeachersPage() {
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                             teacher.role === 'TEACHER_HOMEROOM'
-                              ? 'bg-blue-50 text-blue-700 border-blue-200/80'
+                              ? 'bg-slate-100 text-slate-800 border-slate-200'
                               : 'bg-purple-50 text-purple-700 border-purple-200/80'
                           }`}
                         >
@@ -488,7 +552,7 @@ export default function TeachersPage() {
                             type="button"
                             onClick={() => handleOpenDetail(teacher)}
                             title="Xem chi tiết & Chỉnh sửa"
-                            className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors flex items-center justify-center cursor-pointer"
+                            className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-black transition-colors flex items-center justify-center cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                           </button>

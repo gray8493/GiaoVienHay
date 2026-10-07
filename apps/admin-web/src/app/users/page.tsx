@@ -1,9 +1,44 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getDashboardStatsApi, DashboardStatsData } from '../../lib/dashboard.service';
 
 export default function UsersHubPage() {
+  const [stats, setStats] = useState<DashboardStatsData | null>(null);
+  const [isLiveBackend, setIsLiveBackend] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStats() {
+      setIsLoading(true);
+      try {
+        const res = await getDashboardStatsApi();
+        if (isMounted) {
+          if (res.data) {
+            setStats(res.data);
+          }
+          setIsLiveBackend(!res.isMock);
+        }
+      } catch (err) {
+        console.warn('Lỗi khi nạp thống kê người dùng:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    loadStats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalUsers = stats?.kpi?.total_users?.value ?? 0;
+  const teachersCount = stats?.kpi?.total_users?.teachers_count ?? 0;
+  const parentsCount = stats?.kpi?.total_users?.parents_count ?? 0;
+  const activeCount = stats?.kpi?.total_users?.active_count ?? 0;
+  const inactiveCount = Math.max(0, totalUsers - activeCount);
+
   return (
     <main className="w-full flex-1 p-6 md:p-8 max-w-7xl mx-auto flex flex-col gap-6">
       {/* Breadcrumb & Header */}
@@ -24,6 +59,16 @@ export default function UsersHubPage() {
               <h1 className="text-2xl font-bold text-slate-950 tracking-tight">
                 Cổng Quản lý Người dùng &amp; Phân quyền
               </h1>
+              {isLiveBackend ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Backend Live (Đồng bộ trực tiếp)
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  Thời gian thực
+                </span>
+              )}
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-normal max-w-3xl">
               Trung tâm kiểm soát dữ liệu tài khoản hai chiều: Đội ngũ sư phạm nhà trường và Khối gia đình kết nối ứng dụng Sổ liên lạc.
@@ -40,7 +85,9 @@ export default function UsersHubPage() {
             <span className="text-xs font-medium text-slate-500">Tổng người dùng</span>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-[28px] font-bold text-slate-950 tracking-tight">14,238</span>
+            <span className="text-2xl sm:text-[28px] font-bold text-slate-950 tracking-tight">
+              {totalUsers.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 mt-3 text-xs text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
@@ -54,7 +101,9 @@ export default function UsersHubPage() {
             <span className="text-xs font-medium text-slate-500">Giáo viên &amp; Cán bộ</span>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-[28px] font-bold text-slate-950 tracking-tight">3,135</span>
+            <span className="text-2xl sm:text-[28px] font-bold text-slate-950 tracking-tight">
+              {teachersCount.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 mt-3 text-xs text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
@@ -68,7 +117,9 @@ export default function UsersHubPage() {
             <span className="text-xs font-medium text-slate-500">Phụ huynh &amp; Học sinh</span>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-[28px] font-bold text-slate-950 tracking-tight">11,103</span>
+            <span className="text-2xl sm:text-[28px] font-bold text-slate-950 tracking-tight">
+              {parentsCount.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 mt-3 text-xs text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
@@ -82,7 +133,9 @@ export default function UsersHubPage() {
             <span className="text-xs font-medium text-slate-500">Tài khoản tạm khóa</span>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-[28px] font-bold text-slate-950 tracking-tight">12</span>
+            <span className="text-2xl sm:text-[28px] font-bold text-slate-950 tracking-tight">
+              {inactiveCount.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 mt-3 text-xs text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
@@ -90,6 +143,7 @@ export default function UsersHubPage() {
           </div>
         </div>
       </div>
+
 
       {/* Section Divider */}
       <div className="flex items-center justify-between pt-2">
@@ -130,18 +184,18 @@ export default function UsersHubPage() {
             <div className="mt-5 p-4 rounded-lg bg-slate-50 border border-slate-200/70 grid grid-cols-3 gap-3">
               <div className="flex flex-col">
                 <span className="text-[11px] text-slate-500 font-medium">Quy mô nhân sự</span>
-                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">3,135</span>
+                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">{teachersCount.toLocaleString('vi-VN')}</span>
                 <span className="text-[10px] text-slate-500 font-medium">Tài khoản</span>
               </div>
               <div className="flex flex-col border-l border-slate-200 pl-3">
-                <span className="text-[11px] text-slate-500 font-medium">GV Chủ nhiệm</span>
-                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">850</span>
-                <span className="text-[10px] text-slate-500 font-medium">Phân công lớp</span>
+                <span className="text-[11px] text-slate-500 font-medium">Chủ nhiệm &amp; Quản trị</span>
+                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">{teachersCount}</span>
+                <span className="text-[10px] text-slate-500 font-medium">Hồ sơ</span>
               </div>
               <div className="flex flex-col border-l border-slate-200 pl-3">
-                <span className="text-[11px] text-slate-500 font-medium">GV Bộ môn</span>
-                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">2,285</span>
-                <span className="text-[10px] text-emerald-600 font-medium">100% Chuẩn hóa</span>
+                <span className="text-[11px] text-slate-500 font-medium">Trạng thái</span>
+                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">{teachersCount > 0 ? 'Sẵn sàng' : '0'}</span>
+                <span className="text-[10px] text-emerald-600 font-medium">{teachersCount > 0 ? 'Đang hoạt động' : 'Chưa có dữ liệu'}</span>
               </div>
             </div>
           </div>
@@ -190,17 +244,17 @@ export default function UsersHubPage() {
             <div className="mt-5 p-4 rounded-lg bg-slate-50 border border-slate-200/70 grid grid-cols-3 gap-3">
               <div className="flex flex-col">
                 <span className="text-[11px] text-slate-500 font-medium">Quy mô kết nối</span>
-                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">11,103</span>
+                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">{parentsCount.toLocaleString('vi-VN')}</span>
                 <span className="text-[10px] text-slate-500 font-medium">Gia đình</span>
               </div>
               <div className="flex flex-col border-l border-slate-200 pl-3">
-                <span className="text-[11px] text-slate-500 font-medium">Đã kết nối App</span>
-                <span className="text-lg font-bold text-emerald-600 tracking-tight mt-0.5">98.6%</span>
-                <span className="text-[10px] text-amber-600 font-medium">158 Chưa kích hoạt</span>
+                <span className="text-[11px] text-slate-500 font-medium">Trạng thái App</span>
+                <span className="text-lg font-bold text-emerald-600 tracking-tight mt-0.5">{parentsCount > 0 ? '100%' : '0%'}</span>
+                <span className="text-[10px] text-slate-500 font-medium">{parentsCount > 0 ? 'Đã liên kết' : 'Chưa có phụ huynh'}</span>
               </div>
               <div className="flex flex-col border-l border-slate-200 pl-3">
                 <span className="text-[11px] text-slate-500 font-medium">Mạng lưới</span>
-                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">38</span>
+                <span className="text-lg font-bold text-slate-950 tracking-tight mt-0.5">{stats?.kpi?.active_classes?.schools_count ?? 0}</span>
                 <span className="text-[10px] text-slate-500 font-medium">Điểm trường</span>
               </div>
             </div>

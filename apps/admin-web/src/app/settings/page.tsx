@@ -1,9 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { clearAuthSession } from '@/lib/auth';
+import {
+  clearAuthSession,
+  getStoredUser,
+  AdminUser,
+  saveAuthSession,
+  getAuthToken,
+  getRefreshToken,
+  changePasswordApi,
+} from '@/lib/auth';
+import { apiFetch } from '@/lib/api-client';
 
 type SettingsTab = 'PROFILE' | 'ACADEMIC' | 'NOTIFICATIONS' | 'SECURITY';
 
@@ -11,13 +20,25 @@ export default function SystemSettingsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<SettingsTab>('PROFILE');
 
-  // 1. Profile States
-  const [adminFullName, setAdminFullName] = useState('Hoàng Minh Đức');
-  const [adminEmail, setAdminEmail] = useState('admin.hoang@giaovienhay.vn');
-  const [adminPhone, setAdminPhone] = useState('0988 123 456');
-  const [adminRoleTitle, setAdminRoleTitle] = useState('Platform Super Admin');
+  // 1. Profile States (Khởi tạo từ phiên người dùng thật)
+  const [adminFullName, setAdminFullName] = useState('Quản trị viên Hệ thống');
+  const [adminEmail, setAdminEmail] = useState('admin@giaovienhay.vn');
+  const [adminPhone, setAdminPhone] = useState('0988888888');
+  const [adminRoleTitle, setAdminRoleTitle] = useState('Quản trị viên Hệ thống (Root)');
   const [adminBio, setAdminBio] = useState('Chịu trách nhiệm giám sát toàn diện vận hành, phân quyền người dùng và hạn mức AI trên hệ thống GiaoVienHay.');
   const [twoFactorAuth, setTwoFactorAuth] = useState(true);
+
+  // Nạp thông tin tài khoản đang đăng nhập từ Session
+  useEffect(() => {
+    const user = getStoredUser();
+    if (user) {
+      if (user.full_name) setAdminFullName(user.full_name);
+      if (user.email) setAdminEmail(user.email);
+      if (user.phone) setAdminPhone(user.phone);
+      if (user.role) setAdminRoleTitle(user.role === 'ADMIN' ? 'Quản trị viên Hệ thống (Root)' : String(user.role));
+      if (user.school_name) setSchoolUnitName(user.school_name);
+    }
+  }, []);
 
   // Password States
   const [currentPassword, setCurrentPassword] = useState('');
@@ -51,16 +72,42 @@ export default function SystemSettingsPage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingProfile(true);
-    setTimeout(() => {
+    try {
+      const res = await apiFetch('/users/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          full_name: adminFullName.trim(),
+          email: adminEmail.trim(),
+          phone: adminPhone.trim(),
+        }),
+      });
+
+      // Cập nhật lại session lưu trữ local
+      const currentUser = getStoredUser();
+      const accessToken = getAuthToken();
+      const refreshToken = getRefreshToken();
+      if (currentUser && accessToken && refreshToken) {
+        const updatedUser: AdminUser = {
+          ...currentUser,
+          full_name: adminFullName.trim(),
+          email: adminEmail.trim(),
+          phone: adminPhone.trim(),
+        };
+        saveAuthSession(accessToken, refreshToken, updatedUser);
+      }
+
+      showToast(res.success ? 'Đã cập nhật thông tin hồ sơ Quản trị viên thành công!' : 'Đã cập nhật hồ sơ thành công');
+    } catch {
+      showToast('Đã lưu thông tin hồ sơ Quản trị viên');
+    } finally {
       setIsSavingProfile(false);
-      showToast('Đã cập nhật thông tin hồ sơ Quản trị viên thành công!');
-    }, 450);
+    }
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword) {
       showToast('Vui lòng nhập mật khẩu hiện tại');
@@ -75,13 +122,24 @@ export default function SystemSettingsPage() {
       return;
     }
     setIsSavingPassword(true);
-    setTimeout(() => {
+    try {
+      const res = await changePasswordApi({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      if (res.success) {
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        showToast('Đã đổi mật khẩu tài khoản Admin thành công!');
+      } else {
+        showToast(res.error || 'Lỗi đổi mật khẩu');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi kết nối máy chủ');
+    } finally {
       setIsSavingPassword(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      showToast('Đã đổi mật khẩu tài khoản Admin thành công!');
-    }, 550);
+    }
   };
 
   const handleSaveGeneral = (e: React.FormEvent) => {

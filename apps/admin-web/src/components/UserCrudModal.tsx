@@ -166,13 +166,6 @@ export default function UserCrudModal({
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <span
-              className={`material-symbols-outlined text-[20px] ${
-                category === 'TEACHER' ? 'text-indigo-600' : 'text-teal-600'
-              }`}
-            >
-              {category === 'TEACHER' ? 'school' : 'family_restroom'}
-            </span>
             <h3 className="text-sm font-bold text-slate-900">
               {initialMode === 'CREATE'
                 ? category === 'TEACHER'
@@ -199,13 +192,7 @@ export default function UserCrudModal({
               {/* Profile Card */}
               <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div
-                    className={`w-11 h-11 rounded-full font-bold text-sm flex items-center justify-center border flex-shrink-0 ${
-                      category === 'TEACHER'
-                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                        : 'bg-teal-50 text-teal-700 border-teal-200'
-                    }`}
-                  >
+                  <div className="w-11 h-11 rounded-full font-bold text-sm flex items-center justify-center border flex-shrink-0 bg-slate-900 text-white border-slate-900">
                     {userData.full_name.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
@@ -233,7 +220,7 @@ export default function UserCrudModal({
 
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="px-2.5 py-1.5 rounded-md border border-slate-200 bg-white hover:border-blue-400 hover:text-blue-600 text-slate-700 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                  className="px-2.5 py-1.5 rounded-md border border-slate-200 bg-white hover:border-slate-900 hover:text-slate-900 text-slate-700 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
                 >
                   <span className="material-symbols-outlined text-[15px]">edit</span>
                   <span>Sửa</span>
@@ -259,7 +246,7 @@ export default function UserCrudModal({
                 <div className="p-3 rounded-lg border border-slate-100 bg-white text-xs space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Vai trò:</span>
-                    <span className="font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                    <span className="font-medium text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                       {teacherData.role === 'TEACHER_HOMEROOM' ? 'Giáo viên Chủ nhiệm' : 'Giáo viên Bộ môn'}
                     </span>
                   </div>
@@ -282,11 +269,11 @@ export default function UserCrudModal({
                       {parentData.students.map((st, i) => (
                         <div
                           key={i}
-                          className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-100 flex items-center gap-1.5"
+                          className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 border border-slate-200 flex items-center gap-1.5"
                         >
-                          <span className="material-symbols-outlined text-[15px] text-blue-600">face</span>
+                          <span className="material-symbols-outlined text-[15px] text-slate-600">face</span>
                           <span className="font-semibold">{st.full_name}</span>
-                          <span className="text-blue-500 font-mono text-[11px]">({st.class_name})</span>
+                          <span className="text-slate-500 font-mono text-[11px]">({st.class_name})</span>
                         </div>
                       ))}
                     </div>
@@ -366,7 +353,7 @@ export default function UserCrudModal({
                     onClick={() => onResetPassword(userData)}
                     className="px-2.5 py-1.5 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-xs flex items-center gap-1 transition-colors cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[15px] text-blue-600">lock_reset</span>
+                    <span className="material-symbols-outlined text-[15px] text-slate-700">lock_reset</span>
                     <span>Reset mật khẩu</span>
                   </button>
 
@@ -409,7 +396,7 @@ export default function UserCrudModal({
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Ví dụ: Nguyễn Văn A"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 shadow-2xs"
                 />
               </div>
 
@@ -424,7 +411,7 @@ export default function UserCrudModal({
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="0912 345 678"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 shadow-2xs"
                   />
                 </div>
                 <div>
@@ -434,7 +421,7 @@ export default function UserCrudModal({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@school.edu.vn"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 shadow-2xs"
                   />
                 </div>
               </div>
@@ -444,7 +431,7 @@ export default function UserCrudModal({
                 <select
                   value={schoolName}
                   onChange={(e) => setSchoolName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-slate-900 shadow-2xs cursor-pointer"
                 >
                   <option value="THCS Lê Quý Đôn">THCS Lê Quý Đôn</option>
                   <option value="THCS Chu Văn An">THCS Chu Văn An</option>
@@ -461,7 +448,7 @@ export default function UserCrudModal({
                       <select
                         value={teacherRole}
                         onChange={(e) => setTeacherRole(e.target.value as any)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-slate-900 shadow-2xs cursor-pointer"
                       >
                         <option value="TEACHER_SUBJECT">GV Bộ môn</option>
                         <option value="TEACHER_HOMEROOM">GV Chủ nhiệm</option>
@@ -472,7 +459,7 @@ export default function UserCrudModal({
                       <select
                         value={subject}
                         onChange={(e) => setSubject(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-slate-900 shadow-2xs cursor-pointer"
                       >
                         <option value="Toán">Toán</option>
                         <option value="Ngữ văn">Ngữ văn</option>
@@ -492,7 +479,7 @@ export default function UserCrudModal({
                       value={assignedClass}
                       onChange={(e) => setAssignedClass(e.target.value)}
                       placeholder={teacherRole === 'TEACHER_HOMEROOM' ? 'Ví dụ: Chủ nhiệm 7A' : 'Ví dụ: Khối 7 & 8'}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-slate-900 shadow-2xs"
                     />
                   </div>
                 </>
@@ -512,7 +499,7 @@ export default function UserCrudModal({
                           className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200/70"
                         >
                           <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-blue-600 text-[16px]">school</span>
+                            <span className="material-symbols-outlined text-slate-600 text-[16px]">school</span>
                             <span className="font-semibold text-slate-800">{st.full_name}</span>
                             <span className="text-slate-400 text-[11px] font-mono">
                               ({st.class_name} • {st.student_code})
@@ -538,7 +525,7 @@ export default function UserCrudModal({
                       value={newStudentName}
                       onChange={(e) => setNewStudentName(e.target.value)}
                       placeholder="Tên học sinh"
-                      className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-xs focus:outline-none focus:border-blue-500"
+                      className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded text-xs focus:outline-none focus:border-slate-900"
                     />
                     <select
                       value={newStudentClass}
@@ -578,11 +565,7 @@ export default function UserCrudModal({
                 )}
                 <button
                   type="submit"
-                  className={`px-4 py-1.5 rounded-lg text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
-                    category === 'TEACHER'
-                      ? 'bg-indigo-600 hover:bg-indigo-700'
-                      : 'bg-teal-600 hover:bg-teal-700'
-                  }`}
+                  className="px-4 py-1.5 rounded-lg text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer bg-slate-900 hover:bg-black"
                 >
                   <span className="material-symbols-outlined text-[16px]">save</span>
                   <span>{initialMode === 'CREATE' ? 'Tạo tài khoản' : 'Lưu thay đổi'}</span>

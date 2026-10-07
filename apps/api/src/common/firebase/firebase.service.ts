@@ -35,14 +35,12 @@ export class FirebaseService implements OnModuleInit {
           });
           this.logger.log(`Initialized Firebase Admin with Service Account for project: ${projectId}`);
         } else {
-          this.appInstance = initializeApp({
-            projectId,
-            storageBucket,
-          });
-          this.logger.log(`Initialized Firebase Admin in project: ${projectId}`);
+          this.logger.log(`No Firebase Service Account credentials configured. Running in high-performance local simulated mode.`);
+          return;
         }
       } catch (error: any) {
         this.logger.warn(`Firebase Admin init notice: ${error?.message || error}. Running in simulated mode.`);
+        return;
       }
     } else {
       this.appInstance = getApps()[0];
