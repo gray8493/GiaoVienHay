@@ -13,8 +13,9 @@ import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
 import { TeacherHomeScreen } from './src/screens/TeacherHomeScreen';
+import { AttendanceScreen } from './src/screens/AttendanceScreen';
 
-type ScreenKey = 'teacher_home' | 'onboarding' | 'login' | 'role' | 'showcase';
+type ScreenKey = 'teacher_home' | 'attendance' | 'onboarding' | 'login' | 'role' | 'showcase';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('teacher_home');
@@ -39,6 +40,20 @@ export default function App() {
               ]}
             >
               ★ TEA-01 (Home)
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, currentScreen === 'attendance' && styles.tabItemActive]}
+            onPress={() => setCurrentScreen('attendance')}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                currentScreen === 'attendance' && styles.tabTextActive,
+              ]}
+            >
+              ★ TEA-02 (Điểm danh)
             </Text>
           </TouchableOpacity>
 
@@ -107,23 +122,35 @@ export default function App() {
           contentContainerStyle={styles.showcaseContainer}
           showsHorizontalScrollIndicator={false}
         >
-          {/* Screen 0: Teacher Home (TEA-01) */}
+          {/* Screen 1: Teacher Home (TEA-01) */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <TeacherHomeScreen
-              onEnterClassroom={() => alert('Chuyển tới TEA-02: Điểm danh')}
+              onEnterClassroom={() => setCurrentScreen('attendance')}
               onOpenAIQuiz={() => alert('Chuyển tới TEA-04: Tạo bài tập AI')}
               onOpenWheel={() => alert('Chuyển tới TEA-05: Mini-Game Vòng quay')}
+              onTabChange={(tab) => {
+                if (tab === 'attendance') setCurrentScreen('attendance');
+              }}
             />
           </View>
 
-          {/* Screen 1 Frame: Onboarding */}
+          {/* Screen 2: Attendance (TEA-02) */}
+          <View style={styles.phoneFrame}>
+            <View style={styles.phoneNotch} />
+            <AttendanceScreen
+              onBack={() => setCurrentScreen('teacher_home')}
+              onSaveSuccess={() => setCurrentScreen('teacher_home')}
+            />
+          </View>
+
+          {/* Screen 3 Frame: Onboarding */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <OnboardingScreen onNavigateToLogin={() => setCurrentScreen('login')} />
           </View>
 
-          {/* Screen 2 Frame: Login */}
+          {/* Screen 4 Frame: Login */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <LoginScreen
@@ -132,7 +159,7 @@ export default function App() {
             />
           </View>
 
-          {/* Screen 3 Frame: Role Selection */}
+          {/* Screen 5 Frame: Role Selection */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <RoleSelectionScreen
@@ -146,9 +173,18 @@ export default function App() {
           <View style={[styles.phoneFrame, !isLargeScreen && styles.phoneFrameMobile]}>
             {currentScreen === 'teacher_home' && (
               <TeacherHomeScreen
-                onEnterClassroom={() => alert('Chuyển tới TEA-02: Điểm danh')}
+                onEnterClassroom={() => setCurrentScreen('attendance')}
                 onOpenAIQuiz={() => alert('Chuyển tới TEA-04: Tạo bài tập AI')}
                 onOpenWheel={() => alert('Chuyển tới TEA-05: Mini-Game Vòng quay')}
+                onTabChange={(tab) => {
+                  if (tab === 'attendance') setCurrentScreen('attendance');
+                }}
+              />
+            )}
+            {currentScreen === 'attendance' && (
+              <AttendanceScreen
+                onBack={() => setCurrentScreen('teacher_home')}
+                onSaveSuccess={() => setCurrentScreen('teacher_home')}
               />
             )}
             {currentScreen === 'onboarding' && (
