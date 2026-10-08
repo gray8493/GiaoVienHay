@@ -1,29 +1,20 @@
 {
   "expo": {
-    "name": "GiaoVienHay",
-    "slug": "giaovienhay-mobile",
+    "name": "Scholaro",
+    "slug": "scholaro-mobile",
     "version": "1.0.0",
+    "entryPoint": "./index.js",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.giaovienhay.app"
+      "bundleIdentifier": "com.scholaro.app"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.giaovienhay.app"
+      "package": "com.scholaro.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro"
     }
   }
 }
