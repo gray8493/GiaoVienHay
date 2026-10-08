@@ -15,6 +15,7 @@ import {
   addStudentToClassApi,
   removeStudentFromClassApi,
 } from '../../lib/api-classes';
+import { formatNumber } from '../../lib/format';
 
 type ViewLevel = 'SCHOOLS' | 'GRADES' | 'CLASSES' | 'STUDENTS';
 
@@ -1124,7 +1125,7 @@ export default function ClassesAndStudentsManagementPage() {
                         </td>
                         <td className="py-3.5 px-6 text-slate-600">
                           <span className="font-medium text-slate-800">{school.grades.length} khối</span> •{' '}
-                          {school.totalClasses} lớp • {school.totalStudents.toLocaleString()} HS
+                          {school.totalClasses} lớp • {formatNumber(school.totalStudents)} HS
                         </td>
                         <td className="py-3.5 px-6">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white shadow-2xs">
@@ -1274,7 +1275,7 @@ export default function ClassesAndStudentsManagementPage() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Hệ thống quản lý {selectedSchool.grades.length} khối học và {selectedSchool.totalStudents.toLocaleString()} học sinh trực thuộc cơ sở.
+                  Hệ thống quản lý {selectedSchool.grades.length} khối học và {formatNumber(selectedSchool.totalStudents)} học sinh trực thuộc cơ sở.
                 </p>
               </div>
               <div className="flex items-center gap-2.5 shrink-0">
@@ -1346,7 +1347,7 @@ export default function ClassesAndStudentsManagementPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-medium text-slate-500">Tổng học sinh</span>
-                  <div className="text-2xl font-bold text-slate-900 mt-1">{selectedSchool.totalStudents.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-slate-900 mt-1">{formatNumber(selectedSchool.totalStudents)}</div>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">school</span>

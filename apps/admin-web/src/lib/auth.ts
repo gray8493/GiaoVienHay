@@ -93,9 +93,9 @@ export function clearAuthSession(): void {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 
-  // Xóa sạch Cookies
-  document.cookie = `${COOKIE_TOKEN_NAME}=; path=/; max-age=0; SameSite=Lax`;
-  document.cookie = `${COOKIE_REFRESH_NAME}=; path=/; max-age=0; SameSite=Lax`;
+  // Xóa sạch Cookies trên mọi biến thể path
+  document.cookie = `${COOKIE_TOKEN_NAME}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+  document.cookie = `${COOKIE_REFRESH_NAME}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
 }
 
 export function isAuthenticated(): boolean {
@@ -243,7 +243,7 @@ function handleMockLogin(
           email: 'admin@giaovienhay.vn',
           role: UserRole.ADMIN,
           school_name: 'Sở GD&ĐT / Hệ thống GiaoVienHay',
-          avatar: '/logo.jpg',
+          avatar: '/logo-admin.jpg',
         };
 
         const mockData: LoginResponseData = {

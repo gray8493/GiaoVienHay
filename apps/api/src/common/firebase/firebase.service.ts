@@ -1,7 +1,6 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getMessaging, Messaging } from 'firebase-admin/messaging';
 
@@ -9,7 +8,6 @@ import { getMessaging, Messaging } from 'firebase-admin/messaging';
 export class FirebaseService implements OnModuleInit {
   private readonly logger = new Logger(FirebaseService.name);
   private appInstance: App | null = null;
-  private firestoreInstance: Firestore | null = null;
   private authInstance: Auth | null = null;
   private messagingInstance: Messaging | null = null;
 
@@ -33,9 +31,9 @@ export class FirebaseService implements OnModuleInit {
             projectId,
             storageBucket,
           });
-          this.logger.log(`Initialized Firebase Admin with Service Account for project: ${projectId}`);
+          this.logger.log(`Initialized Firebase Admin (Auth & Messaging) for project: ${projectId}`);
         } else {
-          this.logger.log(`No Firebase Service Account credentials configured. Running in high-performance local simulated mode.`);
+          this.logger.log(`No Firebase Service Account credentials configured. Running in simulated mode for Auth & FCM.`);
           return;
         }
       } catch (error: any) {
@@ -48,17 +46,12 @@ export class FirebaseService implements OnModuleInit {
 
     try {
       if (this.appInstance) {
-        this.firestoreInstance = getFirestore(this.appInstance);
         this.authInstance = getAuth(this.appInstance);
         this.messagingInstance = getMessaging(this.appInstance);
       }
     } catch (e: any) {
       this.logger.warn(`Firebase services fallback enabled: ${e?.message || e}`);
     }
-  }
-
-  get firestore(): Firestore | null {
-    return this.firestoreInstance;
   }
 
   get auth(): Auth | null {

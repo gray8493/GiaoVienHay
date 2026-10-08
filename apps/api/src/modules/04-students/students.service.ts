@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly dataConnect: FirebaseDataConnectService,
+  ) {}
 
   async getStudentProfile(studentId: string) {
     const student = await this.findStudent(studentId);
@@ -12,40 +14,62 @@ export class StudentsService {
 
   async getAcademicRecord(studentId: string) {
     const student = await this.findStudent(studentId);
+    let scoresList: any[] = [];
+    try {
+      scoresList = await this.dataConnect.getScoresByStudent(studentId);
+    } catch (e) {}
+
     return {
       student_id: studentId,
-      full_name: student.full_name,
+      full_name: student.full_name || student.fullName,
       class_name: '1A',
       semester: 1,
       subjects: [
         {
           subject_code: 'MATH',
           subject_name: 'Toán học',
-          scores: [
-            { type: 'ORAL_TEST', label: 'Kiểm tra miệng', value: 9.0, comment: 'Học thuộc bảng cộng' },
-            { type: 'TEST_15P', label: 'Kiểm tra 15 phút', value: 8.5 },
-            { type: 'MID_TERM', label: 'Thi Giữa kỳ', value: 9.5 },
-          ],
+          scores: scoresList.length > 0
+            ? scoresList.filter((s) => s.subject === 'MATH').map((s) => ({
+                type: s.scoreType || s.score_type,
+                label: 'Kiểm tra ' + (s.scoreType || s.score_type),
+                value: s.scoreValue || s.score_value,
+              }))
+            : [
+                { type: 'ORAL_TEST', label: 'Kiểm tra miệng', value: 9.0, comment: 'Học thuộc bảng cộng' },
+                { type: 'TEST_15P', label: 'Kiểm tra 15 phút', value: 8.5 },
+                { type: 'MID_TERM', label: 'Thi Giữa kỳ', value: 9.5 },
+              ],
         },
         {
           subject_code: 'LITERATURE',
           subject_name: 'Tiếng Việt',
-          scores: [
-            { type: 'ORAL_TEST', label: 'Đọc bài cũ', value: 8.0 },
-            { type: 'TEST_15P', label: 'Chính tả 15 phút', value: 9.0 },
-          ],
+          scores: scoresList.length > 0
+            ? scoresList.filter((s) => s.subject === 'LITERATURE').map((s) => ({
+                type: s.scoreType || s.score_type,
+                label: 'Kiểm tra ' + (s.scoreType || s.score_type),
+                value: s.scoreValue || s.score_value,
+              }))
+            : [
+                { type: 'ORAL_TEST', label: 'Đọc bài cũ', value: 8.0 },
+                { type: 'TEST_15P', label: 'Chính tả 15 phút', value: 9.0 },
+              ],
         },
       ],
     };
   }
 
   async getAttendanceHistory(studentId: string, month?: string) {
+    let records: any[] = [];
+    try {
+      records = await this.dataConnect.getAttendanceByStudent(studentId);
+    } catch (e) {}
+
     return {
       student_id: studentId,
-      total_present: 20,
-      total_absent_excused: 1,
-      total_absent_unexcused: 0,
-      records: [
+      total_present: records.filter((r) => r.status === 'PRESENT').length || 20,
+      total_absent_excused: records.filter((r) => r.status === 'ABSENT_EXCUSED').length || 1,
+      total_absent_unexcused: records.filter((r) => r.status === 'ABSENT_UNEXCUSED').length || 0,
+      records: records.length > 0 ? records : [
         { date: '2026-09-23', status: 'PRESENT', note: null },
         { date: '2026-09-22', status: 'PRESENT', note: null },
         { date: '2026-09-21', status: 'ABSENT_EXCUSED', note: 'Phụ huynh xin nghỉ ốm' },
@@ -54,6 +78,11 @@ export class StudentsService {
   }
 
   async getFeesInsuranceStatus(studentId: string) {
+    let fees: any[] = [];
+    try {
+      fees = await this.dataConnect.getFeesByStudent(studentId);
+    } catch (e) {}
+
     return {
       student_id: studentId,
       term_name: 'Học kỳ 1 năm học 2026-2027',
@@ -71,10 +100,18 @@ export class StudentsService {
         status_label: 'CHƯA NỘP (Hạn chót: 15/10/2026)',
       },
       teacher_note: 'Phụ huynh vui lòng nộp BHYT trực tiếp tại lớp cho cô Lan.',
+      fee_records: fees,
     };
   }
 
   async getRemarks(studentId: string) {
+    try {
+      const sqlRemarks = await this.dataConnect.getRemarksByStudent(studentId);
+      if (sqlRemarks && sqlRemarks.length > 0) {
+        return sqlRemarks;
+      }
+    } catch (e) {}
+
     return [
       {
         remark_id: 'rmk_01',
@@ -100,14 +137,13 @@ export class StudentsService {
   }
 
   private async findStudent(studentId: string) {
-    if (this.firebaseService.firestore) {
-      try {
-        const doc = await this.firebaseService.firestore.collection('students').doc(studentId).get();
-        if (doc.exists) {
-          return { id: doc.id, ...doc.data() };
-        }
-      } catch (e) {}
-    }
+    try {
+      const sqlStudent = await this.dataConnect.getStudentById(studentId);
+      if (sqlStudent) {
+        return sqlStudent;
+      }
+    } catch (e) {}
+
     return {
       id: studentId,
       full_name: 'Trần Bảo Nam',

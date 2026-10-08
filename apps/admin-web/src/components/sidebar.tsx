@@ -11,25 +11,54 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  badge?: {
+    text: string;
+    type: 'number' | 'pro' | 'pill';
+  };
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const sections = [
+  const sections: NavSection[] = [
     {
-      title: 'QUẢN TRỊ',
+      title: 'DASHBOARDS & QUẢN TRỊ',
       items: [
-        { href: '/', label: 'Tổng quan', icon: 'grid_view' },
-        { href: '/users', label: 'Quản lý Người dùng', icon: 'group' },
-        { href: '/classes', label: 'Lớp & Học sinh', icon: 'school' },
+        {
+          href: '/',
+          label: 'Tổng quan',
+          icon: 'home',
+        },
+        {
+          href: '/users',
+          label: 'Quản lý',
+          icon: 'group',
+        },
       ],
     },
     {
-      title: 'HỆ THỐNG',
+      title: 'APPS & HỆ THỐNG',
       items: [
-        { href: '/limits', label: 'Hạn mức & AI', icon: 'tune' },
-        { href: '/logs', label: 'Nhật ký hệ thống', icon: 'history' },
-        { href: '/settings', label: 'Cài đặt', icon: 'settings' },
+        {
+          href: '/limits',
+          label: 'Hạn mức & Cấu hình AI',
+          icon: 'tune',
+        },
+        {
+          href: '/settings',
+          label: 'Cài đặt hệ thống',
+          icon: 'settings',
+        },
       ],
     },
   ];
@@ -42,15 +71,15 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`h-screen flex-shrink-0 bg-[#0B0C0E] border-r border-zinc-800/80 flex flex-col justify-between py-5 select-none z-40 transition-all duration-300 ease-in-out relative ${
-        isCollapsed ? 'w-20 px-3' : 'w-64 px-4'
+      className={`h-screen flex-shrink-0 bg-white border-r border-[#e7e7e8] flex flex-col justify-between py-4 select-none z-40 transition-all duration-300 ease-in-out relative shadow-[0_2px_12px_rgba(0,0,0,0.04)] ${
+        isCollapsed ? 'w-[78px] px-2.5' : 'w-[260px] px-3.5'
       }`}
     >
-      {/* Floating Circular Toggle Button on Border (As in Reference Image) */}
+      {/* Floating Circular Toggle Button ở mép phải (Sneat style) */}
       <button
         type="button"
         onClick={onToggle}
-        className="absolute -right-3 top-8 w-6 h-6 rounded-full bg-white text-slate-800 shadow-md border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer z-50"
+        className="absolute -right-3 top-7 w-6 h-6 rounded-full bg-white text-[#697a8d] shadow-[0_2px_6px_rgba(67,89,113,0.2)] border border-[#e7e7e8] flex items-center justify-center hover:text-[#696cff] hover:scale-110 active:scale-95 transition-all cursor-pointer z-50"
         title={isCollapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
         aria-label="Thu gọn hoặc mở rộng thanh điều hướng"
       >
@@ -59,10 +88,10 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </span>
       </button>
 
-      <div className="space-y-6">
-        {/* 1. BRAND HEADER (LOGO + APP NAME) */}
+      <div className="space-y-5 overflow-y-auto overflow-x-hidden no-scrollbar pr-0.5">
+        {/* 1. BRAND HEADER (LOGO + APP NAME) - Phong cách Sneat */}
         <div
-          className={`flex items-center px-1 ${
+          className={`flex items-center pt-1.5 pb-2 px-1.5 ${
             isCollapsed ? 'justify-center' : 'justify-start'
           }`}
         >
@@ -71,25 +100,25 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             className="flex items-center gap-3 group cursor-pointer overflow-hidden min-w-0"
             title="GiaoVienHay - Quản trị hệ thống"
           >
-            {/* Logo Container with Rounded Corners */}
-            <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0">
+            {/* Sneat Logo Icon wrapper với gradient tím đặc trưng */}
+            <div className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 shadow-[0_3px_10px_rgba(105,108,255,0.2)]">
               <Image
-                src="/logo.jpg"
+                src="/logo-admin.jpg"
                 alt="GiaoVienHay Logo"
-                width={40}
-                height={40}
+                width={48}
+                height={48}
                 priority
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
 
             {!isCollapsed && (
-              <div className="min-w-0">
-                <span className="text-[17px] font-bold text-white tracking-tight block truncate">
+              <div className="min-w-0 flex flex-col justify-center">
+                <span className="text-[19px] font-extrabold text-[#566a7f] tracking-tight block truncate leading-tight group-hover:text-[#696cff] transition-colors">
                   GiaoVienHay
                 </span>
-                <span className="text-[10px] font-bold text-slate-500 tracking-wider uppercase block truncate">
-                  DASHBOARD
+                <span className="text-[10px] font-bold text-[#a1acb8] tracking-widest uppercase block truncate leading-none mt-0.5">
+                  ADMIN PANEL
                 </span>
               </div>
             )}
@@ -97,19 +126,19 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </div>
 
         {/* 2. NAVIGATION SECTIONS */}
-        <div className="space-y-5">
+        <div className="space-y-4">
           {sections.map((section, sIdx) => (
-            <div key={sIdx} className="space-y-1.5">
-              {/* Category Header */}
+            <div key={sIdx} className="space-y-1">
+              {/* Category Header (Sneat Divider with Uppercase muted text) */}
               {!isCollapsed ? (
-                <div className="px-3 flex items-center justify-between text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                  <span>{section.title}</span>
-                  <span className="material-symbols-outlined text-[14px] text-zinc-600">
-                    expand_more
+                <div className="flex items-center gap-2 px-3 pt-2 pb-1.5">
+                  <span className="text-[11px] font-semibold text-[#a1acb8] uppercase tracking-wider whitespace-nowrap">
+                    {section.title}
                   </span>
+                  <div className="flex-1 h-px bg-[#ebebee]" />
                 </div>
               ) : (
-                <div className="h-2" />
+                <div className="w-6 h-px bg-[#ebebee] mx-auto my-2" />
               )}
 
               {/* Items in Section */}
@@ -125,32 +154,35 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       key={item.href}
                       href={item.href}
                       title={isCollapsed ? item.label : undefined}
-                      className={`flex items-center gap-3 rounded-xl text-xs font-medium transition-all duration-150 group ${
-                        isCollapsed ? 'justify-center py-2.5 px-0' : 'px-3.5 py-2.5'
+                      className={`flex items-center gap-3 rounded-lg text-[13.5px] font-medium transition-all duration-150 group relative ${
+                        isCollapsed
+                          ? 'justify-center py-2.5 px-0'
+                          : 'px-3.5 py-2.5'
                       } ${
                         isActive
-                          ? 'border border-emerald-500 bg-emerald-950/20 text-emerald-400 font-semibold'
-                          : 'text-zinc-400 hover:text-white hover:bg-zinc-900/60 border border-transparent'
+                          ? 'bg-[#ebe7ff] text-[#696cff] font-semibold shadow-[0_2px_6px_rgba(105,108,255,0.12)]'
+                          : 'text-[#697a8d] hover:bg-[#f5f5f9] hover:text-[#566a7f]'
                       }`}
                     >
-                      <span
-                        className={`material-symbols-outlined text-[19px] shrink-0 ${
-                          isActive
-                            ? 'text-emerald-400'
-                            : 'text-zinc-400 group-hover:text-white'
-                        }`}
-                      >
-                        {item.icon}
-                      </span>
-
-                      {!isCollapsed && (
-                        <span className="truncate flex-1">{item.label}</span>
+                      {/* Active Indicator bar bên trái (nếu collapsed) */}
+                      {isActive && isCollapsed && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#696cff] rounded-r-md" />
                       )}
 
-                      {/* Optional minimal count indicator for active */}
-                      {isActive && !isCollapsed && item.href === '/classes' && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-900/50 text-emerald-400">
-                          Mới
+                      {/* Hiển thị chỉ icon (khi thu gọn) hoặc chỉ chữ (khi mở rộng) */}
+                      {isCollapsed ? (
+                        <span
+                          className={`material-symbols-outlined text-[20px] shrink-0 transition-colors ${
+                            isActive
+                              ? 'text-[#696cff]'
+                              : 'text-[#697a8d] group-hover:text-[#566a7f]'
+                          }`}
+                        >
+                          {item.icon}
+                        </span>
+                      ) : (
+                        <span className="truncate flex-1 tracking-[-0.01em]">
+                          {item.label}
                         </span>
                       )}
                     </Link>
@@ -162,31 +194,41 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </div>
       </div>
 
-      {/* 3. FOOTER NAVIGATION */}
-      <div className="space-y-1 pt-4 border-t border-zinc-800/80">
+      {/* 3. FOOTER NAVIGATION (Sneat Style) */}
+      <div className="space-y-1 pt-3 border-t border-[#e7e7e8] mt-2">
         <Link
           href="/settings"
           title={isCollapsed ? 'Trợ giúp' : undefined}
-          className={`flex items-center gap-3 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-900/60 transition-colors ${
+          className={`flex items-center rounded-lg text-[13px] font-medium text-[#697a8d] hover:text-[#566a7f] hover:bg-[#f5f5f9] transition-colors group ${
             isCollapsed ? 'justify-center py-2 px-0' : 'px-3.5 py-2'
           }`}
         >
-          <span className="material-symbols-outlined text-[18px] shrink-0">help</span>
-          {!isCollapsed && <span className="truncate">Trợ giúp kỹ thuật</span>}
+          {isCollapsed ? (
+            <span className="material-symbols-outlined text-[19px] shrink-0 text-[#697a8d] group-hover:text-[#566a7f]">
+              help
+            </span>
+          ) : (
+            <span className="truncate">Trợ giúp kỹ thuật</span>
+          )}
         </Link>
 
         <button
           type="button"
           onClick={handleLogout}
-          title={isCollapsed ? 'Đăng xuất' : undefined}
-          className={`w-full flex items-center gap-3 rounded-xl text-xs font-semibold text-rose-400/90 hover:text-rose-300 hover:bg-rose-950/20 transition-colors cursor-pointer ${
-            isCollapsed ? 'justify-center py-2 px-0' : 'px-3.5 py-2'
+          title="Đăng xuất"
+          className={`w-full flex items-center rounded-lg text-[13px] font-medium text-[#ff3e1d] hover:bg-[#ff3e1d]/10 transition-colors cursor-pointer group ${
+            isCollapsed ? 'justify-center py-2 px-0' : 'px-3.5 py-2 gap-3'
           }`}
         >
-          <span className="material-symbols-outlined text-[18px] shrink-0">logout</span>
-          {!isCollapsed && <span className="truncate">Đăng xuất</span>}
+          <span className="material-symbols-outlined text-[19px] shrink-0 text-[#ff3e1d]">
+            logout
+          </span>
+          {!isCollapsed && (
+            <span className="truncate font-semibold">Đăng xuất</span>
+          )}
         </button>
       </div>
     </aside>
   );
 }
+

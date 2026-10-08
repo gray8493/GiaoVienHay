@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loginWithBackend, isAuthenticated, getStoredUser } from '@/lib/auth';
+import { loginWithBackend, isAuthenticated, getStoredUser, clearAuthSession } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,14 +18,19 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Kiểm tra nếu đã đăng nhập trước đó thì điều hướng về Dashboard hoặc trang redirect
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Kiểm tra nếu đã đăng nhập và có tham số redirect chỉ định
   useEffect(() => {
     if (isAuthenticated()) {
       const user = getStoredUser();
       if (user) {
+        setCurrentUser(user);
         const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-        const redirectPath = params?.get('redirect') || '/';
-        router.push(redirectPath);
+        const redirectPath = params?.get('redirect');
+        if (redirectPath) {
+          router.push(redirectPath);
+        }
       }
     }
   }, [router]);
@@ -121,12 +127,12 @@ export default function LoginPage() {
       {/* HEADER: Thương hiệu với Logo to hơn và sắc nét hơn */}
       <header className="w-full max-w-7xl flex items-center justify-between z-10 pt-2 sm:pt-4 px-2 sm:px-6">
         <div className="flex items-center gap-3.5">
-          {/* Ô Logo to hơn (w-14 h-14), sáng màu, bóng đổ 3D mềm mại */}
-          <div className="w-14 h-14 rounded-2xl bg-white/95 shadow-[0_6px_16px_rgba(15,23,42,0.08),inset_0_1.5px_0_rgba(255,255,255,1)] flex items-center justify-center p-2 border-[1.5px] border-white/90 transition-transform hover:scale-105">
+          {/* Logo phủ kín khung, không chừa viền trắng bên ngoài */}
+          <div className="w-14 h-14 overflow-hidden rounded-2xl shadow-[0_6px_16px_rgba(15,23,42,0.08)] transition-transform hover:scale-105">
             <img
-              src="/logo.jpg"
+              src="/logo-admin.jpg"
               alt="GiaoVienHay Logo"
-              className="w-full h-full object-contain rounded-xl"
+              className="block w-full h-full object-cover"
               onError={(e) => {
                 const target = e.target as HTMLElement;
                 target.style.display = 'none';
@@ -172,6 +178,34 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="leading-relaxed flex-1">{successMessage}</div>
+          </div>
+        )}
+
+        {/* Banner trạng thái phiên nếu đang đăng nhập */}
+        {currentUser && (
+          <div className="w-full mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-2xs">
+            <div className="leading-snug">
+              <span>Đang có phiên: <strong>{currentUser.full_name}</strong></span>
+              <div className="text-[11px] text-blue-700">{currentUser.phone || currentUser.email} ({currentUser.role})</div>
+            </div>
+            <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+              <Link
+                href="/"
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-[11px] transition shadow-xs"
+              >
+                Vào Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  clearAuthSession();
+                  setCurrentUser(null);
+                }}
+                className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg font-medium text-[11px] transition"
+              >
+                Đăng xuất
+              </button>
+            </div>
           </div>
         )}
 
@@ -292,6 +326,7 @@ export default function LoginPage() {
               <span>Đăng nhập</span>
             )}
           </button>
+
         </form>
       </section>
 

@@ -1,14 +1,18 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
+import { APP_INTERCEPTOR, APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { CacheModule } from '@nestjs/cache-manager';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 import { FirebaseModule } from './common/firebase/firebase.module';
 import { GeminiModule } from './common/gemini/gemini.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { TimingInterceptor } from './common/interceptors/timing.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
+
+import { AppController } from './app.controller';
 
 // 12 Phân hệ nghiệp vụ chuẩn + Health Check
 import { HealthModule } from './modules/health/health.module';
@@ -39,6 +43,20 @@ import { AdminModule } from './modules/12-admin/admin.module';
     // Asynchronous Event Emitter Module (Xử lý tác vụ nặng bất đồng bộ ngầm)
     EventEmitterModule.forRoot(),
 
+    // Rate Limiting Throttler Module (Giới hạn request theo User / IP)
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 10000, // 10 giây (10.000 ms)
+        limit: 30,  // Tối đa 30 requests / 10s (chống burst attack)
+      },
+      {
+        name: 'medium',
+        ttl: 60000, // 1 phút (60.000 ms)
+        limit: 100, // Tối đa 100 requests / 1 phút cho mỗi User / Client IP
+      },
+    ]),
+
     FirebaseModule,
     GeminiModule,
 
@@ -57,8 +75,12 @@ import { AdminModule } from './modules/12-admin/admin.module';
     NotificationsModule,
     AdminModule,
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: UserThrottlerGuard, // Tự động kích hoạt Rate Limit toàn cục cho mọi API
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: TimingInterceptor, // Đo thời gian xử lý và gắn header X-Response-Time

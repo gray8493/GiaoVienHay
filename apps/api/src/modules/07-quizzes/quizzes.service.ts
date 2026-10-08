@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { GeminiService } from '../../common/gemini/gemini.service';
 import { AttendanceService } from '../05-attendance/attendance.service';
 import { GenerateQuizAiDto, InClassScoreInputDto } from './dto/quizzes.dto';
@@ -10,7 +10,7 @@ export class QuizzesService {
   private readonly logger = new Logger(QuizzesService.name);
 
   constructor(
-    private readonly firebaseService: FirebaseService,
+    private readonly dataConnect: FirebaseDataConnectService,
     private readonly geminiService: GeminiService,
     private readonly attendanceService: AttendanceService,
   ) {}
@@ -23,12 +23,10 @@ export class QuizzesService {
     const numQuestions = dto.num_questions ? Number(dto.num_questions) : 5;
     const difficulty = dto.difficulty_level || DifficultyLevel.MEDIUM;
 
-    // Giả lập đọc nội dung file giáo án hoặc text
     const lessonContent = file
       ? `Nội dung từ giáo án: ${file.originalname}`
       : `Bài giảng môn ${dto.subject_code} lớp ${dto.class_id}: ${dto.title}`;
 
-    // Gọi Gemini AI sinh câu hỏi trắc nghiệm
     const questions = await this.geminiService.generateQuestionsFromLesson(
       lessonContent,
       dto.subject_code,
@@ -38,10 +36,15 @@ export class QuizzesService {
 
     const quizId = 'qz_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
     const quizData = {
+      id: quizId,
       quiz_id: quizId,
       title: dto.title,
       subject_code: dto.subject_code,
+      subject: dto.subject_code,
       class_id: dto.class_id,
+      classId: dto.class_id,
+      teacher_id: teacherId,
+      teacherId: teacherId,
       difficulty_level: difficulty,
       total_questions: questions.length,
       source_doc_url: file ? `https://storage.googleapis.com/giaovienhay-storage/${file.originalname}` : null,
@@ -58,37 +61,21 @@ export class QuizzesService {
       created_at: new Date().toISOString(),
     };
 
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('quizzes').doc(quizId).set(quizData);
-      } catch (e) {}
-    }
+    // Lưu vào SQL Data Connect
+    await this.dataConnect.createQuiz(quizData);
 
     return quizData;
   }
 
   /**
-   * Xóa mềm bài Quiz (is_deleted = 1/true)
+   * Xóa mềm bài Quiz
    */
   async deleteQuiz(quizId: string) {
-    const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('quizzes').doc(quizId).set(
-          {
-            is_deleted: true,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
-
     return {
       message: 'Xóa mềm bài Quiz thành công',
       quiz_id: quizId,
       is_deleted: true,
-      deleted_at: now,
+      deleted_at: new Date().toISOString(),
     };
   }
 
@@ -98,7 +85,7 @@ export class QuizzesService {
         quiz_id: 'qz_88219',
         title: 'Kiểm tra bài 12: Phép cộng phân số',
         subject_code: 'MATH',
-        class_id: 'cls_1a_2026',
+        class_id: classId || 'cls_1a_2026',
         total_questions: 5,
         difficulty_level: DifficultyLevel.MEDIUM,
         created_at: '2026-09-29T08:00:00.000Z',
@@ -107,14 +94,18 @@ export class QuizzesService {
   }
 
   async getQuizDetail(quizId: string) {
-    if (this.firebaseService.firestore) {
-      try {
-        const doc = await this.firebaseService.firestore.collection('quizzes').doc(quizId).get();
-        if (doc.exists) {
-          return doc.data();
-        }
-      } catch (e) {}
-    }
+    try {
+      const sqlQuiz = await this.dataConnect.getQuizById(quizId);
+      if (sqlQuiz) {
+        return {
+          quiz_id: sqlQuiz.id,
+          title: sqlQuiz.title,
+          subject_code: sqlQuiz.subject,
+          class_id: sqlQuiz.classId,
+          questions: typeof sqlQuiz.questionsJson === 'string' ? JSON.parse(sqlQuiz.questionsJson) : [],
+        };
+      }
+    } catch (e) {}
 
     return {
       quiz_id: quizId,
@@ -141,11 +132,8 @@ export class QuizzesService {
   }
 
   async getWheelCandidates(quizId: string) {
-    // 1. Lấy thông tin lớp của bài quiz
     const quiz = await this.getQuizDetail(quizId);
     const classId = (quiz as any).class_id || 'cls_1a_2026';
-
-    // 2. Lấy danh sách học sinh CÓ MẶT HÔM NAY từ phân hệ Attendance
     const todayAttendance = await this.attendanceService.getTodayPresentStudents(classId);
 
     return {
@@ -157,7 +145,7 @@ export class QuizzesService {
         name: s.full_name,
         student_code: s.student_code,
       })),
-      skip_policy: 'AUTO_SPIN_NEXT', // Nút Bỏ qua - Skip cho phép quay tiếp bạn khác
+      skip_policy: 'AUTO_SPIN_NEXT',
     };
   }
 
@@ -169,47 +157,22 @@ export class QuizzesService {
     const classId = (quiz as any).class_id || 'cls_1a_2026';
     const subjectCode = (quiz as any).subject_code || 'MATH';
 
-    // 1. Lưu vào /quiz_results
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('quiz_results').doc(resultId).set({
-          id: resultId,
-          quiz_id: quizId,
-          student_id: dto.student_id,
-          score: dto.score,
-          mode_played: dto.mode_played || GameMode.STANDARD_QUIZ,
-          teacher_note: dto.teacher_note || null,
-          graded_by: teacherId,
-          created_at: now,
-        });
-      } catch (e) {}
-    }
-
-    // 2. Tự động đồng bộ vào cột điểm miệng trong Sổ điểm môn học (/scores)
     let synced = false;
     if (dto.sync_to_scores_table !== false) {
-      if (this.firebaseService.firestore) {
-        try {
-          const scoreDocId = `score_${classId}_${subjectCode}_${dto.student_id}_ORAL_TEST`;
-          await this.firebaseService.firestore.collection('scores').doc(scoreDocId).set(
-            {
-              class_id: classId,
-              subject_code: subjectCode,
-              student_id: dto.student_id,
-              semester: 1,
-              score_type: GradeType.ORAL_TEST,
-              score_value: dto.score,
-              teacher_comment: dto.teacher_note || 'Điểm kiểm tra bài cũ',
-              is_published: true,
-              updated_at: now,
-            },
-            { merge: true },
-          );
-          synced = true;
-        } catch (e) {}
-      } else {
-        synced = true;
-      }
+      const scoreDocId = `score_${classId}_${subjectCode}_${dto.student_id}_ORAL_TEST`;
+      const scoreRecord = {
+        id: scoreDocId,
+        studentId: dto.student_id,
+        classId: classId,
+        subject: subjectCode,
+        scoreType: GradeType.ORAL_TEST,
+        scoreValue: dto.score,
+        term: 1,
+        academicYear: '2026-2027',
+      };
+
+      await this.dataConnect.recordScore(scoreRecord);
+      synced = true;
     }
 
     return {

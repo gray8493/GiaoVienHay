@@ -29,6 +29,8 @@ export class AdminCreateUserDto {
   school_name?: string;
 }
 
+export class UpdateAdminUserDto extends PartialType(AdminCreateUserDto) {}
+
 export class UpdateUserStatusDto {
   @ApiProperty({ example: false, description: 'true: Kích hoạt, false: Khóa tài khoản' })
   @IsBoolean()
@@ -38,6 +40,22 @@ export class UpdateUserStatusDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+export class UpdateTeacherAiQuotaDto {
+  @ApiProperty({ example: 35, description: 'Hạn mức lượt gọi Gemini AI hàng ngày của giáo viên' })
+  @IsInt()
+  ai_daily_quota: number;
+
+  @ApiPropertyOptional({ example: 'AUTO', description: 'Gói mô hình AI: FLASH | PRO | AUTO' })
+  @IsOptional()
+  @IsString()
+  ai_model_tier?: string;
+
+  @ApiPropertyOptional({ example: false, description: 'Có reset số lượt đã dùng hôm nay về 0 không' })
+  @IsOptional()
+  @IsBoolean()
+  reset_used?: boolean;
 }
 
 export class QueryAdminUsersDto {

@@ -9,6 +9,7 @@ import { UserRole } from '@giaovienhay/shared-types';
 import {
   TeacherUser,
   ParentUser,
+  INITIAL_TEACHERS,
 } from './users-data';
 
 export interface QueryUsersParams {
@@ -43,7 +44,7 @@ export interface AdminUsersApiResponse {
 }
 
 /**
- * 1. Lấy danh sách Giáo viên (kết nối API Backend + Smart Fallback)
+ * 1. Lấy danh sách Giáo viên (kết nối API Backend + Fallback 5 giáo viên mẫu)
  */
 export async function getTeachersList(params?: {
   keyword?: string;
@@ -61,7 +62,7 @@ export async function getTeachersList(params?: {
     const queryStr = searchParams.toString() ? `?${searchParams.toString()}` : '';
     const res = await apiFetch<AdminUsersApiResponse>(`/admin/users${queryStr}`);
 
-    if (res.success && res.data && res.data.items) {
+    if (res.success && res.data && res.data.items && res.data.items.length > 0) {
       // Lọc các users có vai trò là Giáo viên
       const apiTeachers = res.data.items.filter(
         (u) =>
@@ -71,37 +72,72 @@ export async function getTeachersList(params?: {
           u.role === 'TEACHER_SUBJECT'
       );
 
-      const mappedTeachers: TeacherUser[] = apiTeachers.map((u, idx) => ({
-        id: u.id,
-        code: u.code || `GV-${String(8800 + idx)}`,
-        full_name: u.full_name,
-        phone: u.phone,
-        email: u.email || `${u.phone}@giaovienhay.vn`,
-        role: (u.role === UserRole.TEACHER_HOMEROOM ? 'TEACHER_HOMEROOM' : 'TEACHER_SUBJECT') as
-          | 'TEACHER_HOMEROOM'
-          | 'TEACHER_SUBJECT',
-        school_name: u.school_name || 'Chưa phân trường',
-        subject: u.assigned_info || 'Bộ môn',
-        assigned_class: u.assigned_info || (u.role === 'TEACHER_HOMEROOM' ? 'Chủ nhiệm' : 'Bộ môn'),
-        is_active: u.is_active,
-        status_reason: u.status_reason,
-        created_at: u.created_at || new Date().toISOString(),
-      }));
+      if (apiTeachers.length > 0) {
+        const mappedTeachers: TeacherUser[] = apiTeachers.map((u, idx) => ({
+          id: u.id,
+          code: u.code || `GV-${String(8800 + idx)}`,
+          full_name: u.full_name,
+          phone: u.phone,
+          email: u.email || `${u.phone}@giaovienhay.vn`,
+          role: (u.role === UserRole.TEACHER_HOMEROOM ? 'TEACHER_HOMEROOM' : 'TEACHER_SUBJECT') as
+            | 'TEACHER_HOMEROOM'
+            | 'TEACHER_SUBJECT',
+          school_name: u.school_name || 'Chưa phân trường',
+          subject: u.assigned_info || 'Bộ môn',
+          assigned_class: u.assigned_info || (u.role === 'TEACHER_HOMEROOM' ? 'Chủ nhiệm' : 'Bộ môn'),
+          is_active: u.is_active,
+          status_reason: u.status_reason,
+          created_at: u.created_at || new Date().toISOString(),
+          ai_daily_quota: (u as any).ai_daily_quota ?? 25,
+          ai_used_today: (u as any).ai_used_today ?? 0,
+          ai_model_tier: (u as any).ai_model_tier ?? 'AUTO',
+        }));
 
-      return {
-        teachers: mappedTeachers,
-        total: mappedTeachers.length,
-        isMock: false,
-      };
+        return {
+          teachers: mappedTeachers,
+          total: mappedTeachers.length,
+          isMock: false,
+        };
+      }
     }
   } catch (err) {
     console.warn('[UsersService] Không kết nối được Backend /admin/users:', err);
   }
 
+  // Fallback: Sử dụng danh sách giáo viên mẫu từ INITIAL_TEACHERS / LocalStorage
+  let localTeachers = INITIAL_TEACHERS;
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('gvh_teachers_list');
+      if (stored) {
+        localTeachers = JSON.parse(stored);
+      } else {
+        localStorage.setItem('gvh_teachers_list', JSON.stringify(INITIAL_TEACHERS));
+      }
+    } catch {
+      localTeachers = INITIAL_TEACHERS;
+    }
+  }
+
+  let filtered = [...localTeachers];
+  if (params?.keyword) {
+    const q = params.keyword.toLowerCase();
+    filtered = filtered.filter(
+      (t) =>
+        t.full_name.toLowerCase().includes(q) ||
+        t.phone.includes(q) ||
+        t.email.toLowerCase().includes(q) ||
+        t.code.toLowerCase().includes(q)
+    );
+  }
+  if (params?.role && params.role !== 'ALL') {
+    filtered = filtered.filter((t) => t.role === params.role);
+  }
+
   return {
-    teachers: [],
-    total: 0,
-    isMock: false,
+    teachers: filtered,
+    total: filtered.length,
+    isMock: true,
   };
 }
 
@@ -168,6 +204,7 @@ export async function createAdminUser(payload: {
   school_name?: string;
   subject?: string;
   assigned_class?: string;
+  ai_daily_quota?: number;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   const cleanPhone = payload.phone.replace(/\s+/g, '').trim();
 
@@ -179,7 +216,8 @@ export async function createAdminUser(payload: {
         phone: cleanPhone,
         email: payload.email?.trim() || undefined,
         role: payload.role,
-        school_name: payload.school_name?.trim() || 'Trường THCS Lê Quý Đôn',
+        school_name: payload.school_name?.trim() || 'Trường Tiểu Học Chu Văn An',
+        ai_daily_quota: payload.ai_daily_quota || 25,
       }),
     });
 
@@ -197,6 +235,8 @@ export async function createAdminUser(payload: {
         phone: cleanPhone,
         role: payload.role,
         is_active: true,
+        ai_daily_quota: payload.ai_daily_quota || 25,
+        ai_used_today: 0,
         created_at: new Date().toISOString(),
       },
     };
@@ -234,4 +274,54 @@ export async function updateUserStatus(
       message: isActive ? 'Đã mở khóa tài khoản (Mock)' : 'Đã khóa tài khoản (Mock)',
     };
   }
+}
+
+/**
+ * 5. Cập nhật Hạn mức sử dụng AI cho từng Giáo viên
+ */
+export async function updateTeacherAiQuota(
+  teacherId: string,
+  payload: {
+    ai_daily_quota: number;
+    ai_model_tier?: 'FLASH' | 'PRO' | 'AUTO';
+    reset_used?: boolean;
+  }
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch(`/admin/users/${teacherId}/ai-quota`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+
+    if (res.success) {
+      return {
+        success: true,
+        message: 'Cập nhật hạn mức AI giáo viên thành công',
+      };
+    }
+  } catch (err) {
+    console.warn('[UsersService] Không kết nối được endpoint AI Quota:', err);
+  }
+
+  // Cập nhật LocalStorage đồng bộ
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('gvh_teachers_list');
+      if (stored) {
+        const list: TeacherUser[] = JSON.parse(stored);
+        const idx = list.findIndex((t) => t.id === teacherId);
+        if (idx !== -1) {
+          list[idx].ai_daily_quota = payload.ai_daily_quota;
+          if (payload.ai_model_tier) list[idx].ai_model_tier = payload.ai_model_tier;
+          if (payload.reset_used) list[idx].ai_used_today = 0;
+          localStorage.setItem('gvh_teachers_list', JSON.stringify(list));
+        }
+      }
+    } catch (e) {}
+  }
+
+  return {
+    success: true,
+    message: 'Đã cập nhật hạn mức AI của giáo viên thành công',
+  };
 }

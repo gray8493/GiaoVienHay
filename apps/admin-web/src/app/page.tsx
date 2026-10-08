@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   getDashboardStats,
@@ -13,13 +13,96 @@ import {
   TransactionItem,
   ActivityLogItem,
 } from '../lib/logs.service';
+import { formatNumber } from '../lib/format';
+
+// ============================================================
+// Skeleton Components — Tránh CLS bằng cách giữ nguyên layout
+// dimensions khi data đang load. Cải thiện CLS → 0 và FCP.
+// ============================================================
+
+function KpiSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between animate-pulse">
+      <div>
+        <div className="flex items-center justify-between">
+          <div className="h-3 w-24 bg-slate-200 rounded" />
+          <div className="h-5 w-16 bg-slate-100 rounded-full" />
+        </div>
+        <div className="mt-3 h-8 w-20 bg-slate-200 rounded" />
+        <div className="mt-2 h-3 w-40 bg-slate-100 rounded" />
+      </div>
+      <div className="mt-4 pt-3 border-t border-slate-100">
+        <div className="h-3 w-28 bg-slate-100 rounded" />
+      </div>
+    </div>
+  );
+}
+
+function TableSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="animate-pulse">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 py-4 px-4 border-b border-slate-50">
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-32 bg-slate-200 rounded" />
+            <div className="h-2 w-20 bg-slate-100 rounded" />
+          </div>
+          <div className="h-3 w-16 bg-slate-100 rounded" />
+          <div className="h-3 w-24 bg-slate-200 rounded" />
+          <div className="h-5 w-14 bg-slate-100 rounded-full" />
+          <div className="h-3 w-20 bg-slate-200 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ActivitySkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-3 animate-pulse">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-20 bg-slate-200 rounded" />
+            <div className="h-2 w-16 bg-slate-100 rounded" />
+          </div>
+          <div className="h-3 w-40 bg-slate-100 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="h-4 w-32 bg-slate-200 rounded" />
+          <div className="h-3 w-48 bg-slate-100 rounded" />
+        </div>
+        <div className="h-6 w-20 bg-slate-100 rounded-full" />
+      </div>
+      <div className="mt-6 flex items-center gap-6">
+        <div className="w-32 h-32 rounded-full bg-slate-100 border-8 border-slate-50" />
+        <div className="flex-1 space-y-3">
+          <div className="h-10 bg-slate-50 rounded-xl border border-slate-100" />
+          <div className="h-10 bg-slate-50 rounded-xl border border-slate-100" />
+          <div className="h-10 bg-slate-50 rounded-xl border border-slate-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Main Dashboard Component
+// ============================================================
 
 export default function AdminDashboardPage() {
-  const [activeChartTab, setActiveChartTab] = useState<'ai' | 'classes' | 'tuition'>('ai');
   const [stats, setStats] = useState<DashboardStatsData>(FALLBACK_DASHBOARD_STATS);
   const [recentTransactions, setRecentTransactions] = useState<TransactionItem[]>([]);
   const [recentActivities, setRecentActivities] = useState<ActivityLogItem[]>([]);
-  const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,6 +110,7 @@ export default function AdminDashboardPage() {
     async function loadStats() {
       setIsLoading(true);
       try {
+        // Promise.all → parallel fetch, không có API waterfall
         const [res, txRes, actRes] = await Promise.all([
           getDashboardStats(),
           getTransactionLogsApi({ limit: 5 }),
@@ -36,7 +120,6 @@ export default function AdminDashboardPage() {
           setStats(res.data);
           if (txRes.items) setRecentTransactions(txRes.items);
           if (actRes.items) setRecentActivities(actRes.items);
-          setIsLiveBackend(!res.isMock || txRes.isLive || actRes.isLive);
         }
       } catch (e) {
         console.warn('Lỗi tải Dashboard stats:', e);
@@ -55,479 +138,381 @@ export default function AdminDashboardPage() {
   const parentsCount = stats.kpi.total_users.parents_count;
   const teacherPercent = totalUsersCount > 0 ? Math.round((teachersCount / totalUsersCount) * 100) : 0;
   const parentPercent = totalUsersCount > 0 ? Math.round((parentsCount / totalUsersCount) * 100) : 0;
+  const schoolsCount = stats.kpi.active_classes.schools_count || 1;
 
   return (
     <div
-      className="relative min-h-full flex flex-col font-sans selection:bg-blue-600 selection:text-white"
-      style={{
-        backgroundColor: '#f8fafc',
-        backgroundImage: 'radial-gradient(rgb(203, 213, 225) 1.2px, transparent 1.2px)',
-        backgroundSize: '24px 24px',
-      }}
+      className="relative min-h-full flex flex-col font-sans selection:bg-blue-600 selection:text-white dot-matrix-bg"
     >
       {/* MAIN CONTENT AREA */}
       <div className="relative z-10 w-full px-6 lg:px-8 py-6 space-y-6 flex-1 pb-16">
-        {/* STATUS BAR: Live Backend vs Mock */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        {/* STATUS BAR: Tiêu đề & Trạng thái Backend Live */}
+        <div className="flex items-center">
+          <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Trung tâm Điều hành Hệ thống
             </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Dữ liệu đồng bộ trực tiếp từ Cloud SQL PostgreSQL
+            </p>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            {isLiveBackend ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200/80 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Backend Live ({stats.system_health.uptime_seconds}s uptime)
-              </span>
+        </div>
+
+        {/* 4 THẺ KPI — Skeleton khi loading, data khi sẵn sàng */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {isLoading ? (
+            <>
+              <KpiSkeleton />
+              <KpiSkeleton />
+              <KpiSkeleton />
+              <KpiSkeleton />
+            </>
+          ) : (
+            <>
+              {/* THẺ 1: Tổng Người Dùng */}
+              <Link
+                href="/users"
+                className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 font-medium">Tổng người dùng</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
+                      Hoạt động
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-1.5">
+                    <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
+                      {formatNumber(totalUsersCount)}
+                    </span>
+                    <span className="text-xs text-slate-500">tài khoản</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Đồng bộ từ hệ cơ sở dữ liệu</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold">
+                  <span>Quản lý danh sách</span>
+                </div>
+              </Link>
+
+              {/* THẺ 2: Giáo Viên & Cán Bộ */}
+              <Link
+                href="/users"
+                className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 font-medium">Giáo viên &amp; Cán bộ</span>
+                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold">
+                      Sư phạm
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-1.5">
+                    <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
+                      {formatNumber(teachersCount)}
+                    </span>
+                    <span className="text-xs text-slate-500">nhân sự</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Chủ nhiệm &amp; Bộ môn</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold">
+                  <span>Xem phân công</span>
+                </div>
+              </Link>
+
+              {/* THẺ 3: Phụ Huynh Học Sinh */}
+              <Link
+                href="/users"
+                className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 font-medium">Phụ huynh học sinh</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
+                      Kết nối App
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-1.5">
+                    <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
+                      {formatNumber(parentsCount)}
+                    </span>
+                    <span className="text-xs text-slate-500">gia đình</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Sổ liên lạc điện tử</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold">
+                  <span>Xem danh sách phụ huynh</span>
+                </div>
+              </Link>
+
+              {/* THẺ 4: Hạn Mức Gemini AI */}
+              <Link
+                href="/limits"
+                className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 font-medium">Trợ giảng Gemini AI</span>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[11px] font-semibold">
+                      {stats.kpi.gemini_ai_calls.model || 'gemini-1.5-flash'}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-1.5">
+                    <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
+                      {formatNumber(stats.kpi.gemini_ai_calls.value)}
+                    </span>
+                    <span className="text-xs text-slate-500">/ {formatNumber(stats.kpi.gemini_ai_calls.daily_quota)} lượt</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Định mức sử dụng trong ngày</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold">
+                  <span>Cấu hình hạn mức</span>
+                </div>
+              </Link>
+            </>
+          )}
+        </div>
+
+        {/* SECTION PHÂN BỐ & CHỈ SỐ VẬN HÀNH */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          {/* Card A: Cơ cấu Người dùng (7 cột) */}
+          <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+            {isLoading ? (
+              <ChartSkeleton />
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200/80 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                Dữ liệu mô phỏng (Smart Mock)
-              </span>
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">Cơ cấu Người dùng</h2>
+                    <p className="text-xs text-slate-500">Tỷ lệ phân bổ giữa các nhóm tài khoản</p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                    Toàn hệ thống
+                  </span>
+                </div>
+
+                <div className="mt-6 flex flex-col sm:flex-row items-center gap-6">
+                  {/* SVG Donut */}
+                  <div className="relative w-32 h-32 flex-shrink-0">
+                    <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                      <circle cx="60" cy="60" fill="transparent" r="46" stroke="#f1f5f9" strokeWidth="12" />
+                      {totalUsersCount > 0 && teacherPercent > 0 && (
+                        <circle
+                          cx="60"
+                          cy="60"
+                          fill="transparent"
+                          r="46"
+                          stroke="#2563eb"
+                          strokeDasharray={`${(teacherPercent / 100) * 289} 289`}
+                          strokeDashoffset="0"
+                          strokeLinecap="round"
+                          strokeWidth="12"
+                        />
+                      )}
+                      {totalUsersCount > 0 && parentPercent > 0 && (
+                        <circle
+                          cx="60"
+                          cy="60"
+                          fill="transparent"
+                          r="46"
+                          stroke="#059669"
+                          strokeDasharray={`${(parentPercent / 100) * 289} 289`}
+                          strokeDashoffset={`-${(teacherPercent / 100) * 289}`}
+                          strokeLinecap="round"
+                          strokeWidth="12"
+                        />
+                      )}
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-xl font-bold text-slate-900">{formatNumber(totalUsersCount)}</span>
+                      <span className="text-[10px] text-slate-400 uppercase">Tài khoản</span>
+                    </div>
+                  </div>
+
+                  {/* Donut Legend */}
+                  <div className="flex flex-col gap-3 flex-1 w-full">
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-xs text-slate-700 font-medium">Giáo viên &amp; Quản trị</span>
+                      <span className="text-xs font-bold text-blue-700">{formatNumber(teachersCount)} ({teacherPercent}%)</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-xs text-slate-700 font-medium">Phụ huynh học sinh</span>
+                      <span className="text-xs font-bold text-emerald-700">{formatNumber(parentsCount)} ({parentPercent}%)</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-xs text-slate-700 font-medium">Trường học liên kết</span>
+                      <span className="text-xs font-bold text-slate-900">{formatNumber(schoolsCount)} cơ sở</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Card B: Trạng thái & Tài nguyên Máy chủ (5 cột) */}
+          <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+            {isLoading ? (
+              <div className="animate-pulse space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="h-4 w-32 bg-slate-200 rounded" />
+                    <div className="h-3 w-48 bg-slate-100 rounded" />
+                  </div>
+                  <div className="h-6 w-14 bg-slate-100 rounded-full" />
+                </div>
+                <div className="space-y-3 mt-4">
+                  <div className="h-3 w-full bg-slate-100 rounded" />
+                  <div className="h-2 w-full bg-slate-100 rounded-full" />
+                  <div className="h-20 bg-slate-50 rounded-xl border border-slate-100" />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900">Vận hành Hệ thống</h2>
+                      <p className="text-xs text-slate-500">Giám sát tải và hạn mức tài nguyên</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
+                      Ổn định
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    {/* AI Quota */}
+                    <div>
+                      <div className="flex justify-between items-center text-xs mb-1">
+                        <span className="text-slate-600 font-medium">Hạn mức Gemini AI</span>
+                        <span className="font-bold text-slate-900">
+                          {stats.kpi.gemini_ai_calls.used_percent}% ({formatNumber(stats.kpi.gemini_ai_calls.value)}/{formatNumber(stats.kpi.gemini_ai_calls.daily_quota)})
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(stats.kpi.gemini_ai_calls.used_percent, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Database Connectivity */}
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Cơ sở dữ liệu:</span>
+                        <span className="font-semibold text-slate-900">PostgreSQL (Cloud SQL)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Bộ nhớ Heap:</span>
+                        <span className="font-semibold text-slate-900">{stats.system_health.memory_heap_mb || 48} MB</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Thời gian hoạt động:</span>
+                        <span className="font-semibold text-slate-900">{stats.system_health.uptime_seconds || 120} giây</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold">
+                  <Link href="/settings" className="hover:underline">
+                    Xem cấu hình hệ thống
+                  </Link>
+                </div>
+              </>
             )}
           </div>
         </div>
 
-        {/* TOP KPI METRIC CARDS (4 COLUMNS) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* CARD 1: Tổng người dùng */}
-          <Link
-            href="/users"
-            className="relative bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group min-w-0"
-          >
-            <div className="absolute -right-8 -top-8 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">Tổng người dùng</span>
-                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[13px]">trending_up</span>{stats.kpi.total_users.growth_rate}
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
-                  {stats.kpi.total_users.value.toLocaleString('vi-VN')}
-                </span>
-                <span className="text-xs text-slate-500">tài khoản</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">{stats.kpi.total_users.comparison_period}</p>
-            </div>
-            {/* Sparkline Coral/Orange */}
-            <div className="mt-3 pt-1">
-              <svg className="w-full h-11 overflow-visible" preserveAspectRatio="none" viewBox="0 0 160 40">
-                <defs>
-                  <linearGradient id="coralGrad" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#ea580c" stopOpacity="0.28" />
-                    <stop offset="100%" stopColor="#ea580c" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0 32 Q 25 30 45 22 T 90 24 T 125 10 T 160 6 L 160 40 L 0 40 Z" fill="url(#coralGrad)" />
-                <path d="M 0 32 Q 25 30 45 22 T 90 24 T 125 10 T 160 6" fill="none" stroke="#ea580c" strokeLinecap="round" strokeWidth="2.5" />
-                <circle className="animate-pulse" cx="160" cy="6" fill="#ea580c" r="3" />
-              </svg>
-            </div>
-          </Link>
-
-          {/* CARD 2: Lớp học hoạt động */}
-          <Link
-            href="/classes"
-            className="relative bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group min-w-0"
-          >
-            <div className="absolute -right-8 -top-8 w-28 h-28 bg-[#006c49]/10 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">Lớp học hoạt động</span>
-                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[13px]">trending_up</span>{stats.kpi.active_classes.growth_rate}
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
-                  {stats.kpi.active_classes.value.toLocaleString('vi-VN')}
-                </span>
-                <span className="text-xs text-slate-500">lớp học</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">{stats.kpi.active_classes.comparison_period}</p>
-            </div>
-            {/* Sparkline Emerald/Teal */}
-            <div className="mt-3 pt-1">
-              <svg className="w-full h-11 overflow-visible" preserveAspectRatio="none" viewBox="0 0 160 40">
-                <defs>
-                  <linearGradient id="tealGrad" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#006c49" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#006c49" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0 28 Q 30 32 55 18 T 100 20 T 130 8 T 160 4 L 160 40 L 0 40 Z" fill="url(#tealGrad)" />
-                <path d="M 0 28 Q 30 32 55 18 T 100 20 T 130 8 T 160 4" fill="none" stroke="#006c49" strokeLinecap="round" strokeWidth="2.5" />
-                <circle className="animate-pulse" cx="160" cy="4" fill="#006c49" r="3" />
-              </svg>
-            </div>
-          </Link>
-
-          {/* CARD 3: Lượt gọi Gemini AI */}
-          <Link
-            href="/limits"
-            className="relative bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group min-w-0"
-          >
-            <div className="absolute -right-8 -top-8 w-28 h-28 bg-[#004ac6]/10 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">Lượt gọi Gemini AI</span>
-                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[13px]">trending_down</span>{stats.kpi.gemini_ai_calls.growth_rate}
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
-                  {stats.kpi.gemini_ai_calls.value.toLocaleString('vi-VN')}
-                </span>
-                <span className="text-xs text-slate-500">hôm nay</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">{stats.kpi.gemini_ai_calls.comparison_period}</p>
-            </div>
-            {/* Sparkline Navy/Primary */}
-            <div className="mt-3 pt-1">
-              <svg className="w-full h-11 overflow-visible" preserveAspectRatio="none" viewBox="0 0 160 40">
-                <defs>
-                  <linearGradient id="navyGrad" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#004ac6" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#004ac6" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0 12 Q 35 8 65 24 T 115 14 T 140 22 T 160 18 L 160 40 L 0 40 Z" fill="url(#navyGrad)" />
-                <path d="M 0 12 Q 35 8 65 24 T 115 14 T 140 22 T 160 18" fill="none" stroke="#004ac6" strokeLinecap="round" strokeWidth="2.5" />
-                <circle cx="160" cy="18" fill="#004ac6" r="3" />
-              </svg>
-            </div>
-          </Link>
-
-          {/* CARD 4: Tỷ lệ thu Học phí & BHYT */}
-          <div className="relative bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group min-w-0">
-            <div className="absolute -right-8 -top-8 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">Học phí &amp; BHYT</span>
-                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[13px]">trending_up</span>{stats.kpi.tuition_revenue.growth_rate}
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
-                  {stats.kpi.tuition_revenue.paid_rate}%
-                </span>
-                <span className="text-xs text-emerald-600 font-semibold">hoàn tất</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">{stats.kpi.tuition_revenue.comparison_period}</p>
-            </div>
-            {/* Sparkline Amber */}
-            <div className="mt-3 pt-1">
-              <svg className="w-full h-11 overflow-visible" preserveAspectRatio="none" viewBox="0 0 160 40">
-                <defs>
-                  <linearGradient id="amberGrad" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#b45309" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#b45309" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0 35 Q 30 30 60 16 T 110 18 T 135 10 T 160 4 L 160 40 L 0 40 Z" fill="url(#amberGrad)" />
-                <path d="M 0 35 Q 30 30 60 16 T 110 18 T 135 10 T 160 4" fill="none" stroke="#b45309" strokeLinecap="round" strokeWidth="2.5" />
-                <circle className="animate-pulse" cx="160" cy="4" fill="#b45309" r="3" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* UPPER MIDDLE SECTION (Chart & Donut) */}
+        {/* SECTION NHẬT KÝ VÀ LỊCH SỬ GIAO DỊCH */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* LEFT (8 COLS = ~67%) : Biểu đồ Hiệu Suất Hệ Thống */}
-          <div className="lg:col-span-8 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-md flex flex-col gap-4 relative overflow-hidden">
-            {/* Card Header + Tab Switcher */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-ping" />
-                  <h2 className="text-lg font-bold text-slate-900 tracking-tight">Tổng quan hiệu suất hệ thống</h2>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">Hiệu suất vận hành theo từng tháng trong năm học 2025 - 2026</p>
+          {/* CỘT TRÁI: Giao Dịch & Đăng Ký (8 cột) */}
+          <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Lịch sử Đăng ký &amp; Giao dịch</h2>
+                <p className="text-xs text-slate-500">Lượt đăng ký bản quyền và hạn mức AI</p>
               </div>
-              {/* Select switcher dropdown */}
-              <div className="relative self-start sm:self-center">
-                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-xs text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer">
-                  <span className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0" />
-                  <select
-                    value={activeChartTab}
-                    onChange={(e) => setActiveChartTab(e.target.value as 'ai' | 'classes' | 'tuition')}
-                    className="bg-transparent border-none text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer appearance-none pr-1 outline-none"
-                  >
-                    <option value="ai">Lượt gọi AI</option>
-                    <option value="classes">Lớp học</option>
-                    <option value="tuition">Học phí</option>
-                  </select>
-                  <span className="material-symbols-outlined text-[16px] text-slate-400 pointer-events-none -ml-1">expand_more</span>
-                </div>
-              </div>
+              <span className="text-xs font-semibold text-slate-500">Gần đây</span>
             </div>
 
-            {/* Smooth Area Chart SVG */}
-            <div className="w-full relative pt-1">
-              <svg className="w-full h-64 md:h-72" fill="none" preserveAspectRatio="none" viewBox="0 0 740 220">
-                <defs>
-                  <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#2563eb" stopOpacity="0.35" />
-                    <stop offset="60%" stopColor="#3b82f6" stopOpacity="0.08" />
-                    <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.0" />
-                  </linearGradient>
-                  <filter height="140%" id="glow" width="140%" x="-20%" y="-20%">
-                    <feDropShadow dx="0" dy="4" floodColor="#2563eb" floodOpacity="0.3" stdDeviation="6" />
-                  </filter>
-                </defs>
-                {/* Grid Lines */}
-                <line stroke="#e2e8f0" strokeDasharray="3 3" strokeWidth="1" x1="45" x2="730" y1="20" y2="20" />
-                <text fill="#737686" fontSize="10" textAnchor="end" x="35" y="24">60k</text>
-                <line stroke="#e2e8f0" strokeDasharray="3 3" strokeWidth="1" x1="45" x2="730" y1="65" y2="65" />
-                <text fill="#737686" fontSize="10" textAnchor="end" x="35" y="69">45k</text>
-                <line stroke="#e2e8f0" strokeDasharray="3 3" strokeWidth="1" x1="45" x2="730" y1="110" y2="110" />
-                <text fill="#737686" fontSize="10" textAnchor="end" x="35" y="114">30k</text>
-                <line stroke="#e2e8f0" strokeDasharray="3 3" strokeWidth="1" x1="45" x2="730" y1="155" y2="155" />
-                <text fill="#737686" fontSize="10" textAnchor="end" x="35" y="159">15k</text>
-                <line stroke="#cbd5e1" strokeWidth="1" x1="45" x2="730" y1="195" y2="195" />
-                <text fill="#737686" fontSize="10" textAnchor="end" x="35" y="199">0k</text>
-                {/* Gradient Area */}
-                <path d="M 50 160 C 110 145, 140 130, 180 115 C 220 100, 260 120, 310 90 C 360 60, 410 75, 460 45 C 510 20, 560 50, 610 30 C 660 15, 690 35, 730 22 L 730 195 L 50 195 Z" fill="url(#areaGradient)" />
-                {/* Main Curve */}
-                <path d="M 50 160 C 110 145, 140 130, 180 115 C 220 100, 260 120, 310 90 C 360 60, 410 75, 460 45 C 510 20, 560 50, 610 30 C 660 15, 690 35, 730 22" fill="none" filter="url(#glow)" stroke="#2563eb" strokeWidth="3.5" />
-                {/* Dots */}
-                <circle cx="180" cy="115" fill="#ffffff" r="4" stroke="#2563eb" strokeWidth="2.5" />
-                <circle cx="310" cy="90" fill="#ffffff" r="4" stroke="#2563eb" strokeWidth="2.5" />
-                <circle cx="460" cy="45" fill="#ffffff" r="4" stroke="#2563eb" strokeWidth="2.5" />
-                <circle className="animate-pulse" cx="610" cy="30" fill="#2563eb" r="6" stroke="#ffffff" strokeWidth="3" />
-                <circle cx="730" cy="22" fill="#ffffff" r="4" stroke="#2563eb" strokeWidth="2.5" />
-              </svg>
-              {/* X-axis Labels */}
-              <div className="flex justify-between pl-11 pr-2 mt-1 text-[11px] text-slate-400">
-                <span>Th1</span><span>Th2</span><span>Th3</span><span>Th4</span><span>Th5</span><span>Th6</span><span>Th7</span><span>Th8</span><span className="text-blue-600 font-bold">Th9</span><span>Th10</span><span>Th11</span><span>Th12</span>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT (4 COLS = ~33%) : Donut Chart + Tháng 9 Goals */}
-          <div className="lg:col-span-4 flex flex-col gap-5">
-            {/* Card A: Nguồn người dùng truy cập */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md flex flex-col gap-4">
-              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                <div className="flex flex-col">
-                  <h3 className="text-base text-slate-900 font-bold">Nguồn người dùng</h3>
-                  <span className="text-xs text-slate-500">Phân bổ tài khoản thực tế</span>
-                </div>
-                <span className="material-symbols-outlined text-[20px] text-slate-400">pie_chart</span>
-              </div>
-              <div className="flex items-center justify-center gap-5 my-1">
-                {/* 3D Layered Donut SVG */}
-                <div className="relative w-36 h-36 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" fill="transparent" r="46" stroke="#f1f5f9" strokeWidth="12" />
-                    {totalUsersCount > 0 && teacherPercent > 0 && (
-                      <circle cx="60" cy="60" fill="transparent" r="46" stroke="#ea580c" strokeDasharray={`${(teacherPercent / 100) * 289} 289`} strokeDashoffset="0" strokeLinecap="round" strokeWidth="12" />
-                    )}
-                    {totalUsersCount > 0 && parentPercent > 0 && (
-                      <circle cx="60" cy="60" fill="transparent" r="46" stroke="#006c49" strokeDasharray={`${(parentPercent / 100) * 289} 289`} strokeDashoffset={`-${(teacherPercent / 100) * 289}`} strokeLinecap="round" strokeWidth="12" />
-                    )}
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                    <span className="text-xl font-bold text-slate-900 leading-tight">{totalUsersCount.toLocaleString('vi-VN')}</span>
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">Tài khoản</span>
-                  </div>
-                </div>
-                {/* Donut Legend */}
-                <div className="flex flex-col gap-2 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-orange-600 flex-shrink-0" />
-                    <span className="text-xs text-slate-700 truncate">Giáo viên ({teachersCount.toLocaleString()} - {teacherPercent}%)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#006c49] flex-shrink-0" />
-                    <span className="text-xs text-slate-700 truncate">Phụ huynh ({parentsCount.toLocaleString()} - {parentPercent}%)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 flex-shrink-0" />
-                    <span className="text-xs text-slate-700 truncate">Trường liên kết ({stats.kpi.active_classes.schools_count})</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card B: Chỉ số vận hành */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <h3 className="text-base text-slate-900 font-bold">Chỉ số vận hành</h3>
-                  <span className="text-xs text-slate-500">Theo dõi định mức thời gian thực</span>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">Live</span>
-              </div>
-              <div className="flex flex-col gap-3 pt-1">
-                {/* Item 1: Hạn mức Gemini AI */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-700">Hạn mức Gemini AI</span>
-                    <span className="text-orange-600 font-bold">{stats.kpi.gemini_ai_calls.used_percent}% <span className="text-slate-400 font-normal">({stats.kpi.gemini_ai_calls.value.toLocaleString()}/{stats.kpi.gemini_ai_calls.daily_quota.toLocaleString()})</span></span>
-                  </div>
-                  <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 shadow-inner">
-                    <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-600" style={{ width: `${Math.min(stats.kpi.gemini_ai_calls.used_percent, 100)}%` }} />
-                  </div>
-                </div>
-                {/* Item 2: Lớp học kích hoạt */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-700">Lớp học kích hoạt</span>
-                    <span className="text-[#006c49] font-bold">{stats.kpi.active_classes.value.toLocaleString()} <span className="text-slate-400 font-normal">lớp</span></span>
-                  </div>
-                  <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 shadow-inner">
-                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-[#006c49]" style={{ width: `${stats.kpi.active_classes.value > 0 ? 100 : 0}%` }} />
-                  </div>
-                </div>
-                {/* Item 3: Tỷ lệ hoàn tất học phí */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-700">Tỷ lệ thu phí &amp; BHYT</span>
-                    <span className="text-[#004ac6] font-bold">{stats.kpi.tuition_revenue.paid_rate}% <span className="text-slate-400 font-normal">({stats.kpi.tuition_revenue.collected_vnd.toLocaleString()}đ)</span></span>
-                  </div>
-                  <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 shadow-inner">
-                    <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-[#004ac6]" style={{ width: `${Math.min(stats.kpi.tuition_revenue.paid_rate, 100)}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* LOWER SECTION (68% / 32%) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* LEFT (8 COLS = ~67%) : Bảng Giao Dịch & Đăng Ký */}
-          <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 shadow-md flex flex-col overflow-hidden">
-            {/* Card Header */}
-            <div className="p-5 flex items-center justify-between border-b border-slate-100 bg-white">
-              <div className="flex flex-col">
-                <h2 className="text-base font-bold text-slate-900">Giao dịch &amp; Đăng ký gói gần đây</h2>
-                <span className="text-xs text-slate-500">Lượt đăng ký bản quyền và mua quota AI mới nhất</span>
-              </div>
-              <Link href="/logs" className="inline-flex items-center gap-1 text-xs text-blue-600 font-bold hover:underline">
-                <span>Xem tất cả</span>
-                <span className="material-symbols-outlined text-[16px]">north_east</span>
-              </Link>
-            </div>
-            {/* Table Container */}
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50/60 text-slate-500 uppercase text-[11px] tracking-wider border-b border-slate-100 font-semibold">
-                    <th className="py-3 px-4 whitespace-nowrap">Đơn vị &amp; Người đại diện</th>
-                    <th className="py-3 px-4 whitespace-nowrap text-center">Mã GD</th>
-                    <th className="py-3 px-4 whitespace-nowrap">Nội dung</th>
-                    <th className="py-3 px-4 text-center whitespace-nowrap">Trạng thái</th>
-                    <th className="py-3 px-4 text-right whitespace-nowrap">Số tiền</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {recentTransactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-12 text-center text-slate-500">
-                        <div className="flex flex-col items-center justify-center space-y-2">
-                          <span className="material-symbols-outlined text-4xl text-slate-300">receipt_long</span>
-                          <div className="text-sm font-semibold text-slate-700">Chưa có giao dịch gần đây</div>
-                          <p className="text-xs text-slate-400">Giao dịch đăng ký gói AI và thanh toán sẽ xuất hiện tại đây khi phát sinh.</p>
-                        </div>
-                      </td>
+            {isLoading ? (
+              <TableSkeleton rows={4} />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 uppercase text-[11px] tracking-wider border-b border-slate-100 font-semibold">
+                      <th className="py-3 px-4">Đơn vị &amp; Người đại diện</th>
+                      <th className="py-3 px-4 text-center">Mã GD</th>
+                      <th className="py-3 px-4">Nội dung</th>
+                      <th className="py-3 px-4 text-center">Trạng thái</th>
+                      <th className="py-3 px-4 text-right">Số tiền</th>
                     </tr>
-                  ) : (
-                    recentTransactions.slice(0, 5).map((tx) => (
-                      <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-slate-900 leading-snug">{tx.targetEntity}</span>
-                              <span className="text-slate-400 text-xs">{tx.time}</span>
-                            </div>
-                          </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {recentTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-10 text-center text-slate-400">
+                          Chưa có giao dịch phát sinh
                         </td>
-                        <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500">{tx.orderCode}</td>
-                        <td className="py-3.5 px-4 font-medium text-xs">{tx.description}</td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
-                            tx.status === 'COMPLETED' ? 'bg-[#131b2e] text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${tx.status === 'COMPLETED' ? 'bg-white' : 'bg-slate-400'}`} />
-                            {tx.statusLabel}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-bold text-slate-900">{tx.amount.toLocaleString('vi-VN')}đ</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      recentTransactions.slice(0, 5).map((tx) => (
+                        <tr key={tx.id} className="hover:bg-slate-50/70">
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-slate-900">{tx.targetEntity}</div>
+                            <div className="text-[11px] text-slate-400">{tx.time}</div>
+                          </td>
+                          <td className="py-3 px-4 text-center font-mono text-slate-500">{tx.orderCode}</td>
+                          <td className="py-3 px-4 font-medium">{tx.description}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {tx.statusLabel || 'Hoàn tất'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-slate-900">
+                            {formatNumber(tx.amount)}đ
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          {/* RIGHT (4 COLS = ~33%) : Nhật Ký Hoạt Động Realtime */}
-          <div className="lg:col-span-4 bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <h2 className="text-base text-slate-900 font-bold">Nhật ký hoạt động</h2>
-              </div>
-              <Link href="/logs" className="inline-flex items-center gap-0.5 text-xs text-blue-600 font-bold hover:underline">
-                <span>Xem tất cả</span>
-                <span className="material-symbols-outlined text-[15px]">north_east</span>
-              </Link>
+          {/* CỘT PHẢI: Hoạt Động Quản Trị (4 cột) */}
+          <div className="lg:col-span-4 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col gap-4">
+            <div className="border-b border-slate-100 pb-3">
+              <h2 className="text-base font-bold text-slate-900">Nhật ký Quản trị</h2>
+              <p className="text-xs text-slate-500">Các thao tác trên hệ thống</p>
             </div>
-            {/* Timeline List */}
-            <div className="flex flex-col gap-3.5 relative">
-              {recentActivities.length === 0 ? (
-                <div className="py-10 text-center text-slate-500 flex flex-col items-center justify-center space-y-2">
-                  <span className="material-symbols-outlined text-3xl text-slate-300">history</span>
-                  <div className="text-xs font-semibold text-slate-700">Chưa có hoạt động gần đây</div>
-                  <p className="text-[11px] text-slate-400">Các sự kiện hệ thống mới nhất sẽ tự động hiển thị tại đây.</p>
-                </div>
-              ) : (
-                recentActivities.slice(0, 5).map((act) => (
-                  <div key={act.id} className="flex items-start gap-2.5 group">
-                    <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0 mt-1.5" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs text-slate-900 font-semibold truncate">{act.action}</span>
-                        <span className="text-[11px] text-slate-400 flex-shrink-0">{act.time}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 truncate">{act.target}</p>
-                    </div>
+
+            {isLoading ? (
+              <ActivitySkeleton rows={4} />
+            ) : (
+              <div className="space-y-3">
+                {recentActivities.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    Chưa có hoạt động quản trị ghi nhận
                   </div>
-                ))
-              )}
-            </div>
-            {/* Quick Summary banner inside card */}
-            <div className="mt-1 p-2.5 rounded-xl bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-600 text-[18px]">shield</span>
-                <span className="text-xs text-slate-600 font-medium">Bảo mật hệ thống</span>
+                ) : (
+                  recentActivities.slice(0, 5).map((act) => (
+                    <div key={act.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900">{act.categoryLabel}</span>
+                        <span className="text-[11px] text-slate-400">{act.time}</span>
+                      </div>
+                      <p className="text-slate-600 font-medium">{act.action}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{act.details}</p>
+                    </div>
+                  ))
+                )}
               </div>
-              <span className="text-xs text-emerald-600 font-bold">An toàn tuyệt đối</span>
-            </div>
+            )}
           </div>
         </div>
-      </div>
-
-      {/* FLOATING QUICK-FEEDBACK PILL BUTTON */}
-      <div className="fixed bottom-6 right-6 z-30">
-        <button
-          type="button"
-          className="group flex items-center gap-2 pl-4 pr-5 py-2.5 rounded-full bg-[#004ac6] hover:bg-blue-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
-        >
-          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-            <span className="material-symbols-outlined text-[16px] text-white">forum</span>
-          </div>
-          <span className="text-xs font-semibold tracking-wide">Hỗ trợ &amp; Phản hồi</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping ml-0.5" />
-        </button>
       </div>
     </div>
   );

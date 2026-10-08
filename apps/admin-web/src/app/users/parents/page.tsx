@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { ParentUser } from '../../../lib/users-data';
 import { getParentsList, createAdminUser, updateUserStatus } from '../../../lib/users.service';
 import { UserRole } from '@giaovienhay/shared-types';
-import UserCrudModal from '../../../components/UserCrudModal';
+const UserCrudModal = dynamic(() => import('../../../components/UserCrudModal'));
 
 export default function ParentsPage() {
   const [parents, setParents] = useState<ParentUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const deferredSearchKeyword = useDeferredValue(searchKeyword);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE' | 'MULTI_CHILD'>('ALL');
 
   // Modal states
@@ -67,8 +69,8 @@ export default function ParentsPage() {
       if (statusFilter === 'INACTIVE' && p.is_active) return false;
       if (statusFilter === 'MULTI_CHILD' && (p.students?.length || 0) <= 1) return false;
 
-      if (searchKeyword.trim()) {
-        const q = searchKeyword.toLowerCase();
+      if (deferredSearchKeyword.trim()) {
+        const q = deferredSearchKeyword.toLowerCase();
         const matchBasic =
           p.full_name.toLowerCase().includes(q) ||
           p.phone.includes(q) ||
@@ -87,7 +89,7 @@ export default function ParentsPage() {
       }
       return true;
     });
-  }, [parents, searchKeyword, statusFilter]);
+  }, [parents, deferredSearchKeyword, statusFilter]);
 
   // CRUD Handlers
   const handleOpenCreate = () => {
@@ -600,7 +602,7 @@ export default function ParentsPage() {
       </div>
 
       {/* CRUD / Detail Modal */}
-      <UserCrudModal
+      {isModalOpen && <UserCrudModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         category="PARENT"
@@ -610,7 +612,7 @@ export default function ParentsPage() {
         onToggleStatus={handleToggleStatus}
         onResetPassword={handleResetPassword}
         onDelete={handleDeleteParent}
-      />
+      />}
     </main>
   );
 }

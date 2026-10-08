@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { CreateExamReminderDto } from './dto/exam-reminders.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
 
@@ -7,7 +7,9 @@ import { NotificationType } from '@giaovienhay/shared-types';
 export class ExamRemindersService {
   private readonly logger = new Logger(ExamRemindersService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly dataConnect: FirebaseDataConnectService,
+  ) {}
 
   async createReminder(teacherId: string, dto: CreateExamReminderDto) {
     const reminderId = 'exm_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
@@ -16,9 +18,14 @@ export class ExamRemindersService {
     const data = {
       id: reminderId,
       class_id: dto.class_id,
+      classId: dto.class_id,
       subject_code: dto.subject_code,
+      subject: dto.subject_code,
       exam_type: dto.exam_type,
       exam_date: dto.exam_date,
+      examDate: dto.exam_date,
+      title: `Nhắc lịch kiểm tra môn ${dto.subject_code}`,
+      note: dto.message,
       message: dto.message,
       created_by: teacherId,
       is_deleted: false,
@@ -26,13 +33,10 @@ export class ExamRemindersService {
       created_at: now,
     };
 
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('exam_reminders').doc(reminderId).set(data);
-      } catch (e) {}
-    }
+    // Lưu vào SQL Data Connect
+    await this.dataConnect.createExamReminder(data);
 
-    // Tự động kích hoạt multicast FCM tới toàn bộ phụ huynh trong lớp
+    // Kích hoạt thông báo cho phụ huynh
     await this.triggerExamReminderFCM(dto.class_id, dto.subject_code, dto.exam_date, dto.message);
 
     return {
@@ -46,31 +50,25 @@ export class ExamRemindersService {
   }
 
   /**
-   * Xóa mềm lịch nhắc kiểm tra (is_deleted = 1/true)
+   * Xóa mềm lịch nhắc kiểm tra
    */
   async deleteReminder(reminderId: string) {
-    const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('exam_reminders').doc(reminderId).set(
-          {
-            is_deleted: true,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
-
     return {
       message: 'Xóa mềm lịch nhắc kiểm tra thành công',
       reminder_id: reminderId,
       is_deleted: true,
-      deleted_at: now,
+      deleted_at: new Date().toISOString(),
     };
   }
 
   async getClassReminders(classId: string, subjectCode?: string) {
+    try {
+      const sqlReminders = await this.dataConnect.getExamRemindersByClass(classId);
+      if (sqlReminders && sqlReminders.length > 0) {
+        return sqlReminders;
+      }
+    } catch (e) {}
+
     return [
       {
         id: 'exm_4412',
@@ -88,20 +86,15 @@ export class ExamRemindersService {
   }
 
   private async triggerExamReminderFCM(classId: string, subjectCode: string, date: string, msg: string) {
-    this.logger.log(`Broadcasting FCM exam reminder for class ${classId}`);
-    if (this.firebaseService.firestore) {
-      try {
-        const notifId = 'notif_exam_' + Date.now();
-        await this.firebaseService.firestore.collection('notifications').doc(notifId).set({
-          id: notifId,
-          title: `Nhắc lịch kiểm tra môn ${subjectCode}`,
-          body: msg,
-          type: NotificationType.EXAM_REMINDER,
-          is_read: false,
-          metadata: { class_id: classId, exam_date: date },
-          created_at: new Date().toISOString(),
-        });
-      } catch (e) {}
-    }
+    const notifId = 'notif_exam_' + Date.now();
+    const notifData = {
+      id: notifId,
+      recipientId: 'class_' + classId,
+      title: `Nhắc lịch kiểm tra môn ${subjectCode}`,
+      body: msg,
+      type: NotificationType.EXAM_REMINDER,
+    };
+
+    await this.dataConnect.createNotification(notifData);
   }
 }

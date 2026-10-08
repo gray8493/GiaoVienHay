@@ -2,7 +2,7 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { SubmitAttendanceDto } from './dto/attendance.dto';
 import { AttendanceStatus, NotificationType } from '@giaovienhay/shared-types';
 
@@ -27,7 +27,7 @@ export class AttendanceService {
   private readonly logger = new Logger(AttendanceService.name);
 
   constructor(
-    private readonly firebaseService: FirebaseService,
+    private readonly dataConnect: FirebaseDataConnectService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -36,7 +36,6 @@ export class AttendanceService {
     let presentCount = 0;
     let absentCount = 0;
     const absentStudentIds: string[] = [];
-
     const now = new Date().toISOString();
 
     for (const record of dto.records) {
@@ -47,30 +46,31 @@ export class AttendanceService {
         absentStudentIds.push(record.student_id);
       }
 
-      // Lưu document vào Firestore
-      if (this.firebaseService.firestore) {
-        try {
-          const docId = `att_${dto.class_id}_${record.student_id}_${dto.attendance_date}`;
-          await this.firebaseService.firestore.collection('attendances').doc(docId).set({
-            class_id: dto.class_id,
-            student_id: record.student_id,
-            attendance_date: dto.attendance_date,
-            period: dto.period || 1,
-            status: record.status,
-            note: record.note || null,
-            recorded_by: teacherId,
-            updated_at: now,
-          });
-        } catch (e) {}
-      }
+      const docId = `att_${dto.class_id}_${record.student_id}_${dto.attendance_date}`;
+      const attRecord = {
+        id: docId,
+        class_id: dto.class_id,
+        classId: dto.class_id,
+        student_id: record.student_id,
+        studentId: record.student_id,
+        date: dto.attendance_date,
+        attendance_date: dto.attendance_date,
+        period: dto.period || 1,
+        status: record.status,
+        note: record.note || null,
+        recorded_by: teacherId,
+        updated_at: now,
+      };
+
+      // Lưu hoàn toàn vào SQL Data Connect
+      await this.dataConnect.recordAttendance(attRecord);
     }
 
     // Xóa cache danh sách học sinh có mặt hôm nay của lớp này để làm mới dữ liệu
     const cacheKey = `att_present_${dto.class_id}_${dto.attendance_date}`;
     await this.cacheManager.del(cacheKey);
 
-    // Bắn Event xử lý ngầm (Message Queue/Event-driven) cho FCM Notifications
-    // Không làm block luồng HTTP response của giáo viên!
+    // Bắn Event xử lý ngầm (Message Queue/Event-driven) cho Notifications
     if (absentStudentIds.length > 0) {
       this.eventEmitter.emit('attendance.absent', {
         classId: dto.class_id,
@@ -89,13 +89,22 @@ export class AttendanceService {
   }
 
   async getClassAttendance(classId: string, date?: string, month?: string) {
+    const targetDate = date || '2026-09-29';
+
+    try {
+      const sqlRecords = await this.dataConnect.getAttendanceByClassDate(classId, targetDate);
+      if (sqlRecords && sqlRecords.length > 0) {
+        return sqlRecords;
+      }
+    } catch (e) {}
+
     return [
       {
         id: 'att_01',
         class_id: classId,
         student_id: 'stu_01',
         student_name: 'Trần Bảo Nam',
-        attendance_date: date || '2026-09-29',
+        attendance_date: targetDate,
         status: AttendanceStatus.PRESENT,
         note: null,
       },
@@ -104,7 +113,7 @@ export class AttendanceService {
         class_id: classId,
         student_id: 'stu_02',
         student_name: 'Lê Ngọc Mai',
-        attendance_date: date || '2026-09-29',
+        attendance_date: targetDate,
         status: AttendanceStatus.ABSENT_EXCUSED,
         note: 'Phụ huynh xin nghỉ ốm',
       },
@@ -121,33 +130,22 @@ export class AttendanceService {
       return cached;
     }
 
-    // Trích xuất danh sách học sinh CÓ MẶT HÔM NAY để nạp vào Vòng quay may mắn
     let presentStudents = [
       { id: 'stu_01', full_name: 'Trần Bảo Nam', student_code: 'HS001' },
       { id: 'stu_03', full_name: 'Hoàng Minh Khôi', student_code: 'HS003' },
     ];
 
-    if (this.firebaseService.firestore) {
-      try {
-        const snap = await this.firebaseService.firestore
-          .collection('attendances')
-          .where('class_id', '==', classId)
-          .where('attendance_date', '==', today)
-          .where('status', '==', AttendanceStatus.PRESENT)
-          .get();
-
-        if (!snap.empty) {
-          presentStudents = snap.docs.map((doc) => {
-            const data = doc.data();
-            return {
-              id: data.student_id,
-              full_name: data.student_name || 'Học sinh',
-              student_code: data.student_code || 'HS',
-            };
-          });
-        }
-      } catch (e) {}
-    }
+    try {
+      const sqlList = await this.dataConnect.getAttendanceByClassDate(classId, today);
+      const presents = sqlList.filter((a) => a.status === AttendanceStatus.PRESENT);
+      if (presents.length > 0) {
+        presentStudents = presents.map((p) => ({
+          id: p.studentId || p.student_id,
+          full_name: 'Học sinh',
+          student_code: 'HS',
+        }));
+      }
+    } catch (e) {}
 
     const result = {
       class_id: classId,
@@ -163,31 +161,28 @@ export class AttendanceService {
 
   /**
    * Listener xử lý ngầm (Event-Driven Worker) khi có học sinh vắng
-   * Hoạt động như một queue worker phi tập trung không tốn tiền server
    */
   @OnEvent('attendance.absent', { async: true })
   async handleAbsentNotificationEvent(payload: AbsentEventPayload) {
     const { classId, absentStudentIds, date } = payload;
-    this.logger.log(`[Worker] Xử lý ngầm gửi thông báo FCM cho ${absentStudentIds.length} học sinh vắng ngày ${date}`);
+    this.logger.log(`[Worker] Xử lý ngầm gửi thông báo cho ${absentStudentIds.length} học sinh vắng ngày ${date}`);
 
-    if (this.firebaseService.firestore) {
-      try {
-        for (const stuId of absentStudentIds) {
-          const notifId = 'notif_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-          await this.firebaseService.firestore.collection('notifications').doc(notifId).set({
-            id: notifId,
-            title: 'Cảnh báo vắng học',
-            body: `Học sinh vắng mặt tại lớp ngày ${date}. Kính nhờ phụ huynh kiểm tra thông tin.`,
-            type: NotificationType.ATTENDANCE_ABSENT,
-            is_read: false,
-            metadata: { student_id: stuId, class_id: classId },
-            created_at: new Date().toISOString(),
-          });
-        }
-        this.logger.log(`[Worker] Đã tạo thành công ${absentStudentIds.length} thông báo FCM phụ huynh.`);
-      } catch (e: any) {
-        this.logger.error(`[Worker] Lỗi tạo thông báo: ${e?.message}`);
-      }
+    for (const stuId of absentStudentIds) {
+      const notifId = 'notif_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+      const notifData = {
+        id: notifId,
+        recipient_id: stuId,
+        recipientId: stuId,
+        title: 'Cảnh báo vắng học',
+        body: `Học sinh vắng mặt tại lớp ngày ${date}. Kính nhờ phụ huynh kiểm tra thông tin.`,
+        type: NotificationType.ATTENDANCE_ABSENT,
+        is_read: false,
+        metadata: { student_id: stuId, class_id: classId },
+        created_at: new Date().toISOString(),
+      };
+
+      await this.dataConnect.createNotification(notifData);
     }
+    this.logger.log(`[Worker] Đã hoàn tất ghi thông báo vào SQL Data Connect.`);
   }
 }

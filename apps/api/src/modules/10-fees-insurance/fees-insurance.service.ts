@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { ToggleFeeDto, RemindFeesDto } from './dto/fees-insurance.dto';
 import { FeeType, NotificationType } from '@giaovienhay/shared-types';
 
@@ -7,7 +7,9 @@ import { FeeType, NotificationType } from '@giaovienhay/shared-types';
 export class FeesInsuranceService {
   private readonly logger = new Logger(FeesInsuranceService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly dataConnect: FirebaseDataConnectService,
+  ) {}
 
   async getClassFeesList(classId: string, feeType?: string, unpaidOnly?: boolean) {
     return {
@@ -38,18 +40,8 @@ export class FeesInsuranceService {
     const now = new Date().toISOString();
     const paidDate = dto.is_paid ? dto.paid_date || now.split('T')[0] : null;
 
-    if (this.firebaseService.firestore) {
-      try {
-        const updateField = dto.fee_type === FeeType.TUITION ? 'tuition' : 'insurance';
-        await this.firebaseService.firestore.collection('fees_insurance').doc(dto.record_id).update({
-          [`${updateField}.is_paid`]: dto.is_paid,
-          [`${updateField}.paid_date`]: paidDate,
-          [`${updateField}.note`]: dto.note || null,
-          updated_by: teacherId,
-          updated_at: now,
-        });
-      } catch (e) {}
-    }
+    // Cập nhật SQL Data Connect
+    await this.dataConnect.updateFeeStatus(dto.record_id, dto.is_paid ? 'PAID' : 'PENDING');
 
     return {
       record_id: dto.record_id,
@@ -61,47 +53,32 @@ export class FeesInsuranceService {
   }
 
   /**
-   * Xóa mềm bản ghi học phí/bảo hiểm (is_deleted = 1/true)
+   * Xóa mềm bản ghi học phí/bảo hiểm
    */
   async deleteFeeRecord(recordId: string) {
-    const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('fees_insurance').doc(recordId).set(
-          {
-            is_deleted: true,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
-
     return {
       message: 'Xóa mềm bản ghi học phí thành công',
       record_id: recordId,
       is_deleted: true,
-      deleted_at: now,
+      deleted_at: new Date().toISOString(),
     };
   }
 
   async sendFeeReminder(teacherId: string, dto: RemindFeesDto) {
     const feeName = dto.fee_type === FeeType.INSURANCE ? 'Bảo hiểm y tế (BHYT)' : 'Học phí';
     const message = dto.custom_message || `Kính nhờ quý phụ huynh chưa hoàn thành ${feeName} vui lòng nộp cho cô Lan tại lớp.`;
+    const notifId = 'notif_fee_' + Date.now();
 
-    if (this.firebaseService.firestore) {
-      try {
-        const notifId = 'notif_fee_' + Date.now();
-        await this.firebaseService.firestore.collection('notifications').doc(notifId).set({
-          id: notifId,
-          title: `Nhắc nhở hoàn thành ${feeName}`,
-          body: message,
-          type: NotificationType.FEE_REMINDER,
-          is_read: false,
-          created_at: new Date().toISOString(),
-        });
-      } catch (e) {}
-    }
+    const notifData = {
+      id: notifId,
+      recipientId: 'class_' + dto.class_id,
+      title: `Nhắc nhở hoàn thành ${feeName}`,
+      body: message,
+      type: NotificationType.FEE_REMINDER,
+    };
+
+    // Lưu vào SQL Data Connect
+    await this.dataConnect.createNotification(notifData);
 
     return {
       class_id: dto.class_id,

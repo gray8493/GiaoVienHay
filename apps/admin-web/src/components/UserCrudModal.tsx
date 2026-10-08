@@ -37,15 +37,16 @@ export default function UserCrudModal({
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [schoolName, setSchoolName] = useState('THCS Lê Quý Đôn');
+  const [schoolName, setSchoolName] = useState('Trường Tiểu Học Chu Văn An');
   const [teacherRole, setTeacherRole] = useState<'TEACHER_HOMEROOM' | 'TEACHER_SUBJECT'>('TEACHER_SUBJECT');
   const [subject, setSubject] = useState('Toán');
   const [assignedClass, setAssignedClass] = useState('');
+  const [aiDailyQuota, setAiDailyQuota] = useState(25);
 
   // Form states for Parent
   const [students, setStudents] = useState<LinkedStudent[]>([]);
   const [newStudentName, setNewStudentName] = useState('');
-  const [newStudentClass, setNewStudentClass] = useState('7A');
+  const [newStudentClass, setNewStudentClass] = useState('1A');
   const [newStudentCode, setNewStudentCode] = useState('');
 
   // Sync state whenever modal opens or userData changes
@@ -55,23 +56,25 @@ export default function UserCrudModal({
       setFullName('');
       setPhone('');
       setEmail('');
-      setSchoolName('THCS Lê Quý Đôn');
+      setSchoolName('Trường Tiểu Học Chu Văn An');
       setTeacherRole('TEACHER_SUBJECT');
       setSubject('Toán');
       setAssignedClass('');
+      setAiDailyQuota(25);
       setStudents([]);
     } else if (userData) {
       setIsEditing(false);
       setFullName(userData.full_name || '');
       setPhone(userData.phone || '');
       setEmail(userData.email || '');
-      setSchoolName(userData.school_name || 'THCS Lê Quý Đôn');
+      setSchoolName(userData.school_name || 'Trường Tiểu Học Chu Văn An');
 
       if (category === 'TEACHER') {
         const t = userData as TeacherUser;
         setTeacherRole(t.role || 'TEACHER_SUBJECT');
         setSubject(t.subject || 'Toán');
         setAssignedClass(t.assigned_class || '');
+        setAiDailyQuota(t.ai_daily_quota ?? 25);
       } else {
         const p = userData as ParentUser;
         setStudents(p.students ? [...p.students] : []);
@@ -130,6 +133,9 @@ export default function UserCrudModal({
         subject,
         assigned_class: assignedClass.trim() || (teacherRole === 'TEACHER_HOMEROOM' ? 'Chủ nhiệm' : 'Bộ môn'),
         is_active: userData ? userData.is_active : true,
+        ai_daily_quota: Number(aiDailyQuota) || 25,
+        ai_used_today: (userData as TeacherUser)?.ai_used_today ?? 0,
+        ai_model_tier: (userData as TeacherUser)?.ai_model_tier ?? 'AUTO',
         created_at: userData?.created_at || new Date().toISOString(),
       };
       onSave(savedTeacher, isNew);
@@ -257,6 +263,15 @@ export default function UserCrudModal({
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Phân công lớp:</span>
                     <span className="font-semibold text-slate-800">{teacherData.assigned_class}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-slate-100">
+                    <span className="text-slate-400">Hạn mức AI:</span>
+                    <span className="font-semibold text-[#696cff] flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">smart_toy</span>
+                      <span>
+                        {teacherData.ai_daily_quota ?? 25} lượt/ngày (Đã dùng: {teacherData.ai_used_today ?? 0})
+                      </span>
+                    </span>
                   </div>
                 </div>
               )}
@@ -480,6 +495,25 @@ export default function UserCrudModal({
                       onChange={(e) => setAssignedClass(e.target.value)}
                       placeholder={teacherRole === 'TEACHER_HOMEROOM' ? 'Ví dụ: Chủ nhiệm 7A' : 'Ví dụ: Khối 7 & 8'}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-slate-900 shadow-2xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[15px] text-[#696cff]">smart_toy</span>
+                        <span>Hạn mức sử dụng AI (Lượt/ngày)</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Mặc định: 25 lượt/ngày</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={aiDailyQuota}
+                      onChange={(e) => setAiDailyQuota(Math.max(1, Number(e.target.value) || 1))}
+                      placeholder="25"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#696cff] shadow-2xs"
                     />
                   </div>
                 </>
