@@ -155,16 +155,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
   };
 
   const handleSave = () => {
-    Alert.alert(
-      'Điểm danh thành công! 🎉',
-      `Đã hoàn tất điểm danh lớp 6A1!\n- Tổng sĩ số: ${totalCount}\n- Có mặt: ${presentCount}\n- Vắng: ${absentCount}\n- Đã tự động gửi thông báo đến ${absentCount} phụ huynh học sinh vắng.`,
-      [
-        {
-          text: 'OK',
-          onPress: () => onSaveSuccess?.(),
-        },
-      ]
-    );
+    onSaveSuccess?.();
   };
 
   const filteredStudents = searchQuery.trim()

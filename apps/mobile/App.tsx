@@ -14,8 +14,16 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
 import { TeacherHomeScreen } from './src/screens/TeacherHomeScreen';
 import { AttendanceScreen } from './src/screens/AttendanceScreen';
+import { AttendanceResultScreen } from './src/screens/AttendanceResultScreen';
 
-type ScreenKey = 'teacher_home' | 'attendance' | 'onboarding' | 'login' | 'role' | 'showcase';
+type ScreenKey =
+  | 'teacher_home'
+  | 'attendance'
+  | 'attendance_result'
+  | 'onboarding'
+  | 'login'
+  | 'role'
+  | 'showcase';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('teacher_home');
@@ -39,7 +47,7 @@ export default function App() {
                 currentScreen === 'teacher_home' && styles.tabTextActive,
               ]}
             >
-              ★ TEA-01 (Home)
+              TEA-01 (Home)
             </Text>
           </TouchableOpacity>
 
@@ -53,7 +61,21 @@ export default function App() {
                 currentScreen === 'attendance' && styles.tabTextActive,
               ]}
             >
-              ★ TEA-02 (Điểm danh)
+              TEA-02 (Điểm danh)
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, currentScreen === 'attendance_result' && styles.tabItemActive]}
+            onPress={() => setCurrentScreen('attendance_result')}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                currentScreen === 'attendance_result' && styles.tabTextActive,
+              ]}
+            >
+              ★ TEA-02b (Kết quả)
             </Text>
           </TouchableOpacity>
 
@@ -140,17 +162,26 @@ export default function App() {
             <View style={styles.phoneNotch} />
             <AttendanceScreen
               onBack={() => setCurrentScreen('teacher_home')}
-              onSaveSuccess={() => setCurrentScreen('teacher_home')}
+              onSaveSuccess={() => setCurrentScreen('attendance_result')}
             />
           </View>
 
-          {/* Screen 3 Frame: Onboarding */}
+          {/* Screen 3: Attendance Result (TEA-02b) */}
+          <View style={styles.phoneFrame}>
+            <View style={styles.phoneNotch} />
+            <AttendanceResultScreen
+              onGoHome={() => setCurrentScreen('teacher_home')}
+              onEditAttendance={() => setCurrentScreen('attendance')}
+            />
+          </View>
+
+          {/* Screen 4 Frame: Onboarding */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <OnboardingScreen onNavigateToLogin={() => setCurrentScreen('login')} />
           </View>
 
-          {/* Screen 4 Frame: Login */}
+          {/* Screen 5 Frame: Login */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <LoginScreen
@@ -159,7 +190,7 @@ export default function App() {
             />
           </View>
 
-          {/* Screen 5 Frame: Role Selection */}
+          {/* Screen 6 Frame: Role Selection */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <RoleSelectionScreen
@@ -184,7 +215,13 @@ export default function App() {
             {currentScreen === 'attendance' && (
               <AttendanceScreen
                 onBack={() => setCurrentScreen('teacher_home')}
-                onSaveSuccess={() => setCurrentScreen('teacher_home')}
+                onSaveSuccess={() => setCurrentScreen('attendance_result')}
+              />
+            )}
+            {currentScreen === 'attendance_result' && (
+              <AttendanceResultScreen
+                onGoHome={() => setCurrentScreen('teacher_home')}
+                onEditAttendance={() => setCurrentScreen('attendance')}
               />
             )}
             {currentScreen === 'onboarding' && (
