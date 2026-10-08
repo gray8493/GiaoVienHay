@@ -409,3 +409,108 @@
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
+
+### UT02_Users_TC12 : TRUY XUẤT HỒ SƠ TỪ IN-MEMORY RAM CACHE VÀ TỰ ĐỘNG XÓA CACHE KHI CẬP NHẬT
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Người dùng `usr_01` đã đăng nhập và hồ sơ đã được nạp vào RAM cache với key `user_profile_usr_01` (TTL 300 giây).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_usr_01>`
+  - **Dữ liệu thân (Body JSON):** Cập nhật tên trường hoặc môn giảng dạy:
+  ```json
+  {
+    "school_name": "Trường THCS Thăng Long",
+    "teaching_subjects": ["MATH", "PHYSICS"]
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Gửi request `GET /api/v1/users/me` -> Phản hồi tức thì từ RAM cache (< 5ms).
+  2. Gửi request `PATCH /api/v1/users/profile` với dữ liệu mới.
+  3. Hệ thống cập nhật Firestore và gọi `cacheManager.del("user_profile_usr_01")`.
+  4. Gửi lại request `GET /api/v1/users/me`.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi **HTTP 200 (OK)** với dữ liệu mới cập nhật (`Trường THCS Thăng Long`).
+  - Cache cũ được làm mới an toàn, không trả về dữ liệu lỗi thời (stale cache).
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT02_Users_TC13 : XÓA MỀM TÀI KHOẢN NGƯỜI DÙNG THÀNH CÔNG (SOFT DELETE)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Tài khoản người dùng `usr_01` đang hoạt động (`is_deleted: false`).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Mã người dùng:** `usr_01`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Thực hiện gọi hàm `deleteUser("usr_01")` từ UsersService.
+  2. Kiểm tra tài liệu Firestore `/users/usr_01`.
+  3. Gửi request `GET /api/v1/users/me`.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Không xóa vật lý bản ghi khỏi cơ sở dữ liệu.
+  - Firestore cập nhật `is_deleted = true`, `is_active = false`, `deleted_at = <ISO timestamp>`.
+  - Cache `user_profile_usr_01` bị xóa.
+  - Yêu cầu truy xuất `GET /api/v1/users/me` bị từ chối với mã **HTTP 404 (NOT FOUND)** hoặc **HTTP 401 (UNAUTHORIZED)** do tài khoản đã bị đánh dấu xóa mềm.
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT02_Users_TC14 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI GIÁO VIÊN MỚI CHƯA ĐĂNG KÝ DANH SÁCH MÔN HỌC GIẢNG DẠY (EMPTY SUBJECTS - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Giáo viên mới đăng ký tài khoản thành công (`usr_teacher_fresh`), trong Firestore `/users/usr_teacher_fresh` trường `teaching_subjects` đang là mảng rỗng `[]`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_usr_teacher_fresh>`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/users/me`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Mảng `teaching_subjects: []` trả về rỗng an toàn, giao diện ứng dụng hiển thị lời nhắc "Bạn chưa cập nhật môn giảng dạy, hãy bổ sung thông tin hồ sơ":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "data": {
+      "uid": "usr_teacher_fresh",
+      "full_name": "Cô Nguyễn Thu Trang",
+      "phone": "0911223344",
+      "role": "TEACHER_SUBJECT",
+      "school_name": "THCS Cầu Giấy",
+      "teaching_subjects": [],
+      "is_active": true
+    }
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT02_Users_TC15 : TỪ CHỐI TRA CỨU HỒ SƠ KHI MÃ NGƯỜI DÙNG KHÔNG TỒN TẠI TRONG CƠ SỞ DỮ LIỆU (USER_NOT_FOUND - 404)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Người dùng có quyền tra cứu đã đăng nhập hợp lệ.
+  - Mã định danh người dùng `usr_not_exist_9999` hoàn toàn không tồn tại trong Cloud Firestore collection `/users`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `id = "usr_not_exist_9999"`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/users/usr_not_exist_9999`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống ném ra ngoại lệ **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY NGƯỜI DÙNG)**.
+  - Phản hồi dữ liệu lỗi chuẩn Envelope:
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "message": "Không tìm thấy hồ sơ người dùng trong hệ thống.",
+    "error_code": "USER_NOT_FOUND",
+    "details": null,
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

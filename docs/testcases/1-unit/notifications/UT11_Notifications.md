@@ -669,3 +669,66 @@
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
+
+### UT11_Notifications_TC19 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỌC THÔNG BÁO CHƯA ĐỌC NHƯNG NGƯỜI DÙNG ĐÃ ĐỌC HẾT (EMPTY UNREAD - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Người dùng `usr_parent_01` đã đăng nhập hợp lệ.
+  - Toàn bộ thông báo trong Firestore collection `/notifications` của người dùng này đều đã được đánh dấu đọc (`is_read: true` trên 100% bản ghi).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_usr_parent_01>`
+  - **Tham số truy vấn (Query Params):** `is_read = false`, `page = 1`, `limit = 20`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/notifications?is_read=false&page=1&limit=20`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc Envelope chuẩn với mảng rỗng `items: []`, số lượng chưa đọc `unread_count: 0`, giao diện hiển thị Empty State "Tuyệt vời! Bạn không có thông báo mới nào":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lấy danh sách thông báo thành công",
+    "data": {
+      "unread_count": 0,
+      "total": 0,
+      "page": 1,
+      "limit": 20,
+      "items": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT11_Notifications_TC20 : XỬ LÝ AN TOÀN KHI ĐÁNH DẤU TẤT CẢ LÀ ĐÃ ĐỌC NHƯNG HỘP THƯ RỖNG HOẶC KHÔNG CÓ THÔNG BÁO CHƯA ĐỌC (ZERO UPDATED - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Người dùng đã đăng nhập hợp lệ.
+  - Hộp thư thông báo của người dùng không có bản ghi nào hoặc tất cả các thông báo đã ở trạng thái đã đọc (`is_read: true`).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_hop_le>`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token vào mục **Headers**.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/notifications/read-all`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)** (tính chất Idempotent an toàn).
+  - Không phát sinh lỗi cập nhật trong cơ sở dữ liệu, trả về số lượng bản ghi cập nhật là 0:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Không có thông báo chưa đọc nào cần cập nhật",
+    "data": {
+      "updated_count": 0
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

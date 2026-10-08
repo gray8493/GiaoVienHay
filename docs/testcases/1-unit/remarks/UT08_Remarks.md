@@ -560,3 +560,67 @@
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
+
+### UT08_Remarks_TC15 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỚP HỌC CHƯA CÓ LỜI NHẬN XÉT NÀO TRONG CƠ SỞ DỮ LIỆU (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Lớp học `cls_new_2026` mới được tạo lập đầu năm học và chưa có giáo viên nào gửi bất kỳ lời nhận xét nào trong collection `/remarks`.
+  - Giáo viên chủ nhiệm đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
+  - **Tham số đường dẫn (Path Params):** `classId = cls_new_2026`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token giáo viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/remarks/class/cls_new_2026`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc danh sách rỗng an toàn với `total: 0` và `items: []`, giao diện hiển thị Empty State "Chưa có lời nhận xét nào trong lớp học":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Truy xuất danh sách nhận xét của lớp thành công",
+    "data": {
+      "class_id": "cls_new_2026",
+      "total": 0,
+      "items": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT08_Remarks_TC16 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI XEM LỊCH SỬ NHẬN XÉT CỦA HỌC SINH CHƯA TỪNG NHẬN ĐƯỢC NHẬN XÉT NÀO (EMPTY STUDENT REMARKS - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Học sinh `stu_03` thuộc lớp `cls_1a_2026` chưa từng được giáo viên gửi bất kỳ lời nhận xét môn học hay nề nếp nào trong Firestore.
+  - Phụ huynh của học sinh này hoặc Giáo viên đã đăng nhập hợp lệ.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `studentId = stu_03`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token xác thực vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/remarks/student/stu_03`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Trả về danh sách rỗng an toàn `items: []` và `total: 0`, không gây lỗi null pointer khi render danh sách trên app phụ huynh:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Truy xuất lịch sử nhận xét của học sinh thành công",
+    "data": {
+      "student_id": "stu_03",
+      "total": 0,
+      "items": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
