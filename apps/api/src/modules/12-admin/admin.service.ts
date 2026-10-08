@@ -434,6 +434,28 @@ export class AdminService {
     }
   }
 
+  async getSchoolsDebug() {
+    const query = `
+      query ListSchools {
+        schools(orderBy: [{ name: ASC }]) {
+          id code name address phone email createdAt
+        }
+      }
+    `;
+    const res = await this.dataConnect.execute(query);
+    const token = await (this.dataConnect as any).getAccessToken();
+    return {
+      rawResponse: res,
+      endpoint: (this.dataConnect as any).endpoint,
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      projectId: process.env.FIREBASE_PROJECT_ID || 'DEFAULT',
+      hasEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      hasKey: !!process.env.FIREBASE_PRIVATE_KEY,
+      hasJson: !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
+    };
+  }
+
   async createSchool(dto: AdminCreateSchoolDto) {
     const schoolId = 'TR-' + Math.floor(100 + Math.random() * 900);
     const newSchool = {
