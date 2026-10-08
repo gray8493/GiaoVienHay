@@ -5,7 +5,6 @@ import './globals.css';
 import AppShell from '../components/AppShell';
 
 const inter = Inter({
-  weight: ['400', '500', '600', '700', '800'],
   subsets: ['latin', 'vietnamese'],
   display: 'swap',
   variable: '--font-inter',
