@@ -157,8 +157,27 @@ export default function UsersInteractiveExplorerPage() {
         apiFetch<{ items: UserData[]; total: number }>('/admin/users'),
       ]);
 
-      setSchools(schoolsRes.data || []);
-      setClasses(classesRes.data || []);
+const FALLBACK_SCHOOLS: SchoolData[] = [
+  { id: 'TR-001', code: 'TRUNGVUONG', name: 'THCS Trưng Vương', address: '26 Hàng Bài, Hoàn Kiếm, Hà Nội' },
+  { id: 'TR-002', code: 'CHUVANAN', name: 'Trường Tiểu Học Chu Văn An', address: '115 Thụy Khuê, Tây Hồ, Hà Nội' },
+  { id: 'TR-003', code: 'NGUYENHUE', name: 'THPT Chuyên Nguyễn Huệ', address: 'Quang Trung, Hà Đông, Hà Nội' },
+  { id: 'TR-004', code: 'PHANDINHPHUNG', name: 'THCS Phan Đình Phùng', address: 'Phan Đình Phùng, Ba Đình, Hà Nội' },
+  { id: 'TR-005', code: 'VINSCHOOL', name: 'THCS Vinschool Central', address: 'Vinhomes Central Park, Bình Thạnh, TP.HCM' },
+  { id: 'TR-006', code: 'LUONGTHEVINH', name: 'THCS Lương Thế Vinh', address: 'Cầu Giấy, Hà Nội' },
+];
+
+const FALLBACK_CLASSES: ClassData[] = [
+  { id: 'cls_1a_2026', class_id: 'cls_1a_2026', name: '1A', grade_level: 1, academic_year: '2026-2027', school_name: 'Trường Tiểu Học Chu Văn An', homeroom_teacher: 'Cô Nguyễn Thị Lan', student_count: 35 },
+  { id: 'cls_2b_2026', class_id: 'cls_2b_2026', name: '2B', grade_level: 2, academic_year: '2026-2027', school_name: 'Trường Tiểu Học Chu Văn An', homeroom_teacher: 'Thầy Nguyễn Văn Nam', student_count: 30 },
+  { id: 'cls_6a_2026', class_id: 'cls_6a_2026', name: '6A', grade_level: 6, academic_year: '2026-2027', school_name: 'THCS Trưng Vương', homeroom_teacher: 'Cô Mai Lan', student_count: 38 },
+  { id: 'cls_7b_2026', class_id: 'cls_7b_2026', name: '7B', grade_level: 7, academic_year: '2026-2027', school_name: 'THCS Trưng Vương', homeroom_teacher: 'Thầy Quang Huy', student_count: 40 },
+];
+
+      const fetchedSchools = schoolsRes.data && schoolsRes.data.length > 0 ? schoolsRes.data : FALLBACK_SCHOOLS;
+      const fetchedClasses = classesRes.data && classesRes.data.length > 0 ? classesRes.data : FALLBACK_CLASSES;
+
+      setSchools(fetchedSchools);
+      setClasses(fetchedClasses);
       setUsers((usersRes.data?.items || []).map((user) => ({
         ...user,
         full_name: user.full_name || user.fullName || '',

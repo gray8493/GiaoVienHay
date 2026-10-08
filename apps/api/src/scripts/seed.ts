@@ -3,18 +3,41 @@
  * (Cloud SQL PostgreSQL - Không sử dụng NoSQL Firestore)
  */
 
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+
+function getOAuthToken(): string | null {
+  try {
+    const envToken = process.env.GOOGLE_OAUTH_ACCESS_TOKEN || process.env.FIREBASE_ACCESS_TOKEN;
+    if (envToken) return envToken;
+
+    const home = os.homedir();
+    const configPath = path.join(home, '.config', 'configstore', 'firebase-tools.json');
+    if (fs.existsSync(configPath)) {
+      const raw = fs.readFileSync(configPath, 'utf-8');
+      const data = JSON.parse(raw);
+      return data?.tokens?.access_token || null;
+    }
+  } catch (e) {
+    console.error('Không đọc được token OAuth:', e);
+  }
+  return null;
+}
+
 const API_KEY = "AIzaSyClBuj8koEYV2e57OrTyGdx6hrarrrwLNo";
 const PROJECT_ID = "giaovienhay-511009";
 const LOCATION = "us-east1";
 const SERVICE_ID = "giaovienhay-511009-service";
 
-const ENDPOINT = `https://firebasedataconnect.googleapis.com/v1alpha/projects/${PROJECT_ID}/locations/${LOCATION}/services/${SERVICE_ID}:executeGraphql?key=${API_KEY}`;
+const ENDPOINT = `https://firebasedataconnect.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/services/${SERVICE_ID}:executeGraphql`;
 
 async function executeGraphql(query: string, variables: Record<string, any> = {}, accessToken?: string) {
   try {
+    const token = accessToken || getOAuthToken();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     const res = await fetch(ENDPOINT, {
       method: 'POST',
@@ -228,14 +251,52 @@ async function seedData() {
     }
   `;
 
-  await executeGraphql(createSchoolMutation, {
-    id: 'sch_chuvanan',
-    code: 'CHUVANAN',
-    name: 'Trường Tiểu Học Chu Văn An',
-    address: '115 Thụy Khuê, Tây Hồ, Hà Nội',
-    phone: '02438471122',
-    email: 'c1chuvanan@edu.vn',
-  });
+  const schools = [
+    {
+      id: 'sch_chuvanan',
+      code: 'CHUVANAN',
+      name: 'Trường Tiểu Học Chu Văn An',
+      address: '115 Thụy Khuê, Tây Hồ, Hà Nội',
+      phone: '02438471122',
+      email: 'c1chuvanan@edu.vn',
+    },
+    {
+      id: 'sch_trungvuong',
+      code: 'TRUNGVUONG',
+      name: 'THCS Trưng Vương',
+      address: '26 Hàng Bài, Hoàn Kiếm, Hà Nội',
+      phone: '02438253133',
+      email: 'c2trungvuong@edu.vn',
+    },
+    {
+      id: 'sch_phandinhphung',
+      code: 'PHANDINHPHUNG',
+      name: 'THCS Phan Đình Phùng',
+      address: 'Phan Đình Phùng, Ba Đình, Hà Nội',
+      phone: '02438452331',
+      email: 'c2phandinhphung@edu.vn',
+    },
+    {
+      id: 'sch_vinschool',
+      code: 'VINSCHOOL',
+      name: 'THCS Vinschool Central',
+      address: 'Vinhomes Central Park, Bình Thạnh, TP. Hồ Chí Minh',
+      phone: '02839103344',
+      email: 'contact@vinschool.edu.vn',
+    },
+    {
+      id: 'sch_nguyenhue',
+      code: 'NGUYENHUE',
+      name: 'THPT Chuyên Nguyễn Huệ',
+      address: 'Quang Trung, Hà Đông, Hà Nội',
+      phone: '02433824555',
+      email: 'chuyennguyenhue@edu.vn',
+    },
+  ];
+
+  for (const sch of schools) {
+    await executeGraphql(createSchoolMutation, sch);
+  }
 
   // Thêm các Users bổ sung cho các test case
   console.log('1.1. Đang nạp bổ sung các Users phục vụ testcase...');

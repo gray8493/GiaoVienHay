@@ -128,6 +128,12 @@ export class AdminController {
     return this.adminService.getTransactionLogs(query);
   }
 
+  @Get('classes')
+  @ApiOperation({ summary: 'Lấy danh sách các lớp học phục vụ giám sát toàn hệ thống' })
+  async getClasses() {
+    return this.adminService.getAllClassesMonitoring();
+  }
+
   @Get('schools')
   @ApiOperation({ summary: 'Lấy danh sách các trường học quản lý trong hệ thống' })
   async getSchools() {
