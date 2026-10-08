@@ -29,6 +29,8 @@ export class HealthController {
         heap_total: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
       },
       environment: process.env.NODE_ENV || 'production',
+      gitCommit: process.env.RENDER_GIT_COMMIT || 'local',
+      hasFirebaseCredentials: !!(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY),
       timestamp: new Date().toISOString(),
     };
   }

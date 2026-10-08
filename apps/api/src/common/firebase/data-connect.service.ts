@@ -201,8 +201,28 @@ export class FirebaseDataConnectService implements OnModuleInit {
   private async getAccessToken(): Promise<string | null> {
     try {
       // 1. Xác thực bằng Firebase Service Account Key (Dành cho Production / Render / Docker)
-      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
-      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
+      let clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+      let privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+
+      const serviceAccountJson = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON');
+      if (serviceAccountJson) {
+        try {
+          const parsed = JSON.parse(serviceAccountJson);
+          if (parsed.client_email && parsed.private_key) {
+            clientEmail = parsed.client_email;
+            privateKey = parsed.private_key;
+          }
+        } catch (e) {}
+      }
+
+      if (privateKey) {
+        privateKey = privateKey.trim();
+        if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+          privateKey = privateKey.slice(1, -1);
+        }
+        privateKey = privateKey.replace(/\\n/g, '\n');
+      }
+
       if (clientEmail && privateKey) {
         try {
           const auth = new GoogleAuth({
@@ -218,8 +238,10 @@ export class FirebaseDataConnectService implements OnModuleInit {
             return tokenRes.token;
           }
         } catch (e: any) {
-          this.logger.warn(`[Firebase Data Connect] Lỗi xác thực Service Account: ${e?.message || e}`);
+          this.logger.error(`[Firebase Data Connect] Lỗi xác thực Service Account: ${e?.message || e}`);
         }
+      } else {
+        this.logger.warn(`[Firebase Data Connect] Chưa có cấu hình Service Account (clientEmail: ${!!clientEmail}, privateKey: ${!!privateKey})`);
       }
 
       // 2. Kiểm tra biến môi trường Token trực tiếp
