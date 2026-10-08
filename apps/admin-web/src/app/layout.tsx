@@ -1,14 +1,7 @@
 import React from 'react';
-import { Inter } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 import AppShell from '../components/AppShell';
-
-const inter = Inter({
-  subsets: ['latin', 'vietnamese'],
-  display: 'swap',
-  variable: '--font-inter',
-});
 
 export const metadata = {
   title: 'GiaoVienHay - Quản trị hệ thống',
@@ -24,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi" className={`h-full ${inter.variable} ${inter.className}`} suppressHydrationWarning>
+    <html lang="vi" className="h-full" suppressHydrationWarning>
       <head>
         {/* Preconnect to Google Fonts CDN — giảm DNS+TLS latency cho Material Symbols */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
