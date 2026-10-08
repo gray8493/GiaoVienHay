@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { UpdateProfileDto, RegisterDeviceTokenDto } from './dto/users.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
-    private readonly firebaseService: FirebaseService,
+    private readonly dataConnect: FirebaseDataConnectService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -41,11 +41,8 @@ export class UsersService {
       updated_at: new Date().toISOString(),
     };
 
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('users').doc(userId).update(updatedData);
-      } catch (e) {}
-    }
+    // Cập nhật SQL Data Connect
+    await this.dataConnect.createUser(updatedData);
 
     // Xóa cache cũ để dữ liệu mới được cập nhật tức thời
     await this.cacheManager.del(`user_profile_${userId}`);
@@ -55,16 +52,6 @@ export class UsersService {
   }
 
   async registerDeviceToken(userId: string, dto: RegisterDeviceTokenDto) {
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('users').doc(userId).update({
-          fcm_token: dto.device_token,
-          device_type: dto.device_type || 'ANDROID',
-          token_updated_at: new Date().toISOString(),
-        });
-      } catch (e) {}
-    }
-
     return {
       message: 'Đăng ký Device Token FCM thành công',
       device_token: dto.device_token,
@@ -76,18 +63,9 @@ export class UsersService {
    */
   async deleteUser(userId: string) {
     const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('users').doc(userId).set(
-          {
-            is_deleted: true,
-            is_active: false,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
+
+    // Cập nhật SQL Data Connect
+    await this.dataConnect.softDeleteUser(userId);
 
     // Xóa cache profile
     await this.cacheManager.del(`user_profile_${userId}`);
@@ -101,25 +79,12 @@ export class UsersService {
   }
 
   private async getUserById(userId: string): Promise<any | null> {
-    if (this.firebaseService.firestore) {
-      try {
-        const doc = await this.firebaseService.firestore.collection('users').doc(userId).get();
-        if (doc.exists) {
-          const data = doc.data();
-          if (data?.is_deleted) return null;
-          return { id: doc.id, ...data };
-        }
-      } catch (e) {}
-    }
-    return {
-      id: userId,
-      full_name: 'Giáo viên Nguyễn Thị Lan',
-      phone: '0912345678',
-      role: 'TEACHER_HOMEROOM',
-      school_name: 'Trường Tiểu Học Chu Văn An',
-      teaching_subjects: ['MATH'],
-      is_active: true,
-      is_deleted: false,
-    };
+    try {
+      const sqlUser = await this.dataConnect.getUserById(userId);
+      if (sqlUser && !sqlUser.isDeleted && !sqlUser.is_deleted) {
+        return sqlUser;
+      }
+    } catch (e) {}
+    return null;
   }
 }

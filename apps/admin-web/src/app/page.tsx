@@ -1,10 +1,60 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import {
+  getDashboardStats,
+  DashboardStatsData,
+  FALLBACK_DASHBOARD_STATS,
+} from '../lib/dashboard.service';
+import {
+  getActivityLogsApi,
+  getTransactionLogsApi,
+  TransactionItem,
+  ActivityLogItem,
+} from '../lib/logs.service';
 
 export default function AdminDashboardPage() {
   const [activeChartTab, setActiveChartTab] = useState<'ai' | 'classes' | 'tuition'>('ai');
+  const [stats, setStats] = useState<DashboardStatsData>(FALLBACK_DASHBOARD_STATS);
+  const [recentTransactions, setRecentTransactions] = useState<TransactionItem[]>([]);
+  const [recentActivities, setRecentActivities] = useState<ActivityLogItem[]>([]);
+  const [isLiveBackend, setIsLiveBackend] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStats() {
+      setIsLoading(true);
+      try {
+        const [res, txRes, actRes] = await Promise.all([
+          getDashboardStats(),
+          getTransactionLogsApi({ limit: 5 }),
+          getActivityLogsApi({ limit: 5 }),
+        ]);
+        if (isMounted) {
+          setStats(res.data);
+          if (txRes.items) setRecentTransactions(txRes.items);
+          if (actRes.items) setRecentActivities(actRes.items);
+          setIsLiveBackend(!res.isMock || txRes.isLive || actRes.isLive);
+        }
+      } catch (e) {
+        console.warn('Lỗi tải Dashboard stats:', e);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    loadStats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalUsersCount = stats.kpi.total_users.value;
+  const teachersCount = stats.kpi.total_users.teachers_count;
+  const parentsCount = stats.kpi.total_users.parents_count;
+  const teacherPercent = totalUsersCount > 0 ? Math.round((teachersCount / totalUsersCount) * 100) : 0;
+  const parentPercent = totalUsersCount > 0 ? Math.round((parentsCount / totalUsersCount) * 100) : 0;
 
   return (
     <div
@@ -17,6 +67,28 @@ export default function AdminDashboardPage() {
     >
       {/* MAIN CONTENT AREA */}
       <div className="relative z-10 w-full px-6 lg:px-8 py-6 space-y-6 flex-1 pb-16">
+        {/* STATUS BAR: Live Backend vs Mock */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Trung tâm Điều hành Hệ thống
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            {isLiveBackend ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200/80 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Backend Live ({stats.system_health.uptime_seconds}s uptime)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200/80 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                Dữ liệu mô phỏng (Smart Mock)
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* TOP KPI METRIC CARDS (4 COLUMNS) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* CARD 1: Tổng người dùng */}
@@ -29,14 +101,16 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-medium">Tổng người dùng</span>
                 <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[13px]">trending_up</span>+12.5%
+                  <span className="material-symbols-outlined text-[13px]">trending_up</span>{stats.kpi.total_users.growth_rate}
                 </span>
               </div>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">14,250</span>
+                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
+                  {stats.kpi.total_users.value.toLocaleString('vi-VN')}
+                </span>
                 <span className="text-xs text-slate-500">tài khoản</span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">So với tháng 8/2026</p>
+              <p className="text-xs text-slate-400 mt-0.5">{stats.kpi.total_users.comparison_period}</p>
             </div>
             {/* Sparkline Coral/Orange */}
             <div className="mt-3 pt-1">
@@ -64,14 +138,16 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-medium">Lớp học hoạt động</span>
                 <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[13px]">trending_up</span>+8.2%
+                  <span className="material-symbols-outlined text-[13px]">trending_up</span>{stats.kpi.active_classes.growth_rate}
                 </span>
               </div>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">1,280</span>
+                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
+                  {stats.kpi.active_classes.value.toLocaleString('vi-VN')}
+                </span>
                 <span className="text-xs text-slate-500">lớp học</span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">Thuộc 38 trường liên kết</p>
+              <p className="text-xs text-slate-400 mt-0.5">{stats.kpi.active_classes.comparison_period}</p>
             </div>
             {/* Sparkline Emerald/Teal */}
             <div className="mt-3 pt-1">
@@ -99,14 +175,16 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-medium">Lượt gọi Gemini AI</span>
                 <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[13px]">trending_down</span>-3.1%
+                  <span className="material-symbols-outlined text-[13px]">trending_down</span>{stats.kpi.gemini_ai_calls.growth_rate}
                 </span>
               </div>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">24,680</span>
+                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
+                  {stats.kpi.gemini_ai_calls.value.toLocaleString('vi-VN')}
+                </span>
                 <span className="text-xs text-slate-500">hôm nay</span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">Giáo án &amp; trích xuất đề thi</p>
+              <p className="text-xs text-slate-400 mt-0.5">{stats.kpi.gemini_ai_calls.comparison_period}</p>
             </div>
             {/* Sparkline Navy/Primary */}
             <div className="mt-3 pt-1">
@@ -131,14 +209,16 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-medium">Học phí &amp; BHYT</span>
                 <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[13px]">trending_up</span>+24.7%
+                  <span className="material-symbols-outlined text-[13px]">trending_up</span>{stats.kpi.tuition_revenue.growth_rate}
                 </span>
               </div>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">92.4%</span>
+                <span className="text-2xl lg:text-[28px] text-slate-900 font-bold tracking-tight">
+                  {stats.kpi.tuition_revenue.paid_rate}%
+                </span>
                 <span className="text-xs text-emerald-600 font-semibold">hoàn tất</span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">Tiến độ đợt 1 Học kỳ I</p>
+              <p className="text-xs text-slate-400 mt-0.5">{stats.kpi.tuition_revenue.comparison_period}</p>
             </div>
             {/* Sparkline Amber */}
             <div className="mt-3 pt-1">
@@ -237,7 +317,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                 <div className="flex flex-col">
                   <h3 className="text-base text-slate-900 font-bold">Nguồn người dùng</h3>
-                  <span className="text-xs text-slate-500">Phân bổ truy cập kỳ này</span>
+                  <span className="text-xs text-slate-500">Phân bổ tài khoản thực tế</span>
                 </div>
                 <span className="material-symbols-outlined text-[20px] text-slate-400">pie_chart</span>
               </div>
@@ -246,76 +326,74 @@ export default function AdminDashboardPage() {
                 <div className="relative w-36 h-36 flex items-center justify-center flex-shrink-0">
                   <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 120 120">
                     <circle cx="60" cy="60" fill="transparent" r="46" stroke="#f1f5f9" strokeWidth="12" />
-                    <circle cx="60" cy="60" fill="transparent" r="46" stroke="#ea580c" strokeDasharray="101 188" strokeDashoffset="0" strokeLinecap="round" strokeWidth="12" />
-                    <circle cx="60" cy="60" fill="transparent" r="46" stroke="#006c49" strokeDasharray="81 208" strokeDashoffset="-106" strokeLinecap="round" strokeWidth="12" />
-                    <circle cx="60" cy="60" fill="transparent" r="46" stroke="#2563eb" strokeDasharray="63 226" strokeDashoffset="-192" strokeLinecap="round" strokeWidth="12" />
-                    <circle cx="60" cy="60" fill="transparent" r="46" stroke="#b45309" strokeDasharray="43 246" strokeDashoffset="-259" strokeLinecap="round" strokeWidth="12" />
+                    {totalUsersCount > 0 && teacherPercent > 0 && (
+                      <circle cx="60" cy="60" fill="transparent" r="46" stroke="#ea580c" strokeDasharray={`${(teacherPercent / 100) * 289} 289`} strokeDashoffset="0" strokeLinecap="round" strokeWidth="12" />
+                    )}
+                    {totalUsersCount > 0 && parentPercent > 0 && (
+                      <circle cx="60" cy="60" fill="transparent" r="46" stroke="#006c49" strokeDasharray={`${(parentPercent / 100) * 289} 289`} strokeDashoffset={`-${(teacherPercent / 100) * 289}`} strokeLinecap="round" strokeWidth="12" />
+                    )}
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                    <span className="text-xl font-bold text-slate-900 leading-tight">284K</span>
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">Tổng truy cập</span>
+                    <span className="text-xl font-bold text-slate-900 leading-tight">{totalUsersCount.toLocaleString('vi-VN')}</span>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">Tài khoản</span>
                   </div>
                 </div>
                 {/* Donut Legend */}
                 <div className="flex flex-col gap-2 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-orange-600 flex-shrink-0" />
-                    <span className="text-xs text-slate-700 truncate">GV Chủ nhiệm (35%)</span>
+                    <span className="text-xs text-slate-700 truncate">Giáo viên ({teachersCount.toLocaleString()} - {teacherPercent}%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#006c49] flex-shrink-0" />
-                    <span className="text-xs text-slate-700 truncate">Phụ huynh (28%)</span>
+                    <span className="text-xs text-slate-700 truncate">Phụ huynh ({parentsCount.toLocaleString()} - {parentPercent}%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-600 flex-shrink-0" />
-                    <span className="text-xs text-slate-700 truncate">GV Bộ môn (22%)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#b45309] flex-shrink-0" />
-                    <span className="text-xs text-slate-700 truncate">Ban Giám hiệu (15%)</span>
+                    <span className="text-xs text-slate-700 truncate">Trường liên kết ({stats.kpi.active_classes.schools_count})</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Card B: Mục tiêu tháng 9 */}
+            {/* Card B: Chỉ số vận hành */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <h3 className="text-base text-slate-900 font-bold">Mục tiêu tháng 9</h3>
-                  <span className="text-xs text-slate-500">Chỉ tiêu vận hành quý 3</span>
+                  <h3 className="text-base text-slate-900 font-bold">Chỉ số vận hành</h3>
+                  <span className="text-xs text-slate-500">Theo dõi định mức thời gian thực</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">Q3/2026</span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">Live</span>
               </div>
               <div className="flex flex-col gap-3 pt-1">
                 {/* Item 1: Hạn mức Gemini AI */}
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-medium text-slate-700">Hạn mức Gemini AI</span>
-                    <span className="text-orange-600 font-bold">88% <span className="text-slate-400 font-normal">(48.2K/55K)</span></span>
+                    <span className="text-orange-600 font-bold">{stats.kpi.gemini_ai_calls.used_percent}% <span className="text-slate-400 font-normal">({stats.kpi.gemini_ai_calls.value.toLocaleString()}/{stats.kpi.gemini_ai_calls.daily_quota.toLocaleString()})</span></span>
                   </div>
                   <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 shadow-inner">
-                    <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-600 w-[88%]" />
+                    <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-600" style={{ width: `${Math.min(stats.kpi.gemini_ai_calls.used_percent, 100)}%` }} />
                   </div>
                 </div>
-                {/* Item 2: Tài khoản mới kích hoạt */}
+                {/* Item 2: Lớp học kích hoạt */}
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-700">Tài khoản mới kích hoạt</span>
-                    <span className="text-[#006c49] font-bold">85% <span className="text-slate-400 font-normal">(847/1,000 GV)</span></span>
+                    <span className="font-medium text-slate-700">Lớp học kích hoạt</span>
+                    <span className="text-[#006c49] font-bold">{stats.kpi.active_classes.value.toLocaleString()} <span className="text-slate-400 font-normal">lớp</span></span>
                   </div>
                   <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 shadow-inner">
-                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-[#006c49] w-[85%]" />
+                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-[#006c49]" style={{ width: `${stats.kpi.active_classes.value > 0 ? 100 : 0}%` }} />
                   </div>
                 </div>
-                {/* Item 3: Tỷ lệ đồng bộ Sở GD&ĐT */}
+                {/* Item 3: Tỷ lệ hoàn tất học phí */}
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-700">Đồng bộ dữ liệu Sở GD&amp;ĐT</span>
-                    <span className="text-[#004ac6] font-bold">76% <span className="text-slate-400 font-normal">(3.8/5.0)</span></span>
+                    <span className="font-medium text-slate-700">Tỷ lệ thu phí &amp; BHYT</span>
+                    <span className="text-[#004ac6] font-bold">{stats.kpi.tuition_revenue.paid_rate}% <span className="text-slate-400 font-normal">({stats.kpi.tuition_revenue.collected_vnd.toLocaleString()}đ)</span></span>
                   </div>
                   <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 shadow-inner">
-                    <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-[#004ac6] w-[76%]" />
+                    <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-[#004ac6]" style={{ width: `${Math.min(stats.kpi.tuition_revenue.paid_rate, 100)}%` }} />
                   </div>
                 </div>
               </div>
@@ -333,7 +411,7 @@ export default function AdminDashboardPage() {
                 <h2 className="text-base font-bold text-slate-900">Giao dịch &amp; Đăng ký gói gần đây</h2>
                 <span className="text-xs text-slate-500">Lượt đăng ký bản quyền và mua quota AI mới nhất</span>
               </div>
-              <Link href="/limits" className="inline-flex items-center gap-1 text-xs text-blue-600 font-bold hover:underline">
+              <Link href="/logs" className="inline-flex items-center gap-1 text-xs text-blue-600 font-bold hover:underline">
                 <span>Xem tất cả</span>
                 <span className="material-symbols-outlined text-[16px]">north_east</span>
               </Link>
@@ -345,126 +423,47 @@ export default function AdminDashboardPage() {
                   <tr className="bg-slate-50/60 text-slate-500 uppercase text-[11px] tracking-wider border-b border-slate-100 font-semibold">
                     <th className="py-3 px-4 whitespace-nowrap">Đơn vị &amp; Người đại diện</th>
                     <th className="py-3 px-4 whitespace-nowrap text-center">Mã GD</th>
-                    <th className="py-3 px-4 whitespace-nowrap">Gói dịch vụ</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Nội dung</th>
                     <th className="py-3 px-4 text-center whitespace-nowrap">Trạng thái</th>
                     <th className="py-3 px-4 text-right whitespace-nowrap">Số tiền</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {/* Row 1 */}
-                  <tr className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 leading-snug">THCS Lê Quý Đôn</span>
-                          <span className="text-slate-400 text-xs">Cô Mai Lan</span>
+                  {recentTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <span className="material-symbols-outlined text-4xl text-slate-300">receipt_long</span>
+                          <div className="text-sm font-semibold text-slate-700">Chưa có giao dịch gần đây</div>
+                          <p className="text-xs text-slate-400">Giao dịch đăng ký gói AI và thanh toán sẽ xuất hiện tại đây khi phát sinh.</p>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500">GD-7891</td>
-                    <td className="py-3.5 px-4 font-medium text-xs">Gói AI Trường học Pro</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#131b2e] text-white text-xs font-semibold whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white" />Hoàn tất
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-900">12.500.000đ</td>
-                  </tr>
-                  {/* Row 2 */}
-                  <tr className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 leading-snug">THCS Chu Văn An</span>
-                          <span className="text-slate-400 text-xs">Thầy Đức</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500">GD-7890</td>
-                    <td className="py-3.5 px-4 font-medium text-xs">Nâng cấp Quota AI Khối 7</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#131b2e] text-white text-xs font-medium whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />Đang xử lý
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-900">4.200.000đ</td>
-                  </tr>
-                  {/* Row 3 */}
-                  <tr className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 leading-snug">THPT Chuyên Nguyễn Huệ</span>
-                          <span className="text-slate-400 text-xs">BGH Trường</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500">GD-7889</td>
-                    <td className="py-3.5 px-4 font-medium text-xs">Bản quyền Toàn trường</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#131b2e] text-white text-xs font-semibold whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white" />Hoàn tất
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-900">35.000.000đ</td>
-                  </tr>
-                  {/* Row 4 */}
-                  <tr className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 leading-snug">THCS Phan Đình Phùng</span>
-                          <span className="text-slate-400 text-xs">Cô Thu Thủy</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500">GD-7888</td>
-                    <td className="py-3.5 px-4 font-medium text-xs">Bản quyền Cá nhân GV</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#131b2e] text-white text-xs font-medium whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Chờ duyệt
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-900">1.200.000đ</td>
-                  </tr>
-                  {/* Row 5 */}
-                  <tr className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 leading-snug">THCS Vinschool Central</span>
-                          <span className="text-slate-400 text-xs">Tổ Trưởng Chuyên Môn</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500">GD-7887</td>
-                    <td className="py-3.5 px-4 font-medium text-xs">AI Soạn giáo án &amp; Đề thi</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#131b2e] text-white text-xs font-semibold whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white" />Hoàn tất
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-900">6.500.000đ</td>
-                  </tr>
-                  {/* Row 6 */}
-                  <tr className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 leading-snug">THCS Lương Thế Vinh</span>
-                          <span className="text-slate-400 text-xs">Thầy Hoàng Nam</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500">GD-7886</td>
-                    <td className="py-3.5 px-4 font-medium text-xs">Nâng hạn mức Token API</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#131b2e] text-white text-xs font-medium whitespace-nowrap">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />Đã hủy
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-400 line-through">2.800.000đ</td>
-                  </tr>
+                      </td>
+                    </tr>
+                  ) : (
+                    recentTransactions.slice(0, 5).map((tx) => (
+                      <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-900 leading-snug">{tx.targetEntity}</span>
+                              <span className="text-slate-400 text-xs">{tx.time}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500">{tx.orderCode}</td>
+                        <td className="py-3.5 px-4 font-medium text-xs">{tx.description}</td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
+                            tx.status === 'COMPLETED' ? 'bg-[#131b2e] text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${tx.status === 'COMPLETED' ? 'bg-white' : 'bg-slate-400'}`} />
+                            {tx.statusLabel}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-bold text-slate-900">{tx.amount.toLocaleString('vi-VN')}đ</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -484,61 +483,26 @@ export default function AdminDashboardPage() {
             </div>
             {/* Timeline List */}
             <div className="flex flex-col gap-3.5 relative">
-              {/* Timeline Item 1 */}
-              <div className="flex items-start gap-2.5 group">
-                <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0 mt-1.5" />
-                <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs text-slate-900 font-semibold truncate">Đăng ký gói AI Thành công</span>
-                    <span className="text-[11px] text-slate-400 flex-shrink-0">2 phút trước</span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate">Cô Trần Lan - Trường THPT Chuyên Hà Nội Amsterdam</p>
+              {recentActivities.length === 0 ? (
+                <div className="py-10 text-center text-slate-500 flex flex-col items-center justify-center space-y-2">
+                  <span className="material-symbols-outlined text-3xl text-slate-300">history</span>
+                  <div className="text-xs font-semibold text-slate-700">Chưa có hoạt động gần đây</div>
+                  <p className="text-[11px] text-slate-400">Các sự kiện hệ thống mới nhất sẽ tự động hiển thị tại đây.</p>
                 </div>
-              </div>
-              {/* Timeline Item 2 */}
-              <div className="flex items-start gap-2.5 group">
-                <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0 mt-1.5" />
-                <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs text-slate-900 font-semibold truncate">Xác thực tài khoản Giáo viên</span>
-                    <span className="text-[11px] text-slate-400 flex-shrink-0">15 phút trước</span>
+              ) : (
+                recentActivities.slice(0, 5).map((act) => (
+                  <div key={act.id} className="flex items-start gap-2.5 group">
+                    <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0 mt-1.5" />
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs text-slate-900 font-semibold truncate">{act.action}</span>
+                        <span className="text-[11px] text-slate-400 flex-shrink-0">{act.time}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 truncate">{act.target}</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 truncate">Đã phê duyệt định danh Căn cước công dân cho 14 GV mới</p>
-                </div>
-              </div>
-              {/* Timeline Item 3 */}
-              <div className="flex items-start gap-2.5 group">
-                <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0 mt-1.5" />
-                <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs text-slate-900 font-semibold truncate">Đánh giá 5 sao cho Trợ lý AI</span>
-                    <span className="text-[11px] text-slate-400 flex-shrink-0">1 giờ trước</span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate">Thầy Hoàng Hải (Tổ Toán): &quot;Soạn ma trận đề thi cực kỳ chuẩn&quot;</p>
-                </div>
-              </div>
-              {/* Timeline Item 4 */}
-              <div className="flex items-start gap-2.5 group">
-                <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0 mt-1.5" />
-                <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs text-slate-900 font-semibold truncate">Thanh toán BHYT &amp; Học phí</span>
-                    <span className="text-[11px] text-slate-400 flex-shrink-0">2 giờ trước</span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate">312 phụ huynh Lớp 9A2 hoàn tất nộp tiền qua cổng VietQR</p>
-                </div>
-              </div>
-              {/* Timeline Item 5 */}
-              <div className="flex items-start gap-2.5 group">
-                <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0 mt-1.5" />
-                <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs text-slate-900 font-semibold truncate">Yêu cầu cấp thêm Token</span>
-                    <span className="text-[11px] text-slate-400 flex-shrink-0">3 giờ trước</span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate">Ticket #842: Tổ Ngữ Văn đề xuất tăng hạn mức 200,000 token</p>
-                </div>
-              </div>
+                ))
+              )}
             </div>
             {/* Quick Summary banner inside card */}
             <div className="mt-1 p-2.5 rounded-xl bg-slate-50 flex items-center justify-between">

@@ -1,0 +1,364 @@
+# Các thao tác thêm, sửa, xóa dữ liệu quan hệ SQL cho Firebase Data Connect
+
+# ==================== 1. USER MUTATIONS ====================
+
+mutation CreateUser(
+  $id: String!
+  $code: String!
+  $fullName: String!
+  $phone: String!
+  $email: String
+  $role: String!
+  $schoolName: String
+  $assignedInfo: String
+  $aiDailyQuota: Int
+  $aiModelTier: String
+) @auth(level: USER) {
+  user_insert(
+    data: {
+      id: $id
+      code: $code
+      fullName: $fullName
+      phone: $phone
+      email: $email
+      role: $role
+      schoolName: $schoolName
+      assignedInfo: $assignedInfo
+      aiDailyQuota: $aiDailyQuota
+      aiModelTier: $aiModelTier
+    }
+  )
+}
+
+mutation UpdateTeacherAiQuota(
+  $id: String!
+  $aiDailyQuota: Int!
+  $aiModelTier: String
+  $aiUsedToday: Int
+) @auth(level: USER) {
+  user_update(
+    id: $id
+    data: {
+      aiDailyQuota: $aiDailyQuota
+      aiModelTier: $aiModelTier
+      aiUsedToday: $aiUsedToday
+    }
+  )
+}
+
+mutation UpdateUserStatus(
+  $id: String!
+  $isActive: Boolean!
+) @auth(level: USER) {
+  user_update(
+    id: $id
+    data: {
+      isActive: $isActive
+    }
+  )
+}
+
+mutation SoftDeleteUser($id: String!) @auth(level: USER) {
+  user_update(
+    id: $id
+    data: {
+      isDeleted: true
+    }
+  )
+}
+
+# ==================== 2. SCHOOL MUTATIONS ====================
+
+mutation CreateSchool(
+  $id: String!
+  $code: String!
+  $name: String!
+  $address: String
+  $phone: String
+  $email: String
+) @auth(level: USER) {
+  school_insert(
+    data: {
+      id: $id
+      code: $code
+      name: $name
+      address: $address
+      phone: $phone
+      email: $email
+    }
+  )
+}
+
+# ==================== 3. CLASS MUTATIONS ====================
+
+mutation CreateClass(
+  $id: String!
+  $name: String!
+  $gradeLevel: Int!
+  $academicYear: String!
+  $schoolName: String
+  $homeroomTeacherId: String
+  $inviteCode: String!
+  $studentCount: Int
+) @auth(level: USER) {
+  class_insert(
+    data: {
+      id: $id
+      name: $name
+      gradeLevel: $gradeLevel
+      academicYear: $academicYear
+      schoolName: $schoolName
+      homeroomTeacherId: $homeroomTeacherId
+      inviteCode: $inviteCode
+      studentCount: $studentCount
+    }
+  )
+}
+
+mutation SoftDeleteClass($id: String!) @auth(level: USER) {
+  class_update(
+    id: $id
+    data: {
+      isDeleted: true
+    }
+  )
+}
+
+# ==================== 4. STUDENT MUTATIONS ====================
+
+mutation CreateStudent(
+  $id: String!
+  $classId: String!
+  $studentCode: String!
+  $fullName: String!
+  $dob: String
+  $gender: String!
+  $parentPhone: String
+) @auth(level: USER) {
+  student_insert(
+    data: {
+      id: $id
+      classId: $classId
+      studentCode: $studentCode
+      fullName: $fullName
+      dob: $dob
+      gender: $gender
+      parentPhone: $parentPhone
+    }
+  )
+}
+
+mutation SoftDeleteStudent($id: String!) @auth(level: USER) {
+  student_update(
+    id: $id
+    data: {
+      isDeleted: true
+    }
+  )
+}
+
+# ==================== 5. ATTENDANCE MUTATIONS ====================
+
+mutation RecordAttendance(
+  $id: String!
+  $classId: String!
+  $studentId: String!
+  $date: String!
+  $status: String!
+  $note: String
+) @auth(level: USER) {
+  attendance_insert(
+    data: {
+      id: $id
+      classId: $classId
+      studentId: $studentId
+      date: $date
+      status: $status
+      note: $note
+    }
+  )
+}
+
+# ==================== 6. SCORE MUTATIONS ====================
+
+mutation RecordScore(
+  $id: String!
+  $studentId: String!
+  $classId: String!
+  $subject: String!
+  $scoreType: String!
+  $scoreValue: Float!
+  $term: Int!
+  $academicYear: String!
+) @auth(level: USER) {
+  score_insert(
+    data: {
+      id: $id
+      studentId: $studentId
+      classId: $classId
+      subject: $subject
+      scoreType: $scoreType
+      scoreValue: $scoreValue
+      term: $term
+      academicYear: $academicYear
+    }
+  )
+}
+
+# ==================== 7. QUIZ MUTATIONS ====================
+
+mutation CreateQuiz(
+  $id: String!
+  $teacherId: String!
+  $classId: String!
+  $subject: String!
+  $title: String!
+  $questionsJson: String!
+) @auth(level: USER) {
+  quiz_insert(
+    data: {
+      id: $id
+      teacherId: $teacherId
+      classId: $classId
+      subject: $subject
+      title: $title
+      questionsJson: $questionsJson
+    }
+  )
+}
+
+# ==================== 8. REMARK MUTATIONS ====================
+
+mutation CreateRemark(
+  $id: String!
+  $studentId: String!
+  $teacherId: String!
+  $date: String!
+  $content: String!
+  $category: String!
+) @auth(level: USER) {
+  remark_insert(
+    data: {
+      id: $id
+      studentId: $studentId
+      teacherId: $teacherId
+      date: $date
+      content: $content
+      category: $category
+    }
+  )
+}
+
+# ==================== 9. EXAM REMINDER MUTATIONS ====================
+
+mutation CreateExamReminder(
+  $id: String!
+  $classId: String!
+  $subject: String!
+  $examDate: String!
+  $title: String!
+  $note: String
+) @auth(level: USER) {
+  examReminder_insert(
+    data: {
+      id: $id
+      classId: $classId
+      subject: $subject
+      examDate: $examDate
+      title: $title
+      note: $note
+    }
+  )
+}
+
+# ==================== 10. FEE MUTATIONS ====================
+
+mutation CreateFee(
+  $id: String!
+  $studentId: String!
+  $title: String!
+  $amount: Float!
+  $status: String!
+  $dueDate: String!
+) @auth(level: USER) {
+  fee_insert(
+    data: {
+      id: $id
+      studentId: $studentId
+      title: $title
+      amount: $amount
+      status: $status
+      dueDate: $dueDate
+    }
+  )
+}
+
+mutation UpdateFeeStatus(
+  $id: String!
+  $status: String!
+) @auth(level: USER) {
+  fee_update(
+    id: $id
+    data: {
+      status: $status
+    }
+  )
+}
+
+# ==================== 11. NOTIFICATION MUTATIONS ====================
+
+mutation CreateNotification(
+  $id: String!
+  $recipientId: String!
+  $title: String!
+  $body: String!
+  $type: String!
+) @auth(level: USER) {
+  notification_insert(
+    data: {
+      id: $id
+      recipientId: $recipientId
+      title: $title
+      body: $body
+      type: $type
+      isRead: false
+    }
+  )
+}
+
+mutation MarkNotificationRead($id: String!) @auth(level: USER) {
+  notification_update(
+    id: $id
+    data: {
+      isRead: true
+    }
+  )
+}
+
+# ==================== 12. SYSTEM LIMIT MUTATIONS ====================
+
+mutation UpsertSystemLimits(
+  $id: String!
+  $geminiQuotaPerTeacher: Int!
+  $maxQuizQuestions: Int!
+  $maxUploadSizeMb: Int!
+  $maxStudentsPerClass: Int!
+  $maxClassesPerTeacher: Int!
+  $aiModel: String!
+  $allowSubjectTeacherCreateClass: Boolean!
+  $enableFallbackCache: Boolean!
+) @auth(level: USER) {
+  systemLimit_upsert(
+    data: {
+      id: $id
+      geminiQuotaPerTeacher: $geminiQuotaPerTeacher
+      maxQuizQuestions: $maxQuizQuestions
+      maxUploadSizeMb: $maxUploadSizeMb
+      maxStudentsPerClass: $maxStudentsPerClass
+      maxClassesPerTeacher: $maxClassesPerTeacher
+      aiModel: $aiModel
+      allowSubjectTeacherCreateClass: $allowSubjectTeacherCreateClass
+      enableFallbackCache: $enableFallbackCache
+    }
+  )
+}

@@ -1,50 +1,67 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-interface SystemLimits {
-  gemini_ai_daily_quota_per_teacher: number;
-  max_quiz_questions_per_gen: number;
-  max_upload_size_mb: number;
-  max_students_per_class: number;
-  max_classes_per_teacher: number;
-  ai_model: 'gemini-1.5-flash' | 'gemini-1.5-pro';
-  allow_subject_teacher_create_class: boolean;
-  enable_fallback_cache: boolean;
-}
-
-const INITIAL_LIMITS: SystemLimits = {
-  gemini_ai_daily_quota_per_teacher: 25,
-  max_quiz_questions_per_gen: 20,
-  max_upload_size_mb: 15,
-  max_students_per_class: 55,
-  max_classes_per_teacher: 5,
-  ai_model: 'gemini-1.5-flash',
-  allow_subject_teacher_create_class: true,
-  enable_fallback_cache: true,
-};
+import {
+  SystemLimits,
+  DEFAULT_SYSTEM_LIMITS,
+  getSystemLimitsApi,
+  updateSystemLimitsApi,
+} from '../../lib/limits.service';
 
 export default function LimitsAndAiPage() {
-  const [limits, setLimits] = useState<SystemLimits>(INITIAL_LIMITS);
+  const [limits, setLimits] = useState<SystemLimits>(DEFAULT_SYSTEM_LIMITS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleSave = () => {
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLimits() {
+      setIsLoading(true);
+      try {
+        const res = await getSystemLimitsApi();
+        if (isMounted) {
+          setLimits(res.data);
+          setIsLiveBackend(!res.isMock);
+        }
+      } catch (e) {
+        console.warn('Lỗi tải cấu hình hạn mức:', e);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    loadLimits();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
+    try {
+      const res = await updateSystemLimitsApi(limits);
+      if (res.success) {
+        showToast(res.message || 'Đã lưu thành công cấu hình hạn mức tài nguyên & AI');
+      } else {
+        showToast(res.error || 'Lỗi lưu cấu hình');
+      }
+    } catch (e: any) {
+      showToast(e.message || 'Lỗi kết nối máy chủ');
+    } finally {
       setIsSaving(false);
-      showToast('Đã lưu thành công cấu hình hạn mức tài nguyên & AI');
-    }, 500);
+    }
   };
 
-  const handleReset = () => {
-    setLimits(INITIAL_LIMITS);
+  const handleReset = async () => {
+    setLimits(DEFAULT_SYSTEM_LIMITS);
+    await updateSystemLimitsApi(DEFAULT_SYSTEM_LIMITS);
     showToast('Đã khôi phục các thông số mặc định của hệ thống');
   };
 

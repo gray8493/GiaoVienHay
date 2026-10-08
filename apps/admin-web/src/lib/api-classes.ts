@@ -12,6 +12,7 @@ import type {
   StudentEntity,
   FeeInsuranceEntity,
 } from '@giaovienhay/shared-types';
+import { apiRequest } from './api-client';
 
 export type GenderType = 'MALE' | 'FEMALE';
 
@@ -276,72 +277,62 @@ export const SEED_STUDENTS_BY_CLASS: Record<string, StudentEntity[]> = {
  */
 export async function getAdminClassesMonitoring(): Promise<ClassMonitoringItem[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/classes`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        // Map backend classes into full monitoring view
-        return data.map((item: any) => {
-          const matchSeed = SEED_CLASSES_MONITORING.find(
-            (s) => s.class_id === item.class_id || s.name === item.name,
-          );
-          return {
-            class_id: item.class_id || item.id,
-            name: item.name,
-            grade_level: item.grade_level || 7,
-            homeroom_teacher: item.homeroom_teacher || matchSeed?.homeroom_teacher || 'Chưa phân công',
-            homeroom_teacher_phone: matchSeed?.homeroom_teacher_phone || '0900 000 000',
-            homeroom_teacher_avatar: matchSeed?.homeroom_teacher_avatar,
-            homeroom_teacher_initials: matchSeed?.homeroom_teacher_initials || 'GV',
-            homeroom_teacher_initials_bg: matchSeed?.homeroom_teacher_initials_bg || 'bg-brand-100',
-            homeroom_teacher_initials_color: matchSeed?.homeroom_teacher_initials_color || 'text-brand-700',
-            room: matchSeed?.room || 'Phòng học',
-            student_count: item.student_count || matchSeed?.student_count || 0,
-            linked_parents_count: matchSeed?.linked_parents_count || Math.floor((item.student_count || 35) * 0.9),
-            insurance_paid_count: matchSeed?.insurance_paid_count || Math.floor((item.student_count || 35) * 0.95),
-            academic_year: item.academic_year || '2026-2027',
-            invite_code: item.invite_code || matchSeed?.invite_code || `INV-${item.name}-2026`,
-          };
-        });
-      }
+    const data = await apiRequest<any[]>('/admin/classes');
+    if (Array.isArray(data)) {
+      return data.map((item: any) => {
+        return {
+          class_id: item.class_id || item.id,
+          name: item.name,
+          grade_level: item.grade_level || 7,
+          homeroom_teacher: item.homeroom_teacher || 'Chưa phân công',
+          homeroom_teacher_phone: item.homeroom_teacher_phone || 'Chưa cập nhật',
+          homeroom_teacher_avatar: item.homeroom_teacher_avatar,
+          homeroom_teacher_initials: item.name ? item.name.slice(0, 2) : 'LH',
+          homeroom_teacher_initials_bg: 'bg-slate-100',
+          homeroom_teacher_initials_color: 'text-slate-800',
+          room: item.room || 'Chưa xếp phòng',
+          student_count: item.student_count || 0,
+          linked_parents_count: item.linked_parents_count || 0,
+          insurance_paid_count: item.insurance_paid_count || 0,
+          academic_year: item.academic_year || '2026-2027',
+          invite_code: item.invite_code || `INV-${item.name}-2026`,
+        };
+      });
     }
-  } catch (error) {
-    // API server is offline or unreachable - use rich seed data seamlessly
-  }
+  } catch (error) {}
 
-  return SEED_CLASSES_MONITORING;
+  return [];
 }
 
 /**
  * Create new class (calls POST /api/v1/classes)
  */
 export async function createClassApi(
-  payload: CreateClassPayload,
+  payload: CreateClassPayload & { school_name?: string; homeroom_teacher?: string },
   token?: string,
 ): Promise<{ success: boolean; data: any; message?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/classes`, {
+    const data = await apiRequest('/admin/classes', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
       body: JSON.stringify(payload),
     });
-
-    if (res.ok) {
-      const data = await res.json();
-      return { success: true, data };
-    }
+    return { success: true, data };
   } catch (e) {
-    // Fallback simulated success
+    try {
+      const res = await fetch(`${API_BASE_URL}/classes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, data };
+      }
+    } catch (err) {}
   }
 
   return {
@@ -393,20 +384,28 @@ export async function addStudentToClassApi(
   token?: string,
 ): Promise<{ success: boolean; data: any }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/classes/${classId}/students`, {
+    const data = await apiRequest(`/classes/${classId}/students`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
       body: JSON.stringify(payload),
     });
+    return { success: true, data };
+  } catch (e) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/classes/${classId}/students`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      return { success: true, data };
-    }
-  } catch (e) {}
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, data };
+      }
+    } catch (err) {}
+  }
 
   return {
     success: true,
@@ -432,18 +431,80 @@ export async function removeStudentFromClassApi(
   token?: string,
 ): Promise<boolean> {
   try {
-    const res = await fetch(
-      `${API_BASE_URL}/classes/${classId}/students/${studentId}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    await apiRequest(`/classes/${classId}/students/${studentId}`, {
+      method: 'DELETE',
+    });
+    return true;
+  } catch (e) {
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/classes/${classId}/students/${studentId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         },
-      },
-    );
-    if (res.ok) return true;
-  } catch (e) {}
+      );
+      if (res.ok) return true;
+    } catch (err) {}
+  }
 
   return true;
 }
+
+export interface SchoolItem {
+  id: string;
+  name: string;
+  type: 'PRIMARY' | 'SECONDARY' | 'HIGH';
+  typeLabel: string;
+  district: string;
+  city: string;
+  grades: number[];
+  isNationalStandard: boolean;
+  totalClasses: number;
+  totalStudents: number;
+  appLinkedPercent: number;
+}
+
+export async function getAdminSchoolsApi(): Promise<SchoolItem[]> {
+  try {
+    const data = await apiRequest<SchoolItem[]>('/admin/schools');
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+  } catch (err) {}
+  return [];
+}
+
+export async function createAdminSchoolApi(payload: Partial<SchoolItem>): Promise<SchoolItem | null> {
+  try {
+    return await apiRequest<SchoolItem>('/admin/schools', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {}
+  return null;
+}
+
+export async function updateAdminSchoolApi(id: string, payload: Partial<SchoolItem>): Promise<SchoolItem | null> {
+  try {
+    return await apiRequest<SchoolItem>(`/admin/schools/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {}
+  return null;
+}
+
+export async function deleteAdminSchoolApi(id: string): Promise<boolean> {
+  try {
+    await apiRequest(`/admin/schools/${id}`, {
+      method: 'DELETE',
+    });
+    return true;
+  } catch (err) {}
+  return false;
+}
+

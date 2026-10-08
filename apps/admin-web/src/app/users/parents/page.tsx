@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { INITIAL_PARENTS, ParentUser } from '../../../lib/users-data';
+import { ParentUser } from '../../../lib/users-data';
+import { getParentsList, createAdminUser, updateUserStatus } from '../../../lib/users.service';
+import { UserRole } from '@giaovienhay/shared-types';
 import UserCrudModal from '../../../components/UserCrudModal';
 
 export default function ParentsPage() {
-  const [parents, setParents] = useState<ParentUser[]>(INITIAL_PARENTS);
+  const [parents, setParents] = useState<ParentUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE' | 'MULTI_CHILD'>('ALL');
 
@@ -22,6 +26,29 @@ export default function ParentsPage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // Nạp danh sách phụ huynh từ Backend khi mở trang
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        const res = await getParentsList();
+        if (isMounted) {
+          setParents(res.parents || []);
+          setIsLiveBackend(!res.isMock);
+        }
+      } catch (err) {
+        console.warn('Lỗi tải danh sách phụ huynh:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // KPI Metrics
   const stats = useMemo(() => {
@@ -75,31 +102,54 @@ export default function ParentsPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveParent = (saved: ParentUser, isNew: boolean) => {
+  const handleSaveParent = async (saved: ParentUser, isNew: boolean) => {
     if (isNew) {
-      setParents((prev) => [saved, ...prev]);
-      showToast(`Đã thêm mới phụ huynh ${saved.full_name}`);
+      showToast(`Đang khởi tạo tài khoản phụ huynh...`);
+      const res = await createAdminUser({
+        full_name: saved.full_name,
+        phone: saved.phone,
+        email: saved.email,
+        role: UserRole.PARENT,
+        school_name: saved.school_name,
+      });
+
+      if (res.success) {
+        const createdParent: ParentUser = {
+          ...saved,
+          id: res.data?.id || saved.id,
+        };
+        setParents((prev) => [createdParent, ...prev]);
+        showToast(`Đã thêm mới phụ huynh ${saved.full_name}`);
+      } else {
+        showToast(res.error || 'Lỗi tạo tài khoản phụ huynh');
+      }
     } else {
       setParents((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
       showToast(`Đã lưu thay đổi cho ${saved.full_name}`);
     }
   };
 
-  const handleToggleStatus = (userId: string, newStatus: boolean, reason?: string) => {
-    setParents((prev) =>
-      prev.map((p) => {
-        if (p.id === userId) {
-          return { ...p, is_active: newStatus, status_reason: reason || undefined };
-        }
-        return p;
-      })
-    );
+  const handleToggleStatus = async (userId: string, newStatus: boolean, reason?: string) => {
     const parent = parents.find((p) => p.id === userId);
-    showToast(
-      newStatus
-        ? `Đã kích hoạt lại tài khoản ${parent?.full_name}`
-        : `Đã khóa tài khoản ${parent?.full_name}`
-    );
+    const res = await updateUserStatus(userId, newStatus, reason);
+
+    if (res.success) {
+      setParents((prev) =>
+        prev.map((p) => {
+          if (p.id === userId) {
+            return { ...p, is_active: newStatus, status_reason: reason || undefined };
+          }
+          return p;
+        })
+      );
+      showToast(
+        newStatus
+          ? `Đã kích hoạt lại tài khoản ${parent?.full_name}`
+          : `Đã khóa tài khoản ${parent?.full_name}`
+      );
+    } else {
+      showToast(res.error || 'Cập nhật trạng thái thất bại');
+    }
   };
 
   const handleResetPassword = (user: any) => {
@@ -153,7 +203,7 @@ export default function ParentsPage() {
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               Danh sách Phụ huynh
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
               {stats.total} Phụ huynh
             </span>
           </div>
@@ -163,15 +213,6 @@ export default function ParentsPage() {
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => showToast('Đang tạo file xuất Excel danh sách phụ huynh...')}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition shadow-2xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined !text-[16px] text-slate-500">download</span>
-            <span>Xuất Excel</span>
-          </button>
-
           <button
             type="button"
             onClick={handleOpenCreate}
@@ -213,7 +254,7 @@ export default function ParentsPage() {
               Trung bình {(stats.total ? (stats.totalLinkedStudents / stats.total).toFixed(1) : '1.0')} con/phụ huynh
             </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
             <span className="material-symbols-outlined text-[20px]">groups</span>
           </div>
         </div>
@@ -372,7 +413,29 @@ export default function ParentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {filteredParents.length === 0 ? (
+              {parents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center text-slate-500">
+                    <div className="max-w-sm mx-auto flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700 mb-3 shadow-2xs">
+                        <span className="material-symbols-outlined !text-[24px]">family_restroom</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 mb-1">Chưa có phụ huynh nào</h4>
+                      <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                        Hệ thống chưa có tài khoản phụ huynh. Bấm nút bên dưới để tạo tài khoản phụ huynh đầu tiên.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleOpenCreate}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-black transition-colors cursor-pointer shadow-xs"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">add</span>
+                        <span>Thêm phụ huynh mới</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredParents.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <span className="material-symbols-outlined text-[36px] text-slate-300 block mb-2">
@@ -404,7 +467,7 @@ export default function ParentsPage() {
                             {initials}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-1.5">
+                            <div className="font-semibold text-slate-900 group-hover:text-black transition-colors flex items-center gap-1.5">
                               <span>{parent.full_name}</span>
                               <span className="text-[10px] text-slate-400 font-medium">#{parent.code}</span>
                             </div>
@@ -472,7 +535,7 @@ export default function ParentsPage() {
                             type="button"
                             onClick={() => handleOpenDetail(parent)}
                             title="Xem chi tiết & Chỉnh sửa"
-                            className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors flex items-center justify-center cursor-pointer"
+                            className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-black transition-colors flex items-center justify-center cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[18px]">edit</span>
                           </button>

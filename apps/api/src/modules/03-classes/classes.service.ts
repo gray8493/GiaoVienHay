@@ -7,13 +7,13 @@ import {
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { CreateClassDto, AddStudentToClassDto, JoinClassDto } from './dto/classes.dto';
 
 @Injectable()
 export class ClassesService {
   constructor(
-    private readonly firebaseService: FirebaseService,
+    private readonly dataConnect: FirebaseDataConnectService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -25,23 +25,26 @@ export class ClassesService {
       id: classId,
       name: dto.name,
       grade_level: dto.grade_level,
+      gradeLevel: dto.grade_level,
       academic_year: dto.academic_year,
+      academicYear: dto.academic_year,
       school_name: teacherSchool || 'Trường Tiểu Học',
+      schoolName: teacherSchool || 'Trường Tiểu Học',
       homeroom_teacher_id: teacherId,
+      homeroomTeacherId: teacherId,
       subject_teacher_ids: [teacherId],
       invite_code: inviteCode,
+      inviteCode: inviteCode,
       student_count: 0,
+      studentCount: 0,
       is_deleted: false,
       deleted_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('classes').doc(classId).set(newClass);
-      } catch (e) {}
-    }
+    // Lưu vào SQL Data Connect
+    await this.dataConnect.createClass(newClass);
 
     // Xóa cache danh sách lớp của giáo viên
     await this.cacheManager.del(`classes_teacher_${teacherId}`);
@@ -57,20 +60,12 @@ export class ClassesService {
     }
 
     let classes: any[] = [];
-    if (this.firebaseService.firestore) {
-      try {
-        const snap = await this.firebaseService.firestore
-          .collection('classes')
-          .where('subject_teacher_ids', 'array-contains', teacherId)
-          .get();
-
-        if (!snap.empty) {
-          classes = snap.docs
-            .map((doc) => ({ id: doc.id, ...doc.data() }))
-            .filter((c: any) => !c.is_deleted);
-        }
-      } catch (e) {}
-    }
+    try {
+      const sqlClasses = await this.dataConnect.listClassesByTeacher(teacherId);
+      if (sqlClasses && sqlClasses.length > 0) {
+        classes = sqlClasses;
+      }
+    } catch (e) {}
 
     if (classes.length === 0) {
       classes = [
@@ -79,13 +74,13 @@ export class ClassesService {
           name: '1A',
           grade_level: 1,
           academic_year: '2026-2027',
-        school_name: 'Trường Tiểu Học Chu Văn An',
-        homeroom_teacher_id: teacherId,
-        student_count: 35,
-        invite_code: 'INV-1A-2026',
-      },
-    ];
-  }
+          school_name: 'Trường Tiểu Học Chu Văn An',
+          homeroom_teacher_id: teacherId,
+          student_count: 35,
+          invite_code: 'INV-1A-2026',
+        },
+      ];
+    }
 
     // Cache kết quả trong 10 phút (600,000 ms)
     await this.cacheManager.set(cacheKey, classes, 600000);
@@ -95,14 +90,9 @@ export class ClassesService {
 
   async getClassDetail(classId: string, userId: string) {
     let cls: any = null;
-    if (this.firebaseService.firestore) {
-      try {
-        const doc = await this.firebaseService.firestore.collection('classes').doc(classId).get();
-        if (doc.exists) {
-          cls = { id: doc.id, ...doc.data() };
-        }
-      } catch (e) {}
-    }
+    try {
+      cls = await this.dataConnect.getClassById(classId);
+    } catch (e) {}
 
     if (!cls) {
       cls = {
@@ -117,7 +107,6 @@ export class ClassesService {
       };
     }
 
-    // Lấy danh sách học sinh của lớp
     const students = await this.getClassStudents(classId);
     return {
       ...cls,
@@ -136,13 +125,6 @@ export class ClassesService {
 
   async generateInviteCode(classId: string, teacherId: string) {
     const inviteCode = 'INV-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('classes').doc(classId).update({
-          invite_code: inviteCode,
-        });
-      } catch (e) {}
-    }
     return {
       class_id: classId,
       invite_code: inviteCode,
@@ -164,67 +146,47 @@ export class ClassesService {
     const newStudent = {
       id: studentId,
       class_id: classId,
+      classId: classId,
+      student_code: 'HS' + Math.floor(100 + Math.random() * 900),
+      studentCode: 'HS' + Math.floor(100 + Math.random() * 900),
       full_name: dto.full_name,
+      fullName: dto.full_name,
       dob: dto.dob || '2019-01-01',
       gender: dto.gender || 'MALE',
       parent_phone: dto.parent_phone || null,
+      parentPhone: dto.parent_phone || null,
       parent_uids: [],
       is_deleted: false,
       deleted_at: null,
       created_at: new Date().toISOString(),
     };
 
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('students').doc(studentId).set(newStudent);
-      } catch (e) {}
-    }
+    // Lưu vào SQL Data Connect
+    await this.dataConnect.createStudent(newStudent);
 
     return newStudent;
   }
 
   /**
-   * Xóa mềm học sinh khỏi lớp (chuyển is_deleted = 1/true thay vì xóa vật lý khỏi DB)
+   * Xóa mềm học sinh khỏi lớp
    */
   async removeStudent(classId: string, studentId: string) {
-    const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('students').doc(studentId).set(
-          {
-            is_deleted: true,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
+    await this.dataConnect.softDeleteStudent(studentId);
 
     return {
       message: 'Xóa mềm học sinh khỏi lớp thành công',
       student_id: studentId,
       class_id: classId,
       is_deleted: true,
-      deleted_at: now,
+      deleted_at: new Date().toISOString(),
     };
   }
 
   /**
-   * Xóa mềm lớp học (is_deleted = 1/true)
+   * Xóa mềm lớp học
    */
   async deleteClass(classId: string, teacherId: string) {
-    const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('classes').doc(classId).set(
-          {
-            is_deleted: true,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
+    await this.dataConnect.softDeleteClass(classId);
 
     // Xóa cache danh sách lớp của giáo viên
     await this.cacheManager.del(`classes_teacher_${teacherId}`);
@@ -233,25 +195,17 @@ export class ClassesService {
       message: 'Xóa mềm lớp học thành công',
       class_id: classId,
       is_deleted: true,
-      deleted_at: now,
+      deleted_at: new Date().toISOString(),
     };
   }
 
   private async getClassStudents(classId: string) {
-    if (this.firebaseService.firestore) {
-      try {
-        const snap = await this.firebaseService.firestore
-          .collection('students')
-          .where('class_id', '==', classId)
-          .get();
-
-        if (!snap.empty) {
-          return snap.docs
-            .map((doc) => ({ id: doc.id, ...doc.data() }))
-            .filter((s: any) => !s.is_deleted);
-        }
-      } catch (e) {}
-    }
+    try {
+      const sqlStudents = await this.dataConnect.listStudentsByClass(classId);
+      if (sqlStudents && sqlStudents.length > 0) {
+        return sqlStudents;
+      }
+    } catch (e) {}
 
     return [
       { id: 'stu_01', full_name: 'Trần Bảo Nam', student_code: 'HS001', gender: 'MALE', dob: '2019-05-15', is_deleted: false },

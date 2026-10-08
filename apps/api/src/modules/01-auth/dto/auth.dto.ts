@@ -85,3 +85,16 @@ export class RefreshTokenDto {
   @IsNotEmpty({ message: 'Refresh token không được để trống' })
   refresh_token: string;
 }
+
+export class ChangePasswordDto {
+  @ApiProperty({ example: 'Admin@123', description: 'Mật khẩu hiện tại' })
+  @IsString()
+  @IsNotEmpty({ message: 'Mật khẩu hiện tại không được để trống' })
+  current_password: string;
+
+  @ApiProperty({ example: 'NewSecret@2026', description: 'Mật khẩu mới' })
+  @IsString()
+  @MinLength(6, { message: 'Mật khẩu mới phải chứa ít nhất 6 ký tự' })
+  new_password: string;
+}
+

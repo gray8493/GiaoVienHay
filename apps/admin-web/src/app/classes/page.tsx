@@ -6,6 +6,14 @@ import {
   ClassMonitoringItem,
   SEED_CLASSES_MONITORING,
   SEED_STUDENTS_BY_CLASS,
+  getAdminClassesMonitoring,
+  createClassApi,
+  getAdminSchoolsApi,
+  createAdminSchoolApi,
+  updateAdminSchoolApi,
+  deleteAdminSchoolApi,
+  addStudentToClassApi,
+  removeStudentFromClassApi,
 } from '../../lib/api-classes';
 
 type ViewLevel = 'SCHOOLS' | 'GRADES' | 'CLASSES' | 'STUDENTS';
@@ -208,9 +216,10 @@ export default function ClassesAndStudentsManagementPage() {
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassMonitoringItem | null>(null);
 
-  // Master Data States
-  const [classesList, setClassesList] = useState<ClassMonitoringItem[]>(SEED_CLASSES_MONITORING);
-  const [studentsByClass, setStudentsByClass] = useState<Record<string, StudentItem[]>>(generateInitialStudents);
+  // Master Data States (Clean Slate: 100% live data from Firestore API)
+  const [schoolsList, setSchoolsList] = useState<SchoolItem[]>([]);
+  const [classesList, setClassesList] = useState<ClassMonitoringItem[]>([]);
+  const [studentsByClass, setStudentsByClass] = useState<Record<string, StudentItem[]>>({});
 
   // Search & Filter
   const [schoolSearch, setSchoolSearch] = useState('');
@@ -249,10 +258,163 @@ export default function ClassesAndStudentsManagementPage() {
   const [parentPhoneInput, setParentPhoneInput] = useState('');
   const [studentInsuranceInput, setStudentInsuranceInput] = useState(true);
 
+  // School Modal States (Thêm / Sửa / Xóa trường tại Cấp 1)
+  const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<SchoolItem | null>(null);
+  const [schoolNameInput, setSchoolNameInput] = useState('');
+  const [schoolTypeInput, setSchoolTypeInput] = useState<'PRIMARY' | 'SECONDARY' | 'HIGH'>('SECONDARY');
+  const [schoolDistrictInput, setSchoolDistrictInput] = useState('Quận Cầu Giấy');
+  const [schoolCityInput, setSchoolCityInput] = useState('TP. Hà Nội');
+  const [schoolGradesInput, setSchoolGradesInput] = useState<number[]>([6, 7, 8, 9]);
+  const [schoolStandardInput, setSchoolStandardInput] = useState(true);
+  const [isSavingSchool, setIsSavingSchool] = useState(false);
+  const [deletingSchool, setDeletingSchool] = useState<SchoolItem | null>(null);
+  const [isDeletingSchool, setIsDeletingSchool] = useState(false);
+  const [activeDropdownSchoolId, setActiveDropdownSchoolId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleDocumentClick = () => {
+      setActiveDropdownSchoolId(null);
+    };
+    if (activeDropdownSchoolId) {
+      document.addEventListener('click', handleDocumentClick);
+    }
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [activeDropdownSchoolId]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  const handleOpenAddSchool = () => {
+    setEditingSchool(null);
+    setSchoolNameInput('');
+    setSchoolTypeInput('SECONDARY');
+    setSchoolDistrictInput('Quận Cầu Giấy');
+    setSchoolCityInput('TP. Hà Nội');
+    setSchoolGradesInput([6, 7, 8, 9]);
+    setSchoolStandardInput(true);
+    setIsSchoolModalOpen(true);
+  };
+
+  const handleOpenEditSchool = (sch: SchoolItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSchool(sch);
+    setSchoolNameInput(sch.name);
+    setSchoolTypeInput(sch.type);
+    setSchoolDistrictInput(sch.district || 'Quận Cầu Giấy');
+    setSchoolCityInput(sch.city || 'TP. Hà Nội');
+    setSchoolGradesInput(sch.grades || (sch.type === 'SECONDARY' ? [6, 7, 8, 9] : [1, 2, 3, 4, 5]));
+    setSchoolStandardInput(sch.isNationalStandard);
+    setIsSchoolModalOpen(true);
+  };
+
+  const handleSchoolTypeChange = (newType: 'PRIMARY' | 'SECONDARY' | 'HIGH') => {
+    setSchoolTypeInput(newType);
+    if (newType === 'PRIMARY') setSchoolGradesInput([1, 2, 3, 4, 5]);
+    else if (newType === 'SECONDARY') setSchoolGradesInput([6, 7, 8, 9]);
+    else setSchoolGradesInput([10, 11, 12]);
+  };
+
+  const toggleSchoolGrade = (grade: number) => {
+    if (schoolGradesInput.includes(grade)) {
+      if (schoolGradesInput.length > 1) {
+        setSchoolGradesInput(schoolGradesInput.filter((g) => g !== grade));
+      }
+    } else {
+      setSchoolGradesInput([...schoolGradesInput, grade].sort((a, b) => a - b));
+    }
+  };
+
+  const handleSaveSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!schoolNameInput.trim()) {
+      showToast('Vui lòng nhập tên trường');
+      return;
+    }
+
+    setIsSavingSchool(true);
+    const typeLabel =
+      schoolTypeInput === 'PRIMARY'
+        ? 'Cấp 1 Tiểu học'
+        : schoolTypeInput === 'SECONDARY'
+        ? 'Cấp 2 THCS'
+        : 'Cấp 3 THPT';
+
+    const payload = {
+      name: schoolNameInput.trim(),
+      type: schoolTypeInput,
+      typeLabel,
+      district: schoolDistrictInput.trim(),
+      city: schoolCityInput.trim(),
+      grades: schoolGradesInput,
+      isNationalStandard: schoolStandardInput,
+    };
+
+    if (editingSchool) {
+      const updated = await updateAdminSchoolApi(editingSchool.id, payload);
+      setSchoolsList((prev) =>
+        prev.map((s) => (s.id === editingSchool.id ? { ...s, ...(updated || payload) } : s))
+      );
+      showToast(`Đã cập nhật thông tin trường ${schoolNameInput.trim()}`);
+    } else {
+      const created = await createAdminSchoolApi(payload);
+      const newSchool: SchoolItem = created || {
+        id: `TR-${Math.floor(100 + Math.random() * 900)}`,
+        name: schoolNameInput.trim(),
+        type: schoolTypeInput,
+        typeLabel,
+        district: schoolDistrictInput.trim(),
+        city: schoolCityInput.trim(),
+        grades: schoolGradesInput,
+        isNationalStandard: schoolStandardInput,
+        totalClasses: 0,
+        totalStudents: 0,
+        appLinkedPercent: 0,
+      };
+      setSchoolsList((prev) => [newSchool, ...prev]);
+      showToast(`Đã thêm mới trường ${schoolNameInput.trim()} thành công`);
+    }
+
+    setIsSavingSchool(false);
+    setIsSchoolModalOpen(false);
+  };
+
+  const handleConfirmDeleteSchool = async () => {
+    if (!deletingSchool) return;
+    setIsDeletingSchool(true);
+    await deleteAdminSchoolApi(deletingSchool.id);
+    setSchoolsList((prev) => prev.filter((s) => s.id !== deletingSchool.id));
+    showToast(`Đã xóa trường ${deletingSchool.name} khỏi hệ thống`);
+    setIsDeletingSchool(false);
+    setDeletingSchool(null);
+  };
+
+  // Nạp danh sách trường học và lớp học thật từ Backend khi mở trang
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        const [liveClasses, liveSchools] = await Promise.all([
+          getAdminClassesMonitoring(),
+          getAdminSchoolsApi(),
+        ]);
+        if (isMounted) {
+          setClassesList(liveClasses || []);
+          setSchoolsList(liveSchools || []);
+        }
+      } catch (e) {
+        console.warn('Lỗi tải dữ liệu từ API:', e);
+      }
+    }
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Sync with Global Search in Header across all levels
   useEffect(() => {
@@ -325,7 +487,7 @@ export default function ClassesAndStudentsManagementPage() {
     setIsClassModalOpen(true);
   };
 
-  const handleSaveClass = (e: React.FormEvent) => {
+  const handleSaveClass = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!classNameInput.trim()) return;
 
@@ -361,6 +523,20 @@ export default function ClassesAndStudentsManagementPage() {
       };
       setClassesList((prev) => [newCls, ...prev]);
       setStudentsByClass((prev) => ({ ...prev, [newClassId]: [] }));
+
+      // Gửi yêu cầu tạo lớp trực tiếp tới Backend API
+      try {
+        await createClassApi({
+          name: classNameInput.trim(),
+          grade_level: selectedGrade || 7,
+          academic_year: '2026-2027',
+          school_name: selectedSchool?.name,
+          homeroom_teacher: classTeacherInput.trim() || undefined,
+        });
+      } catch (err) {
+        console.warn('Lỗi đồng bộ tạo lớp lên backend:', err);
+      }
+
       showToast(`Đã tạo mới lớp ${newCls.name} thành công`);
     }
     setIsClassModalOpen(false);
@@ -400,7 +576,7 @@ export default function ClassesAndStudentsManagementPage() {
     setIsStudentModalOpen(true);
   };
 
-  const handleSaveStudent = (e: React.FormEvent) => {
+  const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentNameInput.trim() || !selectedClass) return;
 
@@ -452,12 +628,24 @@ export default function ClassesAndStudentsManagementPage() {
         )
       );
 
+      // Gửi yêu cầu lưu học sinh xuống Backend API (Module 03-classes)
+      try {
+        await addStudentToClassApi(selectedClass.class_id, {
+          full_name: studentNameInput.trim(),
+          dob: studentDobInput,
+          gender: studentGenderInput,
+          parent_phone: parentPhoneInput.trim() || undefined,
+        });
+      } catch (err) {
+        console.warn('Lỗi đồng bộ thêm học sinh lên Backend:', err);
+      }
+
       showToast(`Đã thêm học sinh ${newSt.full_name} vào lớp ${selectedClass.name}`);
     }
     setIsStudentModalOpen(false);
   };
 
-  const handleDeleteStudent = (studentId: string, studentName: string) => {
+  const handleDeleteStudent = async (studentId: string, studentName: string) => {
     if (!selectedClass) return;
     if (confirm(`Bạn có chắc chắn muốn xóa học sinh ${studentName} khỏi lớp ${selectedClass.name}?`)) {
       setStudentsByClass((prev) => ({
@@ -470,24 +658,22 @@ export default function ClassesAndStudentsManagementPage() {
           c.class_id === selectedClass.class_id ? { ...c, student_count: Math.max(0, c.student_count - 1) } : c
         )
       );
+
+      // Gửi yêu cầu xóa học sinh xuống Backend API (Module 03-classes)
+      try {
+        await removeStudentFromClassApi(selectedClass.class_id, studentId);
+      } catch (err) {
+        console.warn('Lỗi đồng bộ xóa học sinh lên Backend:', err);
+      }
+
       showToast(`Đã xóa học sinh ${studentName}`);
     }
   };
 
-  const handleExportExcel = () => {
-    showToast(`Đang xuất danh sách lớp ${selectedClass?.name || ''} sang tệp Excel...`);
-    setTimeout(() => {
-      showToast(`Tệp Excel danh sách học sinh đã được tải xuống thành công.`);
-    }, 1000);
-  };
-
-  const handleImportExcel = () => {
-    showToast(`Đã sẵn sàng tải lên danh sách lớp. Hãy chọn tệp .xlsx hoặc .csv.`);
-  };
 
   // Filtered Lists
   const filteredSchools = useMemo(() => {
-    return SYSTEM_SCHOOLS.filter((sch) => {
+    return schoolsList.filter((sch) => {
       const matchSearch =
         sch.name.toLowerCase().includes(schoolSearch.toLowerCase()) ||
         sch.district.toLowerCase().includes(schoolSearch.toLowerCase()) ||
@@ -506,7 +692,15 @@ export default function ClassesAndStudentsManagementPage() {
       }
       return matchSearch && matchType;
     });
-  }, [schoolSearch, schoolTypeFilter]);
+  }, [schoolsList, schoolSearch, schoolTypeFilter]);
+
+
+  // Danh sách lớp hợp lệ trực thuộc các trường đang có trong hệ thống
+  const validClassesList = useMemo(() => {
+    if (schoolsList.length === 0) return [];
+    const allGradeLevels = schoolsList.flatMap((s) => s.grades || []);
+    return classesList.filter((cls) => allGradeLevels.includes(cls.grade_level));
+  }, [schoolsList, classesList]);
 
   const filteredClasses = useMemo(() => {
     if (!selectedGrade) return [];
@@ -522,21 +716,39 @@ export default function ClassesAndStudentsManagementPage() {
 
   const currentGradeClasses = useMemo(() => {
     if (!selectedGrade) return [];
-    const baseClasses = getClassesForGrade(selectedGrade);
-    return baseClasses.filter((c) => {
-      if (classFilterTab === 'ACTIVE' && !c.isActive) return false;
-      if (classSearch.trim()) {
-        const q = classSearch.toLowerCase();
-        const match =
-          c.name.toLowerCase().includes(q) ||
-          c.specialization.toLowerCase().includes(q) ||
-          c.teacher.toLowerCase().includes(q) ||
-          c.track.toLowerCase().includes(q);
-        if (!match) return false;
-      }
-      return true;
-    });
-  }, [selectedGrade, classFilterTab, classSearch]);
+    return classesList
+      .filter((cls) => cls.grade_level === selectedGrade)
+      .map((cls) => {
+        const students = studentsByClass[cls.class_id] || [];
+        return {
+          id: cls.class_id,
+          name: cls.name,
+          specialization: `Lớp ${cls.name} - Chuẩn Bộ GD&ĐT`,
+          track: 'Học kỳ I 2026-2027',
+          teacher: cls.homeroom_teacher || 'Chưa phân công',
+          initials: cls.name ? cls.name.slice(0, 2) : 'LH',
+          studentsCount: students.length || cls.student_count || 0,
+          boys: students.filter((s) => s.gender === 'MALE').length,
+          girls: students.filter((s) => s.gender === 'FEMALE').length,
+          feePercent: 100,
+          feeText: '100% Hoàn thành',
+          isActive: true,
+          rawClass: cls,
+        };
+      })
+      .filter((c) => {
+        if (classFilterTab === 'ACTIVE' && !c.isActive) return false;
+        if (classSearch.trim()) {
+          const q = classSearch.toLowerCase();
+          const match =
+            c.name.toLowerCase().includes(q) ||
+            c.specialization.toLowerCase().includes(q) ||
+            c.teacher.toLowerCase().includes(q);
+          if (!match) return false;
+        }
+        return true;
+      });
+  }, [classesList, selectedGrade, classFilterTab, classSearch, studentsByClass]);
 
   const currentClassStudents = useMemo(() => {
     if (!selectedClass) return [];
@@ -666,19 +878,19 @@ export default function ClassesAndStudentsManagementPage() {
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                   Danh sách Trường học &amp; Đơn vị liên kết
                 </h1>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
-                  38 Đơn vị
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
+                  {schoolsList.length} Đơn vị
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Hệ thống quản lý 38 trường học và cơ sở giáo dục trực thuộc nền tảng.
+                Hệ thống quản lý {schoolsList.length} trường học và cơ sở giáo dục trực thuộc nền tảng.
               </p>
             </div>
             {/* Action Buttons */}
             <div className="flex items-center gap-2.5 shrink-0">
               <button
                 type="button"
-                onClick={() => showToast('Mở cửa sổ thêm trường học mới')}
+                onClick={handleOpenAddSchool}
                 className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-black rounded-lg transition shadow-xs cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[16px]">add</span>
@@ -694,14 +906,13 @@ export default function ClassesAndStudentsManagementPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-medium text-slate-500">Tổng cơ sở</span>
-                  <div className="text-2xl font-bold tracking-tight text-slate-900 mt-1">38</div>
-                  <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-emerald-600">
-                    <span className="material-symbols-outlined !text-[14px]">trending_up</span>
-                    <span>+12.5%</span>
-                    <span className="text-slate-400 font-normal ml-0.5">vs quý trước</span>
+                  <div className="text-2xl font-bold tracking-tight text-slate-900 mt-1">{schoolsList.length}</div>
+                  <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-slate-500">
+                    <span className="material-symbols-outlined !text-[14px]">apartment</span>
+                    <span>Cơ sở hoạt động</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">apartment</span>
                 </div>
               </div>
@@ -712,14 +923,15 @@ export default function ClassesAndStudentsManagementPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-medium text-slate-500">Quy mô khối</span>
-                  <div className="text-2xl font-bold tracking-tight text-slate-900 mt-1">152</div>
-                  <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-emerald-600">
-                    <span className="material-symbols-outlined !text-[14px]">trending_up</span>
-                    <span>+8.2%</span>
-                    <span className="text-slate-400 font-normal ml-0.5">K6 - K12</span>
+                  <div className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
+                    {schoolsList.reduce((acc, s) => acc + (s.grades?.length || 0), 0)}
+                  </div>
+                  <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-slate-500">
+                    <span className="material-symbols-outlined !text-[14px]">layers</span>
+                    <span>Khối đào tạo thực tế</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">layers</span>
                 </div>
               </div>
@@ -730,14 +942,13 @@ export default function ClassesAndStudentsManagementPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-medium text-slate-500">Tổng số lớp</span>
-                  <div className="text-2xl font-bold tracking-tight text-slate-900 mt-1">1,280</div>
-                  <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-rose-500">
-                    <span className="material-symbols-outlined !text-[14px]">trending_down</span>
-                    <span>-1.4%</span>
-                    <span className="text-slate-400 font-normal ml-0.5">~33 lớp/trường</span>
+                  <div className="text-2xl font-bold tracking-tight text-slate-900 mt-1">{validClassesList.length}</div>
+                  <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-slate-500">
+                    <span className="material-symbols-outlined !text-[14px]">meeting_room</span>
+                    <span>Lớp học trên hệ thống</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">meeting_room</span>
                 </div>
               </div>
@@ -748,14 +959,15 @@ export default function ClassesAndStudentsManagementPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-medium text-slate-500">Tổng học sinh</span>
-                  <div className="text-2xl font-bold tracking-tight text-slate-900 mt-1">51,240</div>
-                  <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-emerald-600">
-                    <span className="material-symbols-outlined !text-[14px]">trending_up</span>
-                    <span>+24.7%</span>
-                    <span className="text-slate-400 font-normal ml-0.5">100% active</span>
+                  <div className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
+                    {validClassesList.reduce((acc, c) => acc + (c.student_count || 0), 0)}
+                  </div>
+                  <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-slate-500">
+                    <span className="material-symbols-outlined !text-[14px]">school</span>
+                    <span>Học sinh được xếp lớp</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">school</span>
                 </div>
               </div>
@@ -859,21 +1071,32 @@ export default function ClassesAndStudentsManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs text-slate-700 bg-white whitespace-nowrap">
-                  {filteredSchools.map((school) => {
-                    const initials = school.name.includes('Lê Quý Đôn')
-                      ? 'LQ'
-                      : school.name.includes('Chu Văn An')
-                      ? 'CV'
-                      : school.name.includes('Nguyễn Huệ')
-                      ? 'NH'
-                      : school.name.includes('Phan Đình Phùng')
-                      ? 'PD'
-                      : school.name.includes('Vinschool')
-                      ? 'VC'
-                      : school.name.includes('Lương Thế Vinh')
-                      ? 'LT'
-                      : school.name.slice(0, 2).toUpperCase();
-
+                  {filteredSchools.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-14 px-6 text-center">
+                        <div className="max-w-sm mx-auto space-y-3">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center mx-auto">
+                            <span className="material-symbols-outlined !text-[24px]">account_balance</span>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900">Hệ thống chưa có trường học nào</h4>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Bắt đầu thiết lập hệ thống bằng cách thêm trường học đầu tiên của bạn.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleOpenAddSchool}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-black rounded-xl transition cursor-pointer shadow-xs"
+                          >
+                            <span className="material-symbols-outlined !text-[16px]">add</span>
+                            <span>Thêm trường học</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSchools.map((school) => {
                     const levelBadge = school.name.includes('Vinschool')
                       ? 'Liên cấp THCS - THPT'
                       : school.type === 'HIGH'
@@ -887,17 +1110,12 @@ export default function ClassesAndStudentsManagementPage() {
                         onClick={() => handleSelectSchool(school)}
                       >
                         <td className="py-3.5 px-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
-                              {initials}
+                          <div>
+                            <div className="font-semibold text-slate-900 group-hover:text-black transition-colors">
+                              {school.name}
                             </div>
-                            <div>
-                              <div className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                                {school.name}
-                              </div>
-                              <div className="text-[11px] text-slate-400 mt-0.5">
-                                {school.district}, {school.city}
-                              </div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">
+                              {school.district}, {school.city}
                             </div>
                           </div>
                         </td>
@@ -914,32 +1132,73 @@ export default function ClassesAndStudentsManagementPage() {
                             Đang hoạt động
                           </span>
                         </td>
-                        <td className="py-3.5 px-6 text-right">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectSchool(school);
-                            }}
-                            className="inline-flex items-center text-xs font-semibold text-slate-900 hover:text-slate-700 hover:underline cursor-pointer"
-                          >
-                            <span>Danh sách khối học</span>
-                          </button>
+                        <td className="py-3.5 px-6 text-right relative">
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectSchool(school);
+                              }}
+                              className="inline-flex items-center text-xs font-semibold text-slate-900 hover:text-black hover:underline cursor-pointer"
+                            >
+                              <span>Vào khối học</span>
+                            </button>
+
+                            {/* Dropdown 3 chấm dọc */}
+                            <div className="relative inline-block text-left">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownSchoolId((prev) => (prev === school.id ? null : school.id));
+                                }}
+                                className="p-1.5 text-slate-600 hover:text-black hover:bg-slate-100 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
+                                title="Tùy chọn thao tác"
+                                aria-label="Tùy chọn trường học"
+                              >
+                                <span className="material-symbols-outlined !text-[18px]">more_vert</span>
+                              </button>
+
+                              {activeDropdownSchoolId === school.id && (
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-200/90 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 text-left"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownSchoolId(null);
+                                      handleOpenEditSchool(school, e);
+                                    }}
+                                    className="w-full px-3.5 py-2 text-xs font-medium text-slate-700 hover:text-black hover:bg-slate-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                  >
+                                    <span className="material-symbols-outlined !text-[16px] text-slate-500">edit</span>
+                                    <span>Chỉnh sửa trường</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownSchoolId(null);
+                                      setDeletingSchool(school);
+                                    }}
+                                    className="w-full px-3.5 py-2 text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer border-t border-slate-100"
+                                  >
+                                    <span className="material-symbols-outlined !text-[16px] text-rose-500">delete</span>
+                                    <span>Xóa trường học</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     );
-                  })}
-
-                  {filteredSchools.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="py-12 text-center text-slate-400">
-                        <span className="material-symbols-outlined text-4xl block mx-auto mb-2 text-slate-300">
-                          search_off
-                        </span>
-                        <span>Không tìm thấy trường học nào khớp với bộ lọc.</span>
-                      </td>
-                    </tr>
-                  )}
+                  })
+                )}
                 </tbody>
               </table>
             </div>
@@ -947,8 +1206,8 @@ export default function ClassesAndStudentsManagementPage() {
             {/* Pagination Footer matching approved design */}
             <div className="px-5 py-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600 bg-white">
               <div className="text-xs text-slate-500 font-normal">
-                Hiển thị <span className="font-semibold text-slate-800">1-{filteredSchools.length}</span> trong{' '}
-                <span className="font-semibold text-slate-800">38</span> trường học
+                Hiển thị <span className="font-semibold text-slate-800">{filteredSchools.length > 0 ? `1-${filteredSchools.length}` : '0'}</span> trong{' '}
+                <span className="font-semibold text-slate-800">{schoolsList.length}</span> trường học
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -1010,7 +1269,7 @@ export default function ClassesAndStudentsManagementPage() {
                   <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                     Danh sách Khối học - {selectedSchool.name}
                   </h1>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
                     {selectedSchool.grades.length} Khối
                   </span>
                 </div>
@@ -1019,14 +1278,6 @@ export default function ClassesAndStudentsManagementPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleImportExcel}
-                  className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg transition shadow-2xs cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[16px] text-slate-500">file_upload</span>
-                  <span>Nhập Excel</span>
-                </button>
                 <button
                   type="button"
                   onClick={() => showToast('Mở cửa sổ thêm khối học mới')}
@@ -1048,7 +1299,7 @@ export default function ClassesAndStudentsManagementPage() {
                   <span className="text-xs font-medium text-slate-500">Tổng số khối</span>
                   <div className="text-2xl font-bold text-slate-900 mt-1">{selectedSchool.grades.length}</div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">apartment</span>
                 </div>
               </div>
@@ -1057,7 +1308,11 @@ export default function ClassesAndStudentsManagementPage() {
                   <span className="material-symbols-outlined !text-[14px]">trending_flat</span>
                   +0%
                 </span>
-                <span>Cố định (K{selectedSchool.grades[0]} - K{selectedSchool.grades[selectedSchool.grades.length - 1]})</span>
+                <span>
+                  {selectedSchool.grades && selectedSchool.grades.length > 0
+                    ? `K${selectedSchool.grades[0]} - K${selectedSchool.grades[selectedSchool.grades.length - 1]}`
+                    : 'Chưa thiết lập khối'}
+                </span>
               </div>
             </div>
 
@@ -1068,7 +1323,7 @@ export default function ClassesAndStudentsManagementPage() {
                   <span className="text-xs font-medium text-slate-500">Tổng số lớp</span>
                   <div className="text-2xl font-bold text-slate-900 mt-1">{selectedSchool.totalClasses}</div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">layers</span>
                 </div>
               </div>
@@ -1077,7 +1332,12 @@ export default function ClassesAndStudentsManagementPage() {
                   <span className="material-symbols-outlined !text-[14px]">equalizer</span>
                   Trung bình
                 </span>
-                <span>{Math.round(selectedSchool.totalClasses / selectedSchool.grades.length)} lớp/khối</span>
+                <span>
+                  {selectedSchool.grades && selectedSchool.grades.length > 0
+                    ? Math.round(selectedSchool.totalClasses / selectedSchool.grades.length)
+                    : 0}{' '}
+                  lớp/khối
+                </span>
               </div>
             </div>
 
@@ -1088,7 +1348,7 @@ export default function ClassesAndStudentsManagementPage() {
                   <span className="text-xs font-medium text-slate-500">Tổng học sinh</span>
                   <div className="text-2xl font-bold text-slate-900 mt-1">{selectedSchool.totalStudents.toLocaleString()}</div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">school</span>
                 </div>
               </div>
@@ -1106,9 +1366,18 @@ export default function ClassesAndStudentsManagementPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-medium text-slate-500">Giáo viên phụ trách</span>
-                  <div className="text-2xl font-bold text-slate-900 mt-1">54</div>
+                  <div className="text-2xl font-bold text-slate-900 mt-1">
+                    {
+                      new Set(
+                        classesList
+                          .filter((c) => selectedSchool.grades.includes(c.grade_level))
+                          .map((c) => c.homeroom_teacher)
+                          .filter(Boolean)
+                      ).size
+                    }
+                  </div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[20px]">groups</span>
                 </div>
               </div>
@@ -1210,11 +1479,11 @@ export default function ClassesAndStudentsManagementPage() {
                         >
                           <td className="py-3.5 px-6 whitespace-nowrap">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-xs shrink-0">
                                 K{grade}
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-900 text-xs group-hover:text-blue-600 transition-colors">
+                                <div className="font-semibold text-slate-900 text-xs group-hover:text-black transition-colors">
                                   Khối {grade} (Lớp {grade})
                                 </div>
                               </div>
@@ -1322,7 +1591,7 @@ export default function ClassesAndStudentsManagementPage() {
                 <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                   Danh sách Lớp học - Khối {selectedGrade}
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
                   {currentGradeClasses.length} Lớp học
                 </span>
               </div>
@@ -1331,14 +1600,6 @@ export default function ClassesAndStudentsManagementPage() {
               </p>
             </div>
             <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-              <button
-                type="button"
-                onClick={handleImportExcel}
-                className="h-9 px-3.5 bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px] text-slate-500">upload_file</span>
-                <span>Nhập Excel</span>
-              </button>
               <button
                 type="button"
                 onClick={handleOpenAddClass}
@@ -1361,7 +1622,7 @@ export default function ClassesAndStudentsManagementPage() {
                   K{selectedGrade}: {selectedGrade}A1 - {selectedGrade}A{currentGradeClasses.length}
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
                 <span className="material-symbols-outlined text-[20px]">layers</span>
               </div>
             </div>
@@ -1373,7 +1634,7 @@ export default function ClassesAndStudentsManagementPage() {
                 <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{currentGradeClasses.length * 40}</div>
                 <div className="mt-1 text-xs text-slate-400">Trung bình 40 HS/lớp</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
                 <span className="material-symbols-outlined text-[20px]">school</span>
               </div>
             </div>
@@ -1388,7 +1649,7 @@ export default function ClassesAndStudentsManagementPage() {
                   {Math.round(currentGradeClasses.length * 40 * 0.984)}/{currentGradeClasses.length * 40} có mặt
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
                 <span className="material-symbols-outlined text-[20px]">fact_check</span>
               </div>
             </div>
@@ -1402,7 +1663,7 @@ export default function ClassesAndStudentsManagementPage() {
                 </div>
                 <div className="mt-1 text-xs text-slate-400">100% đã phân công</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
                 <span className="material-symbols-outlined text-[20px]">badge</span>
               </div>
             </div>
@@ -1489,11 +1750,11 @@ export default function ClassesAndStudentsManagementPage() {
                       >
                         <td className="py-3.5 px-5 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0">
+                            <span className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center shrink-0">
                               {item.name}
                             </span>
                             <div>
-                              <span className="text-xs text-slate-900 font-semibold block leading-tight group-hover:text-blue-600 transition-colors">
+                              <span className="text-xs text-slate-900 font-semibold block leading-tight group-hover:text-black transition-colors">
                                 {item.specialization}
                               </span>
                               <span className="text-slate-400 text-[11px]">{item.track}</span>
@@ -1545,8 +1806,26 @@ export default function ClassesAndStudentsManagementPage() {
                   })}
                   {currentGradeClasses.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
-                        Không tìm thấy lớp học nào phù hợp với điều kiện tìm kiếm.
+                      <td colSpan={6} className="py-12 text-center">
+                        <div className="max-w-sm mx-auto space-y-3">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center mx-auto">
+                            <span className="material-symbols-outlined !text-[24px]">meeting_room</span>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900">Khối {selectedGrade} chưa có lớp học nào</h4>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Trường {selectedSchool?.name} chưa được thiết lập lớp cho khối này. Bấm để tạo lớp mới.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleOpenAddClass}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-black rounded-xl transition cursor-pointer shadow-xs"
+                          >
+                            <span className="material-symbols-outlined !text-[16px]">add</span>
+                            <span>Tạo lớp học mới</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -1563,7 +1842,7 @@ export default function ClassesAndStudentsManagementPage() {
                 </span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-400">Hiển thị:</span>
-                  <select className="h-8 text-xs bg-white border border-slate-200 rounded-md px-2 py-0 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer">
+                  <select className="h-8 text-xs bg-white border border-slate-200 rounded-md px-2 py-0 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 cursor-pointer">
                     <option defaultValue="8">8 / trang</option>
                     <option value="16">16 / trang</option>
                     <option value="24">24 / trang</option>
@@ -1615,7 +1894,7 @@ export default function ClassesAndStudentsManagementPage() {
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                   Lớp {selectedClass.name} - Danh sách Học sinh
                 </h1>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
                   {studentStats.total} Học sinh
                 </span>
               </div>
@@ -1626,24 +1905,6 @@ export default function ClassesAndStudentsManagementPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={handleImportExcel}
-                className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg transition shadow-2xs cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[16px] text-slate-500">file_upload</span>
-                <span>Nhập Excel</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportExcel}
-                className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg transition shadow-2xs cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[16px] text-slate-500">download</span>
-                <span>Xuất Excel</span>
-              </button>
-
               <button
                 type="button"
                 onClick={handleOpenAddStudent}
@@ -1669,7 +1930,7 @@ export default function ClassesAndStudentsManagementPage() {
                   <span>100% chỉ tiêu niên khóa</span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
                 <span className="material-symbols-outlined text-[20px]">groups</span>
               </div>
             </div>
@@ -1685,7 +1946,7 @@ export default function ClassesAndStudentsManagementPage() {
                   {studentStats.total ? Math.round((studentStats.boys / studentStats.total) * 100) : 0}% Nam • {studentStats.total ? Math.round((studentStats.girls / studentStats.total) * 100) : 0}% Nữ
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
                 <span className="material-symbols-outlined text-[20px]">wc</span>
               </div>
             </div>
@@ -1702,7 +1963,7 @@ export default function ClassesAndStudentsManagementPage() {
                   <span>{studentStats.total ? Math.round((studentStats.insurancePaid / studentStats.total) * 100) : 0}% hoàn thành</span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
                 <span className="material-symbols-outlined text-[20px]">verified_user</span>
               </div>
             </div>
@@ -1718,7 +1979,7 @@ export default function ClassesAndStudentsManagementPage() {
                   {studentStats.total ? Math.round((studentStats.appConnected / studentStats.total) * 100) : 0}% kết nối phụ huynh
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
                 <span className="material-symbols-outlined text-[20px]">devices</span>
               </div>
             </div>
@@ -1851,7 +2112,7 @@ export default function ClassesAndStudentsManagementPage() {
                             {st.full_name.split(' ').slice(-1)[0][0]}
                           </span>
                           <div>
-                            <span className="text-xs text-slate-900 font-semibold block leading-tight group-hover:text-blue-600 transition-colors">
+                            <span className="text-xs text-slate-900 font-semibold block leading-tight group-hover:text-black transition-colors">
                               {st.full_name}
                             </span>
                             <span className="text-slate-400 text-[11px] font-mono mt-0.5 block">
@@ -1892,8 +2153,8 @@ export default function ClassesAndStudentsManagementPage() {
 
                       <td className="py-3.5 px-5 whitespace-nowrap">
                         {st.app_connected ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200/80">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-900 text-white shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                             Đã kết nối
                           </span>
                         ) : (
@@ -2028,7 +2289,7 @@ export default function ClassesAndStudentsManagementPage() {
                   value={classNameInput}
                   onChange={(e) => setClassNameInput(e.target.value)}
                   placeholder="Ví dụ: 7A, 7B..."
-                  className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                  className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                 />
               </div>
 
@@ -2041,7 +2302,7 @@ export default function ClassesAndStudentsManagementPage() {
                   value={classRoomInput}
                   onChange={(e) => setClassRoomInput(e.target.value)}
                   placeholder="Ví dụ: Phòng A201"
-                  className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                  className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                 />
               </div>
 
@@ -2054,7 +2315,7 @@ export default function ClassesAndStudentsManagementPage() {
                   value={classTeacherInput}
                   onChange={(e) => setClassTeacherInput(e.target.value)}
                   placeholder="Ví dụ: Cô Nguyễn Thị Mai Lan"
-                  className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                  className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                 />
               </div>
 
@@ -2067,7 +2328,7 @@ export default function ClassesAndStudentsManagementPage() {
                   value={classTeacherPhoneInput}
                   onChange={(e) => setClassTeacherPhoneInput(e.target.value)}
                   placeholder="Ví dụ: 0912 345 678"
-                  className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                  className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                 />
               </div>
 
@@ -2081,7 +2342,7 @@ export default function ClassesAndStudentsManagementPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-semibold text-white cursor-pointer shadow-xs"
+                  className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-black text-xs font-semibold text-white cursor-pointer shadow-xs"
                 >
                   {editingClass ? 'Lưu thay đổi' : 'Tạo lớp học'}
                 </button>
@@ -2126,7 +2387,7 @@ export default function ClassesAndStudentsManagementPage() {
                     value={studentNameInput}
                     onChange={(e) => setStudentNameInput(e.target.value)}
                     placeholder="Ví dụ: Nguyễn An Bình"
-                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
 
@@ -2140,7 +2401,7 @@ export default function ClassesAndStudentsManagementPage() {
                     value={studentCodeInput}
                     onChange={(e) => setStudentCodeInput(e.target.value)}
                     placeholder="Ví dụ: HS-7A01"
-                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
               </div>
@@ -2154,7 +2415,7 @@ export default function ClassesAndStudentsManagementPage() {
                     type="date"
                     value={studentDobInput}
                     onChange={(e) => setStudentDobInput(e.target.value)}
-                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
 
@@ -2165,7 +2426,7 @@ export default function ClassesAndStudentsManagementPage() {
                   <select
                     value={studentGenderInput}
                     onChange={(e) => setStudentGenderInput(e.target.value as 'MALE' | 'FEMALE')}
-                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer"
                   >
                     <option value="MALE">Nam</option>
                     <option value="FEMALE">Nữ</option>
@@ -2183,7 +2444,7 @@ export default function ClassesAndStudentsManagementPage() {
                     value={parentNameInput}
                     onChange={(e) => setParentNameInput(e.target.value)}
                     placeholder="Ví dụ: Nguyễn Văn Tuấn"
-                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
 
@@ -2197,7 +2458,7 @@ export default function ClassesAndStudentsManagementPage() {
                     value={parentPhoneInput}
                     onChange={(e) => setParentPhoneInput(e.target.value)}
                     placeholder="Ví dụ: 0912 345 678"
-                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
+                    className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
               </div>
@@ -2224,7 +2485,7 @@ export default function ClassesAndStudentsManagementPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-semibold text-white cursor-pointer shadow-xs"
+                  className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-black text-xs font-semibold text-white cursor-pointer shadow-xs"
                 >
                   {editingStudent ? 'Lưu cập nhật' : 'Thêm học sinh'}
                 </button>
@@ -2244,7 +2505,7 @@ export default function ClassesAndStudentsManagementPage() {
               <div className="flex items-center gap-3">
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                    profileStudent.gender === 'FEMALE' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'
+                    profileStudent.gender === 'FEMALE' ? 'bg-pink-100 text-pink-700' : 'bg-slate-100 text-slate-800'
                   }`}
                 >
                   {profileStudent.full_name.split(' ').slice(-1)[0][0]}
@@ -2274,7 +2535,7 @@ export default function ClassesAndStudentsManagementPage() {
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[11px]">Số điện thoại</span>
-                  <span className="font-mono font-bold text-blue-600">{profileStudent.parent_phone}</span>
+                  <span className="font-mono font-bold text-slate-900">{profileStudent.parent_phone}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[11px]">Tình trạng BHYT</span>
@@ -2286,7 +2547,7 @@ export default function ClassesAndStudentsManagementPage() {
 
               <div>
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px] text-blue-600">grade</span>
+                  <span className="material-symbols-outlined text-[16px] text-amber-500">grade</span>
                   <span>Kết quả học tập kỳ gần nhất (Học kỳ I 2026-2027)</span>
                 </h4>
                 <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
@@ -2306,21 +2567,21 @@ export default function ClassesAndStudentsManagementPage() {
                         <td className="py-2.5 px-3">9.0</td>
                         <td className="py-2.5 px-3">8.5</td>
                         <td className="py-2.5 px-3">9.5</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-blue-600">9.1</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-slate-900">9.1</td>
                       </tr>
                       <tr>
                         <td className="py-2.5 px-3 font-sans font-medium text-slate-800">Ngữ Văn</td>
                         <td className="py-2.5 px-3">8.0</td>
                         <td className="py-2.5 px-3">8.5</td>
                         <td className="py-2.5 px-3">8.0</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-blue-600">8.1</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-slate-900">8.1</td>
                       </tr>
                       <tr>
                         <td className="py-2.5 px-3 font-sans font-medium text-slate-800">Tiếng Anh</td>
                         <td className="py-2.5 px-3">9.5</td>
                         <td className="py-2.5 px-3">9.0</td>
                         <td className="py-2.5 px-3">10.0</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-blue-600">9.6</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-slate-900">9.6</td>
                       </tr>
                     </tbody>
                   </table>
@@ -2357,6 +2618,173 @@ export default function ClassesAndStudentsManagementPage() {
                 className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-white cursor-pointer"
               >
                 Đóng hồ sơ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: THÊM MỚI / CHỈNH SỬA TRƯỜNG HỌC (SCHOOL CRUD MODAL) */}
+      {/* ========================================================================= */}
+      {isSchoolModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">
+                {editingSchool ? 'Chỉnh sửa Trường học' : 'Thêm Trường học mới'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsSchoolModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSchool} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Tên trường học <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: THCS Lê Quý Đôn"
+                  value={schoolNameInput}
+                  onChange={(e) => setSchoolNameInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">Cấp đào tạo</label>
+                  <select
+                    value={schoolTypeInput}
+                    onChange={(e) => handleSchoolTypeChange(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                  >
+                    <option value="PRIMARY">Cấp 1 (Tiểu học)</option>
+                    <option value="SECONDARY">Cấp 2 (THCS)</option>
+                    <option value="HIGH">Cấp 3 (THPT)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">Tỉnh / Thành phố</label>
+                  <input
+                    type="text"
+                    value={schoolCityInput}
+                    onChange={(e) => setSchoolCityInput(e.target.value)}
+                    placeholder="TP. Hà Nội"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Quận / Huyện</label>
+                <input
+                  type="text"
+                  value={schoolDistrictInput}
+                  onChange={(e) => setSchoolDistrictInput(e.target.value)}
+                  placeholder="Ví dụ: Quận Cầu Giấy"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1.5">
+                  Các khối đào tạo ({schoolTypeInput === 'PRIMARY' ? 'Khối 1 - 5' : schoolTypeInput === 'SECONDARY' ? 'Khối 6 - 9' : 'Khối 10 - 12'})
+                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(schoolTypeInput === 'PRIMARY'
+                    ? [1, 2, 3, 4, 5]
+                    : schoolTypeInput === 'SECONDARY'
+                    ? [6, 7, 8, 9]
+                    : [10, 11, 12]
+                  ).map((gr) => {
+                    const isChecked = schoolGradesInput.includes(gr);
+                    return (
+                      <button
+                        type="button"
+                        key={gr}
+                        onClick={() => toggleSchoolGrade(gr)}
+                        className={`px-3 py-1.5 rounded-lg font-semibold text-xs border transition-all cursor-pointer ${
+                          isChecked
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        Khối {gr}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={schoolStandardInput}
+                    onChange={(e) => setSchoolStandardInput(e.target.checked)}
+                    className="w-4 h-4 rounded text-slate-900 accent-slate-900 focus:ring-slate-900 border-slate-300"
+                  />
+                  <span className="text-slate-700 font-medium">Trường đạt chuẩn Quốc gia (Mức độ I hoặc II)</span>
+                </label>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsSchoolModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSchool}
+                  className="px-5 py-2 bg-slate-900 hover:bg-black text-white font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingSchool ? 'Đang lưu...' : editingSchool ? 'Cập nhật' : 'Khởi tạo trường'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: XÁC NHẬN XÓA TRƯỜNG HỌC */}
+      {/* ========================================================================= */}
+      {deletingSchool && (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="text-center space-y-1">
+              <h3 className="font-bold text-slate-900 text-base">Xóa trường học</h3>
+              <p className="text-xs text-slate-500">
+                Bạn có chắc chắn muốn xóa trường <strong className="text-slate-800">{deletingSchool.name}</strong> ({deletingSchool.id})? Hành động này sẽ loại bỏ trường khỏi danh sách.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingSchool(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingSchool}
+                onClick={handleConfirmDeleteSchool}
+                className="px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingSchool ? 'Đang xóa...' : 'Xác nhận xóa'}
               </button>
             </div>
           </div>

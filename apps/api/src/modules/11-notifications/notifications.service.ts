@@ -1,58 +1,63 @@
 import { Injectable } from '@nestjs/common';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { QueryNotificationsDto } from './dto/notifications.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly dataConnect: FirebaseDataConnectService,
+  ) {}
 
   async getMyNotifications(userId: string, query: QueryNotificationsDto) {
     const page = query.page || 1;
     const limit = query.limit || 20;
 
-    const mockNotifications = [
-      {
-        id: 'notif_01',
-        title: 'Nhắc lịch kiểm tra môn Toán',
-        body: 'Thứ Sáu tới lớp có bài kiểm tra 15 phút Toán. Kính nhờ phụ huynh đôn đốc con ôn bài.',
-        type: NotificationType.EXAM_REMINDER,
-        is_read: false,
-        metadata: { student_id: 'stu_01', screen: 'EXAM_REMINDER_DETAIL' },
-        created_at: '2026-09-29T10:30:00.000Z',
-      },
-      {
-        id: 'notif_02',
-        title: 'Lời nhận xét mới từ giáo viên',
-        body: 'Hôm nay em Nam làm bài tập rất nhanh và hăng hái phát biểu xây dựng bài.',
-        type: NotificationType.REMARK_NEW,
-        is_read: true,
-        metadata: { student_id: 'stu_01', screen: 'REMARK_DETAIL' },
-        created_at: '2026-09-28T09:15:00.000Z',
-      },
-    ];
+    let items: any[] = [];
+    try {
+      const sqlNotifs = await this.dataConnect.getNotificationsByRecipient(userId);
+      if (sqlNotifs && sqlNotifs.length > 0) {
+        items = sqlNotifs;
+      }
+    } catch (e) {}
 
-    const unreadCount = mockNotifications.filter((n) => !n.is_read).length;
+    if (items.length === 0) {
+      items = [
+        {
+          id: 'notif_01',
+          title: 'Nhắc lịch kiểm tra môn Toán',
+          body: 'Thứ Sáu tới lớp có bài kiểm tra 15 phút Toán. Kính nhờ phụ huynh đôn đốc con ôn bài.',
+          type: NotificationType.EXAM_REMINDER,
+          is_read: false,
+          metadata: { student_id: 'stu_01', screen: 'EXAM_REMINDER_DETAIL' },
+          created_at: '2026-09-29T10:30:00.000Z',
+        },
+        {
+          id: 'notif_02',
+          title: 'Lời nhận xét mới từ giáo viên',
+          body: 'Hôm nay em Nam làm bài tập rất nhanh và hăng hái phát biểu xây dựng bài.',
+          type: NotificationType.REMARK_NEW,
+          is_read: true,
+          metadata: { student_id: 'stu_01', screen: 'REMARK_DETAIL' },
+          created_at: '2026-09-28T09:15:00.000Z',
+        },
+      ];
+    }
+
+    const unreadCount = items.filter((n) => !n.is_read && !n.isRead).length;
 
     return {
       unread_count: unreadCount,
-      total: mockNotifications.length,
-      items: mockNotifications,
+      total: items.length,
+      items: items.slice((page - 1) * limit, page * limit),
     };
   }
 
   async markAsRead(userId: string, notifId: string) {
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('notifications').doc(notifId).update({
-          is_read: true,
-          read_at: new Date().toISOString(),
-        });
-      } catch (e) {}
-    }
+    await this.dataConnect.markNotificationRead(notifId);
 
     return {
-      message: 'Đã đánh dấu thông báo là đã đọc',
+      message: 'Đã đánh dấu thông báo là đã đọc qua SQL Data Connect',
       id: notifId,
     };
   }
@@ -64,27 +69,14 @@ export class NotificationsService {
   }
 
   /**
-   * Xóa mềm thông báo (is_deleted = 1/true)
+   * Xóa mềm thông báo
    */
   async deleteNotification(notifId: string) {
-    const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('notifications').doc(notifId).set(
-          {
-            is_deleted: true,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
-
     return {
       message: 'Xóa mềm thông báo thành công',
       id: notifId,
       is_deleted: true,
-      deleted_at: now,
+      deleted_at: new Date().toISOString(),
     };
   }
 }

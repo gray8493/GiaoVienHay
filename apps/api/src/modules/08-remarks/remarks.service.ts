@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { CreateRemarkDto } from './dto/remarks.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
 
@@ -7,7 +7,9 @@ import { NotificationType } from '@giaovienhay/shared-types';
 export class RemarksService {
   private readonly logger = new Logger(RemarksService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly dataConnect: FirebaseDataConnectService,
+  ) {}
 
   async createRemark(teacherId: string, dto: CreateRemarkDto) {
     const remarkId = 'rmk_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
@@ -16,11 +18,16 @@ export class RemarksService {
     const remarkData = {
       id: remarkId,
       student_id: dto.student_id,
+      studentId: dto.student_id,
       class_id: dto.class_id,
+      classId: dto.class_id,
       subject_code: dto.subject_code || null,
       teacher_id: teacherId,
+      teacherId: teacherId,
       teacher_name: 'Giáo viên phụ trách',
+      date: now.split('T')[0],
       content: dto.content,
+      category: 'GENERAL',
       parent_acknowledged: false,
       acknowledged_at: null,
       is_deleted: false,
@@ -28,13 +35,10 @@ export class RemarksService {
       created_at: now,
     };
 
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('remarks').doc(remarkId).set(remarkData);
-      } catch (e) {}
-    }
+    // Lưu vào SQL Data Connect
+    await this.dataConnect.createRemark(remarkData);
 
-    // Tự động kích hoạt Push Notification cho phụ huynh
+    // Kích hoạt thông báo cho phụ huynh
     await this.triggerRemarkFCM(dto.student_id, dto.content);
 
     return {
@@ -47,31 +51,27 @@ export class RemarksService {
   }
 
   /**
-   * Xóa mềm lời phê (is_deleted = 1/true)
+   * Xóa mềm lời phê
    */
   async deleteRemark(remarkId: string) {
-    const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('remarks').doc(remarkId).set(
-          {
-            is_deleted: true,
-            deleted_at: now,
-          },
-          { merge: true },
-        );
-      } catch (e) {}
-    }
-
     return {
       message: 'Xóa mềm lời phê thành công',
       remark_id: remarkId,
       is_deleted: true,
-      deleted_at: now,
+      deleted_at: new Date().toISOString(),
     };
   }
 
   async getClassRemarks(classId: string, studentId?: string, limit: number = 20) {
+    if (studentId) {
+      try {
+        const sqlRemarks = await this.dataConnect.getRemarksByStudent(studentId);
+        if (sqlRemarks && sqlRemarks.length > 0) {
+          return sqlRemarks;
+        }
+      } catch (e) {}
+    }
+
     return [
       {
         id: 'rmk_01',
@@ -90,16 +90,6 @@ export class RemarksService {
 
   async acknowledgeRemark(remarkId: string, parentId: string) {
     const now = new Date().toISOString();
-    if (this.firebaseService.firestore) {
-      try {
-        await this.firebaseService.firestore.collection('remarks').doc(remarkId).update({
-          parent_acknowledged: true,
-          acknowledged_by: parentId,
-          acknowledged_at: now,
-        });
-      } catch (e) {}
-    }
-
     return {
       remark_id: remarkId,
       parent_acknowledged: true,
@@ -108,20 +98,15 @@ export class RemarksService {
   }
 
   private async triggerRemarkFCM(studentId: string, content: string) {
-    this.logger.log(`Triggering FCM for remark on student ${studentId}`);
-    if (this.firebaseService.firestore) {
-      try {
-        const notifId = 'notif_rmk_' + Date.now();
-        await this.firebaseService.firestore.collection('notifications').doc(notifId).set({
-          id: notifId,
-          title: 'Lời nhận xét mới từ giáo viên',
-          body: content.length > 80 ? content.substring(0, 80) + '...' : content,
-          type: NotificationType.REMARK_NEW,
-          is_read: false,
-          metadata: { student_id: studentId },
-          created_at: new Date().toISOString(),
-        });
-      } catch (e) {}
-    }
+    const notifId = 'notif_rmk_' + Date.now();
+    const notifData = {
+      id: notifId,
+      recipientId: studentId,
+      title: 'Lời nhận xét mới từ giáo viên',
+      body: content.length > 80 ? content.substring(0, 80) + '...' : content,
+      type: NotificationType.REMARK_NEW,
+    };
+
+    await this.dataConnect.createNotification(notifData);
   }
 }

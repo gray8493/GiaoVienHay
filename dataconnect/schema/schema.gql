@@ -1,0 +1,145 @@
+# Schema Cơ sở dữ liệu Quan hệ SQL cho Firebase Data Connect (Cloud SQL PostgreSQL)
+# Dự án: Hệ thống Quản trị & Sổ liên lạc Giáo Dục GiaoVienHay
+
+type User @table {
+  id: String! @default(expr: "uuidV4()")
+  code: String! @unique
+  fullName: String!
+  phone: String! @unique
+  email: String
+  role: String! # ADMIN, TEACHER_HOMEROOM, TEACHER_SUBJECT, PARENT
+  schoolName: String
+  assignedInfo: String
+  isActive: Boolean! @default(value: true)
+  isDeleted: Boolean! @default(value: false)
+  
+  # Quản lý Hạn mức sử dụng AI từng Giáo viên (Gemini AI Quota)
+  aiDailyQuota: Int! @default(value: 25)
+  aiUsedToday: Int! @default(value: 0)
+  aiModelTier: String! @default(value: "AUTO") # FLASH, PRO, AUTO
+  
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+type School @table {
+  id: String! @default(expr: "uuidV4()")
+  code: String! @unique
+  name: String!
+  address: String
+  phone: String
+  email: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type Class @table {
+  id: String! @default(expr: "uuidV4()")
+  name: String!
+  gradeLevel: Int!
+  academicYear: String!
+  schoolName: String
+  homeroomTeacherId: String
+  inviteCode: String! @unique
+  studentCount: Int! @default(value: 0)
+  isDeleted: Boolean! @default(value: false)
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+type Student @table {
+  id: String! @default(expr: "uuidV4()")
+  classId: String!
+  studentCode: String! @unique
+  fullName: String!
+  dob: String
+  gender: String! # MALE, FEMALE
+  parentPhone: String
+  isDeleted: Boolean! @default(value: false)
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type Attendance @table {
+  id: String! @default(expr: "uuidV4()")
+  classId: String!
+  studentId: String!
+  date: String!
+  status: String! # PRESENT, ABSENT_EXCUSED, ABSENT_UNEXCUSED, LATE
+  note: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type Score @table {
+  id: String! @default(expr: "uuidV4()")
+  studentId: String!
+  classId: String!
+  subject: String!
+  scoreType: String! # ORAL, 15MIN, 1HOUR, SEMESTER
+  scoreValue: Float!
+  term: Int! # 1, 2
+  academicYear: String!
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type Quiz @table {
+  id: String! @default(expr: "uuidV4()")
+  teacherId: String!
+  classId: String!
+  subject: String!
+  title: String!
+  questionsJson: String!
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type Remark @table {
+  id: String! @default(expr: "uuidV4()")
+  studentId: String!
+  teacherId: String!
+  date: String!
+  content: String!
+  category: String! # ACADEMIC, BEHAVIOR, GENERAL
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type ExamReminder @table {
+  id: String! @default(expr: "uuidV4()")
+  classId: String!
+  subject: String!
+  examDate: String!
+  title: String!
+  note: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type Fee @table {
+  id: String! @default(expr: "uuidV4()")
+  studentId: String!
+  title: String!
+  amount: Float!
+  status: String! # PENDING, PAID, OVERDUE
+  dueDate: String!
+  paidAt: Timestamp
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type Notification @table {
+  id: String! @default(expr: "uuidV4()")
+  recipientId: String!
+  title: String!
+  body: String!
+  type: String! # ATTENDANCE, SCORE, FEE, SYSTEM
+  isRead: Boolean! @default(value: false)
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type SystemLimit @table {
+  id: String! @default(expr: "uuidV4()")
+  geminiQuotaPerTeacher: Int! @default(value: 25)
+  maxQuizQuestions: Int! @default(value: 20)
+  maxUploadSizeMb: Int! @default(value: 15)
+  maxStudentsPerClass: Int! @default(value: 55)
+  maxClassesPerTeacher: Int! @default(value: 5)
+  aiModel: String! @default(value: "gemini-1.5-flash")
+  allowSubjectTeacherCreateClass: Boolean! @default(value: true)
+  enableFallbackCache: Boolean! @default(value: true)
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
