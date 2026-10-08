@@ -17,6 +17,7 @@ import { AdminService } from './admin.service';
 import {
   AdminCreateUserDto,
   UpdateUserStatusDto,
+  UpdateTeacherAiQuotaDto,
   QueryAdminUsersDto,
   UpdateSystemLimitsDto,
   AdminCreateClassDto,
@@ -57,6 +58,15 @@ export class AdminController {
     @Body() dto: UpdateUserStatusDto,
   ) {
     return this.adminService.updateUserStatus(userId, dto);
+  }
+
+  @Patch('users/:id/ai-quota')
+  @ApiOperation({ summary: 'Điều chỉnh hạn mức AI của từng giáo viên' })
+  async updateTeacherAiQuota(
+    @Param('id') userId: string,
+    @Body() dto: UpdateTeacherAiQuotaDto,
+  ) {
+    return this.adminService.updateTeacherAiQuota(userId, dto);
   }
 
   @Get('classes')

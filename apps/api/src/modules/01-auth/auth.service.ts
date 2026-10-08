@@ -17,14 +17,7 @@ import {
   ChangePasswordDto,
 } from './dto/auth.dto';
 import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
-import {
-  getAppFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  collection,
-} from '../../common/firebase/firestore-client';
+import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -33,6 +26,7 @@ export class AuthService implements OnModuleInit {
 
   constructor(
     private readonly firebaseService: FirebaseService,
+    private readonly dataConnect: FirebaseDataConnectService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -288,16 +282,12 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  // --- Database Helpers ---
+  // --- Database Helpers (Firebase Data Connect SQL) ---
   private async findUserByPhone(phone: string): Promise<any | null> {
     try {
-      const db = getAppFirestore();
-      const snap = await getDocs(collection(db, 'users'));
-      for (const d of snap.docs) {
-        const data = d.data();
-        if (data.phone === phone && !data.is_deleted) {
-          return { id: d.id, ...data };
-        }
+      const sqlUser = await this.dataConnect.getUserByPhone(phone);
+      if (sqlUser) {
+        return sqlUser;
       }
     } catch (err) {}
     return this.inMemoryUsers.get(phone) || null;
@@ -305,10 +295,9 @@ export class AuthService implements OnModuleInit {
 
   private async findUserById(id: string): Promise<any | null> {
     try {
-      const db = getAppFirestore();
-      const docSnap = await getDoc(doc(db, 'users', id));
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() };
+      const sqlUser = await this.dataConnect.getUserById(id);
+      if (sqlUser) {
+        return sqlUser;
       }
     } catch (err) {}
     for (const u of this.inMemoryUsers.values()) {
@@ -320,8 +309,7 @@ export class AuthService implements OnModuleInit {
   private async saveUser(user: any): Promise<void> {
     this.inMemoryUsers.set(user.phone, user);
     try {
-      const db = getAppFirestore();
-      await setDoc(doc(db, 'users', user.id), user);
+      await this.dataConnect.createUser(user);
     } catch (err) {}
   }
 

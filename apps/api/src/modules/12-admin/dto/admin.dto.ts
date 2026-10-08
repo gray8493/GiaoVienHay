@@ -40,6 +40,22 @@ export class UpdateUserStatusDto {
   reason?: string;
 }
 
+export class UpdateTeacherAiQuotaDto {
+  @ApiProperty({ example: 35, description: 'Hạn mức lượt gọi Gemini AI hàng ngày của giáo viên' })
+  @IsInt()
+  ai_daily_quota: number;
+
+  @ApiPropertyOptional({ example: 'AUTO', description: 'Gói mô hình AI: FLASH | PRO | AUTO' })
+  @IsOptional()
+  @IsString()
+  ai_model_tier?: string;
+
+  @ApiPropertyOptional({ example: false, description: 'Có reset số lượt đã dùng hôm nay về 0 không' })
+  @IsOptional()
+  @IsBoolean()
+  reset_used?: boolean;
+}
+
 export class QueryAdminUsersDto {
   @ApiPropertyOptional({ enum: UserRole })
   @IsOptional()

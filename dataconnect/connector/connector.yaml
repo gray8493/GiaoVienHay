@@ -1,0 +1,5 @@
+connectorId: 'admin-connector'
+generate:
+  javascriptSdk:
+    outputDir: '../../apps/api/src/common/firebase/generated-dataconnect'
+    package: '@giaovienhay/dataconnect'

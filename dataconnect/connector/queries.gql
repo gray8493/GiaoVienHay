@@ -1,0 +1,377 @@
+# Các câu truy vấn dữ liệu SQL quan hệ cho Firebase Data Connect
+
+# ==================== 1. USER QUERIES ====================
+
+query ListUsers($role: String, $isActive: Boolean) @auth(level: USER) {
+  users(
+    where: {
+      role: { eq: $role }
+      isActive: { eq: $isActive }
+      isDeleted: { eq: false }
+    }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    code
+    fullName
+    phone
+    email
+    role
+    schoolName
+    assignedInfo
+    isActive
+    aiDailyQuota
+    aiUsedToday
+    aiModelTier
+    createdAt
+  }
+}
+
+query GetUserById($id: String!) @auth(level: USER) {
+  user(id: $id) {
+    id
+    code
+    fullName
+    phone
+    email
+    role
+    schoolName
+    assignedInfo
+    isActive
+    aiDailyQuota
+    aiUsedToday
+    aiModelTier
+    createdAt
+  }
+}
+
+query GetUserByPhone($phone: String!) @auth(level: USER) {
+  users(
+    where: {
+      phone: { eq: $phone }
+      isDeleted: { eq: false }
+    }
+    limit: 1
+  ) {
+    id
+    code
+    fullName
+    phone
+    email
+    role
+    schoolName
+    assignedInfo
+    isActive
+    aiDailyQuota
+    aiUsedToday
+    aiModelTier
+    createdAt
+  }
+}
+
+# ==================== 2. SCHOOL QUERIES ====================
+
+query ListSchools @auth(level: USER) {
+  schools(orderBy: [{ name: ASC }]) {
+    id
+    code
+    name
+    address
+    phone
+    email
+    createdAt
+  }
+}
+
+# ==================== 3. CLASS QUERIES ====================
+
+query ListClasses($schoolName: String) @auth(level: USER) {
+  classes(
+    where: {
+      schoolName: { eq: $schoolName }
+      isDeleted: { eq: false }
+    }
+    orderBy: [{ gradeLevel: ASC }]
+  ) {
+    id
+    name
+    gradeLevel
+    academicYear
+    schoolName
+    homeroomTeacherId
+    inviteCode
+    studentCount
+    createdAt
+  }
+}
+
+query GetClassById($id: String!) @auth(level: USER) {
+  class(id: $id) {
+    id
+    name
+    gradeLevel
+    academicYear
+    schoolName
+    homeroomTeacherId
+    inviteCode
+    studentCount
+    createdAt
+  }
+}
+
+query ListClassesByTeacher($teacherId: String!) @auth(level: USER) {
+  classes(
+    where: {
+      homeroomTeacherId: { eq: $teacherId }
+      isDeleted: { eq: false }
+    }
+    orderBy: [{ gradeLevel: ASC }]
+  ) {
+    id
+    name
+    gradeLevel
+    academicYear
+    schoolName
+    homeroomTeacherId
+    inviteCode
+    studentCount
+    createdAt
+  }
+}
+
+# ==================== 4. STUDENT QUERIES ====================
+
+query ListStudentsByClass($classId: String!) @auth(level: USER) {
+  students(
+    where: {
+      classId: { eq: $classId }
+      isDeleted: { eq: false }
+    }
+    orderBy: [{ fullName: ASC }]
+  ) {
+    id
+    classId
+    studentCode
+    fullName
+    dob
+    gender
+    parentPhone
+    createdAt
+  }
+}
+
+query GetStudentById($id: String!) @auth(level: USER) {
+  student(id: $id) {
+    id
+    classId
+    studentCode
+    fullName
+    dob
+    gender
+    parentPhone
+    createdAt
+  }
+}
+
+# ==================== 5. ATTENDANCE QUERIES ====================
+
+query GetAttendanceByClassDate($classId: String!, $date: String!) @auth(level: USER) {
+  attendances(
+    where: {
+      classId: { eq: $classId }
+      date: { eq: $date }
+    }
+  ) {
+    id
+    classId
+    studentId
+    date
+    status
+    note
+    createdAt
+  }
+}
+
+query GetAttendanceByStudent($studentId: String!) @auth(level: USER) {
+  attendances(
+    where: {
+      studentId: { eq: $studentId }
+    }
+    orderBy: [{ date: DESC }]
+  ) {
+    id
+    classId
+    studentId
+    date
+    status
+    note
+    createdAt
+  }
+}
+
+# ==================== 6. SCORE QUERIES ====================
+
+query GetScoresByStudent($studentId: String!, $term: Int, $academicYear: String) @auth(level: USER) {
+  scores(
+    where: {
+      studentId: { eq: $studentId }
+      term: { eq: $term }
+      academicYear: { eq: $academicYear }
+    }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    studentId
+    classId
+    subject
+    scoreType
+    scoreValue
+    term
+    academicYear
+    createdAt
+  }
+}
+
+query GetScoresByClassSubject($classId: String!, $subject: String!) @auth(level: USER) {
+  scores(
+    where: {
+      classId: { eq: $classId }
+      subject: { eq: $subject }
+    }
+  ) {
+    id
+    studentId
+    classId
+    subject
+    scoreType
+    scoreValue
+    term
+    academicYear
+    createdAt
+  }
+}
+
+# ==================== 7. QUIZ QUERIES ====================
+
+query GetQuizById($id: String!) @auth(level: USER) {
+  quiz(id: $id) {
+    id
+    teacherId
+    classId
+    subject
+    title
+    questionsJson
+    createdAt
+  }
+}
+
+query ListQuizzesByClass($classId: String!) @auth(level: USER) {
+  quizzes(
+    where: {
+      classId: { eq: $classId }
+    }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    teacherId
+    classId
+    subject
+    title
+    questionsJson
+    createdAt
+  }
+}
+
+# ==================== 8. REMARK QUERIES ====================
+
+query ListRemarksByStudent($studentId: String!) @auth(level: USER) {
+  remarks(
+    where: {
+      studentId: { eq: $studentId }
+    }
+    orderBy: [{ date: DESC }]
+  ) {
+    id
+    studentId
+    teacherId
+    date
+    content
+    category
+    createdAt
+  }
+}
+
+# ==================== 9. EXAM REMINDER QUERIES ====================
+
+query ListExamRemindersByClass($classId: String!) @auth(level: USER) {
+  examReminders(
+    where: {
+      classId: { eq: $classId }
+    }
+    orderBy: [{ examDate: ASC }]
+  ) {
+    id
+    classId
+    subject
+    examDate
+    title
+    note
+    createdAt
+  }
+}
+
+# ==================== 10. FEE QUERIES ====================
+
+query ListFeesByStudent($studentId: String!) @auth(level: USER) {
+  fees(
+    where: {
+      studentId: { eq: $studentId }
+    }
+    orderBy: [{ dueDate: DESC }]
+  ) {
+    id
+    studentId
+    title
+    amount
+    status
+    dueDate
+    paidAt
+    createdAt
+  }
+}
+
+# ==================== 11. NOTIFICATION QUERIES ====================
+
+query ListNotificationsByRecipient($recipientId: String!) @auth(level: USER) {
+  notifications(
+    where: {
+      recipientId: { eq: $recipientId }
+    }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    recipientId
+    title
+    body
+    type
+    isRead
+    createdAt
+  }
+}
+
+# ==================== 12. SYSTEM LIMIT QUERIES ====================
+
+query GetSystemLimits @auth(level: USER) {
+  systemLimits(limit: 1) {
+    id
+    geminiQuotaPerTeacher
+    maxQuizQuestions
+    maxUploadSizeMb
+    maxStudentsPerClass
+    maxClassesPerTeacher
+    aiModel
+    allowSubjectTeacherCreateClass
+    enableFallbackCache
+    updatedAt
+  }
+}
