@@ -10,13 +10,8 @@ export function middleware(request: NextRequest) {
 
   const token = request.cookies.get('gvh_admin_token')?.value;
 
-  // 1. Nếu đang truy cập trang /login
+  // 1. Cho phép truy cập trang /login để người dùng có thể đăng nhập hoặc đổi tài khoản
   if (pathname === '/login') {
-    // Nếu đã có token đăng nhập hợp lệ -> chuyển hướng ngay vào Dashboard
-    if (token) {
-      const dashboardUrl = new URL('/', request.url);
-      return NextResponse.redirect(dashboardUrl);
-    }
     return NextResponse.next();
   }
 

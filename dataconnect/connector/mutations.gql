@@ -13,7 +13,7 @@ mutation CreateUser(
   $assignedInfo: String
   $aiDailyQuota: Int
   $aiModelTier: String
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   user_insert(
     data: {
       id: $id
@@ -35,7 +35,7 @@ mutation UpdateTeacherAiQuota(
   $aiDailyQuota: Int!
   $aiModelTier: String
   $aiUsedToday: Int
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   user_update(
     id: $id
     data: {
@@ -46,10 +46,30 @@ mutation UpdateTeacherAiQuota(
   )
 }
 
+mutation UpdateAdminUser(
+  $id: String!
+  $fullName: String
+  $phone: String
+  $email: String
+  $role: String
+  $schoolName: String
+) @auth(level: NO_ACCESS) {
+  user_update(
+    id: $id
+    data: {
+      fullName: $fullName
+      phone: $phone
+      email: $email
+      role: $role
+      schoolName: $schoolName
+    }
+  )
+}
+
 mutation UpdateUserStatus(
   $id: String!
   $isActive: Boolean!
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   user_update(
     id: $id
     data: {
@@ -58,7 +78,7 @@ mutation UpdateUserStatus(
   )
 }
 
-mutation SoftDeleteUser($id: String!) @auth(level: USER) {
+mutation SoftDeleteUser($id: String!) @auth(level: NO_ACCESS) {
   user_update(
     id: $id
     data: {
@@ -76,7 +96,7 @@ mutation CreateSchool(
   $address: String
   $phone: String
   $email: String
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   school_insert(
     data: {
       id: $id
@@ -100,7 +120,7 @@ mutation CreateClass(
   $homeroomTeacherId: String
   $inviteCode: String!
   $studentCount: Int
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   class_insert(
     data: {
       id: $id
@@ -115,7 +135,7 @@ mutation CreateClass(
   )
 }
 
-mutation SoftDeleteClass($id: String!) @auth(level: USER) {
+mutation SoftDeleteClass($id: String!) @auth(level: NO_ACCESS) {
   class_update(
     id: $id
     data: {
@@ -134,7 +154,7 @@ mutation CreateStudent(
   $dob: String
   $gender: String!
   $parentPhone: String
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   student_insert(
     data: {
       id: $id
@@ -148,7 +168,7 @@ mutation CreateStudent(
   )
 }
 
-mutation SoftDeleteStudent($id: String!) @auth(level: USER) {
+mutation SoftDeleteStudent($id: String!) @auth(level: NO_ACCESS) {
   student_update(
     id: $id
     data: {
@@ -166,7 +186,7 @@ mutation RecordAttendance(
   $date: String!
   $status: String!
   $note: String
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   attendance_insert(
     data: {
       id: $id
@@ -190,7 +210,7 @@ mutation RecordScore(
   $scoreValue: Float!
   $term: Int!
   $academicYear: String!
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   score_insert(
     data: {
       id: $id
@@ -214,7 +234,7 @@ mutation CreateQuiz(
   $subject: String!
   $title: String!
   $questionsJson: String!
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   quiz_insert(
     data: {
       id: $id
@@ -236,7 +256,7 @@ mutation CreateRemark(
   $date: String!
   $content: String!
   $category: String!
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   remark_insert(
     data: {
       id: $id
@@ -258,7 +278,7 @@ mutation CreateExamReminder(
   $examDate: String!
   $title: String!
   $note: String
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   examReminder_insert(
     data: {
       id: $id
@@ -280,7 +300,7 @@ mutation CreateFee(
   $amount: Float!
   $status: String!
   $dueDate: String!
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   fee_insert(
     data: {
       id: $id
@@ -296,7 +316,7 @@ mutation CreateFee(
 mutation UpdateFeeStatus(
   $id: String!
   $status: String!
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   fee_update(
     id: $id
     data: {
@@ -313,7 +333,7 @@ mutation CreateNotification(
   $title: String!
   $body: String!
   $type: String!
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   notification_insert(
     data: {
       id: $id
@@ -326,7 +346,7 @@ mutation CreateNotification(
   )
 }
 
-mutation MarkNotificationRead($id: String!) @auth(level: USER) {
+mutation MarkNotificationRead($id: String!) @auth(level: NO_ACCESS) {
   notification_update(
     id: $id
     data: {
@@ -347,7 +367,7 @@ mutation UpsertSystemLimits(
   $aiModel: String!
   $allowSubjectTeacherCreateClass: Boolean!
   $enableFallbackCache: Boolean!
-) @auth(level: USER) {
+) @auth(level: NO_ACCESS) {
   systemLimit_upsert(
     data: {
       id: $id

@@ -41,13 +41,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         },
         {
           href: '/users',
-          label: 'Quản lý Người dùng',
+          label: 'Quản lý',
           icon: 'group',
-        },
-        {
-          href: '/classes',
-          label: 'Lớp & Học sinh',
-          icon: 'school',
         },
       ],
     },
@@ -106,17 +101,15 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             title="GiaoVienHay - Quản trị hệ thống"
           >
             {/* Sneat Logo Icon wrapper với gradient tím đặc trưng */}
-            <div className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-gradient-to-tr from-[#696cff] to-[#8f92ff] text-white flex items-center justify-center shrink-0 shadow-[0_3px_10px_rgba(105,108,255,0.35)] p-0.5">
-              <div className="w-full h-full rounded-[10px] overflow-hidden bg-white/10 flex items-center justify-center">
-                <Image
-                  src="/logo.jpg"
-                  alt="GiaoVienHay Logo"
-                  width={34}
-                  height={34}
-                  priority
-                  className="w-full h-full object-cover rounded-[9px]"
-                />
-              </div>
+            <div className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 shadow-[0_3px_10px_rgba(105,108,255,0.2)]">
+              <Image
+                src="/logo-admin.jpg"
+                alt="GiaoVienHay Logo"
+                width={48}
+                height={48}
+                priority
+                className="w-full h-full object-contain"
+              />
             </div>
 
             {!isCollapsed && (
@@ -176,49 +169,20 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#696cff] rounded-r-md" />
                       )}
 
-                      {/* Icon menu */}
-                      <span
-                        className={`material-symbols-outlined text-[20px] shrink-0 transition-colors ${
-                          isActive
-                            ? 'text-[#696cff]'
-                            : 'text-[#697a8d] group-hover:text-[#566a7f]'
-                        }`}
-                      >
-                        {item.icon}
-                      </span>
-
-                      {/* Text nhãn */}
-                      {!isCollapsed && (
+                      {/* Hiển thị chỉ icon (khi thu gọn) hoặc chỉ chữ (khi mở rộng) */}
+                      {isCollapsed ? (
+                        <span
+                          className={`material-symbols-outlined text-[20px] shrink-0 transition-colors ${
+                            isActive
+                              ? 'text-[#696cff]'
+                              : 'text-[#697a8d] group-hover:text-[#566a7f]'
+                          }`}
+                        >
+                          {item.icon}
+                        </span>
+                      ) : (
                         <span className="truncate flex-1 tracking-[-0.01em]">
                           {item.label}
-                        </span>
-                      )}
-
-                      {/* Sneat Badges */}
-                      {!isCollapsed && item.badge && (
-                        <>
-                          {item.badge.type === 'number' && (
-                            <span className="w-5 h-5 flex items-center justify-center rounded-full text-[11px] font-bold bg-[#ff3e1d] text-white shadow-[0_2px_4px_rgba(255,62,29,0.3)]">
-                              {item.badge.text}
-                            </span>
-                          )}
-                          {item.badge.type === 'pro' && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-[#ebe7ff] text-[#696cff] border border-[#d8d4fd]">
-                              {item.badge.text}
-                            </span>
-                          )}
-                          {item.badge.type === 'pill' && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#71dd37]/15 text-[#56b420]">
-                              {item.badge.text}
-                            </span>
-                          )}
-                        </>
-                      )}
-
-                      {/* Chevron phải mờ cho item chưa có badge (như Sneat) */}
-                      {!isCollapsed && !item.badge && !isActive && (
-                        <span className="material-symbols-outlined text-[15px] text-[#b4bdc6] opacity-0 group-hover:opacity-100 transition-opacity">
-                          chevron_right
                         </span>
                       )}
                     </Link>
@@ -235,28 +199,33 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         <Link
           href="/settings"
           title={isCollapsed ? 'Trợ giúp' : undefined}
-          className={`flex items-center gap-3 rounded-lg text-[13px] font-medium text-[#697a8d] hover:text-[#566a7f] hover:bg-[#f5f5f9] transition-colors group ${
+          className={`flex items-center rounded-lg text-[13px] font-medium text-[#697a8d] hover:text-[#566a7f] hover:bg-[#f5f5f9] transition-colors group ${
             isCollapsed ? 'justify-center py-2 px-0' : 'px-3.5 py-2'
           }`}
         >
-          <span className="material-symbols-outlined text-[19px] shrink-0 text-[#697a8d] group-hover:text-[#566a7f]">
-            help
-          </span>
-          {!isCollapsed && <span className="truncate">Trợ giúp kỹ thuật</span>}
+          {isCollapsed ? (
+            <span className="material-symbols-outlined text-[19px] shrink-0 text-[#697a8d] group-hover:text-[#566a7f]">
+              help
+            </span>
+          ) : (
+            <span className="truncate">Trợ giúp kỹ thuật</span>
+          )}
         </Link>
 
         <button
           type="button"
           onClick={handleLogout}
-          title={isCollapsed ? 'Đăng xuất' : undefined}
-          className={`w-full flex items-center gap-3 rounded-lg text-[13px] font-medium text-[#ff3e1d] hover:bg-[#ff3e1d]/10 transition-colors cursor-pointer group ${
-            isCollapsed ? 'justify-center py-2 px-0' : 'px-3.5 py-2'
+          title="Đăng xuất"
+          className={`w-full flex items-center rounded-lg text-[13px] font-medium text-[#ff3e1d] hover:bg-[#ff3e1d]/10 transition-colors cursor-pointer group ${
+            isCollapsed ? 'justify-center py-2 px-0' : 'px-3.5 py-2 gap-3'
           }`}
         >
           <span className="material-symbols-outlined text-[19px] shrink-0 text-[#ff3e1d]">
             logout
           </span>
-          {!isCollapsed && <span className="truncate font-semibold">Đăng xuất</span>}
+          {!isCollapsed && (
+            <span className="truncate font-semibold">Đăng xuất</span>
+          )}
         </button>
       </div>
     </aside>

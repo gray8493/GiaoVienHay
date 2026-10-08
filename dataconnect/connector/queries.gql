@@ -2,7 +2,7 @@
 
 # ==================== 1. USER QUERIES ====================
 
-query ListUsers($role: String, $isActive: Boolean) @auth(level: USER) {
+query ListUsers($role: String, $isActive: Boolean) @auth(level: NO_ACCESS) {
   users(
     where: {
       role: { eq: $role }
@@ -27,7 +27,7 @@ query ListUsers($role: String, $isActive: Boolean) @auth(level: USER) {
   }
 }
 
-query GetUserById($id: String!) @auth(level: USER) {
+query GetUserById($id: String!) @auth(level: NO_ACCESS) {
   user(id: $id) {
     id
     code
@@ -45,7 +45,7 @@ query GetUserById($id: String!) @auth(level: USER) {
   }
 }
 
-query GetUserByPhone($phone: String!) @auth(level: USER) {
+query GetUserByPhone($phone: String!) @auth(level: NO_ACCESS) {
   users(
     where: {
       phone: { eq: $phone }
@@ -71,7 +71,7 @@ query GetUserByPhone($phone: String!) @auth(level: USER) {
 
 # ==================== 2. SCHOOL QUERIES ====================
 
-query ListSchools @auth(level: USER) {
+query ListSchools @auth(level: NO_ACCESS) {
   schools(orderBy: [{ name: ASC }]) {
     id
     code
@@ -85,7 +85,7 @@ query ListSchools @auth(level: USER) {
 
 # ==================== 3. CLASS QUERIES ====================
 
-query ListClasses($schoolName: String) @auth(level: USER) {
+query ListClasses($schoolName: String) @auth(level: NO_ACCESS) {
   classes(
     where: {
       schoolName: { eq: $schoolName }
@@ -105,7 +105,7 @@ query ListClasses($schoolName: String) @auth(level: USER) {
   }
 }
 
-query GetClassById($id: String!) @auth(level: USER) {
+query GetClassById($id: String!) @auth(level: NO_ACCESS) {
   class(id: $id) {
     id
     name
@@ -119,7 +119,7 @@ query GetClassById($id: String!) @auth(level: USER) {
   }
 }
 
-query ListClassesByTeacher($teacherId: String!) @auth(level: USER) {
+query ListClassesByTeacher($teacherId: String!) @auth(level: NO_ACCESS) {
   classes(
     where: {
       homeroomTeacherId: { eq: $teacherId }
@@ -141,7 +141,7 @@ query ListClassesByTeacher($teacherId: String!) @auth(level: USER) {
 
 # ==================== 4. STUDENT QUERIES ====================
 
-query ListStudentsByClass($classId: String!) @auth(level: USER) {
+query ListStudentsByClass($classId: String!) @auth(level: NO_ACCESS) {
   students(
     where: {
       classId: { eq: $classId }
@@ -160,7 +160,7 @@ query ListStudentsByClass($classId: String!) @auth(level: USER) {
   }
 }
 
-query GetStudentById($id: String!) @auth(level: USER) {
+query GetStudentById($id: String!) @auth(level: NO_ACCESS) {
   student(id: $id) {
     id
     classId
@@ -175,7 +175,7 @@ query GetStudentById($id: String!) @auth(level: USER) {
 
 # ==================== 5. ATTENDANCE QUERIES ====================
 
-query GetAttendanceByClassDate($classId: String!, $date: String!) @auth(level: USER) {
+query GetAttendanceByClassDate($classId: String!, $date: String!) @auth(level: NO_ACCESS) {
   attendances(
     where: {
       classId: { eq: $classId }
@@ -192,7 +192,7 @@ query GetAttendanceByClassDate($classId: String!, $date: String!) @auth(level: U
   }
 }
 
-query GetAttendanceByStudent($studentId: String!) @auth(level: USER) {
+query GetAttendanceByStudent($studentId: String!) @auth(level: NO_ACCESS) {
   attendances(
     where: {
       studentId: { eq: $studentId }
@@ -211,7 +211,7 @@ query GetAttendanceByStudent($studentId: String!) @auth(level: USER) {
 
 # ==================== 6. SCORE QUERIES ====================
 
-query GetScoresByStudent($studentId: String!, $term: Int, $academicYear: String) @auth(level: USER) {
+query GetScoresByStudent($studentId: String!, $term: Int, $academicYear: String) @auth(level: NO_ACCESS) {
   scores(
     where: {
       studentId: { eq: $studentId }
@@ -232,7 +232,7 @@ query GetScoresByStudent($studentId: String!, $term: Int, $academicYear: String)
   }
 }
 
-query GetScoresByClassSubject($classId: String!, $subject: String!) @auth(level: USER) {
+query GetScoresByClassSubject($classId: String!, $subject: String!) @auth(level: NO_ACCESS) {
   scores(
     where: {
       classId: { eq: $classId }
@@ -253,7 +253,7 @@ query GetScoresByClassSubject($classId: String!, $subject: String!) @auth(level:
 
 # ==================== 7. QUIZ QUERIES ====================
 
-query GetQuizById($id: String!) @auth(level: USER) {
+query GetQuizById($id: String!) @auth(level: NO_ACCESS) {
   quiz(id: $id) {
     id
     teacherId
@@ -265,7 +265,7 @@ query GetQuizById($id: String!) @auth(level: USER) {
   }
 }
 
-query ListQuizzesByClass($classId: String!) @auth(level: USER) {
+query ListQuizzesByClass($classId: String!) @auth(level: NO_ACCESS) {
   quizzes(
     where: {
       classId: { eq: $classId }
@@ -284,7 +284,7 @@ query ListQuizzesByClass($classId: String!) @auth(level: USER) {
 
 # ==================== 8. REMARK QUERIES ====================
 
-query ListRemarksByStudent($studentId: String!) @auth(level: USER) {
+query ListRemarksByStudent($studentId: String!) @auth(level: NO_ACCESS) {
   remarks(
     where: {
       studentId: { eq: $studentId }
@@ -303,7 +303,7 @@ query ListRemarksByStudent($studentId: String!) @auth(level: USER) {
 
 # ==================== 9. EXAM REMINDER QUERIES ====================
 
-query ListExamRemindersByClass($classId: String!) @auth(level: USER) {
+query ListExamRemindersByClass($classId: String!) @auth(level: NO_ACCESS) {
   examReminders(
     where: {
       classId: { eq: $classId }
@@ -322,7 +322,7 @@ query ListExamRemindersByClass($classId: String!) @auth(level: USER) {
 
 # ==================== 10. FEE QUERIES ====================
 
-query ListFeesByStudent($studentId: String!) @auth(level: USER) {
+query ListFeesByStudent($studentId: String!) @auth(level: NO_ACCESS) {
   fees(
     where: {
       studentId: { eq: $studentId }
@@ -342,7 +342,7 @@ query ListFeesByStudent($studentId: String!) @auth(level: USER) {
 
 # ==================== 11. NOTIFICATION QUERIES ====================
 
-query ListNotificationsByRecipient($recipientId: String!) @auth(level: USER) {
+query ListNotificationsByRecipient($recipientId: String!) @auth(level: NO_ACCESS) {
   notifications(
     where: {
       recipientId: { eq: $recipientId }
@@ -361,7 +361,7 @@ query ListNotificationsByRecipient($recipientId: String!) @auth(level: USER) {
 
 # ==================== 12. SYSTEM LIMIT QUERIES ====================
 
-query GetSystemLimits @auth(level: USER) {
+query GetSystemLimits @auth(level: NO_ACCESS) {
   systemLimits(limit: 1) {
     id
     geminiQuotaPerTeacher

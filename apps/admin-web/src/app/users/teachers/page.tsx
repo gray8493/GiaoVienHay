@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { TeacherUser } from '../../../lib/users-data';
 import {
   getTeachersList,
@@ -9,13 +10,14 @@ import {
   updateUserStatus,
   updateTeacherAiQuota,
 } from '../../../lib/users.service';
-import UserCrudModal from '../../../components/UserCrudModal';
+const UserCrudModal = dynamic(() => import('../../../components/UserCrudModal'));
 
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState<TeacherUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const deferredSearchKeyword = useDeferredValue(searchKeyword);
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'TEACHER_HOMEROOM' | 'TEACHER_SUBJECT' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [subjectFilter, setSubjectFilter] = useState('ALL');
 
@@ -83,8 +85,8 @@ export default function TeachersPage() {
 
       if (subjectFilter !== 'ALL' && t.subject !== subjectFilter) return false;
 
-      if (searchKeyword.trim()) {
-        const q = searchKeyword.toLowerCase();
+      if (deferredSearchKeyword.trim()) {
+        const q = deferredSearchKeyword.toLowerCase();
         const match =
           t.full_name.toLowerCase().includes(q) ||
           t.phone.includes(q) ||
@@ -96,7 +98,7 @@ export default function TeachersPage() {
       }
       return true;
     });
-  }, [teachers, searchKeyword, roleFilter, subjectFilter]);
+  }, [teachers, deferredSearchKeyword, roleFilter, subjectFilter]);
 
   // Unique subjects for filter
   const subjectsList = useMemo(() => {
@@ -739,7 +741,7 @@ export default function TeachersPage() {
       </div>
 
       {/* CRUD / Detail Modal */}
-      <UserCrudModal
+      {isModalOpen && <UserCrudModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         category="TEACHER"
@@ -749,7 +751,7 @@ export default function TeachersPage() {
         onToggleStatus={handleToggleStatus}
         onResetPassword={handleResetPassword}
         onDelete={handleDeleteTeacher}
-      />
+      />}
 
       {/* 7. MODAL CẤU HÌNH HẠN MỨC AI CHO TỪNG GIÁO VIÊN */}
       {isAiQuotaModalOpen && quotaTeacher && (

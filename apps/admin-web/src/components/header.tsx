@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getStoredUser, AdminUser } from '@/lib/auth';
 
@@ -11,15 +11,12 @@ interface HeaderProps {
 
 export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderProps) {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
-  const [currentDateStr, setCurrentDateStr] = useState('Thứ Sáu, 02/10/2026');
-  const [searchQuery, setSearchQuery] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [currentDateStr, setCurrentDateStr] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     setCurrentUser(getStoredUser());
-  }, []);
-
-  useEffect(() => {
     try {
       const now = new Date();
       const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
@@ -33,40 +30,10 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
     }
   }, []);
 
-  // Global hotkey: Ctrl+K or Cmd+K focuses search input
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        inputRef.current?.focus();
-      } else if (e.key === 'Escape' && document.activeElement === inputRef.current) {
-        inputRef.current?.blur();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearchQuery(val);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('app-global-search', { detail: val }));
-    }
-  };
-
-  const handleClear = () => {
-    setSearchQuery('');
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('app-global-search', { detail: '' }));
-    }
-    inputRef.current?.focus();
-  };
-
   return (
     <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 flex items-center justify-between gap-4 flex-shrink-0 z-30 shadow-2xs">
-      {/* Left Area: Mobile toggle & Modern Search Bar */}
-      <div className="flex items-center gap-3 flex-1 max-w-lg">
+      {/* Left Area: Mobile toggle */}
+      <div className="flex items-center gap-3">
         {onToggleSidebar && (
           <button
             type="button"
@@ -77,43 +44,12 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
             <span className="material-symbols-outlined text-[20px]">menu</span>
           </button>
         )}
-
-        {/* Refined Modern Header Search Bar */}
-        <div className="relative group w-full max-w-md">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-800 transition-colors">
-            <span className="material-symbols-outlined text-[18px]">search</span>
-          </div>
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchQuery}
-            onChange={handleInputChange}
-            placeholder="Tìm kiếm trường học, địa bàn..."
-            className="w-full h-9 pl-9 pr-14 text-xs font-normal text-slate-800 placeholder:text-slate-400 bg-slate-100/70 hover:bg-slate-100/90 focus:bg-white border border-slate-200/80 focus:border-slate-300 focus:ring-2 focus:ring-slate-900/5 rounded-xl transition-all shadow-2xs outline-none"
-          />
-          <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center">
-            {searchQuery ? (
-              <button
-                type="button"
-                onClick={handleClear}
-                title="Xóa tìm kiếm"
-                className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[14px]">close</span>
-              </button>
-            ) : (
-              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-slate-400 bg-white border border-slate-200/90 rounded-md shadow-2xs group-focus-within:border-slate-300 group-focus-within:text-slate-500 transition-all select-none pointer-events-none">
-                ⌘K
-              </kbd>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Right Actions: Date, Notification, Admin Profile */}
-      <div className="flex items-center gap-3.5">
-        <span className="text-xs text-slate-500 hidden md:inline-block font-medium">
-          {currentDateStr}
+      <div className="flex items-center gap-3.5 ml-auto">
+        <span className="text-xs text-slate-500 hidden md:inline-block font-medium min-h-[16px]" suppressHydrationWarning>
+          {isMounted ? currentDateStr : ''}
         </span>
 
         {/* Notification Button */}
@@ -133,13 +69,13 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
         <Link
           href="/settings"
           className="flex items-center gap-2.5 py-1 pl-1.5 pr-3 rounded-full hover:bg-slate-100/80 active:bg-slate-200/60 transition-all cursor-pointer group"
-          title={currentUser ? `${currentUser.full_name} (${currentUser.role})` : 'Cài đặt tài khoản'}
+          title={isMounted && currentUser ? `${currentUser.full_name} (${currentUser.role})` : 'Cài đặt tài khoản'}
         >
-          <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shadow-xs ring-2 ring-white">
-            {currentUser?.full_name ? currentUser.full_name.trim().charAt(currentUser.full_name.trim().lastIndexOf(' ') + 1) || currentUser.full_name.charAt(0) : 'H'}
+          <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shadow-xs ring-2 ring-white" suppressHydrationWarning>
+            {isMounted && currentUser?.full_name ? currentUser.full_name.trim().charAt(currentUser.full_name.trim().lastIndexOf(' ') + 1) || currentUser.full_name.charAt(0) : 'A'}
           </div>
-          <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors max-w-[140px] truncate">
-            {currentUser?.full_name || 'Admin Hoàng'}
+          <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors max-w-[140px] truncate" suppressHydrationWarning>
+            {isMounted && currentUser?.full_name ? currentUser.full_name : 'Quản trị viên'}
           </span>
         </Link>
       </div>

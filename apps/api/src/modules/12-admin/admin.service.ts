@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import {
   AdminCreateUserDto,
+  UpdateAdminUserDto,
   UpdateUserStatusDto,
   UpdateTeacherAiQuotaDto,
   QueryAdminUsersDto,
@@ -86,6 +87,29 @@ export class AdminService {
     return newUser;
   }
 
+  async updateUser(userId: string, dto: UpdateAdminUserDto) {
+    const updated = await this.dataConnect.updateUserProfile(userId, {
+      full_name: dto.full_name,
+      phone: dto.phone,
+      email: dto.email,
+      role: dto.role,
+      school_name: dto.school_name,
+    });
+
+    await this.recordActivity({
+      category: 'SYSTEM_ADMIN',
+      categoryLabel: 'Quản trị Người dùng',
+      action: `Cập nhật tài khoản: ${userId}`,
+      target: dto.school_name || 'Hệ thống GiaoVienHay',
+      details: `Thông tin cập nhật: ${Object.keys(dto).join(', ')}`,
+      status: 'SUCCESS',
+      statusLabel: 'Hoàn tất',
+      metadata: { user_id: userId },
+    });
+
+    return updated;
+  }
+
   async updateUserStatus(userId: string, dto: UpdateUserStatusDto) {
     await this.dataConnect.updateUserStatus(userId, dto.is_active, dto.reason);
 
@@ -107,6 +131,28 @@ export class AdminService {
     };
   }
 
+  async deleteUser(userId: string) {
+    await this.dataConnect.softDeleteUser(userId);
+
+    await this.recordActivity({
+      category: 'SYSTEM_ADMIN',
+      categoryLabel: 'Quản trị Người dùng',
+      action: `Xóa mềm tài khoản: ${userId}`,
+      target: 'Tài khoản người dùng',
+      details: 'Chuyển cờ isDeleted thành true (xóa mềm)',
+      status: 'SUCCESS',
+      statusLabel: 'Hoàn tất',
+      metadata: { user_id: userId, is_deleted: true },
+    });
+
+    return {
+      message: 'Xóa mềm tài khoản người dùng thành công',
+      user_id: userId,
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+    };
+  }
+
   async updateTeacherAiQuota(userId: string, dto: UpdateTeacherAiQuotaDto) {
     await this.dataConnect.updateTeacherAiQuota(
       userId,
@@ -118,8 +164,8 @@ export class AdminService {
     await this.recordActivity({
       category: 'AI_CONTROL',
       categoryLabel: 'Kiểm soát Quota AI',
-      action: `Điều chỉnh hạn mức AI giáo viên: ${userId}`,
-      target: 'Tài khoản giáo viên',
+      action: `Điều chỉnh hạn mức AI người dùng: ${userId}`,
+      target: 'Tài khoản người dùng',
       details: `Hạn mức: ${dto.ai_daily_quota} lượt/ngày. Mô hình: ${dto.ai_model_tier || 'AUTO'}.`,
       status: 'SUCCESS',
       statusLabel: 'Hoàn tất',

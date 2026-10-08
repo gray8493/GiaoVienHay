@@ -16,6 +16,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import {
   AdminCreateUserDto,
+  UpdateAdminUserDto,
   UpdateUserStatusDto,
   UpdateTeacherAiQuotaDto,
   QueryAdminUsersDto,
@@ -51,6 +52,15 @@ export class AdminController {
     return this.adminService.createUser(dto);
   }
 
+  @Put('users/:id')
+  @ApiOperation({ summary: 'Cập nhật thông tin tài khoản người dùng' })
+  async updateUser(
+    @Param('id') userId: string,
+    @Body() dto: UpdateAdminUserDto,
+  ) {
+    return this.adminService.updateUser(userId, dto);
+  }
+
   @Patch('users/:id/status')
   @ApiOperation({ summary: 'Khóa hoặc kích hoạt lại tài khoản người dùng' })
   async updateUserStatus(
@@ -60,8 +70,14 @@ export class AdminController {
     return this.adminService.updateUserStatus(userId, dto);
   }
 
+  @Delete('users/:id')
+  @ApiOperation({ summary: 'Xóa mềm tài khoản người dùng (chuyển cờ isDeleted thành true)' })
+  async deleteUser(@Param('id') userId: string) {
+    return this.adminService.deleteUser(userId);
+  }
+
   @Patch('users/:id/ai-quota')
-  @ApiOperation({ summary: 'Điều chỉnh hạn mức AI của từng giáo viên' })
+  @ApiOperation({ summary: 'Điều chỉnh hạn mức AI của từng người dùng' })
   async updateTeacherAiQuota(
     @Param('id') userId: string,
     @Body() dto: UpdateTeacherAiQuotaDto,

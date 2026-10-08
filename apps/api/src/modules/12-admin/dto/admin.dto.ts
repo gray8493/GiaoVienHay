@@ -29,6 +29,8 @@ export class AdminCreateUserDto {
   school_name?: string;
 }
 
+export class UpdateAdminUserDto extends PartialType(AdminCreateUserDto) {}
+
 export class UpdateUserStatusDto {
   @ApiProperty({ example: false, description: 'true: Kích hoạt, false: Khóa tài khoản' })
   @IsBoolean()

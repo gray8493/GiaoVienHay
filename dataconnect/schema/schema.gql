@@ -26,9 +26,11 @@ type School @table {
   id: String! @default(expr: "uuidV4()")
   code: String! @unique
   name: String!
+  academicYear: String # Niên khóa / năm học hiện hành của trường
   address: String
   phone: String
   email: String
+  isDeleted: Boolean! @default(value: false)
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
@@ -65,6 +67,7 @@ type Attendance @table {
   date: String!
   status: String! # PRESENT, ABSENT_EXCUSED, ABSENT_UNEXCUSED, LATE
   note: String
+  isDeleted: Boolean! @default(value: false)
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
@@ -77,6 +80,7 @@ type Score @table {
   scoreValue: Float!
   term: Int! # 1, 2
   academicYear: String!
+  isDeleted: Boolean! @default(value: false)
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
@@ -87,6 +91,7 @@ type Quiz @table {
   subject: String!
   title: String!
   questionsJson: String!
+  isDeleted: Boolean! @default(value: false)
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
@@ -97,6 +102,7 @@ type Remark @table {
   date: String!
   content: String!
   category: String! # ACADEMIC, BEHAVIOR, GENERAL
+  isDeleted: Boolean! @default(value: false)
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
@@ -107,6 +113,7 @@ type ExamReminder @table {
   examDate: String!
   title: String!
   note: String
+  isDeleted: Boolean! @default(value: false)
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
@@ -118,6 +125,7 @@ type Fee @table {
   status: String! # PENDING, PAID, OVERDUE
   dueDate: String!
   paidAt: Timestamp
+  isDeleted: Boolean! @default(value: false)
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
@@ -128,6 +136,7 @@ type Notification @table {
   body: String!
   type: String! # ATTENDANCE, SCORE, FEE, SYSTEM
   isRead: Boolean! @default(value: false)
+  isDeleted: Boolean! @default(value: false)
   createdAt: Timestamp! @default(expr: "request.time")
 }
 

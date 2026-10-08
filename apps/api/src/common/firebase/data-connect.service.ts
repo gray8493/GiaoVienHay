@@ -1,5 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 export interface DataConnectUserRecord {
   id: string;
@@ -183,7 +186,7 @@ export class FirebaseDataConnectService implements OnModuleInit {
     const serviceId = 'giaovienhay-511009-service';
 
     // URL endpoint của Firebase Data Connect (Cloud SQL PostgreSQL)
-    this.endpoint = `https://firebasedataconnect.googleapis.com/v1alpha/projects/${projectId}/locations/${location}/services/${serviceId}:executeGraphql`;
+    this.endpoint = `https://firebasedataconnect.googleapis.com/v1/projects/${projectId}/locations/${location}/services/${serviceId}:executeGraphql`;
     this.isConfigured = true;
 
     this.logger.log(
@@ -192,20 +195,68 @@ export class FirebaseDataConnectService implements OnModuleInit {
   }
 
   /**
-   * Thực thi câu lệnh truy vấn / mutation GraphQL trên Firebase Data Connect
+   * Lấy Google Cloud OAuth2 Access Token từ credentials môi trường hoặc firebase-tools CLI
+   */
+  private async getAccessToken(): Promise<string | null> {
+    try {
+      // 1. Kiểm tra biến môi trường
+      const envToken = process.env.GOOGLE_OAUTH_ACCESS_TOKEN || process.env.FIREBASE_ACCESS_TOKEN;
+      if (envToken) return envToken;
+
+      // 2. Đọc token từ session firebase-tools CLI đã đăng nhập trên máy
+      const home = os.homedir();
+      const configPath = path.join(home, '.config', 'configstore', 'firebase-tools.json');
+      if (fs.existsSync(configPath)) {
+        let raw = fs.readFileSync(configPath, 'utf-8');
+        let data = JSON.parse(raw);
+        let tokens = data?.tokens;
+        if (!tokens) return null;
+
+        const isExpired = !tokens.expires_at || Date.now() >= tokens.expires_at - 60000;
+        if (!isExpired && tokens.access_token) {
+          return tokens.access_token;
+        }
+
+        // Tự động kích hoạt firebase-tools CLI để refresh token
+        try {
+          const { execSync } = require('child_process');
+          execSync('npx firebase-tools login:list', { stdio: 'ignore', timeout: 8000 });
+          raw = fs.readFileSync(configPath, 'utf-8');
+          data = JSON.parse(raw);
+          tokens = data?.tokens;
+        } catch (_) {}
+
+        return tokens?.access_token || null;
+      }
+    } catch (e) {
+      this.logger.debug(`[Firebase Data Connect] Không đọc được token OAuth: ${e}`);
+    }
+    return null;
+  }
+
+
+  /**
+   * Thực thi câu lệnh truy vấn / mutation GraphQL trên Firebase Data Connect (Cloud SQL PostgreSQL)
    */
   async execute<T = any>(query: string, variables: Record<string, any> = {}): Promise<{ data?: T; errors?: any[] }> {
     try {
       const apiKey = this.configService.get<string>('FIREBASE_API_KEY');
-      if (!this.endpoint || !apiKey) {
+      if (!this.endpoint) {
         return { data: undefined };
       }
 
-      const response = await fetch(`${this.endpoint}?key=${apiKey}`, {
+      const accessToken = await this.getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const url = apiKey ? `${this.endpoint}?key=${apiKey}` : this.endpoint;
+      const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           query,
           variables,
@@ -235,13 +286,24 @@ export class FirebaseDataConnectService implements OnModuleInit {
   // =========================================================================
 
   async listUsers(filter?: { role?: string; isActive?: boolean; keyword?: string }) {
+    const whereFields = ['isDeleted: { eq: false }'];
+    const variableDefinitions: string[] = [];
+    const variables: Record<string, unknown> = {};
+    if (filter?.role && filter.role !== 'ALL') {
+      whereFields.push('role: { eq: $role }');
+      variableDefinitions.push('$role: String');
+      variables.role = filter.role;
+    }
+    if (filter?.isActive !== undefined) {
+      whereFields.push('isActive: { eq: $isActive }');
+      variableDefinitions.push('$isActive: Boolean');
+      variables.isActive = filter.isActive;
+    }
     const query = `
-      query ListUsers($role: String, $isActive: Boolean) {
+      query ListUsers${variableDefinitions.length ? `(${variableDefinitions.join(', ')})` : ''} {
         users(
           where: {
-            role: { eq: $role }
-            isActive: { eq: $isActive }
-            isDeleted: { eq: false }
+            ${whereFields.join('\n            ')}
           }
           orderBy: [{ createdAt: DESC }]
         ) {
@@ -251,8 +313,7 @@ export class FirebaseDataConnectService implements OnModuleInit {
     `;
 
     const res = await this.execute<{ users: any[] }>(query, {
-      role: filter?.role && filter.role !== 'ALL' ? filter.role : undefined,
-      isActive: filter?.isActive !== undefined ? filter.isActive : undefined,
+      ...variables,
     });
 
     if (res.data?.users && res.data.users.length > 0) {
@@ -371,15 +432,74 @@ export class FirebaseDataConnectService implements OnModuleInit {
     return true;
   }
 
-  async updateTeacherAiQuota(id: string, quota: number, tier: string = 'AUTO', usedToday?: number) {
+  async updateUserProfile(id: string, user: {
+    full_name?: string;
+    phone?: string;
+    email?: string;
+    role?: string;
+    school_name?: string;
+  }) {
     const mutation = `
-      mutation UpdateTeacherAiQuota($id: String!, $aiDailyQuota: Int!, $aiModelTier: String, $aiUsedToday: Int) {
+      mutation UpdateAdminUser(
+        $id: String!
+        $fullName: String
+        $phone: String
+        $email: String
+        $role: String
+        $schoolName: String
+      ) {
+        user_update(
+          id: $id
+          data: {
+            fullName: $fullName
+            phone: $phone
+            email: $email
+            role: $role
+            schoolName: $schoolName
+          }
+        )
+      }
+    `;
+    await this.execute(mutation, {
+      id,
+      fullName: user.full_name,
+      phone: user.phone,
+      email: user.email ?? null,
+      role: user.role,
+      schoolName: user.school_name ?? null,
+    });
+
+    const existing = this.memoryStore.users.get(id);
+    if (existing) {
+      if (user.full_name !== undefined) {
+        existing.full_name = user.full_name;
+        existing.fullName = user.full_name;
+      }
+      if (user.phone !== undefined) existing.phone = user.phone;
+      if (user.email !== undefined) existing.email = user.email || null;
+      if (user.role !== undefined) existing.role = user.role;
+      if (user.school_name !== undefined) {
+        existing.school_name = user.school_name;
+        existing.schoolName = user.school_name;
+      }
+      this.memoryStore.users.set(id, existing);
+      return existing;
+    }
+
+    return { id, ...user };
+  }
+
+  async updateTeacherAiQuota(id: string, quota: number, tier: string = 'AUTO', usedToday?: number) {
+    const usedTodayInput = usedToday === undefined ? '' : 'aiUsedToday: $aiUsedToday';
+    const usedTodayVariable = usedToday === undefined ? '' : ', $aiUsedToday: Int';
+    const mutation = `
+      mutation UpdateTeacherAiQuota($id: String!, $aiDailyQuota: Int!, $aiModelTier: String${usedTodayVariable}) {
         user_update(
           id: $id
           data: {
             aiDailyQuota: $aiDailyQuota
             aiModelTier: $aiModelTier
-            aiUsedToday: $aiUsedToday
+            ${usedTodayInput}
           }
         )
       }
@@ -388,7 +508,7 @@ export class FirebaseDataConnectService implements OnModuleInit {
       id,
       aiDailyQuota: quota,
       aiModelTier: tier,
-      aiUsedToday: usedToday,
+      ...(usedToday !== undefined ? { aiUsedToday: usedToday } : {}),
     });
 
     const existing = this.memoryStore.users.get(id);
