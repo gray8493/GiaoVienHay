@@ -1,0 +1,705 @@
+<!DOCTYPE html><html class="h-full bg-surface-bg" lang="vi" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Danh sách Lớp học - Khối 7 (THCS Lê Quý Đôn) | GiaoVienHay Admin</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS with configuration -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary": "#632ecd",
+            "error-container": "#ffdad6",
+            "on-error-container": "#93000a",
+            "border-subtle": "#e2e8f0",
+            "error": "#ba1a1a",
+            "on-error": "#ffffff",
+            "on-surface-variant": "#434655",
+            "surface-card": "#ffffff",
+            "primary-fixed-dim": "#b4c5ff",
+            "metric-indigo": "#4f46e5",
+            "surface-bright": "#faf8ff",
+            "secondary-fixed-dim": "#4edea3",
+            "status-amber-bg": "#fffbeb",
+            "primary": "#004ac6",
+            "surface-container": "#eaedff",
+            "surface-container-low": "#f2f3ff",
+            "surface": "#faf8ff",
+            "secondary-fixed": "#6ffbbe",
+            "outline-variant": "#c3c6d7",
+            "status-rose-text": "#e11d48",
+            "on-secondary-container": "#00714d",
+            "inverse-surface": "#0f172a",
+            "on-primary-fixed-variant": "#003ea8",
+            "on-tertiary-container": "#f6edff",
+            "on-tertiary-fixed": "#23005c",
+            "on-primary-container": "#eeefff",
+            "outline": "#737686",
+            "brand-50": "#eff6ff",
+            "inverse-primary": "#b4c5ff",
+            "status-emerald-bg": "#ecfdf5",
+            "on-tertiary": "#ffffff",
+            "brand-100": "#dbeafe",
+            "status-amber-text": "#b45309",
+            "tertiary-fixed": "#e9ddff",
+            "secondary-container": "#6cf8bb",
+            "surface-container-high": "#e2e7ff",
+            "on-tertiary-fixed-variant": "#5516be",
+            "status-emerald-text": "#047857",
+            "border-strong": "#cbd5e1",
+            "inverse-on-surface": "#eef0ff",
+            "on-primary": "#ffffff",
+            "surface-variant": "#dae2fd",
+            "tertiary-fixed-dim": "#d0bcff",
+            "on-surface": "#131b2e",
+            "brand-600": "#2563eb",
+            "on-secondary": "#ffffff",
+            "primary-container": "#2563eb",
+            "surface-dim": "#d2d9f4",
+            "surface-container-highest": "#dae2fd",
+            "on-background": "#131b2e",
+            "secondary": "#006c49",
+            "background": "#faf8ff",
+            "on-secondary-fixed": "#002113",
+            "on-secondary-fixed-variant": "#005236",
+            "brand-700": "#1d4ed8",
+            "on-primary-fixed": "#00174b",
+            "surface-bg": "#f8fafc",
+            "tertiary-container": "#7d4ce7",
+            "surface-tint": "#0053db",
+            "primary-fixed": "#dbe1ff",
+            "surface-container-lowest": "#ffffff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "gutter": "1.25rem",
+            "space-md": "0.75rem",
+            "space-2xs": "0.25rem",
+            "space-lg": "1rem",
+            "space-xl": "1.5rem",
+            "space-xs": "0.375rem",
+            "margin": "2rem",
+            "space-2xl": "1.75rem"
+          },
+          "fontFamily": {
+            "metric-display": ["Be Vietnam Pro"],
+            "title-md": ["Be Vietnam Pro"],
+            "headline-lg": ["Be Vietnam Pro"],
+            "label-sm": ["Be Vietnam Pro"],
+            "body-sm": ["Be Vietnam Pro"],
+            "body-md": ["Be Vietnam Pro"],
+            "label-xs": ["Be Vietnam Pro"],
+            "label-md": ["Be Vietnam Pro"],
+            "headline-md": ["Be Vietnam Pro"]
+          },
+          "fontSize": {
+            "metric-display": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.025em", "fontWeight": "700" }],
+            "title-md": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.025em", "fontWeight": "700" }],
+            "label-sm": ["0.75rem", { "lineHeight": "1rem", "fontWeight": "600" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1rem", "fontWeight": "400" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "400" }],
+            "label-xs": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.05em", "fontWeight": "500" }],
+            "label-md": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "600" }],
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .material-symbols-outlined.fill-icon {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+    body, .bg-surface-bg {
+      background-color: #f8fafc !important;
+      background-image: radial-gradient(rgb(203, 213, 225) 1.2px, transparent 1.2px) !important;
+      background-size: 24px 24px !important;
+    }
+  </style>
+</head>
+<body class="h-full bg-surface-bg text-on-surface antialiased flex overflow-hidden">
+<!-- LEFT SIDEBAR -->
+<aside class="w-60 h-screen flex flex-col justify-between bg-inverse-surface text-inverse-on-surface border-r border-slate-800 shrink-0 z-40">
+<div class="flex flex-col">
+<!-- Sidebar Brand Header -->
+<div class="h-16 flex items-center gap-3 px-5 border-b border-slate-800/80">
+<div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold shadow-sm">
+<span class="material-symbols-outlined text-[18px]">school</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-md text-title-md font-bold text-white tracking-tight leading-tight">GiaoVienHay</span>
+<span class="font-label-xs text-label-xs text-slate-400 font-medium">Cổng Quản trị Nền tảng</span>
+</div>
+</div>
+<!-- Navigation Tabs -->
+<nav class="p-3 space-y-1 mt-2">
+<!-- Tổng quan -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors font-body-md text-body-md" href="/">
+<span class="material-symbols-outlined text-slate-400">dashboard</span>
+<span class="">Tổng quan</span>
+</a>
+<!-- Người dùng -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors font-body-md text-body-md" href="/users">
+<span class="material-symbols-outlined text-slate-400">manage_accounts</span>
+<span class="">Người dùng</span>
+</a>
+<!-- Lớp học & Học sinh (ACTIVE) -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-brand-600 text-white font-label-md text-label-md shadow-sm" href="/classes">
+<span class="material-symbols-outlined text-white">school</span>
+<span class="">Lớp học &amp; Học sinh</span>
+</a>
+<!-- Hạn mức & AI -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors font-body-md text-body-md" href="/limits">
+<span class="material-symbols-outlined text-slate-400">smart_toy</span>
+<span class="">Hạn mức &amp; AI</span>
+</a>
+<!-- Nhật ký hệ thống -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors font-body-md text-body-md" href="/logs">
+<span class="material-symbols-outlined text-slate-400">history_toggle_off</span>
+<span class="">Nhật ký hệ thống</span>
+</a>
+<!-- Cài đặt -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors font-body-md text-body-md" href="/settings">
+<span class="material-symbols-outlined text-slate-400">settings</span>
+<span class="">Cài đặt</span>
+</a>
+</nav>
+</div>
+<!-- Sidebar Bottom Footer -->
+<div class="p-3 border-t border-slate-800/80 space-y-1">
+<!-- System Telemetry Status -->
+<div class="px-3 py-2 rounded-lg bg-slate-900/60 flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+<span class="font-label-xs text-label-xs text-slate-300">Hệ thống: 99.9% ONLINE</span>
+</div>
+</div>
+<!-- Trợ giúp kỹ thuật -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined text-[18px]">help_outline</span>
+<span class="">Trợ giúp kỹ thuật</span>
+</a>
+<!-- Đăng xuất -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/60 transition-colors font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+<span class="">Đăng xuất</span>
+</a>
+</div>
+</aside>
+<!-- MAIN VIEWPORT CONTAINER -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden bg-surface-bg">
+<!-- TOP HEADER -->
+<header class="h-16 bg-white border-b border-border-subtle flex items-center justify-between px-8 shrink-0 z-30">
+<!-- Left Area: Modern Search Bar -->
+<div class="flex items-center gap-3 flex-1 max-w-md">
+  <div class="relative group w-full">
+    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-800 transition-colors">
+      <span class="material-symbols-outlined text-[18px]">search</span>
+    </div>
+    <input type="text" placeholder="Tìm kiếm trường học, địa bàn..." class="w-full h-9 pl-9 pr-14 text-xs font-normal text-slate-800 placeholder:text-slate-400 bg-slate-100/70 hover:bg-slate-100/90 focus:bg-white border border-slate-200/80 focus:border-slate-300 focus:ring-2 focus:ring-slate-900/5 rounded-xl transition-all shadow-2xs outline-none">
+    <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center">
+      <kbd class="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-slate-400 bg-white border border-slate-200/90 rounded-md shadow-2xs group-focus-within:border-slate-300 group-focus-within:text-slate-500 transition-all select-none pointer-events-none">⌘K</kbd>
+    </div>
+  </div>
+</div>
+<!-- Right Utility Actions -->
+<div class="flex items-center gap-4">
+<!-- Date Badge -->
+<div class="hidden lg:flex items-center gap-1.5 text-slate-500 font-label-xs text-label-xs">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+<span class="">Thứ Sáu, 02/10/2026</span>
+</div>
+<div class="h-4 w-px bg-slate-200"></div>
+<!-- Notification Bell -->
+<button aria-label="Thông báo" class="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 relative transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<!-- Admin Profile Pill -->
+<a href="/settings" class="flex items-center gap-2.5 py-1 pl-1.5 pr-2.5 rounded-full hover:bg-slate-100/80 active:bg-slate-200/60 transition-all cursor-pointer group">
+<div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shadow-xs ring-2 ring-white">
+  H
+</div>
+<span class="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors">Admin Hoàng</span>
+<span class="material-symbols-outlined text-[16px] text-slate-400 group-hover:text-slate-600 group-hover:translate-y-0.5 transition-all">expand_more</span>
+</a>
+</div>
+</header>
+<!-- SCROLLABLE PAGE CANVAS -->
+<main class="flex-1 overflow-y-auto p-8 space-y-6">
+<!-- BREADCRUMB & BACK ACTION -->
+<div class="flex items-center justify-between">
+<nav class="flex items-center gap-2 font-label-sm text-label-sm text-slate-400">
+<a class="hover:text-slate-700 transition-colors" href="/classes">Trang chủ</a>
+<span class="text-slate-300">/</span>
+<a class="hover:text-slate-700 transition-colors" href="/classes">Quản lý Lớp &amp; Học sinh</a>
+<span class="text-slate-300">/</span>
+<a class="hover:text-slate-700 transition-colors" href="/classes">THCS Lê Quý Đôn</a>
+<span class="text-slate-300">/</span>
+<a class="text-slate-600 hover:text-slate-900 transition-colors" href="/classes">Khối 7</a>
+<span class="text-slate-300">/</span>
+<span class="text-brand-600 font-semibold">Lớp học</span>
+</nav>
+<a class="inline-flex items-center gap-1.5 text-xs font-label-sm text-slate-600 hover:text-brand-600 transition-colors group" href="/classes">
+<span class="material-symbols-outlined text-[16px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
+<span class="">Trở lại</span>
+</a>
+</div>
+<!-- PAGE TITLE & MAJOR ACTIONS -->
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+<div>
+<div class="flex items-center gap-3">
+<h1 class="font-headline-lg text-headline-lg text-slate-900 tracking-tight">
+              Danh sách Lớp học - Khối 7</h1>
+<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-brand-600 border border-blue-200">
+              8 Lớp học
+            </span>
+</div>
+<p class="font-body-md text-body-md text-slate-500 mt-1">
+            Hệ thống quản lý 8 lớp học và 320 học sinh trực thuộc Khối 7 niên khóa 2026 - 2027.</p>
+</div>
+<div class="flex items-center gap-3 self-start sm:self-auto shrink-0">
+<!-- Add Class Button (Matte Black / Charcoal Style) -->
+<button class="h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white font-label-sm text-label-sm rounded-lg flex items-center gap-2 shadow-sm transition-colors border border-slate-800">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span class="">+ Thêm lớp học</span>
+</button>
+</div>
+</div>
+<!-- 4 MINIMALIST KPI CARDS -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Card 1: Tổng số lớp -->
+<div class="bg-white border border-border-subtle rounded-xl p-5 shadow-xs flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-slate-500 font-medium">Tổng số lớp</span>
+<div class="mt-2 font-headline-lg text-metric-display text-slate-900">8</div>
+<div class="mt-1 font-body-sm text-body-sm text-slate-400">K7: 7A1 - 7A8</div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-600">
+<span class="material-symbols-outlined text-[20px]">layers</span>
+</div>
+</div>
+<!-- Card 2: Tổng học sinh -->
+<div class="bg-white border border-border-subtle rounded-xl p-5 shadow-xs flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-slate-500 font-medium">Tổng học sinh</span>
+<div class="mt-2 font-headline-lg text-metric-display text-slate-900">320</div>
+<div class="mt-1 font-body-sm text-body-sm text-slate-400">Trung bình 40 HS/lớp</div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-metric-indigo">
+<span class="material-symbols-outlined text-[20px]">school</span>
+</div>
+</div>
+<!-- Card 3: Chuyên cần hôm nay -->
+<div class="bg-white border border-border-subtle rounded-xl p-5 shadow-xs flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-slate-500 font-medium">Chuyên cần hôm nay</span>
+<div class="mt-2 font-headline-lg text-metric-display text-slate-900">98.4%</div>
+<div class="mt-1 font-body-sm text-body-sm text-emerald-600 flex items-center gap-1 font-medium">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+              315/320 có mặt
+            </div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+<span class="material-symbols-outlined text-[20px]">fact_check</span>
+</div>
+</div>
+<!-- Card 4: Giáo viên chủ nhiệm -->
+<div class="bg-white border border-border-subtle rounded-xl p-5 shadow-xs flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-slate-500 font-medium">Giáo viên chủ nhiệm</span>
+<div class="mt-2 font-headline-lg text-metric-display text-slate-900">8/8</div>
+<div class="mt-1 font-body-sm text-body-sm text-slate-400">100% đã phân công</div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</div>
+</div>
+</div>
+<!-- BEGIN: FilterAndSearchToolbar -->
+<section class="space-y-3.5" data-purpose="table-controls">
+<!-- Filter Tabs -->
+<div class="flex items-center gap-2 text-xs">
+<button class="px-3.5 py-1.5 rounded-full font-semibold bg-slate-900 text-white shadow-sm transition">
+            Tất cả (8)
+          </button>
+<button class="px-3.5 py-1.5 rounded-full font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition">
+            Đang hoạt động (8)
+          </button>
+</div>
+<!-- Search Toolbar -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+<div class="relative w-full sm:w-80">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+<span class="material-symbols-outlined !text-[18px]">search</span>
+</span>
+<input class="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 placeholder-slate-400 text-slate-700 shadow-sm" placeholder="Tìm kiếm lớp học, giáo viên phụ trách..." type="text">
+</div>
+</div>
+</section>
+<!-- END: FilterAndSearchToolbar -->
+<!-- DATA TABLE CARD -->
+<div class="bg-white border border-border-subtle rounded-xl shadow-xs overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50/70 border-b border-border-subtle">
+<th class="py-3 px-5 font-label-xs text-label-xs text-slate-500 uppercase tracking-wider whitespace-nowrap">Lớp học</th>
+<th class="py-3 px-5 font-label-xs text-label-xs text-slate-500 uppercase tracking-wider whitespace-nowrap">Giáo viên chủ nhiệm</th>
+
+<th class="py-3 px-5 font-label-xs text-label-xs text-slate-500 uppercase tracking-wider whitespace-nowrap">Sĩ số</th>
+<th class="py-3 px-5 font-label-xs text-label-xs text-slate-500 uppercase tracking-wider whitespace-nowrap">BHYT &amp; Học phí</th>
+<th class="py-3 px-5 font-label-xs text-label-xs text-slate-500 uppercase tracking-wider whitespace-nowrap">Trạng thái</th>
+<th class="py-3 px-5 font-label-xs text-label-xs text-slate-500 uppercase tracking-wider whitespace-nowrap text-right">Hành động</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-xs font-body-sm">
+<!-- Row 1: 7A1 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 px-5 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-brand-600 font-label-sm text-label-sm font-bold flex items-center justify-center shrink-0">
+                      7A1
+                    </span>
+<div>
+<span class="font-label-sm text-label-sm text-slate-900 font-semibold block leading-tight">Lớp 7A1 - Lớp chọn Toán</span>
+<span class="text-slate-400 font-body-sm text-[11px]">Hệ chuẩn chất lượng cao</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">Cô Nguyễn Thị Mai Lan</span>
+</td>
+
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">40 học sinh</span>
+<span class="text-slate-400 text-[11px] block">(20 Nam / 20 Nữ)</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    100% Hoàn thành
+                  </span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Đang hoạt động</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap text-right">
+<a class="inline-flex items-center font-label-sm text-label-sm text-slate-900 font-semibold hover:text-slate-700 hover:underline" href="classes-step4-students.html">
+                    Danh sách học sinh
+</a>
+</td>
+</tr>
+<!-- Row 2: 7A2 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 px-5 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-brand-600 font-label-sm text-label-sm font-bold flex items-center justify-center shrink-0">
+                      7A2
+                    </span>
+<div>
+<span class="font-label-sm text-label-sm text-slate-900 font-semibold block leading-tight">Lớp 7A2 - Tiếng Anh mở rộng</span>
+<span class="text-slate-400 font-body-sm text-[11px]">Chương trình song ngữ Anh - Việt</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">Thầy Trần Quang Hùng</span>
+</td>
+
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">40 học sinh</span>
+<span class="text-slate-400 text-[11px] block">(19 Nam / 21 Nữ)</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    100% Hoàn thành
+                  </span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Đang hoạt động</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap text-right">
+<a class="inline-flex items-center font-label-sm text-label-sm text-slate-900 font-semibold hover:text-slate-700 hover:underline" href="classes-step4-students.html">
+                    Danh sách học sinh
+</a>
+</td>
+</tr>
+<!-- Row 3: 7A3 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 px-5 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-brand-600 font-label-sm text-label-sm font-bold flex items-center justify-center shrink-0">
+                      7A3
+                    </span>
+<div>
+<span class="font-label-sm text-label-sm text-slate-900 font-semibold block leading-tight">Lớp 7A3 - Chuẩn Bộ GD&amp;ĐT</span>
+<span class="text-slate-400 font-body-sm text-[11px]">Định hướng Khoa học tự nhiên</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">Cô Đặng Bảo Ngọc</span>
+</td>
+
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">40 học sinh</span>
+<span class="text-slate-400 text-[11px] block">(22 Nam / 18 Nữ)</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    97.5% Đã nộp
+                  </span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Đang hoạt động</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap text-right">
+<a class="inline-flex items-center font-label-sm text-label-sm text-slate-900 font-semibold hover:text-slate-700 hover:underline" href="classes-step4-students.html">
+                    Danh sách học sinh
+</a>
+</td>
+</tr>
+<!-- Row 4: 7A4 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 px-5 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-brand-600 font-label-sm text-label-sm font-bold flex items-center justify-center shrink-0">
+                      7A4
+                    </span>
+<div>
+<span class="font-label-sm text-label-sm text-slate-900 font-semibold block leading-tight">Lớp 7A4 - Chuẩn Bộ GD&amp;ĐT</span>
+<span class="text-slate-400 font-body-sm text-[11px]">Định hướng Khoa học xã hội</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">Thầy Lê Gia Huy</span>
+</td>
+
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">40 học sinh</span>
+<span class="text-slate-400 text-[11px] block">(18 Nam / 22 Nữ)</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    100% Hoàn thành
+                  </span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Đang hoạt động</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap text-right">
+<a class="inline-flex items-center font-label-sm text-label-sm text-slate-900 font-semibold hover:text-slate-700 hover:underline" href="classes-step4-students.html">
+                    Danh sách học sinh
+</a>
+</td>
+</tr>
+<!-- Row 5: 7A5 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 px-5 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-brand-600 font-label-sm text-label-sm font-bold flex items-center justify-center shrink-0">
+                      7A5
+                    </span>
+<div>
+<span class="font-label-sm text-label-sm text-slate-900 font-semibold block leading-tight">Lớp 7A5 - Chuẩn Bộ GD&amp;ĐT</span>
+<span class="text-slate-400 font-body-sm text-[11px]">Định hướng Tin học &amp; STEM</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">Cô Vũ Thùy Anh</span>
+</td>
+
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">40 học sinh</span>
+<span class="text-slate-400 text-[11px] block">(21 Nam / 19 Nữ)</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    95% Đã nộp
+                  </span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Đang hoạt động</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap text-right">
+<a class="inline-flex items-center font-label-sm text-label-sm text-slate-900 font-semibold hover:text-slate-700 hover:underline" href="classes-step4-students.html">
+                    Danh sách học sinh
+</a>
+</td>
+</tr>
+<!-- Row 6: 7A6 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 px-5 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-brand-600 font-label-sm text-label-sm font-bold flex items-center justify-center shrink-0">
+                      7A6
+                    </span>
+<div>
+<span class="font-label-sm text-label-sm text-slate-900 font-semibold block leading-tight">Lớp 7A6 - Chuẩn Bộ GD&amp;ĐT</span>
+<span class="text-slate-400 font-body-sm text-[11px]">Định hướng Nghệ thuật &amp; Kỹ năng</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">Thầy Phạm Văn Thắng</span>
+</td>
+
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">40 học sinh</span>
+<span class="text-slate-400 text-[11px] block">(20 Nam / 20 Nữ)</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    100% Hoàn thành
+                  </span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Đang hoạt động</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap text-right">
+<a class="inline-flex items-center font-label-sm text-label-sm text-slate-900 font-semibold hover:text-slate-700 hover:underline" href="classes-step4-students.html">
+                    Danh sách học sinh
+</a>
+</td>
+</tr>
+<!-- Row 7: 7A7 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 px-5 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-brand-600 font-label-sm text-label-sm font-bold flex items-center justify-center shrink-0">
+                      7A7
+                    </span>
+<div>
+<span class="font-label-sm text-label-sm text-slate-900 font-semibold block leading-tight">Lớp 7A7 - Chuẩn Bộ GD&amp;ĐT</span>
+<span class="text-slate-400 font-body-sm text-[11px]">Định hướng Thể thao học đường</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">Cô Hoàng Thu Hằng</span>
+</td>
+
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">40 học sinh</span>
+<span class="text-slate-400 text-[11px] block">(23 Nam / 17 Nữ)</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    100% Hoàn thành
+                  </span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Đang hoạt động</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap text-right">
+<a class="inline-flex items-center font-label-sm text-label-sm text-slate-900 font-semibold hover:text-slate-700 hover:underline" href="classes-step4-students.html">
+                    Danh sách học sinh
+</a>
+</td>
+</tr>
+<!-- Row 8: 7A8 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 px-5 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-brand-600 font-label-sm text-label-sm font-bold flex items-center justify-center shrink-0">
+                      7A8
+                    </span>
+<div>
+<span class="font-label-sm text-label-sm text-slate-900 font-semibold block leading-tight">Lớp 7A8 - Chuẩn Hội nhập</span>
+<span class="text-slate-400 font-body-sm text-[11px]">Tăng cường Ngoại ngữ 2 (Tiếng Nhật)</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">Thầy Đỗ Quốc Khánh</span>
+</td>
+
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="text-slate-800 font-medium">40 học sinh</span>
+<span class="text-slate-400 text-[11px] block">(18 Nam / 22 Nữ)</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    100% Hoàn thành
+                  </span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 text-white"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Đang hoạt động</span>
+</td>
+<td class="py-3.5 px-5 whitespace-nowrap text-right">
+<a class="inline-flex items-center font-label-sm text-label-sm text-slate-900 font-semibold hover:text-slate-700 hover:underline" href="classes-step4-students.html">
+                    Danh sách học sinh
+</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- TABLE PAGINATION FOOTER -->
+<div class="py-3.5 px-6 border-t border-border-subtle bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 font-body-sm text-body-sm text-slate-500">
+<div class="flex items-center gap-4">
+<span class="">Hiển thị <span class="font-semibold text-slate-800">1-8</span> trong <span class="font-semibold text-slate-800">8</span> lớp học</span>
+<div class="flex items-center gap-1.5">
+<span class="text-slate-400">Hiển thị:</span>
+<select class="h-8 text-xs bg-white border border-border-subtle rounded-md px-2 py-0 text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-600">
+<option selected="" value="8">8 / trang</option>
+<option value="16">16 / trang</option>
+<option value="24">24 / trang</option>
+</select>
+</div>
+</div>
+<!-- Pagination Controls -->
+<div class="flex items-center gap-1.5 self-center sm:self-auto">
+<button class="h-8 px-2.5 rounded-md border border-border-subtle bg-white text-slate-400 cursor-not-allowed flex items-center gap-1 text-xs" disabled="">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+<span class="">Trước</span>
+</button>
+<button class="h-8 w-8 rounded-md bg-brand-600 text-white font-semibold flex items-center justify-center text-xs shadow-xs">
+              1
+            </button>
+<button class="h-8 w-8 rounded-md border border-border-subtle bg-white hover:bg-slate-50 text-slate-700 font-medium flex items-center justify-center text-xs transition-colors">
+              2
+            </button>
+<button class="h-8 px-2.5 rounded-md border border-border-subtle bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1 text-xs transition-colors">
+<span class="">Sau</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

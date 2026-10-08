@@ -1,0 +1,326 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Bước 4: Danh sách Học sinh - Lớp 7A1 - Cổng Quản trị GiaoVienHay</title>
+<!-- Tailwind CSS CDN with forms and container queries plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#2563eb',
+              50: '#eff6ff',
+              100: '#dbeafe',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            },
+            surface: {
+              bg: '#f8fafc',
+              card: '#ffffff'
+            }
+          },
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background-color: #f8fafc !important;
+      background-image: radial-gradient(rgb(203, 213, 225) 1.2px, transparent 1.2px) !important;
+      background-size: 24px 24px !important;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 20px;
+      line-height: 1;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 font-sans min-h-screen flex antialiased">
+<!-- BEGIN: Left Sidebar Navigation -->
+<aside class="w-[260px] bg-[#0f172a] text-slate-300 flex-shrink-0 min-h-screen flex flex-col justify-between border-r border-slate-800 sticky top-0 h-screen z-40 select-none">
+<div class="flex flex-col">
+<!-- Brand Logo Header -->
+<div class="h-16 px-5 flex items-center gap-3 border-b border-slate-800">
+<div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
+          GV
+        </div>
+<div class="leading-tight">
+<div class="font-bold text-white text-sm tracking-tight flex items-center gap-1.5">
+            GiaoVienHay
+          </div>
+<div class="text-[11px] text-slate-400">Cổng Quản trị Nền tảng</div>
+</div>
+</div>
+<!-- Navigation Menu -->
+<nav class="p-3 space-y-1 text-xs font-medium">
+<div class="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Menu Điều hướng</div>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors" href="dashboard-preview.html">
+<span class="material-symbols-outlined text-slate-400">dashboard</span>
+<span>Tổng quan</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors" href="users-preview.html">
+<span class="material-symbols-outlined text-slate-400">manage_accounts</span>
+<span>Người dùng</span>
+</a>
+<!-- Active State -->
+<a class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-blue-600/15 text-white border border-blue-500/30 transition-colors font-semibold shadow-sm" href="classes-step1-schools.html">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-blue-400">school</span>
+<span>Lớp học &amp; Học sinh</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-blue-400 ring-2 ring-blue-400/30"></span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors" href="limits-preview.html">
+<span class="material-symbols-outlined text-slate-400">smart_toy</span>
+<span>Hạn mức &amp; AI</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors" href="logs-preview.html">
+<span class="material-symbols-outlined text-slate-400">history</span>
+<span>Nhật ký hệ thống</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors" href="settings-preview.html">
+<span class="material-symbols-outlined text-slate-400">settings</span>
+<span>Cài đặt</span>
+</a>
+</nav>
+</div>
+<div class="p-3 border-t border-slate-800 space-y-2 text-xs">
+<div class="px-3 py-2 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+<span class="text-slate-300 font-medium">Hệ thống: 99.9% ONLINE</span>
+</div>
+</div>
+<div class="flex items-center justify-between px-2 pt-1 text-slate-400 text-[11px]">
+<a class="hover:text-slate-200 transition-colors flex items-center gap-1.5" href="#">
+<span class="material-symbols-outlined !text-[16px]">help</span>
+<span>Trợ giúp kỹ thuật</span>
+</a>
+<a class="hover:text-rose-400 transition-colors flex items-center gap-1.5" href="#">
+<span class="material-symbols-outlined !text-[16px]">logout</span>
+<span>Đăng xuất</span>
+</a>
+</div>
+</div>
+</aside>
+
+<!-- MAIN VIEWPORT -->
+<div class="flex-1 flex flex-col min-w-0 min-h-screen bg-[#f8fafc]">
+<!-- Top Header Bar -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-8 h-16 flex items-center justify-between gap-4">
+<div class="flex items-center gap-3 flex-1 max-w-md">
+<div class="relative w-full">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+<span class="material-symbols-outlined !text-[18px]">search</span>
+</div>
+<input class="w-full pl-9 pr-12 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 transition" placeholder="Tìm kiếm tên học sinh, mã định danh..." type="text">
+<div class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+<kbd class="px-1.5 py-0.5 text-[10px] font-sans bg-white border border-slate-200 rounded text-slate-400 shadow-sm">⌘K</kbd>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3.5">
+<button class="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center relative transition" type="button">
+<span class="material-symbols-outlined !text-[18px]">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+</button>
+<div class="flex items-center gap-2.5 pl-3 border-l border-slate-200">
+<div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-xs">AH</div>
+<div class="text-left text-xs leading-tight">
+<p class="font-semibold text-slate-800">Admin Hoàng</p>
+<p class="text-slate-400 text-[11px]">Super Admin</p>
+</div>
+</div>
+</div>
+</header>
+
+<!-- Main Content -->
+<main class="w-full px-8 py-6 flex-1 space-y-6">
+<!-- Breadcrumb & Header -->
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-1 border-b border-slate-100">
+<div>
+<nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs text-slate-500 font-medium mb-1.5">
+<a class="hover:text-blue-600 transition-colors" href="dashboard-preview.html">Trang chủ</a>
+<span class="text-slate-400">/</span>
+<a class="hover:text-blue-600 transition-colors" href="classes-step1-schools.html">THCS Lê Quý Đôn</a>
+<span class="text-slate-400">/</span>
+<a class="hover:text-blue-600 transition-colors" href="classes-step2-grades.html">Khối 7</a>
+<span class="text-slate-400">/</span>
+<a class="hover:text-blue-600 transition-colors" href="classes-step3-classes.html">Lớp 7A1</a>
+<span class="text-slate-400">/</span>
+<span class="text-slate-800 font-semibold">Danh sách Học sinh</span>
+</nav>
+<div class="flex items-center gap-3">
+<h1 class="text-2xl font-bold tracking-tight text-slate-900">Danh sách Học sinh - Lớp 7A1 (Chuyên Toán)</h1>
+<span class="px-2.5 py-0.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full">
+40 Học sinh
+</span>
+</div>
+<p class="text-xs text-slate-500 mt-1">Giáo viên chủ nhiệm: Cô Vũ Thị Thanh Hà • Niên khóa 2026 - 2027.</p>
+</div>
+<div class="flex items-center gap-2.5 shrink-0">
+<a href="classes-step3-classes.html" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-xs">
+<span class="material-symbols-outlined !text-[16px]">arrow_back</span>
+<span>Quay lại Lớp học</span>
+</a>
+<button type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-xs">
+<span class="material-symbols-outlined !text-[16px]">file_upload</span>
+<span>Nhập Excel</span>
+</button>
+<button type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-black rounded-lg transition shadow-xs">
+<span class="material-symbols-outlined !text-[16px]">add</span>
+<span>Thêm học sinh</span>
+</button>
+</div>
+</div>
+
+<!-- Table Card -->
+<div class="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-slate-200 bg-slate-50/60 text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+<th scope="col" class="py-3 px-6 text-left">Mã HS & Học sinh</th>
+<th scope="col" class="py-3 px-6 text-left">Ngày sinh / Giới tính</th>
+<th scope="col" class="py-3 px-6 text-left">Phụ huynh liên hệ</th>
+<th scope="col" class="py-3 px-6 text-left">Trạng thái</th>
+<th scope="col" class="py-3 px-6 text-right">Hành động</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-xs text-slate-700 bg-white whitespace-nowrap">
+<!-- Học sinh 1 -->
+<tr class="hover:bg-slate-50/70 transition-colors group">
+<td class="py-3.5 px-6">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">NA</div>
+<div>
+<div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Nguyễn Tuấn Anh</div>
+<div class="text-[11px] text-slate-400 mt-0.5">HS-2026-0701</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-6 text-slate-600">
+<div>14/05/2013</div>
+<div class="text-[11px] text-slate-400 font-medium">Nam</div>
+</td>
+<td class="py-3.5 px-6 text-slate-600">
+<div class="font-medium text-slate-800">Nguyễn Văn Bình (Bố)</div>
+<div class="text-[11px] text-slate-400">0912.345.678</div>
+</td>
+<td class="py-3.5 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-200/60">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+Đang học
+</span>
+</td>
+<td class="py-3.5 px-6 text-right">
+<button type="button" class="px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 rounded transition">
+Xem hồ sơ
+</button>
+</td>
+</tr>
+
+<!-- Học sinh 2 -->
+<tr class="hover:bg-slate-50/70 transition-colors group">
+<td class="py-3.5 px-6">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs shrink-0">MC</div>
+<div>
+<div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Trần Mai Chi</div>
+<div class="text-[11px] text-slate-400 mt-0.5">HS-2026-0702</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-6 text-slate-600">
+<div>22/08/2013</div>
+<div class="text-[11px] text-slate-400 font-medium">Nữ</div>
+</td>
+<td class="py-3.5 px-6 text-slate-600">
+<div class="font-medium text-slate-800">Lê Thu Trang (Mẹ)</div>
+<div class="text-[11px] text-slate-400">0983.112.233</div>
+</td>
+<td class="py-3.5 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-200/60">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+Đang học
+</span>
+</td>
+<td class="py-3.5 px-6 text-right">
+<button type="button" class="px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 rounded transition">
+Xem hồ sơ
+</button>
+</td>
+</tr>
+
+<!-- Học sinh 3 -->
+<tr class="hover:bg-slate-50/70 transition-colors group">
+<td class="py-3.5 px-6">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 font-bold flex items-center justify-center text-xs shrink-0">QD</div>
+<div>
+<div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Phạm Quang Dũng</div>
+<div class="text-[11px] text-slate-400 mt-0.5">HS-2026-0703</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-6 text-slate-600">
+<div>03/11/2013</div>
+<div class="text-[11px] text-slate-400 font-medium">Nam</div>
+</td>
+<td class="py-3.5 px-6 text-slate-600">
+<div class="font-medium text-slate-800">Phạm Văn Hưng (Bố)</div>
+<div class="text-[11px] text-slate-400">0904.556.789</div>
+</td>
+<td class="py-3.5 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-200/60">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+Đang học
+</span>
+</td>
+<td class="py-3.5 px-6 text-right">
+<button type="button" class="px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 rounded transition">
+Xem hồ sơ
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<!-- Pagination Footer -->
+<div class="px-5 py-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600 bg-white">
+<div class="text-xs text-slate-500 font-normal">
+Hiển thị <span class="font-semibold text-slate-800">1-3</span> trong <span class="font-semibold text-slate-800">40</span> học sinh
+</div>
+<div class="flex items-center gap-2">
+<button class="px-2.5 py-1 text-xs border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 transition" type="button">Trước</button>
+<button class="w-7 h-7 flex items-center justify-center rounded-md bg-slate-900 text-white font-medium text-xs shadow-xs" type="button">1</button>
+<button class="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50 transition text-xs" type="button">2</button>
+<button class="w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50 transition text-xs" type="button">3</button>
+<button class="px-2.5 py-1 text-xs border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition" type="button">Sau</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
