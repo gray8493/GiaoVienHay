@@ -182,7 +182,24 @@ export class FirebaseDataConnectService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
-    const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID') || 'giaovienhay-511009';
+    let projectId = this.configService.get<string>('FIREBASE_PROJECT_ID') || 'giaovienhay-511009';
+    
+    // Tự động đọc project_id chuẩn từ Service Account JSON nếu có
+    const serviceAccountJson = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON');
+    if (serviceAccountJson) {
+      try {
+        const parsed = JSON.parse(serviceAccountJson);
+        if (parsed.project_id) {
+          projectId = parsed.project_id;
+        }
+      } catch (e) {}
+    }
+
+    // Nếu cấu hình chỉ là 'giaovienhay', chuẩn hóa về 'giaovienhay-511009'
+    if (projectId === 'giaovienhay') {
+      projectId = 'giaovienhay-511009';
+    }
+
     const location = this.configService.get<string>('FIREBASE_LOCATION') || 'us-east1';
     const serviceId = 'giaovienhay-511009-service';
 
@@ -191,7 +208,7 @@ export class FirebaseDataConnectService implements OnModuleInit {
     this.isConfigured = true;
 
     this.logger.log(
-      `[Firebase Data Connect] Đã khởi tạo kết nối SQL (Cloud SQL PostgreSQL - Database: giaovienhay-database, Location: ${location})`
+      `[Firebase Data Connect] Đã khởi tạo kết nối SQL (Cloud SQL PostgreSQL - Project: ${projectId}, Service: ${serviceId}, Location: ${location})`
     );
   }
 
