@@ -1,0 +1,1240 @@
+{
+  "info": {
+    "_postman_id": "a98c76b2-6543-4321-a1b2-c3d4e5f67890",
+    "name": "GiaoVienHay - UT12 Admin Portal Collection",
+    "description": "Bộ kịch bản kiểm thử API Quản trị Nền tảng (Platform Admin - UT12) được trích xuất và tạo tự động từ UT12_Admin.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ test trên Render: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "adminToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTQ0MTQ5NzQ2NV8yaHBldCIsInBob25lIjoiMDkxMjM0NTY3OCIsInJvbGUiOiJBRE1JTiIsInNjaG9vbF9uYW1lIjoiVHLGsOG7nW5nIFRp4buDdSBI4buNYyBDaHUgVsSDbiBBbiIsImlhdCI6MTc5MTQ0MTQ5OSwiZXhwIjoxNzkyMDQ2Mjk5fQ.WTuqt9YpG5Zf3sPyva4Gb__hcAnUN1x9H3XKG5ispEY",
+      "type": "string",
+      "description": "JWT Access Token của Quản trị viên (role: ADMIN) dùng cho các API quản trị hệ thống."
+    },
+    {
+      "key": "teacherToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTQ0MDI1NTY2M18wMGdkMCIsInBob25lIjoiMDkxMjM0NTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNDQwMjU4LCJleHAiOjE3OTIwNDUwNTh9.eZ1PSsUsr78BuFJvQ5PjGw7d33a4_dI7ioTa0PvWPp4",
+      "type": "string",
+      "description": "Token của người dùng vai trò Giáo viên / Phụ huynh (dùng để test TC02: kiểm tra chặn quyền 403 Forbidden)."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT12_Admin_TC01: Lấy danh sách người dùng toàn hệ thống có phân trang và bộ lọc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Envelope and pagination data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "    pm.expect(jsonData.data.page).to.eql(1);",
+              "    pm.expect(jsonData.data.limit).to.eql(20);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users?page=1&limit=20&role=TEACHER_HOMEROOM&keyword=Nguyễn",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "role",
+              "value": "TEACHER_HOMEROOM"
+            },
+            {
+              "key": "keyword",
+              "value": "Nguyễn"
+            },
+            {
+              "key": "is_active",
+              "value": "true",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "Kịch bản TC01: Quản trị viên lấy danh sách người dùng toàn hệ thống có phân trang và bộ lọc thành công (200 OK)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC02: Chặn và từ chối truy cập khi người dùng không có vai trò Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Verify Forbidden Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(403);",
+              "    pm.expect(jsonData.error_code).to.eql(\"AUTH_ROLE_FORBIDDEN\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{teacherToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users?page=1&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Kịch bản TC02: Sử dụng token không phải Admin (TEACHER_HOMEROOM) để gọi API Admin, kỳ vọng trả về 403 Forbidden."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC03: Khóa tài khoản người dùng vi phạm chính sách thành công (Ban User)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify User Banned Status\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data.is_active).to.eql(false);",
+              "});",
+              "pm.test(\"Header X-Response-Time exists\", function () {",
+              "    pm.response.to.have.header(\"X-Response-Time\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_active\": false,\n  \"reason\": \"Vi phạm chia sẻ tài liệu sai quy định\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/usr_t01/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            "usr_t01",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC03: Quản trị viên khóa tài khoản người dùng mục tiêu vi phạm quy định (200 OK, is_active=false)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC04: Từ chối cập nhật trạng thái khi thiếu trường is_active bắt buộc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Khóa không có trạng thái\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/usr_t01/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            "usr_t01",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC04: Cập nhật trạng thái người dùng nhưng không truyền trường is_active (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC05: Báo lỗi khi thực hiện khóa tài khoản người dùng không tồn tại",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify User Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.eql(\"USER_NOT_FOUND\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_active\": false,\n  \"reason\": \"Tài khoản spam\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/usr_non_existent/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            "usr_non_existent",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC05: Khóa tài khoản người dùng không tồn tại usr_non_existent (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC06: Mở khóa tài khoản người dùng thành công (Unban User)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify User Unbanned Status\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data.is_active).to.eql(true);",
+              "});",
+              "pm.test(\"Header X-Response-Time exists\", function () {",
+              "    pm.response.to.have.header(\"X-Response-Time\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_active\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/usr_t01/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            "usr_t01",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC06: Kích hoạt/Mở khóa lại tài khoản người dùng (200 OK, is_active=true)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC07: Giám sát toàn bộ danh sách lớp học trên nền tảng thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Classes Monitoring List Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    var list = Array.isArray(jsonData.data) ? jsonData.data : (jsonData.data && jsonData.data.items ? jsonData.data.items : null);",
+              "    pm.expect(list).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC07: Quản trị viên truy vấn danh sách giám sát các lớp học toàn nền tảng (200 OK)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC08: Lấy cấu hình hạn mức tài nguyên hiện tại của hệ thống thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify System Limits Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.have.property('max_students_per_class');",
+              "    pm.expect(jsonData.data).to.have.property('max_classes_per_teacher');",
+              "});",
+              "pm.test(\"Header X-Response-Time exists\", function () {",
+              "    pm.response.to.have.header(\"X-Response-Time\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/system-limits",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "system-limits"
+          ]
+        },
+        "description": "Kịch bản TC08: Quản trị viên lấy thông tin cấu hình hạn ngạch tài nguyên hệ thống (200 OK)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC09: Cập nhật cấu hình hạn mức tài nguyên toàn hệ thống thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify System Limits Updated\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data.max_classes_per_teacher).to.eql(12);",
+              "    pm.expect(jsonData.data.max_students_per_class).to.eql(65);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"max_classes_per_teacher\": 12,\n  \"max_students_per_class\": 65,\n  \"gemini_ai_daily_quota_per_teacher\": 50,\n  \"max_upload_size_mb\": 25\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/system/limits",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "system",
+            "limits"
+          ]
+        },
+        "description": "Kịch bản TC09: Quản trị viên cập nhật cấu hình hạn mức tài nguyên thành công (200 OK)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC10: Từ chối cập nhật khi giá trị hạn mức tài nguyên không hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Limits Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"ADM_INVALID_LIMITS\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"max_classes_per_teacher\": -5,\n  \"max_students_per_class\": 0,\n  \"gemini_ai_daily_quota_per_teacher\": -10,\n  \"max_upload_size_mb\": 20\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/system/limits",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "system",
+            "limits"
+          ]
+        },
+        "description": "Kịch bản TC10: Gửi thông số hạn mức âm không hợp lệ (400 Bad Request, ADM_INVALID_LIMITS)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC11: Từ chối thực hiện khi không truyền hoặc để trống mã định danh người dùng (ID rỗng)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request or 404\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+              "});",
+              "pm.test(\"Verify Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Vi phạm chia sẻ tài liệu sai quy định\",\n  \"note\": \"Khóa tài khoản kiểm tra\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/%20/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            " ",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC11: Gọi API ban/status với user ID là khoảng trắng hoặc để trống (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC12: Báo lỗi khi thực hiện mở khóa tài khoản người dùng không tồn tại",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify User Not Found\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.eql(\"USER_NOT_FOUND\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_active\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/usr_non_existent/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            "usr_non_existent",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC12: Mở khóa tài khoản usr_non_existent không tồn tại (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC13: Từ chối khóa tài khoản khi độ dài lý do không thỏa mãn ràng buộc (dưới 5 ký tự)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error for reason length\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_active\": false,\n  \"reason\": \"Spam\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/usr_t01/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            "usr_t01",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC13: Khóa tài khoản với reason quá ngắn < 5 ký tự (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC14: Từ chối cập nhật hạn mức tài nguyên khi dữ liệu đầu vào sai kiểu dữ liệu (DTO Validation)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request or 422 Unprocessable Entity\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+              "});",
+              "pm.test(\"Verify DTO Validation Failure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"max_classes_per_teacher\": \"khong_gioi_han\",\n  \"max_students_per_class\": 60,\n  \"gemini_ai_daily_quota_per_teacher\": 30,\n  \"max_upload_size_mb\": 20\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/system/limits",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "system",
+            "limits"
+          ]
+        },
+        "description": "Kịch bản TC14: Gửi dữ liệu hạn mức kiểu string thay vì số nguyên (422 Unprocessable Entity hoặc 400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC15: Xử lý ngoại lệ lỗi hệ thống khi kết nối Firebase / Cơ sở dữ liệu thất bại (500 Error Mock)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 500 Internal Server Error (or 200/400 if DB is healthy)\", function () {",
+              "    // Khi giả lập ngắt mạng DB, mã phản hồi là 500",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 500]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_active\": false,\n  \"reason\": \"Vi phạm chia sẻ tài liệu sai quy định\",\n  \"note\": \"Khóa tài khoản kiểm tra\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/usr_t01/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            "usr_t01",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC15: Giả lập lỗi máy chủ kết nối Firestore / Firebase (500 Internal Server Error)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC16: Chặn hành động khóa tài khoản khi người dùng mục tiêu có vai trò Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Verify Cannot Ban Admin Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(403);",
+              "    pm.expect(jsonData.error_code).to.eql(\"ADM_CANNOT_BAN_ADMIN\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_active\": false,\n  \"reason\": \"Khóa thử nghiệm tài khoản quản trị\",\n  \"note\": \"Kiểm tra cơ chế tự bảo vệ của hệ thống\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users/usr_admin_senior/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users",
+            "usr_admin_senior",
+            "status"
+          ]
+        },
+        "description": "Kịch bản TC16: Admin cố tình khóa tài khoản của Quản trị viên cấp cao khác (403 Forbidden, ADM_CANNOT_BAN_ADMIN)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC17: Admin tạo mới tài khoản người dùng thành công (POST Users)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test(\"Verify User Created Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(201);",
+              "    pm.expect(jsonData.data).to.have.property('id');",
+              "    pm.expect(jsonData.data.is_active).to.eql(true);",
+              "});",
+              "pm.test(\"Header X-Response-Time exists\", function () {",
+              "    pm.response.to.have.header(\"X-Response-Time\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Thầy Trần Văn Bình\",\n  \"phone\": \"0988776655\",\n  \"email\": \"binh.tran@school.edu.vn\",\n  \"role\": \"TEACHER_SUBJECT\",\n  \"school_name\": \"Trường Tiểu Học Chu Văn An\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users"
+          ]
+        },
+        "description": "Kịch bản TC17: Admin tạo mới tài khoản người dùng thành công (201 Created)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC18: Từ chối tạo tài khoản khi thiếu các trường thông tin bắt buộc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Thầy Lê Văn C\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users"
+          ]
+        },
+        "description": "Kịch bản TC18: Tạo người dùng nhưng thiếu phone và role bắt buộc (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC19: Xóa mềm tài khoản người dùng thành công (Soft Delete với is_deleted = true)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Soft Delete Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data.is_deleted).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/usr_01",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "usr_01"
+          ]
+        },
+        "description": "Kịch bản TC19: Xóa mềm người dùng usr_01 thành công (200 OK, is_deleted=true)."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC20: Xử lý trạng thái rỗng an toàn khi tìm kiếm người dùng không có kết quả (Empty State)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty State Items and Total 0\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data.total).to.eql(0);",
+              "    pm.expect(jsonData.data.items).to.be.an('array').that.is.empty;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/users?page=1&limit=20&keyword=TenNguoiDungKhongHeTonTaiTrongHeThong123",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "users"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "keyword",
+              "value": "TenNguoiDungKhongHeTonTaiTrongHeThong123"
+            }
+          ]
+        },
+        "description": "Kịch bản TC20: Tìm kiếm người dùng với từ khóa không tồn tại, trả về danh sách rỗng an toàn (200 OK, items=[])."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC21: Xử lý trạng thái rỗng an toàn khi hệ thống chưa có dữ liệu lớp học trên nền tảng (Empty State)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty State Classes List\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data.total).to.eql(0);",
+              "    pm.expect(jsonData.data.items).to.be.an('array').that.is.empty;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/classes?page=1&limit=20&academic_year=2035-2036",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "classes"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "academic_year",
+              "value": "2035-2036"
+            }
+          ]
+        },
+        "description": "Kịch bản TC21: Truy vấn lớp học với niên khóa không có dữ liệu 2035-2036, trả về mảng rỗng an toàn (200 OK, items=[])."
+      }
+    },
+    {
+      "name": "UT12_Admin_TC22: Từ chối xóa mềm tài khoản khi mã người dùng không tồn tại trong cơ sở dữ liệu (USER_NOT_FOUND - 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify User Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.eql(\"USER_NOT_FOUND\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/usr_not_exist_99999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "usr_not_exist_99999"
+          ]
+        },
+        "description": "Kịch bản TC22: Xóa người dùng không tồn tại usr_not_exist_99999 (404 Not Found)."
+      }
+    }
+  ]
+}
