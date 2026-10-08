@@ -425,101 +425,13 @@ export class AdminService {
     return [];
   }
 
-  private defaultSchoolsList = [
-    {
-      id: 'TR-001',
-      code: 'TRUNGVUONG',
-      name: 'THCS Trưng Vương',
-      type: 'SECONDARY',
-      typeLabel: 'Cấp 2 THCS',
-      district: 'Quận Hoàn Kiếm',
-      city: 'TP. Hà Nội',
-      grades: [6, 7, 8, 9],
-      isNationalStandard: true,
-      totalClasses: 32,
-      totalStudents: 1280,
-      appLinkedPercent: 95.2,
-    },
-    {
-      id: 'TR-002',
-      code: 'CHUVANAN',
-      name: 'THCS Chu Văn An',
-      type: 'SECONDARY',
-      typeLabel: 'Cấp 2 THCS',
-      district: 'Quận Tây Hồ',
-      city: 'TP. Hà Nội',
-      grades: [6, 7, 8, 9],
-      isNationalStandard: true,
-      totalClasses: 28,
-      totalStudents: 1120,
-      appLinkedPercent: 92.4,
-    },
-    {
-      id: 'TR-003',
-      code: 'NGUYENHUE',
-      name: 'THPT Chuyên Nguyễn Huệ',
-      type: 'HIGH',
-      typeLabel: 'Cấp 3 THPT',
-      district: 'Quận Hà Đông',
-      city: 'TP. Hà Nội',
-      grades: [10, 11, 12],
-      isNationalStandard: true,
-      totalClasses: 36,
-      totalStudents: 1440,
-      appLinkedPercent: 98.1,
-    },
-    {
-      id: 'TR-004',
-      code: 'PHANDINHPHUNG',
-      name: 'THCS Phan Đình Phùng',
-      type: 'SECONDARY',
-      typeLabel: 'Cấp 2 THCS',
-      district: 'Quận Ba Đình',
-      city: 'TP. Hà Nội',
-      grades: [6, 7, 8, 9],
-      isNationalStandard: true,
-      totalClasses: 30,
-      totalStudents: 1200,
-      appLinkedPercent: 94.0,
-    },
-    {
-      id: 'TR-005',
-      code: 'VINSCHOOL',
-      name: 'THCS Vinschool Central',
-      type: 'SECONDARY',
-      typeLabel: 'Liên cấp THCS',
-      district: 'Quận Bình Thạnh',
-      city: 'TP. Hồ Chí Minh',
-      grades: [6, 7, 8, 9],
-      isNationalStandard: true,
-      totalClasses: 40,
-      totalStudents: 1600,
-      appLinkedPercent: 98.5,
-    },
-    {
-      id: 'TR-006',
-      code: 'LUONGTHEVINH',
-      name: 'THCS Lương Thế Vinh',
-      type: 'SECONDARY',
-      typeLabel: 'Cấp 2 THCS',
-      district: 'Quận Cầu Giấy',
-      city: 'TP. Hà Nội',
-      grades: [6, 7, 8, 9],
-      isNationalStandard: true,
-      totalClasses: 34,
-      totalStudents: 1360,
-      appLinkedPercent: 96.0,
-    },
-  ];
-
   async getSchools() {
     try {
       const sqlSchools = await this.dataConnect.listSchools();
-      if (sqlSchools && sqlSchools.length > 0) {
-        return sqlSchools;
-      }
-    } catch (e) {}
-    return this.defaultSchoolsList;
+      return sqlSchools || [];
+    } catch (e) {
+      return [];
+    }
   }
 
   async createSchool(dto: AdminCreateSchoolDto) {
