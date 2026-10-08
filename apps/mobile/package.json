@@ -14,10 +14,12 @@
   "dependencies": {
     "@giaovienhay/shared-types": "workspace:*",
     "expo": "~51.0.0",
+    "expo-linear-gradient": "^57.0.2",
     "expo-status-bar": "~1.12.1",
     "firebase": "^12.19.0",
     "react": "18.2.0",
-    "react-native": "0.74.5"
+    "react-native": "0.74.5",
+    "react-native-svg": "^15.15.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

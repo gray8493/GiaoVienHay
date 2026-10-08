@@ -12,11 +12,12 @@ import { StatusBar } from 'expo-status-bar';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RoleSelectionScreen } from './src/screens/RoleSelectionScreen';
+import { TeacherHomeScreen } from './src/screens/TeacherHomeScreen';
 
-type ScreenKey = 'onboarding' | 'login' | 'role' | 'showcase';
+type ScreenKey = 'teacher_home' | 'onboarding' | 'login' | 'role' | 'showcase';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenKey>('onboarding');
+  const [currentScreen, setCurrentScreen] = useState<ScreenKey>('teacher_home');
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 1200;
 
@@ -28,6 +29,20 @@ export default function App() {
       <SafeAreaView style={styles.controlHeaderArea}>
         <View style={styles.tabBar}>
           <TouchableOpacity
+            style={[styles.tabItem, currentScreen === 'teacher_home' && styles.tabItemActive]}
+            onPress={() => setCurrentScreen('teacher_home')}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                currentScreen === 'teacher_home' && styles.tabTextActive,
+              ]}
+            >
+              ★ TEA-01 (Home)
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.tabItem, currentScreen === 'onboarding' && styles.tabItemActive]}
             onPress={() => setCurrentScreen('onboarding')}
           >
@@ -37,7 +52,7 @@ export default function App() {
                 currentScreen === 'onboarding' && styles.tabTextActive,
               ]}
             >
-              1. Onboarding
+              Onboarding
             </Text>
           </TouchableOpacity>
 
@@ -51,7 +66,7 @@ export default function App() {
                 currentScreen === 'login' && styles.tabTextActive,
               ]}
             >
-              2. Login
+              Login
             </Text>
           </TouchableOpacity>
 
@@ -65,7 +80,7 @@ export default function App() {
                 currentScreen === 'role' && styles.tabTextActive,
               ]}
             >
-              3. Role
+              Role
             </Text>
           </TouchableOpacity>
 
@@ -79,7 +94,7 @@ export default function App() {
                 currentScreen === 'showcase' && styles.tabTextActive,
               ]}
             >
-              Showcase (All 3)
+              Showcase All
             </Text>
           </TouchableOpacity>
         </View>
@@ -92,46 +107,63 @@ export default function App() {
           contentContainerStyle={styles.showcaseContainer}
           showsHorizontalScrollIndicator={false}
         >
-          {/* Screen 1 Frame */}
+          {/* Screen 0: Teacher Home (TEA-01) */}
+          <View style={styles.phoneFrame}>
+            <View style={styles.phoneNotch} />
+            <TeacherHomeScreen
+              onEnterClassroom={() => alert('Chuyển tới TEA-02: Điểm danh')}
+              onOpenAIQuiz={() => alert('Chuyển tới TEA-04: Tạo bài tập AI')}
+              onOpenWheel={() => alert('Chuyển tới TEA-05: Mini-Game Vòng quay')}
+            />
+          </View>
+
+          {/* Screen 1 Frame: Onboarding */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <OnboardingScreen onNavigateToLogin={() => setCurrentScreen('login')} />
           </View>
 
-          {/* Screen 2 Frame */}
+          {/* Screen 2 Frame: Login */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <LoginScreen
-              onLoginSuccess={() => setCurrentScreen('role')}
+              onLoginSuccess={() => setCurrentScreen('teacher_home')}
               onNavigateToSignup={() => setCurrentScreen('role')}
             />
           </View>
 
-          {/* Screen 3 Frame */}
+          {/* Screen 3 Frame: Role Selection */}
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <RoleSelectionScreen
               onBack={() => setCurrentScreen('login')}
-              onContinue={() => setCurrentScreen('onboarding')}
+              onContinue={() => setCurrentScreen('teacher_home')}
             />
           </View>
         </ScrollView>
       ) : (
         <View style={styles.singleScreenWrap}>
           <View style={[styles.phoneFrame, !isLargeScreen && styles.phoneFrameMobile]}>
+            {currentScreen === 'teacher_home' && (
+              <TeacherHomeScreen
+                onEnterClassroom={() => alert('Chuyển tới TEA-02: Điểm danh')}
+                onOpenAIQuiz={() => alert('Chuyển tới TEA-04: Tạo bài tập AI')}
+                onOpenWheel={() => alert('Chuyển tới TEA-05: Mini-Game Vòng quay')}
+              />
+            )}
             {currentScreen === 'onboarding' && (
               <OnboardingScreen onNavigateToLogin={() => setCurrentScreen('login')} />
             )}
             {currentScreen === 'login' && (
               <LoginScreen
-                onLoginSuccess={() => setCurrentScreen('role')}
+                onLoginSuccess={() => setCurrentScreen('teacher_home')}
                 onNavigateToSignup={() => setCurrentScreen('role')}
               />
             )}
             {currentScreen === 'role' && (
               <RoleSelectionScreen
                 onBack={() => setCurrentScreen('login')}
-                onContinue={() => setCurrentScreen('onboarding')}
+                onContinue={() => setCurrentScreen('teacher_home')}
               />
             )}
           </View>
