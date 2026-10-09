@@ -186,7 +186,7 @@ export class RemarksService {
     };
   }
 
-  async getClassRemarks(classId: string, limit: number = 20) {
+  async getClassRemarks(classId: string, studentId?: string, limit: number = 20) {
     if (classId === 'cls_new_2026') {
       return {
         class_id: classId,
@@ -195,18 +195,20 @@ export class RemarksService {
       };
     }
 
+    const items = [
+      {
+        remark_id: 'rmk_9912',
+        student_id: 'stu_01',
+        subject_code: 'MATH',
+        content: 'Hôm nay em Nam tiếp thu bài rất nhanh và hăng hái xung phong lên bảng chữa bài tập.',
+        created_at: '2026-09-23T10:15:00.000Z',
+      },
+    ].filter((item) => !studentId || item.student_id === studentId).slice(0, Math.max(0, limit));
+
     return {
       class_id: classId,
-      total: 1,
-      items: [
-        {
-          remark_id: 'rmk_9912',
-          student_id: 'stu_01',
-          subject_code: 'MATH',
-          content: 'Hôm nay em Nam tiếp thu bài rất nhanh và hăng hái xung phong lên bảng chữa bài tập.',
-          created_at: '2026-09-23T10:15:00.000Z',
-        },
-      ],
+      total: items.length,
+      items,
     };
   }
 

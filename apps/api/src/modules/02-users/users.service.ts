@@ -56,7 +56,7 @@ export class UsersService {
 
     if (user.is_active === false || user.isActive === false) {
       throw new ForbiddenException({
-        error_code: ErrorCode.AUTH_FORBIDDEN,
+        error_code: ErrorCode.USER_INACTIVE,
         message: 'Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ Quản trị viên để được hỗ trợ.',
       });
     }
