@@ -31,7 +31,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
   }, []);
 
   return (
-    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 flex items-center justify-between gap-4 flex-shrink-0 z-30 shadow-2xs">
+    <header className="h-16 bg-transparent border-b border-slate-200/80 px-6 sm:px-8 flex items-center justify-between gap-4 flex-shrink-0 z-30">
       {/* Left Area: Mobile toggle */}
       <div className="flex items-center gap-3">
         {onToggleSidebar && (
@@ -46,21 +46,11 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
         )}
       </div>
 
-      {/* Right Actions: Date, Notification, Admin Profile */}
+      {/* Right Actions: Date and Admin Profile */}
       <div className="flex items-center gap-3.5 ml-auto">
         <span className="text-xs text-slate-500 hidden md:inline-block font-medium min-h-[16px]" suppressHydrationWarning>
           {isMounted ? currentDateStr : ''}
         </span>
-
-        {/* Notification Button */}
-        <button
-          type="button"
-          aria-label="Thông báo"
-          className="relative p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[20px]">notifications</span>
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-600 rounded-full ring-2 ring-white" />
-        </button>
 
         {/* Divider */}
         <div className="h-5 w-px bg-slate-200/80" />

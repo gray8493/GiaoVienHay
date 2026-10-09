@@ -623,10 +623,10 @@ export default function UsersInteractiveExplorerPage() {
   const visibleParents = filteredParents.slice((currentParentsPage - 1) * PAGE_SIZE, currentParentsPage * PAGE_SIZE);
 
   return (
-    <div className={`relative ${selectedSchoolId ? 'min-h-[calc(100vh-4rem)]' : 'min-h-full'} bg-slate-50 text-slate-800 font-sans flex flex-col`}>
+    <div className={`relative ${selectedSchoolId ? 'min-h-[calc(100vh-4rem)]' : 'min-h-full'} text-slate-800 font-sans flex flex-col`}>
       {toast && <Toast message={toast.message} variant={toast.variant} />}
       {/* HEADER SECTION */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Quản lý người dùng

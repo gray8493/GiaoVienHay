@@ -75,23 +75,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Slim top progress bar thay vì fullscreen overlay spinner.
-          Cải thiện INP: không block interactions. Cải thiện CLS: không có overlay layout shift. */}
+      {/* Shared page transition loader for every route in the admin shell. */}
       {isNavigating && (
-        <div className="fixed top-0 left-0 right-0 z-[100] h-[3px]" role="progressbar" aria-label="Đang tải trang">
-          <div
-            className="h-full bg-gradient-to-r from-indigo-500 via-blue-500 to-indigo-600 rounded-r-full shadow-sm"
-            style={{
-              animation: 'progress-bar 1.5s ease-in-out infinite',
-            }}
-          />
-          <style>{`
-            @keyframes progress-bar {
-              0% { width: 0%; }
-              50% { width: 70%; }
-              100% { width: 95%; }
-            }
-          `}</style>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/35 backdrop-blur-[1px]" role="status" aria-label="Đang tải trang">
+          <span className="h-12 w-12 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 shadow-sm" aria-hidden="true" />
+          <span className="sr-only">Đang tải trang...</span>
         </div>
       )}
     </div>

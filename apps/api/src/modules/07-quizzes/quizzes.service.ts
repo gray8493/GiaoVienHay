@@ -6,10 +6,12 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { GeminiService } from '../../common/gemini/gemini.service';
 import { AttendanceService } from '../05-attendance/attendance.service';
+import { AdminService } from '../12-admin/admin.service';
 import { GenerateQuizAiDto, InClassScoreInputDto } from './dto/quizzes.dto';
 import { DifficultyLevel, GameMode, GradeType } from '@giaovienhay/shared-types';
 
@@ -21,6 +23,7 @@ export class QuizzesService {
     private readonly dataConnect: FirebaseDataConnectService,
     private readonly geminiService: GeminiService,
     private readonly attendanceService: AttendanceService,
+    @Optional() private readonly adminService?: AdminService,
   ) {}
 
   async generateQuizFromAi(
@@ -73,12 +76,38 @@ export class QuizzesService {
       ? `Nội dung từ giáo án: ${file.originalname}`
       : `Bài giảng môn ${dto.subject_code} lớp ${dto.class_id}: ${dto.title}`;
 
-    const questions = await this.geminiService.generateQuestionsFromLesson(
-      lessonContent,
-      dto.subject_code,
-      numQuestions,
-      difficulty,
-    );
+    let questions;
+    try {
+      questions = await this.geminiService.generateQuestionsFromLesson(
+        lessonContent,
+        dto.subject_code,
+        numQuestions,
+        difficulty,
+      );
+    } catch (error) {
+      await this.adminService?.recordActivity({
+        category: 'AI_QUIZ',
+        categoryLabel: 'Gemini AI',
+        action: 'Tạo câu hỏi bằng Gemini AI',
+        target: dto.title,
+        details: `Lớp ${dto.class_id} · Môn ${dto.subject_code}`,
+        status: 'WARNING',
+        statusLabel: 'Thất bại',
+        metadata: { teacher_id: teacherId, class_id: dto.class_id },
+      });
+      throw error;
+    }
+
+    await this.adminService?.recordActivity({
+      category: 'AI_QUIZ',
+      categoryLabel: 'Gemini AI',
+      action: 'Tạo câu hỏi bằng Gemini AI',
+      target: dto.title,
+      details: `${questions.length} câu hỏi · Lớp ${dto.class_id} · Môn ${dto.subject_code}`,
+      status: 'SUCCESS',
+      statusLabel: 'Hoàn tất',
+      metadata: { teacher_id: teacherId, class_id: dto.class_id, question_count: questions.length },
+    });
 
     const quizId = 'qz_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
     const quizData = {
