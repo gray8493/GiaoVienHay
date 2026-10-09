@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEnum, IsBoolean, IsOptional, IsInt, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsBoolean, IsOptional, IsInt, IsArray, Length, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { UserRole } from '@giaovienhay/shared-types';
 
@@ -39,6 +39,7 @@ export class UpdateUserStatusDto {
   @ApiPropertyOptional({ example: 'Vi phạm quy chế giáo dục', description: 'Lý do khóa tài khoản' })
   @IsOptional()
   @IsString()
+  @Length(5, 500, { message: 'Lý do khóa tài khoản phải có độ dài từ 5 đến 500 ký tự' })
   reason?: string;
 }
 
@@ -87,36 +88,49 @@ export class UpdateSystemLimitsDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_students_per_class?: number;
 
   @ApiPropertyOptional({ example: 5 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_classes_per_teacher?: number;
 
   @ApiPropertyOptional({ example: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_quiz_questions_per_gen?: number;
 
   @ApiPropertyOptional({ example: 15 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_upload_file_size_mb?: number;
+
+  @ApiPropertyOptional({ example: 15 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
+  max_upload_size_mb?: number;
 
   @ApiPropertyOptional({ example: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   fcm_rate_limit_per_minute?: number;
 
   @ApiPropertyOptional({ example: 25 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   gemini_ai_daily_quota_per_teacher?: number;
 
   @ApiPropertyOptional({ example: 'gemini-1.5-flash' })

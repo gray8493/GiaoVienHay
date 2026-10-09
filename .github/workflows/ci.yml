@@ -40,6 +40,9 @@ jobs:
       - name: Build Monorepo (Shared Types, API, Web Admin, Mobile)
         run: pnpm build
 
+      - name: Run Automated Unit Tests (All 12 Modules)
+        run: pnpm --filter @giaovienhay/api test
+
   # -----------------------------------------------------------
   # 2. AUTOMATIC DEPLOY TO RENDER (Chỉ chạy khi MERGE vào MAIN)
   # -----------------------------------------------------------

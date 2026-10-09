@@ -70,6 +70,30 @@ export class AdminController {
     return this.adminService.updateUserStatus(userId, dto);
   }
 
+  @Patch('users/:id/ban')
+  @ApiOperation({ summary: 'Khóa tài khoản người dùng' })
+  async banUser(
+    @Param('id') userId: string,
+    @Body() dto: Partial<UpdateUserStatusDto>,
+  ) {
+    return this.adminService.updateUserStatus(userId, {
+      is_active: false,
+      reason: dto?.reason,
+    });
+  }
+
+  @Patch('users/:id/unban')
+  @ApiOperation({ summary: 'Mở khóa tài khoản người dùng' })
+  async unbanUser(
+    @Param('id') userId: string,
+    @Body() dto: Partial<UpdateUserStatusDto>,
+  ) {
+    return this.adminService.updateUserStatus(userId, {
+      is_active: true,
+      reason: dto?.reason,
+    });
+  }
+
   @Delete('users/:id')
   @ApiOperation({ summary: 'Xóa mềm tài khoản người dùng (chuyển cờ isDeleted thành true)' })
   async deleteUser(@Param('id') userId: string) {
@@ -98,13 +122,13 @@ export class AdminController {
     return this.adminService.createClass(dto);
   }
 
-  @Get('system-limits')
+  @Get(['system-limits', 'system/limits'])
   @ApiOperation({ summary: 'Xem các hạn mức cấu hình hệ thống' })
   async getSystemLimits() {
     return this.adminService.getSystemLimits();
   }
 
-  @Put('system-limits')
+  @Put(['system-limits', 'system/limits'])
   @ApiOperation({ summary: 'Cập nhật các hạn mức cấu hình hệ thống & Quota AI' })
   async updateSystemLimits(@Body() dto: UpdateSystemLimitsDto) {
     return this.adminService.updateSystemLimits(dto);

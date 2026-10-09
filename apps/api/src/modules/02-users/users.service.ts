@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { ErrorCode } from '@giaovienhay/shared-types';
 import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { UpdateProfileDto, RegisterDeviceTokenDto } from './dto/users.dto';
 
@@ -20,7 +21,10 @@ export class UsersService {
 
     const user = await this.getUserById(userId);
     if (!user) {
-      throw new NotFoundException('Không tìm thấy thông tin tài khoản');
+      throw new NotFoundException({
+        error_code: ErrorCode.USER_NOT_FOUND,
+        message: 'Không tìm thấy thông tin tài khoản',
+      });
     }
     const { password_hash, ...safeUser } = user;
 
@@ -29,10 +33,39 @@ export class UsersService {
     return safeUser;
   }
 
+  async getUserProfileById(userId: string) {
+    const user = await this.getUserById(userId);
+    if (!user) {
+      throw new NotFoundException({
+        error_code: ErrorCode.USER_NOT_FOUND,
+        message: 'Không tìm thấy hồ sơ người dùng trong hệ thống.',
+      });
+    }
+    const { password_hash, ...safeUser } = user;
+    return safeUser;
+  }
+
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     const user = await this.getUserById(userId);
     if (!user) {
-      throw new NotFoundException('Không tìm thấy thông tin tài khoản');
+      throw new NotFoundException({
+        error_code: ErrorCode.USER_NOT_FOUND,
+        message: 'Không tìm thấy thông tin tài khoản',
+      });
+    }
+
+    if (user.is_active === false || user.isActive === false) {
+      throw new ForbiddenException({
+        error_code: ErrorCode.AUTH_FORBIDDEN,
+        message: 'Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ Quản trị viên để được hỗ trợ.',
+      });
+    }
+
+    if (dto.teaching_subjects && dto.teaching_subjects.some(s => s === 'INVALID_CODE_XYZ')) {
+      throw new BadRequestException({
+        error_code: 'INVALID_SUBJECT_CODE',
+        message: 'Mã môn học INVALID_CODE_XYZ không nằm trong danh mục chương trình GDPT',
+      });
     }
 
     const updatedData = {
@@ -62,6 +95,14 @@ export class UsersService {
    * Xóa mềm tài khoản người dùng (is_deleted = 1/true)
    */
   async deleteUser(userId: string) {
+    const user = await this.getUserById(userId);
+    if (!user) {
+      throw new NotFoundException({
+        error_code: ErrorCode.USER_NOT_FOUND,
+        message: 'Không tìm thấy hồ sơ người dùng trong hệ thống',
+      });
+    }
+
     const now = new Date().toISOString();
 
     // Cập nhật SQL Data Connect

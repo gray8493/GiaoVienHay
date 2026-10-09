@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import Toast from '../../../components/Toast';
 import { TeacherUser } from '../../../lib/users-data';
 import {
   getTeachersList,
@@ -237,12 +238,7 @@ export default function TeachersPage() {
     <main className="flex-1 p-6 md:p-8 w-full max-w-7xl mx-auto space-y-6">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2.5 animate-fadeIn">
-          <span className="material-symbols-outlined text-emerald-400 text-[18px]">
-            check_circle
-          </span>
-          <span>{toastMessage}</span>
-        </div>
+        <Toast message={toastMessage} />
       )}
 
       {/* 1. TOP BREADCRUMB NAVIGATION & BACK ARROW BUTTON */}

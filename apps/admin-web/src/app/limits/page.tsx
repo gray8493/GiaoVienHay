@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Toast from '../../components/Toast';
 import Link from 'next/link';
 import { apiFetch } from '../../lib/api-client';
 
@@ -98,9 +99,7 @@ export default function LimitsAndAiPage() {
     <main className="flex-1 overflow-y-auto px-6 sm:px-10 py-8 space-y-8 min-h-screen">
       {/* Toast Notification (Text Only) */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0f172a] text-white text-xs px-4 py-3 rounded-xl shadow-2xl border border-slate-700/80">
-          <span className="font-medium">{toastMessage}</span>
-        </div>
+        <Toast message={toastMessage} />
       )}
 
       {/* Breadcrumbs & Header Section */}

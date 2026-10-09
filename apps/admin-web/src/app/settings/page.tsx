@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Toast, { type ToastVariant } from '../../components/Toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -45,11 +46,13 @@ export default function SystemSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<ToastVariant>('success');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, variant: ToastVariant = 'success') => {
     setToastMessage(msg);
+    setToastVariant(variant);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
@@ -91,15 +94,15 @@ export default function SystemSettingsPage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword) {
-      showToast('Vui lòng nhập mật khẩu hiện tại');
+      showToast('Vui lòng nhập mật khẩu hiện tại', 'error');
       return;
     }
     if (newPassword.length < 6) {
-      showToast('Mật khẩu mới phải có ít nhất 6 ký tự');
+      showToast('Mật khẩu mới phải có ít nhất 6 ký tự', 'error');
       return;
     }
     if (newPassword !== confirmPassword) {
-      showToast('Mật khẩu xác nhận không khớp');
+      showToast('Mật khẩu xác nhận không khớp', 'error');
       return;
     }
     setIsSavingPassword(true);
@@ -114,10 +117,10 @@ export default function SystemSettingsPage() {
         setConfirmPassword('');
         showToast('Đã đổi mật khẩu tài khoản Admin thành công');
       } else {
-        showToast(res.error || 'Lỗi đổi mật khẩu');
+        showToast(res.error || 'Lỗi đổi mật khẩu', 'error');
       }
     } catch (err: any) {
-      showToast(err.message || 'Lỗi kết nối máy chủ');
+      showToast(err.message || 'Lỗi kết nối máy chủ', 'error');
     } finally {
       setIsSavingPassword(false);
     }
@@ -127,9 +130,7 @@ export default function SystemSettingsPage() {
     <main className="flex-1 overflow-y-auto px-6 sm:px-10 py-8 space-y-8 min-h-screen">
       {/* Toast Notification (Text Only) */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0f172a] text-white text-xs px-4 py-3 rounded-xl shadow-2xl border border-slate-700/80">
-          <span className="font-medium">{toastMessage}</span>
-        </div>
+        <Toast message={toastMessage} variant={toastVariant} />
       )}
 
       {/* Breadcrumb Navigation (Text Only) */}

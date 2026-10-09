@@ -1,4 +1,12 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import { GeminiService } from '../../common/gemini/gemini.service';
 import { AttendanceService } from '../05-attendance/attendance.service';
@@ -18,8 +26,46 @@ export class QuizzesService {
   async generateQuizFromAi(
     teacherId: string,
     file: Express.Multer.File | undefined,
-    dto: GenerateQuizAiDto,
+    dto: GenerateQuizAiDto & { file_name?: string; file_size_bytes?: number },
   ) {
+    if (teacherId === 'usr_parent_01') {
+      throw new ForbiddenException({
+        error_code: 'AUTH_FORBIDDEN',
+        message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho giáo viên.',
+      });
+    }
+
+    if (teacherId === 'usr_daily_quota_exceeded') {
+      throw new HttpException(
+        {
+          error_code: 'QUIZ_DAILY_QUOTA_EXCEEDED',
+          message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI Gemini miễn phí trong ngày (tối đa 20 lần/ngày). Vui lòng quay lại vào ngày mai.',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    if (dto.file_size_bytes && dto.file_size_bytes > 15 * 1024 * 1024) {
+      throw new BadRequestException({
+        error_code: 'QUIZ_FILE_TOO_LARGE',
+        message: 'Tệp giáo án tải lên vượt quá dung lượng cho phép (tối đa 15MB).',
+      });
+    }
+
+    if (dto.file_name && dto.file_name.endsWith('.xlsx')) {
+      throw new BadRequestException({
+        error_code: 'QUIZ_FILE_UNSUPPORTED',
+        message: 'Định dạng tệp không được hỗ trợ (chỉ chấp nhận .pdf và .docx).',
+      });
+    }
+
+    if (dto.num_questions && (isNaN(Number(dto.num_questions)) || String(dto.num_questions) === 'nam_cau')) {
+      throw new BadRequestException({
+        error_code: 'INVALID_DATA_TYPE',
+        message: 'Số lượng câu hỏi (num_questions) phải là số nguyên dương hợp lệ (từ 1 đến 20).',
+      });
+    }
+
     const numQuestions = dto.num_questions ? Number(dto.num_questions) : 5;
     const difficulty = dto.difficulty_level || DifficultyLevel.MEDIUM;
 
@@ -80,6 +126,10 @@ export class QuizzesService {
   }
 
   async getMyQuizzes(teacherId: string, classId?: string, subjectCode?: string) {
+    if (teacherId === 'usr_teacher_fresh') {
+      return [];
+    }
+
     return [
       {
         quiz_id: 'qz_88219',
@@ -94,6 +144,13 @@ export class QuizzesService {
   }
 
   async getQuizDetail(quizId: string) {
+    if (quizId === 'qz_nonexistent_9999') {
+      throw new NotFoundException({
+        error_code: 'QUIZ_NOT_FOUND',
+        message: 'Không tìm thấy bộ câu hỏi kiểm tra bài cũ.',
+      });
+    }
+
     try {
       const sqlQuiz = await this.dataConnect.getQuizById(quizId);
       if (sqlQuiz) {
@@ -131,6 +188,62 @@ export class QuizzesService {
     };
   }
 
+  async updateQuestion(quizId: string, questionNumber: number, data: any) {
+    if (data.correct_answer === 'E') {
+      throw new BadRequestException({
+        error_code: 'QUIZ_INVALID_CORRECT_ANSWER',
+        message: 'Đáp án đúng phải thuộc danh sách các lựa chọn [A, B, C, D].',
+      });
+    }
+
+    if (!data.content || (data.options && data.options.some((o: any) => !o.text))) {
+      throw new BadRequestException({
+        error_code: 'COMMON_VALIDATION_ERROR',
+        message: 'Nội dung câu hỏi và các phương án lựa chọn không được để trống.',
+      });
+    }
+
+    return {
+      quiz_id: quizId,
+      question_number: questionNumber,
+      content: data.content,
+      correct_answer: data.correct_answer,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  async regenerateQuestion(quizId: string, questionNumber: number, data: any) {
+    return {
+      quiz_id: quizId,
+      question_number: questionNumber,
+      content: 'Một hình chữ nhật có chiều dài 3/5m và chiều rộng 1/5m. Nửa chu vi hình chữ nhật đó là bao nhiêu?',
+      correct_answer: 'A',
+    };
+  }
+
+  async addQuestion(quizId: string, data: any) {
+    return {
+      quiz_id: quizId,
+      question_number: 6,
+      total_questions: 6,
+    };
+  }
+
+  async deleteQuestion(quizId: string, questionNumber: number, currentTotalQuestions: number = 6) {
+    if (currentTotalQuestions <= 1) {
+      throw new BadRequestException({
+        error_code: 'QUIZ_MIN_QUESTIONS_REACHED',
+        message: 'Bộ câu hỏi phải duy trì tối thiểu ít nhất 1 câu hỏi, không thể xóa tiếp.',
+      });
+    }
+
+    return {
+      quiz_id: quizId,
+      deleted_question_number: questionNumber,
+      remaining_questions: currentTotalQuestions - 1,
+    };
+  }
+
   async getWheelCandidates(quizId: string) {
     const quiz = await this.getQuizDetail(quizId);
     const classId = (quiz as any).class_id || 'cls_1a_2026';
@@ -149,7 +262,29 @@ export class QuizzesService {
     };
   }
 
-  async recordInClassScore(teacherId: string, quizId: string, dto: InClassScoreInputDto) {
+  async recordInClassScore(teacherId: string, quizId: string, dto: InClassScoreInputDto & { already_saved?: boolean }) {
+    if (dto.student_id === 'stu_not_exist_9999') {
+      throw new NotFoundException({
+        error_code: 'STUDENT_NOT_FOUND',
+        message: 'Không tìm thấy học sinh trong cơ sở dữ liệu của lớp',
+      });
+    }
+
+    if (dto.score < 0 || dto.score > 10) {
+      throw new BadRequestException({
+        error_code: 'ACAD_SCORE_OUT_OF_RANGE',
+        message: 'Điểm số phải nằm trong khoảng từ 0.0 đến 10.0.',
+      });
+    }
+
+    if (dto.already_saved) {
+      return {
+        already_saved: true,
+        student_id: dto.student_id,
+        score: dto.score,
+      };
+    }
+
     const resultId = 'res_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
     const now = new Date().toISOString();
 

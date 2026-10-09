@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
 import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
 import {
   AdminCreateUserDto,
@@ -43,6 +44,20 @@ export class AdminService {
   }
 
   async createUser(dto: AdminCreateUserDto) {
+    if (!dto.full_name || !dto.phone || !dto.role) {
+      throw new BadRequestException({
+        success: false,
+        status_code: 400,
+        error_code: 'COMMON_VALIDATION_ERROR',
+        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+        details: [
+          ...(!dto.full_name ? [{ field: 'full_name', issue: 'Họ và tên không được để trống' }] : []),
+          ...(!dto.phone ? [{ field: 'phone', issue: 'Số điện thoại không được để trống' }] : []),
+          ...(!dto.role ? [{ field: 'role', issue: 'Vai trò người dùng không được để trống' }] : []),
+        ],
+      });
+    }
+
     const userId = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
     const rolePrefix = dto.role?.includes('TEACHER') ? 'GV-' : dto.role === 'PARENT' ? 'PH-' : 'USR-';
     const newUser = {
@@ -87,7 +102,41 @@ export class AdminService {
     return newUser;
   }
 
+  private async findUserOrThrow(userId: string) {
+    if (!userId || !userId.trim()) {
+      throw new BadRequestException({
+        error_code: ErrorCode.COMMON_VALIDATION_ERROR,
+        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+        details: [
+          {
+            field: 'id',
+            issue: 'Mã định danh người dùng (id) bắt buộc và không được để trống',
+          },
+        ],
+      });
+    }
+
+    let user: any = null;
+    try {
+      const sqlUser = await this.dataConnect.getUserById(userId);
+      if (sqlUser && !sqlUser.isDeleted && !sqlUser.is_deleted) {
+        user = sqlUser;
+      }
+    } catch (e) {}
+
+    if (!user) {
+      throw new NotFoundException({
+        error_code: ErrorCode.USER_NOT_FOUND,
+        message: 'Không tìm thấy người dùng trong hệ thống',
+      });
+    }
+
+    return user;
+  }
+
   async updateUser(userId: string, dto: UpdateAdminUserDto) {
+    await this.findUserOrThrow(userId);
+
     const updated = await this.dataConnect.updateUserProfile(userId, {
       full_name: dto.full_name,
       phone: dto.phone,
@@ -111,13 +160,53 @@ export class AdminService {
   }
 
   async updateUserStatus(userId: string, dto: UpdateUserStatusDto) {
+    if (dto?.is_active === undefined || dto?.is_active === null) {
+      throw new BadRequestException({
+        success: false,
+        status_code: 400,
+        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+        error_code: 'COMMON_VALIDATION_ERROR',
+        details: [
+          {
+            field: 'is_active',
+            issue: 'is_active must be a boolean value',
+          },
+        ],
+      });
+    }
+
+    if (dto.reason && (dto.reason.length < 5 || dto.reason.length > 500)) {
+      throw new BadRequestException({
+        success: false,
+        status_code: 400,
+        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+        error_code: 'COMMON_VALIDATION_ERROR',
+        details: [
+          {
+            field: 'reason',
+            issue: 'Lý do khóa tài khoản phải có độ dài từ 5 đến 500 ký tự',
+          },
+        ],
+      });
+    }
+
+    const existingUser = await this.findUserOrThrow(userId);
+
+    // UT12_Admin_TC16: Chặn hành động khóa tài khoản khi người dùng có vai trò Quản trị viên cấp cao (ADMIN)
+    if (!dto.is_active && (existingUser.role === UserRole.ADMIN || existingUser.role === 'ADMIN')) {
+      throw new ForbiddenException({
+        error_code: 'ADM_CANNOT_BAN_ADMIN',
+        message: 'Không thể khóa tài khoản có vai trò Quản trị viên cấp cao (ADMIN)',
+      });
+    }
+
     await this.dataConnect.updateUserStatus(userId, dto.is_active, dto.reason);
 
     await this.recordActivity({
       category: 'SYSTEM_ADMIN',
       categoryLabel: 'Quản trị Người dùng',
       action: dto.is_active ? `Kích hoạt lại tài khoản: ${userId}` : `Khóa tài khoản: ${userId}`,
-      target: 'Tài khoản người dùng',
+      target: existingUser.fullName || existingUser.full_name || 'Tài khoản người dùng',
       details: dto.reason ? `Lý do: ${dto.reason}` : (dto.is_active ? 'Kích hoạt lại' : 'Tạm dừng hoạt động'),
       status: 'SUCCESS',
       statusLabel: 'Hoàn tất',
@@ -132,6 +221,8 @@ export class AdminService {
   }
 
   async deleteUser(userId: string) {
+    await this.findUserOrThrow(userId);
+
     await this.dataConnect.softDeleteUser(userId);
 
     await this.recordActivity({
@@ -154,6 +245,8 @@ export class AdminService {
   }
 
   async updateTeacherAiQuota(userId: string, dto: UpdateTeacherAiQuotaDto) {
+    await this.findUserOrThrow(userId);
+
     await this.dataConnect.updateTeacherAiQuota(
       userId,
       dto.ai_daily_quota,
@@ -272,6 +365,21 @@ export class AdminService {
   }
 
   async updateSystemLimits(dto: UpdateSystemLimitsDto) {
+    if (
+      (dto.max_classes_per_teacher !== undefined && dto.max_classes_per_teacher <= 0) ||
+      (dto.max_students_per_class !== undefined && dto.max_students_per_class <= 0) ||
+      (dto.gemini_ai_daily_quota_per_teacher !== undefined && dto.gemini_ai_daily_quota_per_teacher <= 0) ||
+      (dto.max_upload_size_mb !== undefined && dto.max_upload_size_mb <= 0)
+    ) {
+      throw new BadRequestException({
+        success: false,
+        status_code: 400,
+        message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)',
+        error_code: 'ADM_INVALID_LIMITS',
+        details: null,
+      });
+    }
+
     const current = await this.getSystemLimits();
     const limits = { ...current, ...dto };
 

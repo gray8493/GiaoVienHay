@@ -406,7 +406,7 @@ export class FirebaseDataConnectService implements OnModuleInit {
     const query = `
       query GetUserById($id: String!) {
         user(id: $id) {
-          id code fullName phone email role schoolName assignedInfo isActive aiDailyQuota aiUsedToday aiModelTier createdAt
+          id code fullName phone email role schoolName assignedInfo isActive isDeleted aiDailyQuota aiUsedToday aiModelTier createdAt
         }
       }
     `;
