@@ -47,7 +47,7 @@ export class RemarksController {
     @Query('student_id') studentId?: string,
     @Query('limit') limit?: number,
   ) {
-    return this.remarksService.getClassRemarks(classId, studentId, limit ? Number(limit) : 20);
+    return this.remarksService.getClassRemarks(classId, limit ? Number(limit) : 20, studentId);
   }
 
   @Patch(':id/acknowledge')

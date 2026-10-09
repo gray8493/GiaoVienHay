@@ -186,7 +186,7 @@ export class RemarksService {
     };
   }
 
-  async getClassRemarks(classId: string, studentId?: string, limit: number = 20) {
+  async getClassRemarks(classId: string, limit: number = 20, studentId?: string) {
     if (classId === 'cls_new_2026') {
       return {
         class_id: classId,
