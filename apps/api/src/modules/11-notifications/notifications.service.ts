@@ -127,7 +127,7 @@ export class NotificationsService {
           recipient_user_id: 'usr_parent_01',
           title: `Thông báo thứ ${i}`,
           body: `Nội dung thông báo ${i}`,
-          type: NotificationType.GENERAL,
+          type: NotificationType.SYSTEM,
           is_read: true,
           created_at: '2026-09-20T08:00:00.000Z',
         });

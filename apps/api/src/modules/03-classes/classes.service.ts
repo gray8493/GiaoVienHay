@@ -53,9 +53,9 @@ export class ClassesService {
     return newClass;
   }
 
-  async getMyClasses(teacherId: string) {
+  async getMyClasses(teacherId: string): Promise<any[]> {
     const cacheKey = `classes_teacher_${teacherId}`;
-    const cached = await this.cacheManager.get(cacheKey);
+    const cached = await this.cacheManager.get<any[]>(cacheKey);
     if (cached) {
       return cached;
     }
