@@ -32,11 +32,15 @@ export class FeesInsuranceController {
     description: 'Theo dõi qua 2 cờ boolean kèm ngày nộp thực tế (không có cổng thanh toán online).',
   })
   async getClassFeesList(
+    @CurrentUser('sub') teacherId: string,
     @Param('classId') classId: string,
     @Query('fee_type') feeType?: string,
-    @Query('unpaid_only') unpaidOnly?: boolean,
+    @Query('unpaid_only') unpaidOnly?: string,
   ) {
-    return this.feesInsuranceService.getClassFeesList(classId, feeType, unpaidOnly);
+    return this.feesInsuranceService.getClassFeesList(teacherId, classId, {
+      fee_type: feeType,
+      unpaid_only: unpaidOnly === 'true',
+    });
   }
 
   @Patch('toggle')

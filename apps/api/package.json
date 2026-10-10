@@ -64,5 +64,28 @@
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "../../",
+    "testMatch": [
+      "<rootDir>/tests/unit/**/*.spec.ts"
+    ],
+    "transform": {
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/apps/api/tsconfig.json"
+        }
+      ]
+    },
+    "moduleNameMapper": {
+      "^@nestjs/cache-manager$": "<rootDir>/tests/fixtures/cache-manager-mock.js"
+    },
+    "testEnvironment": "node"
   }
 }

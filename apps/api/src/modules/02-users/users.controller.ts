@@ -3,6 +3,8 @@ import {
   Get,
   Patch,
   Post,
+  Delete,
+  Param,
   Body,
   UseGuards,
   HttpCode,
@@ -27,6 +29,12 @@ export class UsersController {
     return this.usersService.getMe(userId);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Tra cứu thông tin hồ sơ người dùng theo ID' })
+  async getUserById(@Param('id') userId: string) {
+    return this.usersService.getUserProfileById(userId);
+  }
+
   @Patch('profile')
   @ApiOperation({ summary: 'Cập nhật hồ sơ cá nhân (trường công tác, môn giảng dạy)' })
   async updateProfile(
@@ -34,6 +42,12 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.usersService.updateProfile(userId, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Xóa mềm tài khoản người dùng theo ID' })
+  async deleteUser(@Param('id') userId: string) {
+    return this.usersService.deleteUser(userId);
   }
 
   @Post('device-token')

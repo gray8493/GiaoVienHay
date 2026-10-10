@@ -36,13 +36,13 @@
     "limit": 20,
     "role": "TEACHER_HOMEROOM",
     "is_active": true,
-    "search": "Nguyễn"
+    "keyword": "Nguyễn"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
-  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/admin/users?page=1&limit=20&role=TEACHER_HOMEROOM&is_active=true&search=Nguyễn`.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/admin/users?page=1&limit=20&role=TEACHER_HOMEROOM&is_active=true&keyword=Nguyễn`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
@@ -133,41 +133,41 @@
 
   ```json
   {
-    "reason": "Vi phạm chia sẻ tài liệu sai quy định",
-    "note": "Khóa tài khoản 14 ngày để kiểm tra xác minh"
+    "is_active": false,
+    "reason": "Vi phạm chia sẻ tài liệu sai quy định"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
-  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_t01/ban`.
-  3. Thêm dữ liệu lý do khóa vào phần **Body** định dạng `raw (application/json)`.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_t01/status`.
+  3. Thêm dữ liệu trạng thái và lý do khóa vào phần **Body** định dạng `raw (application/json)`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Firebase Authentication gọi lệnh vô hiệu hóa tài khoản (`disabled: true`) và lập tức thu hồi mọi phiên đăng nhập (`revokeRefreshTokens`).
-  - Cập nhật trạng thái `is_active: false`, lưu lý do khóa `ban_reason` và mốc thời gian `banned_at` vào Firestore `/users/usr_t01`.
+  - Phản hồi chứa Header đo lường hiệu năng: `X-Response-Time: <duration>ms`.
+  - Cập nhật trạng thái `is_active: false`, lưu lý do khóa `status_reason` và mốc thời gian `status_updated_at` vào Firestore `/users/usr_t01`.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
 
   ```json
   {
     "success": true,
     "status_code": 200,
-    "message": "Đã khóa tài khoản người dùng thành công",
+    "message": "Đã khóa tài khoản người dùng",
     "data": {
-      "uid": "usr_t01",
+      "user_id": "usr_t01",
       "is_active": false,
-      "banned_at": "2026-09-27T10:00:00.000Z",
-      "ban_reason": "Vi phạm chia sẻ tài liệu sai quy định"
-    }
+      "message": "Đã khóa tài khoản người dùng"
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
 
 ---
 
-### UT12_Admin_TC04 : TỪ CHỐI KHÓA TÀI KHOẢN KHI THIẾU LÝ DO BẮT BUỘC
+### UT12_Admin_TC04 : TỪ CHỐI CẬP NHẬT TRẠNG THÁI KHI THIẾU TRƯỜNG IS_ACTIVE BẮT BUỘC
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
 
@@ -179,18 +179,18 @@
     - `Authorization: Bearer <token_admin_hop_le>`
     - `Content-Type: application/json`
   - **Tham số đường dẫn (Path Params):** `id = usr_t01`
-  - **Dữ liệu thân (Body JSON):**
+  - **Dữ liệu thân (Body JSON):** Không truyền trường `is_active`:
 
   ```json
   {
-    "note": "Khóa không có lý do"
+    "reason": "Khóa không có trạng thái"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
-  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_t01/ban`.
-  3. Truyền dữ liệu thiếu trường `reason` bắt buộc vào phần **Body**.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_t01/status`.
+  3. Truyền dữ liệu thiếu trường `is_active` bắt buộc vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
@@ -205,11 +205,11 @@
     "error_code": "COMMON_VALIDATION_ERROR",
     "details": [
       {
-        "field": "reason",
-        "issue": "Lý do khóa tài khoản không được để trống"
+        "field": "is_active",
+        "issue": "is_active must be a boolean value"
       }
     ],
-    "timestamp": "2026-09-27T08:30:00.000Z"
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
@@ -232,13 +232,14 @@
 
   ```json
   {
+    "is_active": false,
     "reason": "Tài khoản spam"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
-  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_non_existent/ban`.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_non_existent/status`.
   3. Thêm nội dung Body JSON hợp lệ.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
@@ -273,25 +274,34 @@
   - **Dữ liệu thân (Body JSON):**
 
   ```json
-  {}
+  {
+    "is_active": true
+  }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
-  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_t01/unban`.
-  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_t01/status`.
+  3. Thêm dữ liệu kích hoạt vào phần **Body** định dạng `raw (application/json)`.
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
-  - Firebase Authentication kích hoạt lại trạng thái hoạt động của tài khoản (`disabled: false`).
-  - Firestore cập nhật trạng thái `is_active: true`, xóa bỏ cảnh báo khóa tài khoản.
+  - Phản hồi chứa Header `X-Response-Time`.
+  - Firestore cập nhật trạng thái `is_active: true`, `status_reason: null`.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
 
   ```json
   {
     "success": true,
     "status_code": 200,
-    "message": "Đã mở khóa tài khoản thành công"
+    "message": "Đã kích hoạt lại tài khoản",
+    "data": {
+      "user_id": "usr_t01",
+      "is_active": true,
+      "message": "Đã kích hoạt lại tài khoản"
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
@@ -367,20 +377,28 @@
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
-  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/admin/system/limits`.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/admin/system-limits`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
   - Trả về đầy đủ các thông số giới hạn tài nguyên hệ thống.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
 
   ```json
   {
-    "max_classes_per_teacher": 10,
-    "max_students_per_class": 60,
-    "gemini_ai_daily_quota_per_teacher": 30,
-    "max_upload_size_mb": 20
+    "success": true,
+    "status_code": 200,
+    "message": "Thao tác thành công",
+    "data": {
+      "max_students_per_class": 50,
+      "max_classes_per_teacher": 10,
+      "max_quiz_questions_per_gen": 20,
+      "max_upload_file_size_mb": 15,
+      "fcm_rate_limit_per_minute": 100
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
@@ -737,8 +755,8 @@
 - **CÁC BƯỚC THỰC HIỆN:**
 
   1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
-  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_admin_senior/ban`.
-  3. Thêm nội dung Body JSON hợp lệ.
+  2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/admin/users/usr_admin_senior/status`.
+  3. Thêm nội dung Body JSON `{ "is_active": false }`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
 
@@ -752,7 +770,234 @@
     "message": "Không thể khóa tài khoản có vai trò Quản trị viên cấp cao (ADMIN)",
     "error_code": "ADM_CANNOT_BAN_ADMIN",
     "details": null,
-    "timestamp": "2026-09-27T08:30:00.000Z"
+    "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
 - **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC17 : ADMIN TẠO MỚI TÀI KHOẢN NGƯỜI DÙNG THÀNH CÔNG (POST USERS)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Số điện thoại `0988776655` chưa đăng ký trên hệ thống.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+    - `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):**
+  ```json
+  {
+    "full_name": "Thầy Trần Văn Bình",
+    "phone": "0988776655",
+    "email": "binh.tran@school.edu.vn",
+    "role": "TEACHER_SUBJECT",
+    "school_name": "Trường Tiểu Học Chu Văn An"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/admin/users`.
+  3. Nhập dữ liệu thông tin người dùng vào phần **Body**.
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO)**.
+  - Tạo thành công 1 document người dùng trong collection `/users` với `is_active: true`, `is_deleted: false`.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Cấu trúc dữ liệu JSON trả về:
+  ```json
+  {
+    "success": true,
+    "status_code": 201,
+    "message": "Thao tác thành công",
+    "data": {
+      "id": "usr_adm_1728000000000",
+      "full_name": "Thầy Trần Văn Bình",
+      "phone": "0988776655",
+      "email": "binh.tran@school.edu.vn",
+      "role": "TEACHER_SUBJECT",
+      "school_name": "Trường Tiểu Học Chu Văn An",
+      "is_active": true,
+      "created_at": "2026-10-04T08:30:00.000Z"
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC18 : TỪ CHỐI TẠO TÀI KHOẢN KHI THIẾU CÁC TRƯỜNG THÔNG TIN BẮT BUỘC
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+    - `Content-Type: application/json`
+  - **Dữ liệu thân (Body JSON):** Thiếu `phone` và `role`:
+  ```json
+  {
+    "full_name": "Thầy Lê Văn C"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/admin/users`.
+  3. Gửi payload thiếu các trường bắt buộc.
+  4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
+  - Phản hồi envelope lỗi với `error_code: "COMMON_VALIDATION_ERROR"`.
+  - Mảng `details` liệt kê chi tiết các lỗi ràng buộc DTO validation.
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC19 : XÓA MỀM TÀI KHOẢN NGƯỜI DÙNG THÀNH CÔNG (SOFT DELETE VỚI IS_DELETED = TRUE)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Tài khoản người dùng `usr_01` tồn tại và đang hoạt động (`is_deleted: false`).
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `id = usr_01`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`DELETE`**, nhập đường dẫn API: `/api/v1/users/usr_01` (hoặc chức năng xóa mềm từ UsersService).
+  3. Bấm nút **Gửi (Send)** để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Không xóa vật lý bản ghi; Firestore cập nhật `is_deleted: true`, `is_active: false` và mốc thời gian `deleted_at: <ISO timestamp>`.
+  - Hệ thống tự động xóa bộ nhớ đệm In-Memory RAM Cache profile (`user_profile_usr_01`).
+  - Khi gọi lại `GET /api/v1/users/usr_01`, hệ thống trả về lỗi **HTTP 404 (USER_NOT_FOUND)** do đã bị lọc bởi cờ xóa mềm.
+  - Dữ liệu trả về đúng định dạng JSON chuẩn:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Xóa mềm tài khoản người dùng thành công",
+    "data": {
+      "message": "Xóa mềm tài khoản người dùng thành công",
+      "user_id": "usr_01",
+      "is_deleted": true,
+      "deleted_at": "2026-10-04T08:30:00.000Z"
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC20 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI TÌM KIẾM NGƯỜI DÙNG KHÔNG CÓ KẾT QUẢ TRONG HỆ THỐNG (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên (Platform Admin) đã đăng nhập thành công và sở hữu Firebase ID Token hợp lệ mang vai trò `role: ADMIN`.
+  - Cơ sở dữ liệu Cloud Firestore `/users` không có tài khoản nào thỏa mãn từ khóa tìm kiếm hoặc collection `/users` đang rỗng.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_admin_hop_le>`
+  - **Tham số truy vấn (Query Params):**
+  ```json
+  {
+    "page": 1,
+    "limit": 20,
+    "keyword": "TenNguoiDungKhongHeTonTaiTrongHeThong123"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền mã xác thực `Authentication Token` của Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/admin/users?page=1&limit=20&keyword=TenNguoiDungKhongHeTonTaiTrongHeThong123`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Phản hồi kèm Header `X-Response-Time`.
+  - Dữ liệu trả về đúng cấu trúc Envelope chuẩn với mảng rỗng `items: []` và tổng số lượng `total: 0`, không xảy ra lỗi sập máy chủ hoặc ngoại lệ null pointer:
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Truy vấn danh sách người dùng thành công",
+    "data": {
+      "total": 0,
+      "page": 1,
+      "limit": 20,
+      "items": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC21 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI HỆ THỐNG CHƯA CÓ DỮ LIỆU LỚP HỌC TRÊN NỀN TẢNG (EMPTY STATE - 200 OK)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Cơ sở dữ liệu Cloud Firestore collection `/classes` chưa có lớp học nào được khởi tạo (hệ thống mới vận hành) hoặc bộ lọc năm học không khớp với lớp nào trong DB.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):** `Authorization: Bearer <token_admin_hop_le>`
+  - **Tham số truy vấn (Query Params):**
+  ```json
+  {
+    "page": 1,
+    "limit": 20,
+    "academic_year": "2035-2036"
+  }
+  ```
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/admin/classes?page=1&limit=20&academic_year=2035-2036`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
+  - Trả về cấu trúc danh sách rỗng an toàn, giúp giao diện Admin Portal hiển thị đúng Empty State "Không tìm thấy lớp học nào trên nền tảng":
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Lấy danh sách giám sát lớp học thành công",
+    "data": {
+      "total": 0,
+      "page": 1,
+      "limit": 20,
+      "items": []
+    },
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+
+---
+
+### UT12_Admin_TC22 : TỪ CHỐI XÓA MỀM TÀI KHOẢN KHI MÃ NGƯỜI DÙNG KHÔNG TỒN TẠI TRONG CƠ SỞ DỮ LIỆU (USER_NOT_FOUND - 404)
+
+- **ĐIỀU KIỆN TIÊN QUYẾT:**
+  - Quản trị viên đã đăng nhập hợp lệ với vai trò `ADMIN`.
+  - Mã định danh người dùng `usr_not_exist_99999` hoàn toàn không tồn tại trong cơ sở dữ liệu Cloud Firestore `/users`.
+- **DỮ LIỆU ĐẦU VÀO:**
+  - **Tiêu đề (Headers):**
+    - `Authorization: Bearer <token_admin_hop_le>`
+  - **Tham số đường dẫn (Path Params):** `id = usr_not_exist_99999`
+- **CÁC BƯỚC THỰC HIỆN:**
+  1. Truyền token Quản trị viên vào mục **Headers**.
+  2. Chọn phương thức **`DELETE`**, nhập đường dẫn API: `/api/v1/users/usr_not_exist_99999`.
+  3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
+- **KẾT QUẢ MONG ĐỢI:**
+  - Hệ thống ném ra ngoại lệ **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY DỮ LIỆU)**.
+  - Phản hồi dữ liệu lỗi chuẩn Envelope:
+  ```json
+  {
+    "success": false,
+    "status_code": 404,
+    "message": "Không tìm thấy hồ sơ người dùng trong hệ thống",
+    "error_code": "USER_NOT_FOUND",
+    "details": null,
+    "timestamp": "2026-10-04T08:30:00.000Z"
+  }
+  ```
+- **TRẠNG THÁI KIỂM THỬ:**
+

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { GoogleAuth } from 'google-auth-library';
 
 export interface DataConnectUserRecord {
   id: string;
@@ -181,7 +182,24 @@ export class FirebaseDataConnectService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
-    const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID') || 'giaovienhay-511009';
+    let projectId = this.configService.get<string>('FIREBASE_PROJECT_ID') || 'giaovienhay-511009';
+    
+    // Tự động đọc project_id chuẩn từ Service Account JSON nếu có
+    const serviceAccountJson = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON');
+    if (serviceAccountJson) {
+      try {
+        const parsed = JSON.parse(serviceAccountJson);
+        if (parsed.project_id) {
+          projectId = parsed.project_id;
+        }
+      } catch (e) {}
+    }
+
+    // Nếu cấu hình chỉ là 'giaovienhay', chuẩn hóa về 'giaovienhay-511009'
+    if (projectId === 'giaovienhay') {
+      projectId = 'giaovienhay-511009';
+    }
+
     const location = this.configService.get<string>('FIREBASE_LOCATION') || 'us-east1';
     const serviceId = 'giaovienhay-511009-service';
 
@@ -190,7 +208,7 @@ export class FirebaseDataConnectService implements OnModuleInit {
     this.isConfigured = true;
 
     this.logger.log(
-      `[Firebase Data Connect] Đã khởi tạo kết nối SQL (Cloud SQL PostgreSQL - Database: giaovienhay-database, Location: ${location})`
+      `[Firebase Data Connect] Đã khởi tạo kết nối SQL (Cloud SQL PostgreSQL - Project: ${projectId}, Service: ${serviceId}, Location: ${location})`
     );
   }
 
@@ -199,7 +217,51 @@ export class FirebaseDataConnectService implements OnModuleInit {
    */
   private async getAccessToken(): Promise<string | null> {
     try {
-      // 1. Kiểm tra biến môi trường
+      // 1. Xác thực bằng Firebase Service Account Key (Dành cho Production / Render / Docker)
+      let clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+      let privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+
+      const serviceAccountJson = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON');
+      if (serviceAccountJson) {
+        try {
+          const parsed = JSON.parse(serviceAccountJson);
+          if (parsed.client_email && parsed.private_key) {
+            clientEmail = parsed.client_email;
+            privateKey = parsed.private_key;
+          }
+        } catch (e) {}
+      }
+
+      if (privateKey) {
+        privateKey = privateKey.trim();
+        if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+          privateKey = privateKey.slice(1, -1);
+        }
+        privateKey = privateKey.replace(/\\n/g, '\n');
+      }
+
+      if (clientEmail && privateKey) {
+        try {
+          const auth = new GoogleAuth({
+            credentials: {
+              client_email: clientEmail,
+              private_key: privateKey,
+            },
+            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+          });
+          const client = await auth.getClient();
+          const tokenRes = await client.getAccessToken();
+          if (tokenRes.token) {
+            return tokenRes.token;
+          }
+        } catch (e: any) {
+          this.logger.error(`[Firebase Data Connect] Lỗi xác thực Service Account: ${e?.message || e}`);
+        }
+      } else {
+        this.logger.warn(`[Firebase Data Connect] Chưa có cấu hình Service Account (clientEmail: ${!!clientEmail}, privateKey: ${!!privateKey})`);
+      }
+
+      // 2. Kiểm tra biến môi trường Token trực tiếp
       const envToken = process.env.GOOGLE_OAUTH_ACCESS_TOKEN || process.env.FIREBASE_ACCESS_TOKEN;
       if (envToken) return envToken;
 
@@ -344,7 +406,7 @@ export class FirebaseDataConnectService implements OnModuleInit {
     const query = `
       query GetUserById($id: String!) {
         user(id: $id) {
-          id code fullName phone email role schoolName assignedInfo isActive aiDailyQuota aiUsedToday aiModelTier createdAt
+          id code fullName phone email role schoolName assignedInfo isActive isDeleted aiDailyQuota aiUsedToday aiModelTier createdAt
         }
       }
     `;

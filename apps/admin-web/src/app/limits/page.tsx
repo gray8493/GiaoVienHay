@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import Toast from '../../components/Toast';
 import Link from 'next/link';
 import { apiFetch } from '../../lib/api-client';
+import { getActivityLogsApi, type ActivityLogItem } from '../../lib/logs.service';
+import type { DashboardStatsData } from '../../lib/dashboard.service';
 
 function SettingSkeleton() {
   return (
@@ -33,6 +36,9 @@ export default function LimitsAndAiPage() {
   const [defaultDailyQuota, setDefaultDailyQuota] = useState<number>(25);
   const [defaultModelTier, setDefaultModelTier] = useState<'FLASH' | 'PRO' | 'AUTO'>('AUTO');
   const [enableFallbackCache, setEnableFallbackCache] = useState<boolean>(true);
+  const [aiActivity, setAiActivity] = useState<ActivityLogItem[]>([]);
+  const [isActivityAvailable, setIsActivityAvailable] = useState(false);
+  const [activeTeacherCount, setActiveTeacherCount] = useState<number | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
@@ -47,17 +53,30 @@ export default function LimitsAndAiPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const limitsRes = await apiFetch<any>('/admin/system-limits');
+      const [limitsResult, activityResult, dashboardResult] = await Promise.allSettled([
+        apiFetch<any>('/admin/system-limits'),
+        getActivityLogsApi({ category: 'AI_QUIZ', limit: 100 }),
+        apiFetch<DashboardStatsData>('/admin/dashboard-stats'),
+      ]);
 
-      if (limitsRes.data) {
-        setDefaultDailyQuota(limitsRes.data.gemini_ai_daily_quota_per_teacher || 25);
-        const modelStr = limitsRes.data.ai_model || 'AUTO';
+      if (limitsResult.status === 'fulfilled' && limitsResult.value.data) {
+        setDefaultDailyQuota(limitsResult.value.data.gemini_ai_daily_quota_per_teacher || 25);
+        const modelStr = limitsResult.value.data.ai_model || 'AUTO';
         setDefaultModelTier(
           modelStr.includes('pro') ? 'PRO' : modelStr.includes('flash') ? 'FLASH' : 'AUTO'
         );
-        setEnableFallbackCache(limitsRes.data.enable_fallback_cache ?? true);
+        setEnableFallbackCache(limitsResult.value.data.enable_fallback_cache ?? true);
       }
-
+      if (activityResult.status === 'fulfilled') {
+        setAiActivity(activityResult.value.items);
+        setIsActivityAvailable(activityResult.value.isLive);
+      } else {
+        setAiActivity([]);
+        setIsActivityAvailable(false);
+      }
+      if (dashboardResult.status === 'fulfilled' && dashboardResult.value.success) {
+        setActiveTeacherCount(dashboardResult.value.data?.kpi?.total_users?.teachers_count ?? null);
+      }
     } catch (e) {
       console.warn('Lỗi tải dữ liệu Quota AI:', e);
     } finally {
@@ -68,6 +87,49 @@ export default function LimitsAndAiPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const aiUsageStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 6);
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + index);
+      return {
+        key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
+        label: new Intl.DateTimeFormat('vi-VN', { weekday: 'short' }).format(date),
+        date,
+        calls: 0,
+      };
+    });
+
+    const knownDays = new Map(days.map((day) => [day.key, day]));
+    const validActivities = aiActivity.filter((activity) => activity.category === 'AI_QUIZ');
+    validActivities.forEach((activity) => {
+      const timestamp = new Date(activity.timestampISO);
+      if (Number.isNaN(timestamp.getTime())) return;
+      const key = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDate()}`;
+      const day = knownDays.get(key);
+      if (day) day.calls += 1;
+    });
+
+    const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+    const dailyCapacity = activeTeacherCount === null ? null : activeTeacherCount * defaultDailyQuota;
+    const todayCalls = knownDays.get(todayKey)?.calls ?? 0;
+    return {
+      days,
+      todayCalls,
+      weekCalls: days.reduce((sum, day) => sum + day.calls, 0),
+      dailyCapacity,
+      percentUsed: dailyCapacity && dailyCapacity > 0 ? Math.min(100, Math.round((todayCalls / dailyCapacity) * 100)) : 0,
+      maxDailyCalls: Math.max(1, ...days.map((day) => day.calls)),
+      recent: [...validActivities]
+        .filter((activity) => !Number.isNaN(new Date(activity.timestampISO).getTime()))
+        .sort((left, right) => new Date(right.timestampISO).getTime() - new Date(left.timestampISO).getTime())
+        .slice(0, 8),
+    };
+  }, [aiActivity, activeTeacherCount, defaultDailyQuota]);
 
   // 2. Lưu cấu hình mặc định toàn trường
   const handleSaveDefaults = async () => {
@@ -98,9 +160,7 @@ export default function LimitsAndAiPage() {
     <main className="flex-1 overflow-y-auto px-6 sm:px-10 py-8 space-y-8 min-h-screen">
       {/* Toast Notification (Text Only) */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0f172a] text-white text-xs px-4 py-3 rounded-xl shadow-2xl border border-slate-700/80">
-          <span className="font-medium">{toastMessage}</span>
-        </div>
+        <Toast message={toastMessage} />
       )}
 
       {/* Breadcrumbs & Header Section */}
@@ -131,6 +191,111 @@ export default function LimitsAndAiPage() {
           >
             {isLoading ? 'Đang tải...' : 'Làm mới dữ liệu'}
           </button>
+        </div>
+      </section>
+
+      {/* Thống kê mức sử dụng Gemini AI */}
+      <section className="space-y-5">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Thống kê sử dụng AI</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {isActivityAvailable ? 'Tổng hợp từ tối đa 100 nhật ký AI gần nhất.' : 'Chưa kết nối được nhật ký sử dụng AI.'}
+            </p>
+          </div>
+          <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${isActivityAvailable ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${isActivityAvailable ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            {isActivityAvailable ? 'Nhật ký đang hoạt động' : 'Chưa có dữ liệu trực tiếp'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: 'Lượt gọi hôm nay', value: aiUsageStats.todayCalls, note: 'Theo nhật ký hiện có', icon: 'today' },
+            { label: 'Lượt gọi 7 ngày', value: aiUsageStats.weekCalls, note: 'Trong 7 ngày gần nhất', icon: 'date_range' },
+            { label: 'Hạn mức mỗi giáo viên', value: `${defaultDailyQuota}`, note: 'Lượt gọi mỗi ngày', icon: 'person' },
+            { label: 'Tổng quota mỗi ngày', value: aiUsageStats.dailyCapacity === null ? '—' : aiUsageStats.dailyCapacity.toLocaleString('vi-VN'), note: activeTeacherCount === null ? 'Chưa tải được số tài khoản' : `${activeTeacherCount.toLocaleString('vi-VN')} tài khoản được tính quota`, icon: 'bolt' },
+          ].map((metric) => (
+            <article key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-slate-500">{metric.label}</p>
+                  <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{isLoading ? '—' : metric.value}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">{metric.note}</p>
+                </div>
+                <span className="material-symbols-outlined rounded-xl bg-blue-50 p-2 text-xl text-blue-600">{metric.icon}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs xl:col-span-2">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Lượt gọi theo ngày</h3>
+                <p className="mt-1 text-xs text-slate-500">7 ngày gần nhất, tính từ nhật ký AI đã ghi nhận.</p>
+              </div>
+              <span className="rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">{aiUsageStats.weekCalls} lượt</span>
+            </div>
+            <div className="mt-7 grid h-48 grid-cols-7 gap-3 border-b border-slate-100 px-1 sm:gap-5">
+              {aiUsageStats.days.map((day) => {
+                const barHeight = day.calls === 0 ? 3 : Math.max(10, Math.round((day.calls / aiUsageStats.maxDailyCalls) * 100));
+                return (
+                  <div key={day.key} className="flex min-w-0 flex-col items-center justify-end gap-2">
+                    <span className="text-[10px] font-semibold text-slate-500">{day.calls || ''}</span>
+                    <div className="flex h-32 w-full items-end justify-center rounded-t-md bg-slate-50">
+                      <div
+                        className={`w-full max-w-8 rounded-t-md transition-all ${day.calls ? 'bg-blue-500' : 'bg-slate-200'}`}
+                        style={{ height: `${barHeight}%` }}
+                        title={`${day.date.toLocaleDateString('vi-VN')}: ${day.calls} lượt`}
+                      />
+                    </div>
+                    <span className="mb-2 truncate text-[10px] font-medium text-slate-400">{day.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex items-center justify-between text-[11px] text-slate-500">
+              <span>Hạn mức ngày theo cấu hình</span>
+              <span className="font-semibold text-slate-700">
+                {aiUsageStats.dailyCapacity === null ? '—' : `${aiUsageStats.dailyCapacity.toLocaleString('vi-VN')} lượt`}
+              </span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${aiUsageStats.percentUsed}%` }} />
+            </div>
+            <p className="mt-1.5 text-right text-[10px] text-slate-400">{aiUsageStats.percentUsed}% quota tổng đã dùng hôm nay (theo nhật ký)</p>
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Hoạt động AI gần đây</h3>
+              <p className="mt-1 text-xs text-slate-500">Các lượt tạo nội dung được ghi nhận gần nhất.</p>
+            </div>
+            {aiUsageStats.recent.length > 0 ? (
+              <div className="mt-4 divide-y divide-slate-100">
+                {aiUsageStats.recent.map((activity) => (
+                  <div key={activity.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="line-clamp-1 text-xs font-semibold text-slate-700">{activity.action || 'Tạo nội dung bằng AI'}</p>
+                      <span className={`shrink-0 text-[10px] font-semibold ${activity.status === 'SUCCESS' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {activity.statusLabel || activity.status}
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">{activity.target || activity.details || '—'}</p>
+                    <p className="mt-1 text-[10px] text-slate-400">{new Date(activity.timestampISO).toLocaleString('vi-VN')}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-5 flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 text-center">
+                <span className="material-symbols-outlined text-2xl text-slate-300">query_stats</span>
+                <p className="mt-2 text-xs font-semibold text-slate-600">Chưa có nhật ký sử dụng AI</p>
+                <p className="mt-1 text-[11px] text-slate-400">Biểu đồ sẽ cập nhật khi hệ thống ghi nhận hoạt động.</p>
+              </div>
+            )}
+          </article>
         </div>
       </section>
 

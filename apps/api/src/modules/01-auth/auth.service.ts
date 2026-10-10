@@ -246,6 +246,12 @@ export class AuthService implements OnModuleInit {
   }
 
   async logout(userId: string) {
+    if (!userId || userId === 'invalid_token' || userId.trim() === '') {
+      throw new UnauthorizedException({
+        message: 'Token xác thực không hợp lệ hoặc đã bị thu hồi',
+        error_code: ErrorCode.AUTH_TOKEN_INVALID,
+      });
+    }
     return {
       message: 'Đăng xuất tài khoản thành công',
     };

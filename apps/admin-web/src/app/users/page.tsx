@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../../lib/api-client';
 import { formatNumber } from '../../lib/format';
+import Toast, { type ToastVariant } from '../../components/Toast';
+import PaginationWithIconDemo from '../../components/shadcn-studio/pagination/pagination-02';
 
 interface SchoolData {
   id: string;
@@ -52,12 +54,35 @@ interface UserData {
   ai_model_tier?: string;
 }
 
+function normalizeUserData(user: Partial<UserData>): UserData {
+  return {
+    ...user,
+    id: user.id || '',
+    full_name: user.full_name || user.fullName || '',
+    fullName: user.fullName || user.full_name || '',
+    phone: user.phone || '',
+    role: user.role || 'TEACHER',
+    school_name: user.school_name || user.schoolName || '',
+    schoolName: user.schoolName || user.school_name || '',
+    is_active: user.is_active ?? user.isActive ?? true,
+    isActive: user.isActive ?? user.is_active ?? true,
+    ai_daily_quota: user.ai_daily_quota ?? user.aiDailyQuota ?? 25,
+    aiDailyQuota: user.aiDailyQuota ?? user.ai_daily_quota ?? 25,
+    ai_used_today: user.ai_used_today ?? user.aiUsedToday ?? 0,
+    aiUsedToday: user.aiUsedToday ?? user.ai_used_today ?? 0,
+    ai_model_tier: user.ai_model_tier || user.aiModelTier || 'AUTO',
+    aiModelTier: user.aiModelTier || user.ai_model_tier || 'AUTO',
+  };
+}
+
 type ManagedUserForm = {
   full_name: string;
   phone: string;
   email: string;
   role: string;
 };
+
+const PAGE_SIZE = 6;
 
 const USER_ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Quản trị viên',
@@ -123,6 +148,10 @@ export default function UsersInteractiveExplorerPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
   const [schoolSearch, setSchoolSearch] = useState('');
+  const [schoolPage, setSchoolPage] = useState(1);
+  const [treePage, setTreePage] = useState(1);
+  const [subjectTeachersPage, setSubjectTeachersPage] = useState(1);
+  const [parentsPage, setParentsPage] = useState(1);
   const [isManagedUserModalOpen, setIsManagedUserModalOpen] = useState(false);
   const [editingManagedUser, setEditingManagedUser] = useState<UserData | null>(null);
   const [managedUserForm, setManagedUserForm] = useState<ManagedUserForm>({
@@ -132,11 +161,14 @@ export default function UsersInteractiveExplorerPage() {
   const [quotaValue, setQuotaValue] = useState(25);
   const [quotaModelTier, setQuotaModelTier] = useState('AUTO');
   const [isSavingManagedUser, setIsSavingManagedUser] = useState(false);
+  const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null);
+  const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Notice form
-  const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
-  const [noticeTitle, setNoticeTitle] = useState('');
-  const [noticeContent, setNoticeContent] = useState('');
+  const showToast = (message: string, variant: ToastVariant = 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, variant });
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  };
 
   // Search filter for parents
   const [parentSearchTerm, setParentSearchTerm] = useState('');
@@ -157,19 +189,16 @@ export default function UsersInteractiveExplorerPage() {
         apiFetch<{ items: UserData[]; total: number }>('/admin/users'),
       ]);
 
+      if (!schoolsRes.success || !classesRes.success || !usersRes.success) {
+        throw new Error(schoolsRes.error || classesRes.error || usersRes.error || 'Không thể tải dữ liệu người dùng.');
+      }
+
       setSchools(schoolsRes.data || []);
       setClasses(classesRes.data || []);
-      setUsers((usersRes.data?.items || []).map((user) => ({
-        ...user,
-        full_name: user.full_name || user.fullName || '',
-        school_name: user.school_name || user.schoolName || '',
-        is_active: user.is_active ?? user.isActive ?? true,
-        ai_daily_quota: user.ai_daily_quota ?? user.aiDailyQuota ?? 25,
-        ai_used_today: user.ai_used_today ?? user.aiUsedToday ?? 0,
-        ai_model_tier: user.ai_model_tier || user.aiModelTier || 'AUTO',
-      })));
+      setUsers((usersRes.data?.items || []).map(normalizeUserData));
     } catch (err) {
       console.warn('Lỗi khi tải dữ liệu từ Backend:', err);
+      showToast(err instanceof Error ? err.message : 'Không thể tải dữ liệu từ máy chủ.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -323,31 +352,76 @@ export default function UsersInteractiveExplorerPage() {
     }
   }, [schoolTree]);
 
-  // Node hiện tại đang duyệt
-  const currentNode = navigationPath[navigationPath.length - 1] || schoolTree;
+  // Resolve lại các node theo ID để luôn lấy dữ liệu mới từ cây sau khi CRUD.
+  const activeNavigationPath = useMemo(() => {
+    const resolvedPath = [schoolTree];
+    let node = schoolTree;
+
+    for (const requestedNode of navigationPath.slice(1)) {
+      const nextNode = node.children?.find((child) => child.id === requestedNode.id);
+      if (!nextNode) break;
+      resolvedPath.push(nextNode);
+      node = nextNode;
+    }
+
+    return resolvedPath;
+  }, [schoolTree, navigationPath]);
+
+  // Node hiện tại lấy trực tiếp từ cây mới, tránh giữ snapshot cũ sau CRUD.
+  const currentNode = activeNavigationPath[activeNavigationPath.length - 1] || schoolTree;
   const selectedSchool = schools.find((school) => school.id === selectedSchoolId) || null;
+  const filteredSchools = useMemo(
+    () => schools.filter((school) => school.name.toLocaleLowerCase('vi').includes(schoolSearch.trim().toLocaleLowerCase('vi'))),
+    [schools, schoolSearch],
+  );
+  const schoolPageCount = Math.max(1, Math.ceil(filteredSchools.length / PAGE_SIZE));
+  const currentSchoolPage = Math.min(schoolPage, schoolPageCount);
+  const visibleSchools = filteredSchools.slice((currentSchoolPage - 1) * PAGE_SIZE, currentSchoolPage * PAGE_SIZE);
+  const treeChildren = currentNode.children || [];
+  const treePageCount = Math.max(1, Math.ceil(treeChildren.length / PAGE_SIZE));
+  const currentTreePage = Math.min(treePage, treePageCount);
+  const visibleTreeChildren = treeChildren.slice((currentTreePage - 1) * PAGE_SIZE, currentTreePage * PAGE_SIZE);
+  const subjectTeachers = currentNode.subjectTeachers || [];
+  const subjectTeachersPageCount = Math.max(1, Math.ceil(subjectTeachers.length / PAGE_SIZE));
+  const currentSubjectTeachersPage = Math.min(subjectTeachersPage, subjectTeachersPageCount);
+  const visibleSubjectTeachers = subjectTeachers.slice(
+    (currentSubjectTeachersPage - 1) * PAGE_SIZE,
+    currentSubjectTeachersPage * PAGE_SIZE,
+  );
   // Điều hướng sâu vào node con (Drill-down)
   const handleDrillDown = (child: TreeNode) => {
-    setNavigationPath((prev) => [...prev, child]);
+    setNavigationPath([...activeNavigationPath, child]);
+    setTreePage(1);
+    setSubjectTeachersPage(1);
+    setParentsPage(1);
     if (child.type === 'class') setActiveClassTab(null);
   };
 
   // Quay lại cấp trước đó
   const handleGoBack = () => {
-    if (navigationPath.length > 1) {
-      setNavigationPath((prev) => prev.slice(0, prev.length - 1));
+    if (activeNavigationPath.length > 1) {
+      setNavigationPath(activeNavigationPath.slice(0, -1));
+      setTreePage(1);
+      setSubjectTeachersPage(1);
+      setParentsPage(1);
       setActiveClassTab(null);
     }
   };
 
   // Nhảy tới cấp bất kỳ trên thanh Breadcrumbs
   const handleNavigateToIndex = (index: number) => {
-    setNavigationPath((prev) => prev.slice(0, index + 1));
+    setNavigationPath(activeNavigationPath.slice(0, index + 1));
+    setTreePage(1);
+    setSubjectTeachersPage(1);
+    setParentsPage(1);
   };
 
   const handleChooseSchool = (schoolId: string) => {
     setSelectedSchoolId(schoolId);
     setNavigationPath([]);
+    setTreePage(1);
+    setSubjectTeachersPage(1);
+    setParentsPage(1);
     setParentSearchTerm('');
     setActiveClassTab(null);
   };
@@ -355,6 +429,14 @@ export default function UsersInteractiveExplorerPage() {
   const handleChangeSchool = () => {
     setSelectedSchoolId(null);
     setNavigationPath([]);
+    setSchoolPage(1);
+    setTreePage(1);
+  };
+
+  const handleSelectClassFolder = (folder: 'tab-1' | 'tab-2' | 'tab-3' | null) => {
+    setActiveClassTab(folder);
+    setSubjectTeachersPage(1);
+    setParentsPage(1);
   };
 
   const openManagedUserForm = (user?: UserData, defaultRole = 'TEACHER_HOMEROOM') => {
@@ -370,7 +452,14 @@ export default function UsersInteractiveExplorerPage() {
 
   const saveManagedUser = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!selectedSchool || !managedUserForm.full_name.trim() || !managedUserForm.phone.trim()) return;
+    if (!selectedSchool) {
+      showToast('Vui lòng chọn trường trước khi lưu tài khoản.', 'error');
+      return;
+    }
+    if (!managedUserForm.full_name.trim() || !managedUserForm.phone.trim()) {
+      showToast('Vui lòng nhập họ tên và số điện thoại.', 'error');
+      return;
+    }
     setIsSavingManagedUser(true);
     try {
       const isEditing = Boolean(editingManagedUser);
@@ -388,11 +477,32 @@ export default function UsersInteractiveExplorerPage() {
         },
       );
       if (!response.success) {
-        window.alert(response.error || 'Không thể lưu tài khoản.');
+        showToast(response.error || 'Không thể lưu tài khoản.', 'error');
         return;
       }
+      const savedUser = response.data?.user || response.data?.item || response.data || {};
+      const normalizedUser = normalizeUserData({
+        ...(editingManagedUser || {}),
+        ...savedUser,
+        id: savedUser.id || editingManagedUser?.id,
+        full_name: managedUserForm.full_name.trim(),
+        fullName: managedUserForm.full_name.trim(),
+        phone: managedUserForm.phone.trim(),
+        email: managedUserForm.email.trim() || undefined,
+        role: managedUserForm.role,
+        school_name: selectedSchool.name,
+        schoolName: selectedSchool.name,
+      });
+      setUsers((previous) => {
+        const exists = previous.some((user) => user.id === normalizedUser.id);
+        return exists
+          ? previous.map((user) => user.id === normalizedUser.id ? normalizedUser : user)
+          : [normalizedUser, ...previous];
+      });
       setIsManagedUserModalOpen(false);
-      await loadData();
+      showToast(isEditing ? 'Đã cập nhật tài khoản.' : 'Đã tạo tài khoản mới.');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Không thể lưu tài khoản.', 'error');
     } finally {
       setIsSavingManagedUser(false);
     }
@@ -408,10 +518,13 @@ export default function UsersInteractiveExplorerPage() {
       body: JSON.stringify({ is_active: nextStatus, reason: reason || undefined }),
     });
     if (!response.success) {
-      window.alert(response.error || 'Không thể cập nhật trạng thái tài khoản.');
+      showToast(response.error || 'Không thể cập nhật trạng thái tài khoản.', 'error');
       return;
     }
-    await loadData();
+    setUsers((previous) => previous.map((item) => item.id === user.id
+      ? { ...item, is_active: nextStatus, isActive: nextStatus }
+      : item));
+    showToast(nextStatus ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.');
   };
 
   const openQuotaEditor = (user: UserData) => {
@@ -422,27 +535,41 @@ export default function UsersInteractiveExplorerPage() {
 
   const saveUserQuota = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!quotaTargetUser || !Number.isInteger(quotaValue) || quotaValue < 0) return;
+    if (!quotaTargetUser || !Number.isInteger(quotaValue) || quotaValue < 0) {
+      showToast('Hạn mức AI phải là số nguyên không âm.', 'error');
+      return;
+    }
     const response = await apiFetch(`/admin/users/${quotaTargetUser.id}/ai-quota`, {
       method: 'PATCH',
       body: JSON.stringify({ ai_daily_quota: quotaValue, ai_model_tier: quotaModelTier, reset_used: false }),
     });
     if (!response.success) {
-      window.alert(response.error || 'Không thể cập nhật hạn mức AI.');
+      showToast(response.error || 'Không thể cập nhật hạn mức AI.', 'error');
       return;
     }
+    const updatedUserId = quotaTargetUser.id;
+    setUsers((previous) => previous.map((item) => item.id === updatedUserId
+      ? {
+          ...item,
+          ai_daily_quota: quotaValue,
+          aiDailyQuota: quotaValue,
+          ai_model_tier: quotaModelTier,
+          aiModelTier: quotaModelTier,
+        }
+      : item));
     setQuotaTargetUser(null);
-    await loadData();
+    showToast('Đã cập nhật hạn mức AI.');
   };
 
   const deleteManagedUser = async (user: UserData) => {
     if (!window.confirm(`Xóa tài khoản ${user.full_name || user.fullName || user.phone}?`)) return;
     const response = await apiFetch(`/admin/users/${user.id}`, { method: 'DELETE' });
     if (!response.success) {
-      window.alert(response.error || 'Không thể xóa tài khoản.');
+      showToast(response.error || 'Không thể xóa tài khoản.', 'error');
       return;
     }
-    await loadData();
+    setUsers((previous) => previous.filter((item) => item.id !== user.id));
+    showToast('Đã xóa tài khoản.');
   };
 
   const getUserForManagement = (userId?: string) => users.find((user) => user.id === userId);
@@ -469,27 +596,13 @@ export default function UsersInteractiveExplorerPage() {
     return (
       <div className="flex flex-wrap items-center gap-1.5">
         <button type="button" onClick={() => editUserById(user.id)} className="rounded-md border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">Sửa</button>
-        <button type="button" onClick={() => editQuotaById(user.id)} className="rounded-md border border-blue-200 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-50">Limit AI</button>
-        <button type="button" onClick={() => toggleUserById(user.id)} className={`rounded-md border px-2.5 py-1.5 text-[11px] font-semibold ${isActive ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'}`}>
+        <button type="button" onClick={() => editQuotaById(user.id)} className="rounded-md border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">Limit AI</button>
+        <button type="button" onClick={() => toggleUserById(user.id)} className="rounded-md border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">
           {isActive ? 'Ban' : 'Mở khóa'}
         </button>
-        <button type="button" onClick={() => deleteUserById(user.id)} className="rounded-md border border-rose-200 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-50">Xóa</button>
+        <button type="button" onClick={() => deleteUserById(user.id)} className="rounded-md border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">Xóa</button>
       </div>
     );
-  };
-
-  // Gửi thông báo đến phụ huynh lớp
-  const handleSendNotice = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!noticeTitle.trim() || !noticeContent.trim()) {
-      alert('Vui lòng điền tiêu đề và nội dung thông báo');
-      return;
-    }
-
-    alert(`Đã gửi thông báo "${noticeTitle}" thành công đến toàn thể phụ huynh lớp`);
-    setIsNoticeModalOpen(false);
-    setNoticeTitle('');
-    setNoticeContent('');
   };
 
   // Lọc danh sách phụ huynh theo từ khóa tìm kiếm
@@ -505,30 +618,22 @@ export default function UsersInteractiveExplorerPage() {
         (p.email && p.email.toLowerCase().includes(term))
     );
   }, [currentNode.parents, parentSearchTerm]);
+  const parentsPageCount = Math.max(1, Math.ceil(filteredParents.length / PAGE_SIZE));
+  const currentParentsPage = Math.min(parentsPage, parentsPageCount);
+  const visibleParents = filteredParents.slice((currentParentsPage - 1) * PAGE_SIZE, currentParentsPage * PAGE_SIZE);
 
   return (
-    <div className="relative min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col">
+    <div className={`relative ${selectedSchoolId ? 'min-h-[calc(100vh-4rem)]' : 'min-h-full'} text-slate-800 font-sans flex flex-col`}>
+      {toast && <Toast message={toast.message} variant={toast.variant} />}
       {/* HEADER SECTION */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Quản lý người dùng
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Dữ liệu đồng bộ trực tiếp từ Cloud SQL PostgreSQL
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {selectedSchoolId && (
-            <button
-              type="button"
-              onClick={handleChangeSchool}
-              className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition cursor-pointer"
-            >
-              Chọn trường khác
-            </button>
-          )}
           <button
             type="button"
             onClick={loadData}
@@ -544,29 +649,39 @@ export default function UsersInteractiveExplorerPage() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col space-y-6">
         {/* BREADCRUMB DRILL-DOWN BAR */}
         {selectedSchoolId && <div className="bg-white p-3 sm:px-5 sm:py-3.5 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
-          <nav className="flex items-center space-x-2 text-xs sm:text-sm font-medium text-slate-600 overflow-x-auto">
-            {navigationPath.map((node, index) => {
-              const isLast = index === navigationPath.length - 1;
-              return (
-                <div key={node.id} className="flex items-center space-x-2 shrink-0">
-                  {index > 0 && <span className="text-slate-300">/</span>}
-                  {isLast ? (
-                    <span className="px-3 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-200">
-                      {node.title}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleNavigateToIndex(index)}
-                      className="hover:text-blue-600 font-medium transition py-1 px-1.5 rounded-sm hover:bg-slate-100 cursor-pointer"
-                    >
-                      {node.title}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleChangeSchool}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+            >
+              <span className="material-symbols-outlined text-base" aria-hidden="true">arrow_back</span>
+              Quay lại chọn trường
+            </button>
+            <nav className="flex items-center space-x-2 overflow-x-auto text-xs font-medium text-slate-600 sm:text-sm">
+              {activeNavigationPath.map((node, index) => {
+                const isLast = index === activeNavigationPath.length - 1;
+                return (
+                  <div key={node.id} className="flex shrink-0 items-center space-x-2">
+                    {index > 0 && <span className="text-slate-300">/</span>}
+                    {isLast ? (
+                      <span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 font-bold text-blue-700">
+                        {node.title}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleNavigateToIndex(index)}
+                        className="cursor-pointer rounded-sm px-1.5 py-1 font-medium transition hover:bg-slate-100 hover:text-blue-600"
+                      >
+                        {node.title}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </div>
 
           <div className="flex items-center space-x-2 text-xs text-slate-500">
             <span>Bấm vào thẻ thư mục để đi sâu vào bên trong</span>
@@ -583,7 +698,7 @@ export default function UsersInteractiveExplorerPage() {
 
         {/* DYNAMIC EXPLORER CANVAS */}
         {!isLoading && !selectedSchoolId ? (
-          <section className="space-y-5">
+          <section className="flex flex-1 flex-col gap-5">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
@@ -597,7 +712,10 @@ export default function UsersInteractiveExplorerPage() {
                     id="school-search"
                     type="search"
                     value={schoolSearch}
-                    onChange={(event) => setSchoolSearch(event.target.value)}
+                    onChange={(event) => {
+                      setSchoolSearch(event.target.value);
+                      setSchoolPage(1);
+                    }}
                     placeholder="Tìm tên trường..."
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
                   />
@@ -612,10 +730,9 @@ export default function UsersInteractiveExplorerPage() {
                 <p className="mt-1 text-xs text-slate-500">Thêm trường trong mục Quản lý Lớp &amp; Học sinh trước khi quản lý người dùng.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {schools
-                  .filter((school) => school.name.toLocaleLowerCase('vi').includes(schoolSearch.trim().toLocaleLowerCase('vi')))
-                  .map((school) => {
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {visibleSchools.map((school) => {
                     const normalizedSchoolName = school.name.trim().toLocaleLowerCase('vi');
                     const schoolUserCount = users.filter(
                       (user) => (user.schoolName || user.school_name || '').trim().toLocaleLowerCase('vi') === normalizedSchoolName
@@ -645,19 +762,28 @@ export default function UsersInteractiveExplorerPage() {
                       </button>
                     );
                   })}
-                {schools.filter((school) => school.name.toLocaleLowerCase('vi').includes(schoolSearch.trim().toLocaleLowerCase('vi'))).length === 0 && (
+                {filteredSchools.length === 0 && (
                   <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
                     Không tìm thấy trường phù hợp.
                   </div>
                 )}
-              </div>
+                </div>
+                {filteredSchools.length > 0 && (
+                  <PaginationWithIconDemo
+                    className="mt-auto pt-6"
+                    currentPage={currentSchoolPage}
+                    totalPages={schoolPageCount}
+                    onPageChange={setSchoolPage}
+                  />
+                )}
+              </>
             )}
           </section>
         ) : !isLoading && currentNode.type === 'class' ? (
           /* ========================================================================= */
           /* CLASS DETAIL VIEW: HIỂN THỊ CHI TIẾT LỚP HỌC (GVCN & PHỤ HUYNH)           */
           /* ========================================================================= */
-          <div className="space-y-6">
+          <div className="flex flex-1 flex-col gap-6">
             {/* Class Header Banner */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -668,7 +794,7 @@ export default function UsersInteractiveExplorerPage() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Sĩ số học sinh: <strong className="text-slate-800">{currentNode.studentCount || 0} học sinh</strong> &nbsp;|&nbsp; 
+                  Sĩ số học sinh: <strong className="text-slate-800">{currentNode.studentCount || 0} học sinh</strong> &nbsp;|&nbsp;
                   Tài khoản Phụ huynh: <strong className="text-slate-800">{currentNode.parentsCount || 0} tài khoản</strong>
                 </p>
               </div>
@@ -685,7 +811,7 @@ export default function UsersInteractiveExplorerPage() {
             </div>
 
             {/* Detail Tabs */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
               {activeClassTab === null ? (
                 <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
                   {[
@@ -696,7 +822,7 @@ export default function UsersInteractiveExplorerPage() {
                     <button
                       key={folder.id}
                       type="button"
-                      onClick={() => setActiveClassTab(folder.id)}
+                      onClick={() => handleSelectClassFolder(folder.id)}
                       className="group flex min-h-36 flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
                     >
                       <div className="flex items-center justify-between">
@@ -714,7 +840,7 @@ export default function UsersInteractiveExplorerPage() {
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3">
-                  <button type="button" onClick={() => setActiveClassTab(null)} className="text-xs font-semibold text-slate-600 hover:text-blue-700">
+                  <button type="button" onClick={() => handleSelectClassFolder(null)} className="text-xs font-semibold text-slate-600 hover:text-blue-700">
                     ← Quay lại thư mục lớp
                   </button>
                   <button
@@ -727,7 +853,7 @@ export default function UsersInteractiveExplorerPage() {
                 </div>
               )}
 
-              {activeClassTab !== null && <div className="p-6">
+              {activeClassTab !== null && <div className="flex flex-1 flex-col p-6">
                 {/* TAB 1: TỔNG QUAN & GVCN */}
                 {activeClassTab === 'tab-1' && (
                   <div className="space-y-6">
@@ -790,7 +916,7 @@ export default function UsersInteractiveExplorerPage() {
 
                 {/* TAB 2: GIÁO VIÊN BỘ MÔN */}
                 {activeClassTab === 'tab-2' && (
-                  <div className="space-y-4">
+                  <div className="flex flex-1 flex-col gap-4">
                     <div className="overflow-x-auto border border-slate-200 rounded-xl">
                       <table className="w-full text-left text-xs text-slate-600">
                         <thead className="bg-slate-50 text-slate-700 font-semibold uppercase border-b border-slate-200">
@@ -805,7 +931,7 @@ export default function UsersInteractiveExplorerPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {currentNode.subjectTeachers && currentNode.subjectTeachers.length > 0 ? (
-                            currentNode.subjectTeachers.map((gt) => (
+                            visibleSubjectTeachers.map((gt) => (
                               <tr key={gt.id} className="hover:bg-slate-50 transition">
                                 <td className="py-3 px-4 font-mono text-slate-500">{gt.code}</td>
                                 <td className="py-3 px-4 font-bold text-slate-900">{gt.name}</td>
@@ -825,30 +951,32 @@ export default function UsersInteractiveExplorerPage() {
                         </tbody>
                       </table>
                     </div>
+                    {subjectTeachers.length > 0 && (
+                      <PaginationWithIconDemo
+                        className="mt-auto pt-6"
+                        currentPage={currentSubjectTeachersPage}
+                        totalPages={subjectTeachersPageCount}
+                        onPageChange={setSubjectTeachersPage}
+                      />
+                    )}
                   </div>
                 )}
 
                 {/* TAB 3: DANH SÁCH PHỤ HUYNH */}
                 {activeClassTab === 'tab-3' && (
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex flex-1 flex-col gap-4">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                       <div className="w-full sm:w-72">
                         <input
                           type="text"
                           value={parentSearchTerm}
-                          onChange={(e) => setParentSearchTerm(e.target.value)}
+                          onChange={(e) => {
+                            setParentSearchTerm(e.target.value);
+                            setParentsPage(1);
+                          }}
                           placeholder="Tìm tên phụ huynh, tên con, SĐT..."
                           className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 focus:border-blue-500 focus:outline-none transition"
                         />
-                      </div>
-                      <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setIsNoticeModalOpen(true)}
-                          className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-medium transition cursor-pointer"
-                        >
-                          Gửi Thông Báo Toàn Lớp
-                        </button>
                       </div>
                     </div>
 
@@ -867,9 +995,9 @@ export default function UsersInteractiveExplorerPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {filteredParents.length > 0 ? (
-                            filteredParents.map((ph, idx) => (
+                            visibleParents.map((ph, idx) => (
                               <tr key={ph.id} className="hover:bg-slate-50 transition">
-                                <td className="py-3 px-3 text-center text-slate-400">{idx + 1}</td>
+                                <td className="py-3 px-3 text-center text-slate-400">{(currentParentsPage - 1) * PAGE_SIZE + idx + 1}</td>
                                 <td className="py-3 px-4 font-mono text-slate-500">{ph.id}</td>
                                 <td className="py-3 px-4 font-bold text-slate-900">{ph.name}</td>
                                 <td className="py-3 px-4 font-semibold text-blue-700">{ph.studentName}</td>
@@ -888,6 +1016,14 @@ export default function UsersInteractiveExplorerPage() {
                         </tbody>
                       </table>
                     </div>
+                    {filteredParents.length > 0 && (
+                      <PaginationWithIconDemo
+                        className="mt-auto pt-6"
+                        currentPage={currentParentsPage}
+                        totalPages={parentsPageCount}
+                        onPageChange={setParentsPage}
+                      />
+                    )}
                   </div>
                 )}
               </div>}
@@ -897,7 +1033,7 @@ export default function UsersInteractiveExplorerPage() {
           /* ========================================================================= */
           /* FOLDER NODES GRID VIEW: HIỂN THỊ CÂY THƯ MỤC CÁC CẤP PHÂN BỔ DỮ LIỆU       */
           /* ========================================================================= */
-          <div className="space-y-6">
+          <div className="flex flex-1 flex-col gap-6">
             {/* Title Banner */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -911,7 +1047,7 @@ export default function UsersInteractiveExplorerPage() {
               </div>
 
               <div className="flex items-center space-x-2">
-                {navigationPath.length > 1 && (
+                {activeNavigationPath.length > 1 && (
                   <button
                     type="button"
                     onClick={handleGoBack}
@@ -924,23 +1060,24 @@ export default function UsersInteractiveExplorerPage() {
             </div>
 
             {/* Grid of Sub-Nodes */}
-            <div>
+            <div className="flex flex-1 flex-col">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1">
-                Danh sách thư mục con ({currentNode.children ? currentNode.children.length : 0})
+                Danh sách thư mục con ({treeChildren.length})
               </div>
 
-              {!currentNode.children || currentNode.children.length === 0 ? (
+              {treeChildren.length === 0 ? (
                 <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-300">
                   <p className="text-sm font-semibold text-slate-600">Thư mục trống hoặc chưa có dữ liệu</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {currentNode.children.map((child) => (
-                    <div
-                      key={child.id}
-                      onClick={() => handleDrillDown(child)}
-                      className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
-                    >
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {visibleTreeChildren.map((child) => (
+                      <div
+                        key={child.id}
+                        onClick={() => handleDrillDown(child)}
+                        className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                      >
                       <div className="flex items-start justify-between">
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                           {child.type === 'year'
@@ -973,13 +1110,21 @@ export default function UsersInteractiveExplorerPage() {
                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 group-hover:text-blue-600 transition font-medium">
                         <span>{child.type === 'class' ? 'Mở chi tiết lớp' : 'Xem danh mục con'}</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                  <PaginationWithIconDemo
+                    className="mt-auto pt-6"
+                    currentPage={currentTreePage}
+                    totalPages={treePageCount}
+                    onPageChange={setTreePage}
+                  />
+                </>
               )}
             </div>
           </div>
         ) : null}
+
       </main>
 
       {isManagedUserModalOpen && (
@@ -1047,79 +1192,6 @@ export default function UsersInteractiveExplorerPage() {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL: GỬI THÔNG BÁO CHO PHỤ HUYNH LỚP                                    */}
-      {/* ========================================================================= */}
-      {isNoticeModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-sm font-bold text-slate-900">Gửi Thông Báo Cho Phụ Huynh Lớp</h3>
-              <button
-                type="button"
-                onClick={() => setIsNoticeModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
-              >
-                Đóng
-              </button>
-            </div>
-
-            <form onSubmit={handleSendNotice} className="p-5 space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Gửi tới</label>
-                <input
-                  type="text"
-                  value={`Toàn thể Phụ huynh ${currentNode.title} (${currentNode.parentsCount || 0} tài khoản)`}
-                  readOnly
-                  className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2 text-slate-600 font-medium"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Tiêu Đề Thông Báo <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={noticeTitle}
-                  onChange={(e) => setNoticeTitle(e.target.value)}
-                  placeholder="Nội dung tiêu đề thông báo..."
-                  required
-                  className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Nội Dung Chi Tiết <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  rows={4}
-                  value={noticeContent}
-                  onChange={(e) => setNoticeContent(e.target.value)}
-                  placeholder="Nhập nội dung thông báo gửi đến phụ huynh..."
-                  required
-                  className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setIsNoticeModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 cursor-pointer"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-lg font-medium shadow-xs cursor-pointer"
-                >
-                  Gửi Thông Báo
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

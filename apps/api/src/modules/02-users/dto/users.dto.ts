@@ -1,16 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsArray, MinLength, IsUrl, IsNotEmpty } from 'class-validator';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional({ example: 'Nguyễn Thị Lan', description: 'Họ và tên' })
   @IsOptional()
   @IsString()
+  @MinLength(2, { message: 'Họ và tên phải có độ dài từ 2 đến 100 ký tự' })
   full_name?: string;
 
   @ApiPropertyOptional({ example: 'lan.nguyen@school.edu.vn', description: 'Email' })
   @IsOptional()
   @IsString()
   email?: string;
+
+  @ApiPropertyOptional({ example: 'https://storage.googleapis.com/.../avatar.jpg', description: 'URL ảnh đại diện' })
+  @IsOptional()
+  @IsUrl({}, { message: 'URL ảnh đại diện không đúng định dạng hợp lệ (yêu cầu https://...)' })
+  avatar_url?: string;
 
   @ApiPropertyOptional({ example: 'Trường Tiểu Học Chu Văn An', description: 'Tên trường công tác' })
   @IsOptional()
@@ -26,6 +32,7 @@ export class UpdateProfileDto {
 export class RegisterDeviceTokenDto {
   @ApiProperty({ example: 'fcm_device_token_xyz123', description: 'FCM Device Token của thiết bị' })
   @IsString()
+  @IsNotEmpty({ message: 'fcm_device_token không được để trống' })
   device_token: string;
 
   @ApiPropertyOptional({ example: 'ANDROID', enum: ['IOS', 'ANDROID', 'WEB'] })

@@ -15,8 +15,11 @@ export class FirebaseService implements OnModuleInit {
 
   onModuleInit() {
     if (!getApps().length) {
-      const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID') || 'giaovienhay';
-      const storageBucket = this.configService.get<string>('FIREBASE_STORAGE_BUCKET') || 'giaovienhay.firebasestorage.app';
+      let projectId = this.configService.get<string>('FIREBASE_PROJECT_ID') || 'giaovienhay-511009';
+      if (projectId === 'giaovienhay') {
+        projectId = 'giaovienhay-511009';
+      }
+      const storageBucket = this.configService.get<string>('FIREBASE_STORAGE_BUCKET') || `${projectId}.firebasestorage.app`;
       const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
       const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
 
