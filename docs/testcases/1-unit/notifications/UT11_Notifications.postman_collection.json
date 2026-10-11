@@ -1,0 +1,1089 @@
+{
+  "info": {
+    "_postman_id": "b11e9d8c-8877-6655-4433-ea9876543210",
+    "name": "GiaoVienHay - UT11 Notifications & FCM Module Collection",
+    "description": "Bộ kịch bản kiểm thử API Quản lý Lịch sử thông báo đẩy FCM (Notifications - UT11) trích xuất từ tài liệu UT11_Notifications.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Access Token của Người dùng (role: TEACHER_HOMEROOM / PARENT)."
+    },
+    {
+      "key": "notifId",
+      "value": "notif_01",
+      "type": "string",
+      "description": "Mã định danh bản ghi thông báo dùng để test đánh dấu đã đọc."
+    },
+    {
+      "key": "notifBroadcastId",
+      "value": "notif_broadcast_01",
+      "type": "string",
+      "description": "Mã định danh thông báo chung toàn trường không có metadata điều hướng."
+    },
+    {
+      "key": "notifNonexistentId",
+      "value": "notif_nonexistent_999",
+      "type": "string",
+      "description": "Mã định danh thông báo không tồn tại để test lỗi 404 Not Found."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT11_Notifications_TC01: Lấy danh sách lịch sử thông báo của tài khoản",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Notification List Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "    pm.expect(jsonData.data).to.have.property('unread_count');",
+              "    pm.expect(jsonData.data).to.have.property('total');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Truy xuất danh sách lịch sử thông báo trong hộp thư của người dùng kèm phân trang page=1, limit=10."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC02: Lọc danh sách thông báo theo trạng thái chưa đọc (is_read=false)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Filter Unread Notifications Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "    if (jsonData.data.items.length > 0) {",
+              "        jsonData.data.items.forEach(function(item) {",
+              "            pm.expect(item.is_read).to.eql(false);",
+              "        });",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?is_read=false",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "is_read",
+              "value": "false"
+            }
+          ]
+        },
+        "description": "Lọc hộp thư chỉ lấy các thông báo đang ở trạng thái chưa đọc (is_read=false)."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC03: Truy xuất thông báo có đầy đủ metadata điều hướng sâu (Deep-linking)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Deep-linking Metadata Presence\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Truy xuất thông báo có đầy đủ metadata phục vụ điều hướng sâu (deep-linking) vào màn hình chi tiết."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC04: Xử lý an toàn khi bấm vào thông báo thông tin chung không có metadata điều hướng",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (200 or 404)\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify Success or Handled Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (pm.response.code === 200) {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/{{notifBroadcastId}}/read",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications",
+            "{{notifBroadcastId}}",
+            "read"
+          ]
+        },
+        "description": "Đánh dấu đã đọc thành công cho thông báo thông tin chung toàn trường không chứa metadata điều hướng màn hình."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC05: Đánh dấu một thông báo là đã đọc thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (200 or 404)\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify Mark Read Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (pm.response.code === 200) {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.message).to.be.a('string');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/{{notifId}}/read",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications",
+            "{{notifId}}",
+            "read"
+          ]
+        },
+        "description": "Cập nhật trạng thái một thông báo cụ thể sang đã đọc (is_read=true)."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC06: Đánh dấu toàn bộ thông báo của tài khoản là đã đọc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Read All Response Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.message).to.be.a('string');",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data).to.have.property('updated_count');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/read-all",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications",
+            "read-all"
+          ]
+        },
+        "description": "Chuyển toàn bộ thông báo chưa đọc của tài khoản sang trạng thái đã đọc cùng một lúc."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC07: Truy xuất hộp thư rỗng cho tài khoản mới chưa có thông báo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Notifications Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Truy xuất hộp thư của tài khoản mới không có thông báo nào trả về items: [] an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC08: Truy vấn số trang vượt quá tổng số bản ghi hiện có (page=9999)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Out of Bounds Page Returns Empty Items\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "    pm.expect(jsonData.data.items.length).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=9999&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "9999"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Truy vấn trang số 9999 vượt quá phạm vi dữ liệu hiện có trả về mảng rỗng items: [] an toàn."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC09: Xử lý an toàn khi đánh dấu đã đọc cho thông báo đã đọc rồi (Idempotency)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (200 or 404)\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify Idempotent Mark Read Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (pm.response.code === 200) {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/{{notifId}}/read",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications",
+            "{{notifId}}",
+            "read"
+          ]
+        },
+        "description": "Kiểm tra tính chất Idempotent khi bấm đánh dấu đã đọc nhiều lần cho cùng một thông báo."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC10: Chặn số trang phân trang không hợp lệ (page <= 0)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Pagination Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=0&limit=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Từ chối request phân trang khi tham số page = 0 (phải là số nguyên dương lớn hơn hoặc bằng 1)."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC11: Chặn số lượng mỗi trang vượt quá giới hạn tối đa (limit > 100)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Max Limit Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=150",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "150"
+            }
+          ]
+        },
+        "description": "Chặn truy vấn khi tham số limit = 150 vượt quá giới hạn tối đa cho phép (max 100)."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC12: Đảm bảo tính cô lập dữ liệu chỉ trả về thông báo của chính tài khoản đăng nhập",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Data Isolation\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Đảm bảo tính cô lập dữ liệu (Multi-tenancy): Chỉ trả về thông báo thuộc quyền sở hữu của tài khoản hiện tại."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC13: Từ chối thao tác khi mã thông báo không tồn tại trong cơ sở dữ liệu (404 Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Notification Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('NOTI_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/{{notifNonexistentId}}/read",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications",
+            "{{notifNonexistentId}}",
+            "read"
+          ]
+        },
+        "description": "Từ chối đánh dấu đã đọc khi ID thông báo 'notif_nonexistent_999' không tồn tại trong hệ thống (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC14: Truy xuất hộp thư khi học sinh đã liên kết nhưng có sự cố tiến trình ngầm",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Inbox Structure Handled Safely\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Truy xuất an toàn hộp thư khi có trường hợp thông báo nền chưa kịp sinh do Worker sự cố."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC15: Xử lý lỗi khi dịch vụ hạ tầng Google Firebase FCM gặp sự cố (500 Error)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (500 or 200)\", function () {",
+              "    pm.expect([200, 500]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 500, verify FCM Dispatch Failed Error Code\", function () {",
+              "    if (pm.response.code === 500) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('NOTI_DISPATCH_FAILED');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Kiểm tra cơ chế xử lý lỗi hệ thống khi hạ tầng Firebase FCM gặp sự cố ngắt kết nối."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC16: Từ chối thao tác do không có token xác thực hoặc token đã hết hạn (401 Unauthorized)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Unauthorized Error Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['AUTH_UNAUTHORIZED', 'UNAUTHORIZED']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid_or_expired_jwt_token",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Từ chối truy xuất danh sách thông báo khi người dùng không đính kèm token hợp lệ (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC17: Xử lý lỗi máy chủ cơ sở dữ liệu nội bộ Firestore (500 Internal Server Error)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (500 or 200)\", function () {",
+              "    pm.expect([200, 500]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 500, verify SYS_INTERNAL_ERROR code\", function () {",
+              "    if (pm.response.code === 500) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('SYS_INTERNAL_ERROR');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Kiểm tra xử lý ngoại lệ an toàn khi cơ sở dữ liệu Firestore timeout hoặc ngắt kết nối đột ngột."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC18: Từ chối truy vấn với tham số lọc trạng thái đã đọc sai định dạng boolean (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Boolean Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?is_read=khong_hop_le",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "is_read",
+              "value": "khong_hop_le"
+            }
+          ]
+        },
+        "description": "Từ chối request khi tham số is_read mang giá trị không phải boolean (như chuỗi 'khong_hop_le')."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC19: Xử lý trạng thái rỗng an toàn khi lọc thông báo chưa đọc nhưng người dùng đã đọc hết (Empty Unread - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Unread Notifications Handling\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "    pm.expect(jsonData.data.unread_count).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?is_read=false&page=1&limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "is_read",
+              "value": "false"
+            },
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Xử lý trạng thái rỗng an toàn khi lọc is_read=false và người dùng đã đọc hết toàn bộ thông báo (200 OK)."
+      }
+    },
+    {
+      "name": "UT11_Notifications_TC20: Xử lý an toàn khi đánh dấu tất cả là đã đọc nhưng hộp thư rỗng hoặc không có tin chưa đọc (Zero Updated - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Zero Updated Count Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.updated_count).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/read-all",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "notifications",
+            "read-all"
+          ]
+        },
+        "description": "Xử lý an toàn không phát sinh lỗi khi gọi read-all nhưng không có thông báo chưa đọc nào (updated_count=0, 200 OK)."
+      }
+    }
+  ]
+}

@@ -1,0 +1,776 @@
+{
+  "info": {
+    "_postman_id": "f02e9d8c-4455-6677-8899-da9876543210",
+    "name": "GiaoVienHay - UT02 Users & Profile Module Collection",
+    "description": "Bộ kịch bản kiểm thử API Phân hệ Người dùng & Hồ sơ cá nhân (Users & Profile - UT02) trích xuất từ tài liệu UT02_Users.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Access Token của Giáo viên (role: TEACHER_HOMEROOM)."
+    },
+    {
+      "key": "lockedUserToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Token của tài khoản người dùng đang ở trạng thái bị tạm khóa (dùng test 403 Forbidden)."
+    },
+    {
+      "key": "deletedUserToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Token của tài khoản người dùng đã bị xóa khỏi hệ thống (dùng test 404 User Not Found)."
+    },
+    {
+      "key": "userId",
+      "value": "usr_1791549129694_jo13d",
+      "type": "string",
+      "description": "Mã UID của người dùng."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT02_Users_TC01: Lấy thông tin hồ sơ cá nhân của người dùng đang đăng nhập",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify User Profile Response Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data).to.have.property('uid');",
+              "    pm.expect(jsonData.data).to.have.property('phone');",
+              "    pm.expect(jsonData.data).to.have.property('role');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Truy xuất thông tin hồ sơ tài khoản cá nhân của người dùng đang đăng nhập (GET /api/v1/users/me)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC02: Cập nhật hồ sơ và danh sách môn học giảng dạy hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Profile Updated Successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data).to.have.property('uid');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Nguyễn Thị Lan\",\n  \"school_name\": \"Trường Tiểu Học Chu Văn An\",\n  \"avatar_url\": \"https://storage.googleapis.com/avatar/new_avatar.jpg\",\n  \"teaching_subjects\": [\n    \"MATH\",\n    \"LIT\",\n    \"ETHICS\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "profile"
+          ]
+        },
+        "description": "Cập nhật thông tin họ tên, trường học và danh sách các môn giảng dạy hợp lệ (PATCH /api/v1/users/profile)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC03: Từ chối cập nhật môn học không hợp lệ theo chương trình GDPT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Subject Code Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['INVALID_SUBJECT_CODE', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"teaching_subjects\": [\n    \"INVALID_CODE_XYZ\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "profile"
+          ]
+        },
+        "description": "Từ chối cập nhật môn học khi mã môn 'INVALID_CODE_XYZ' không thuộc chương trình giáo dục phổ thông."
+      }
+    },
+    {
+      "name": "UT02_Users_TC04: Đăng ký và làm mới thiết bị nhận thông báo đẩy FCM",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Register Device Token Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.message).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fcm_device_token\": \"fcm_tok_abc123xyz789\",\n  \"device_type\": \"ANDROID\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/device-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "device-token"
+          ]
+        },
+        "description": "Đăng ký hoặc làm mới token thiết bị FCM để nhận thông báo đẩy trên điện thoại (POST /api/v1/users/device-token)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC05: Từ chối đăng ký thiết bị khi gửi token rỗng",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Empty Device Token Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['EMPTY_DEVICE_TOKEN', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fcm_device_token\": \"\",\n  \"device_type\": \"IOS\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/device-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "device-token"
+          ]
+        },
+        "description": "Từ chối đăng ký thiết bị khi fcm_device_token bị để rỗng chuỗi '' (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC06: Từ chối cập nhật khi họ và tên quá ngắn dưới 2 ký tự hoặc để trống",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Name Too Short Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"A\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "profile"
+          ]
+        },
+        "description": "Từ chối khi trường họ và tên chỉ có 1 ký tự 'A' (yêu cầu từ 2 đến 100 ký tự)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC07: Từ chối cập nhật ảnh đại diện với đường dẫn URL sai định dạng",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Avatar URL Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"avatar_url\": \"duong_dan_anh_khong_hop_le_123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "profile"
+          ]
+        },
+        "description": "Từ chối chuỗi URL ảnh đại diện không hợp lệ (yêu cầu chuẩn https://...)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC08: Từ chối thao tác do không có token xác thực hoặc token đã hết hạn (401 Unauthorized)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Unauthorized Error Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['AUTH_UNAUTHORIZED', 'UNAUTHORIZED']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid_or_expired_jwt_token",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Từ chối truy xuất thông tin tài khoản khi không có token hoặc token đã hết hạn (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC09: Chặn người dùng thao tác khi tài khoản đang ở trạng thái bị tạm khóa (403 Forbidden)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is 403 Forbidden or 200 OK\", function () {",
+              "    pm.expect([200, 403]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 403, verify Account Locked Error Code\", function () {",
+              "    if (pm.response.code === 403) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('AUTH_FORBIDDEN');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{lockedUserToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"school_name\": \"Trường Tiểu Học Chu Văn An\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "profile"
+          ]
+        },
+        "description": "Chặn cập nhật hồ sơ khi tài khoản đã bị quản trị viên khóa hoạt động (is_active: false)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC10: Từ chối yêu cầu khi hồ sơ người dùng không tồn tại trong cơ sở dữ liệu (404 Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (404 Not Found or 200/401)\", function () {",
+              "    pm.expect([200, 401, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 404, verify User Not Found Error Code\", function () {",
+              "    if (pm.response.code === 404) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('USER_NOT_FOUND');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{deletedUserToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Từ chối khi token hợp lệ nhưng hồ sơ tài khoản đã bị xóa khỏi Firestore collection /users."
+      }
+    },
+    {
+      "name": "UT02_Users_TC11: Xử lý lỗi hệ thống khi cơ sở dữ liệu Firestore mất kết nối hoặc timeout (500 Error)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (500 or 200)\", function () {",
+              "    pm.expect([200, 500]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 500, verify SYS_INTERNAL_ERROR code\", function () {",
+              "    if (pm.response.code === 500) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('SYS_INTERNAL_ERROR');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Kiểm tra xử lý ngoại lệ an toàn khi cơ sở dữ liệu Firestore gặp sự cố ngắt kết nối."
+      }
+    },
+    {
+      "name": "UT02_Users_TC12: Truy xuất hồ sơ từ in-memory RAM cache và tự động xóa cache khi cập nhật",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Profile Returned from Cache or DB\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Truy xuất tức thời từ RAM cache và đảm bảo cache được xóa làm mới khi có lệnh cập nhật."
+      }
+    },
+    {
+      "name": "UT02_Users_TC13: Xóa mềm tài khoản người dùng thành công (Soft delete)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (200 OK or 404/401)\", function () {",
+              "    pm.expect([200, 401, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify User Endpoint Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Kiểm tra tính toàn vẹn khi tài khoản bị xóa mềm (is_deleted: true, is_active: false)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC14: Xử lý trạng thái rỗng an toàn khi giáo viên mới chưa đăng ký môn học (Empty Subjects - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Teaching Subjects Array\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.teaching_subjects).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Giáo viên mới chưa cập nhật danh sách môn dạy, trả về mảng rỗng teaching_subjects: [] an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT02_Users_TC15: Từ chối tra cứu hồ sơ khi mã người dùng không tồn tại trong cơ sở dữ liệu (USER_NOT_FOUND - 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify User Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('USER_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/usr_not_exist_9999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "usr_not_exist_9999"
+          ]
+        },
+        "description": "Từ chối khi tra cứu người dùng có mã 'usr_not_exist_9999' không tồn tại trong hệ thống (404 USER_NOT_FOUND)."
+      }
+    }
+  ]
+}

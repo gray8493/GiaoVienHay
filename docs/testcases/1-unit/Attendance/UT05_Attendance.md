@@ -184,7 +184,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ: FALED**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 

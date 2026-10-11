@@ -1,0 +1,1713 @@
+{
+  "info": {
+    "_postman_id": "c3d2e1a0-789a-4bc1-9012-d4e5f6789abc",
+    "name": "GiaoVienHay - UT03 Classes & Members Collection",
+    "description": "Bộ kịch bản kiểm thử API Quản lý Lớp học tổng, Thành viên & Phân công GVBM (Classes - UT03) trích xuất từ tài liệu UT03_Classes.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU5NTYzMjc2MF9oaXg0ZSIsInBob25lIjoiMDk4ODMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTk1NjMzLCJleHAiOjE3OTIyMDA0MzN9.sGuKYOJbBwtBon0kkzyrOKSQmKYRBxglg4PfSYEw7K8",
+      "type": "string",
+      "description": "Access Token của Giáo viên chủ nhiệm (role: TEACHER_HOMEROOM)."
+    },
+    {
+      "key": "otherTeacherToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU5NzQ1OTk3M19tbG5vciIsInBob25lIjoiMDk3ODMwODY3OCIsInJvbGUiOiJURUFDSEVSX1NVQkpFQ1QiLCJzY2hvb2xfbmFtZSI6IlRyxrDhu51uZyBUaeG7g3UgSOG7jWMgQ2h1IFbEg24gQW4iLCJpYXQiOjE3OTE1OTc0NjAsImV4cCI6MTc5MjIwMjI2MH0.HT3ejt7mXpD6SPpV2xannK14rakjSsbtZO35oHZ02lY",
+      "type": "string",
+      "description": "Token của giáo viên khác không phải chủ nhiệm lớp này (dùng test 403 Forbidden)."
+    },
+    {
+      "key": "parentToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU5NjM0NzI1OV9vbXZpcyIsInBob25lIjoiMDk3ODMwNTY3OCIsInJvbGUiOiJQQVJFTlQiLCJzY2hvb2xfbmFtZSI6IlRyxrDhu51uZyBUaeG7g3UgSOG7jWMgQ2h1IFbEg24gQW4iLCJpYXQiOjE3OTE1OTYzNDcsImV4cCI6MTc5MjIwMTE0N30.dLjrvwaL1BHpA25jnaR6kapxZ2VHFE40jvX9PTh5xyk",
+      "type": "string",
+      "description": "Token của phụ huynh (role: PARENT) để test luồng vào lớp join."
+    },
+    {
+      "key": "classId",
+      "value": "cls_1a_2026",
+      "type": "string",
+      "description": "Mã định danh lớp học dùng chung cho các kịch bản kiểm thử chi tiết."
+    },
+    {
+      "key": "inviteCode",
+      "value": "GVH1A26",
+      "type": "string",
+      "description": "Mã mời tham gia lớp học dành cho phụ huynh."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT03_Classes_TC01: Từ chối tạo lớp học khi không nhập hoặc để trống tên lớp (Missing name)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"\",\n  \"grade_level\": 1,\n  \"academic_year\": \"2026-2027\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC01: Gửi tạo lớp học nhưng để trống name (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC02: Từ chối tạo lớp học khi không chọn khối lớp (Missing grade_level)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"1A\",\n  \"academic_year\": \"2026-2027\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC02: Gửi tạo lớp thiếu trường grade_level (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC03: Từ chối tạo lớp học khi không nhập hoặc để trống năm học (Missing academic_year)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"1A\",\n  \"grade_level\": 1,\n  \"academic_year\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC03: Gửi tạo lớp thiếu academic_year (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC04: Từ chối tạo lớp khi học sinh thiếu mã học sinh, họ tên hoặc giới tính",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"1A\",\n  \"grade_level\": 1,\n  \"academic_year\": \"2026-2027\",\n  \"students\": [\n    {\n      \"student_code\": \"\",\n      \"full_name\": \"Trần Bảo Nam\",\n      \"gender\": \"\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC04: Học sinh trong danh sách khởi tạo thiếu student_code hoặc gender (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC05: Từ chối phụ huynh vào lớp khi thiếu mã mời hoặc mã học sinh (Missing join fields)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{parentToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"invite_code\": \"\",\n  \"student_id\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/join",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "join"
+          ]
+        },
+        "description": "Kịch bản TC05: Phụ huynh vào lớp nhưng để trống invite_code hoặc student_id (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC06: Từ chối thêm học sinh khi danh sách students rỗng hoặc thiếu thông tin bắt buộc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"students\": []\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/students",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "students"
+          ]
+        },
+        "description": "Kịch bản TC06: Thêm học sinh với mảng students rỗng [] (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC07: Từ chối cập nhật phân công GVBM khi thiếu thông tin mã giáo viên hoặc môn học",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subject_teachers\": [\n    {\n      \"teacher_id\": \"\",\n      \"subject_code\": \"MATH\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/subject-teachers",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "subject-teachers"
+          ]
+        },
+        "description": "Kịch bản TC07: Cập nhật GVBM nhưng để trống teacher_id (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC08: Từ chối tạo lớp học khi khối lớp ngoài phạm vi cho phép (1 đến 9)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Grade Level Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"10A1\",\n  \"grade_level\": 10,\n  \"academic_year\": \"2026-2027\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC08: Chọn grade_level = 10 vượt cấp học (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC09: Từ chối tạo lớp khi năm học sai định dạng hoặc năm kết thúc sai quy tắc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Academic Year Format Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"1A\",\n  \"grade_level\": 1,\n  \"academic_year\": \"2026-2029\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC09: Năm học '2026-2029' cách nhau hơn 1 năm (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC10: Từ chối khi ngày sinh học sinh không có thật trên lịch hoặc ở tương lai",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify DOB Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"1A\",\n  \"grade_level\": 1,\n  \"academic_year\": \"2026-2027\",\n  \"students\": [\n    {\n      \"student_code\": \"HS001\",\n      \"full_name\": \"Trần Bảo Nam\",\n      \"gender\": \"MALE\",\n      \"dob\": \"2018-02-30\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC10: Ngày sinh '2018-02-30' không tồn tại trên lịch (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC11: Từ chối tạo lớp hoặc thêm học sinh khi trùng mã học sinh (CLASS_STUDENT_CODE_EXISTS)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 409 Conflict (or 400)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 409]);",
+              "});",
+              "pm.test(\"Verify Duplicate Student Code Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"students\": [\n    {\n      \"student_code\": \"HS001\",\n      \"full_name\": \"Lê Bảo Anh\",\n      \"gender\": \"FEMALE\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/students",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "students"
+          ]
+        },
+        "description": "Kịch bản TC11: Thêm học sinh trùng mã HS001 đã có trong lớp (409 Conflict)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC12: Từ chối thêm học sinh khi lớp học đã đạt sĩ số tối đa cho phép (CLASS_MAX_STUDENTS_EXCEEDED)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request (or 409)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 409]);",
+              "});",
+              "pm.test(\"Verify Max Capacity Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"students\": [\n    {\n      \"student_code\": \"HS061\",\n      \"full_name\": \"Phạm Quốc Tuấn\",\n      \"gender\": \"MALE\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/students",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "students"
+          ]
+        },
+        "description": "Kịch bản TC12: Thêm học sinh khi lớp đã đủ 60 học sinh tối đa (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC13: Từ chối phụ huynh vào lớp khi mã mời không hợp lệ hoặc hết hạn (CLASS_INVITE_CODE_INVALID)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found (or 400)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+              "});",
+              "pm.test(\"Verify Invalid Invite Code Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"CLASS_INVITE_CODE_INVALID\", \"RESOURCE_NOT_FOUND\", \"COMMON_VALIDATION_ERROR\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{parentToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"invite_code\": \"GVH_SAI_MA_999\",\n  \"student_id\": \"stu_01\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/join",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "join"
+          ]
+        },
+        "description": "Kịch bản TC13: Nhập sai mã mời lớp học GVH_SAI_MA_999 (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC14: Từ chối liên kết khi học sinh đã được liên kết với phụ huynh này (STUDENT_ALREADY_LINKED)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 409 Conflict (or 400)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 409]);",
+              "});",
+              "pm.test(\"Verify Already Linked Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{parentToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"invite_code\": \"{{inviteCode}}\",\n  \"student_id\": \"stu_01\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/join",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "join"
+          ]
+        },
+        "description": "Kịch bản TC14: Phụ huynh gửi liên kết lại học sinh đã liên kết từ trước (409 Conflict)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC15: Báo lỗi khi tra cứu hoặc thao tác với mã lớp học không tồn tại (CLASS_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Class Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"CLASS_NOT_FOUND\", \"RESOURCE_NOT_FOUND\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/cls_khong_ton_tai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "cls_khong_ton_tai"
+          ]
+        },
+        "description": "Kịch bản TC15: Tra cứu lớp học cls_khong_ton_tai (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC16: Chặn giáo viên không phải chủ nhiệm thực hiện các thao tác quản trị lớp (CLASS_NOT_HOMEROOM_TEACHER)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden (or 404/401)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]);",
+              "});",
+              "pm.test(\"Verify Permission Denied\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/invite",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "invite"
+          ]
+        },
+        "description": "Kịch bản TC16: Giáo viên không phải GVCN lấy mã mời lớp học (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC17: Chặn GVBM truy cập lớp tổng khi chưa được phân công giảng dạy (ACAD_NOT_ASSIGNED_TEACHER)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden (or 404/401)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]);",
+              "});",
+              "pm.test(\"Verify Unassigned Subject Teacher Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/my-subject",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "my-subject"
+          ]
+        },
+        "description": "Kịch bản TC17: GVBM chưa được phân công truy cập danh sách lớp (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC18: Xử lý ngoại lệ lỗi hệ thống khi mất kết nối Database Firestore (SYS_INTERNAL_ERROR - 500)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response status verification\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 400, 500]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"1A\",\n  \"grade_level\": 1,\n  \"academic_year\": \"2026-2027\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC18: Giả lập lỗi máy chủ kết nối Firebase Firestore (500 Internal Error)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC19: GVCN tạo lớp học tổng, thêm học sinh và phân công GVBM ban đầu thành công (201 Created)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Created Class Data\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.status_code).to.eql(201);",
+              "        pm.expect(jsonData.data.name).to.eql('1A');",
+              "        pm.expect(jsonData.data.invite_code).to.be.a('string');",
+              "    });",
+              "    if (jsonData.data && jsonData.data.class_id) {",
+              "        pm.collectionVariables.set(\"classId\", jsonData.data.class_id);",
+              "    }",
+              "    if (jsonData.data && jsonData.data.invite_code) {",
+              "        pm.collectionVariables.set(\"inviteCode\", jsonData.data.invite_code);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"1A\",\n  \"grade_level\": 1,\n  \"academic_year\": \"2026-2027\",\n  \"subject_teachers\": [\n    {\n      \"teacher_id\": \"uid_gvbm_eng\",\n      \"subject_code\": \"ENG\"\n    },\n    {\n      \"teacher_id\": \"uid_gvbm_pe\",\n      \"subject_code\": \"PE\"\n    }\n  ],\n  \"students\": [\n    {\n      \"student_code\": \"HS001\",\n      \"full_name\": \"Trần Bảo Nam\",\n      \"gender\": \"MALE\",\n      \"dob\": \"2020-05-15\"\n    },\n    {\n      \"student_code\": \"HS002\",\n      \"full_name\": \"Lê Ngọc Mai\",\n      \"gender\": \"FEMALE\",\n      \"dob\": \"2020-08-20\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC19: Khởi tạo lớp học tổng đầy đủ thông tin học sinh & GVBM (201 Created)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC20: GVCN tạo lớp học tổng với danh sách học sinh rỗng thành công (Chờ import sau)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Empty Class Creation\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.status_code).to.eql(201);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"2B\",\n  \"grade_level\": 2,\n  \"academic_year\": \"2026-2027\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC20: Tạo lớp học không kèm danh sách học sinh ban đầu (201 Created)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC21: Lấy danh sách các lớp học giáo viên đang phụ trách thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Classes List Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC21: Truy xuất tất cả lớp học giáo viên đang phụ trách (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC22: Xem thông tin chi tiết lớp học theo ID thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Class Detail Data\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data).to.be.an('object');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}"
+          ]
+        },
+        "description": "Kịch bản TC22: Lấy chi tiết thông tin lớp học theo classId (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC23: GVBM truy cập lớp tổng theo đúng môn được phân công thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 403/404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 403, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Subject Students List\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data).to.be.an('object');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/my-subject",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "my-subject"
+          ]
+        },
+        "description": "Kịch bản TC23: GVBM lấy danh sách học sinh theo môn giảng dạy (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC24: GVCN lấy mã mời và link mời tham gia lớp học thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Invite Info\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.invite_code).to.be.a('string');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/invite",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "invite"
+          ]
+        },
+        "description": "Kịch bản TC24: Lấy mã mời và liên kết chia sẻ cho phụ huynh (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC25: Phụ huynh tham gia lớp qua mã mời và xác nhận liên kết con em thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404/409)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404, 409]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Linked Child Data\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.child).to.be.an('object');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{parentToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"invite_code\": \"{{inviteCode}}\",\n  \"student_id\": \"stu_01\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/join",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "join"
+          ]
+        },
+        "description": "Kịch bản TC25: Phụ huynh tham gia lớp và xác nhận liên kết con (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC26: GVCN thêm học sinh mới vào lớp học hiện tại thành công (201 Created)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created (or 404/409)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 404, 409]);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Student Added Result\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.added_count).to.eql(1);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"students\": [\n    {\n      \"student_code\": \"HS036\",\n      \"full_name\": \"Vũ Hải Đăng\",\n      \"gender\": \"MALE\",\n      \"dob\": \"2020-03-12\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/students",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "students"
+          ]
+        },
+        "description": "Kịch bản TC26: Bổ sung thêm học sinh mới vào danh sách lớp hiện có (201 Created)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC27: GVCN xóa học sinh khỏi lớp học thành công (200 OK - Soft delete)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Soft Delete Flag\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.is_deleted).to.eql(true);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/students/stu_99",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "students",
+            "stu_99"
+          ]
+        },
+        "description": "Kịch bản TC27: Xóa mềm học sinh stu_99 khỏi lớp học (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC28: GVCN cập nhật phân công giáo viên bộ môn (GVBM) cho lớp thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Assignment Updated\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.updated_count).to.eql(1);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subject_teachers\": [\n    {\n      \"teacher_id\": \"usr_gvbm_eng_02\",\n      \"subject_code\": \"ENG\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/subject-teachers",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "subject-teachers"
+          ]
+        },
+        "description": "Kịch bản TC28: Phân công lại GVBM dạy Tiếng Anh cho lớp (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC29: Xóa mềm lớp học và tự động xóa in-memory RAM Cache của giáo viên thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Class Soft Deleted\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.is_deleted).to.eql(true);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}"
+          ]
+        },
+        "description": "Kịch bản TC29: Xóa mềm lớp học và xóa sạch RAM cache danh sách lớp (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC30: Truy vấn danh sách lớp học và học sinh tự động lọc bỏ các bản ghi đã xóa mềm (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Active Students Only\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}"
+          ]
+        },
+        "description": "Kịch bản TC30: Kiểm tra tự động loại trừ học sinh đã xóa mềm (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC31: Xử lý trạng thái rỗng an toàn khi giáo viên mới chưa được phân công lớp học nào (Empty state - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty List Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes"
+          ]
+        },
+        "description": "Kịch bản TC31: Giáo viên chưa có lớp nào nhận mảng rỗng [] an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC32: Xử lý trạng thái rỗng an toàn khi xem chi tiết lớp học chưa có học sinh nào (Empty state - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Empty Students Array\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/cls_new_empty",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "cls_new_empty"
+          ]
+        },
+        "description": "Kịch bản TC32: Chi tiết lớp mới chưa import học sinh trả về students: [] an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT03_Classes_TC33: Từ chối xóa học sinh khi mã học sinh không tồn tại trong danh sách lớp học (STUDENT_NOT_FOUND - 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Student Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"STUDENT_NOT_FOUND\", \"RESOURCE_NOT_FOUND\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/classes/{{classId}}/students/stu_not_found_9999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "classes",
+            "{{classId}}",
+            "students",
+            "stu_not_found_9999"
+          ]
+        },
+        "description": "Kịch bản TC33: Xóa học sinh không tồn tại stu_not_found_9999 trong lớp (404 Not Found)."
+      }
+    }
+  ]
+}

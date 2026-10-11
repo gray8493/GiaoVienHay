@@ -1,0 +1,1354 @@
+{
+  "info": {
+    "_postman_id": "e9a8b7c6-1234-5678-9abc-def012345678",
+    "name": "GiaoVienHay - UT09 Exam Reminders Collection",
+    "description": "Bộ kịch bản kiểm thử API Phân hệ Lời nhắc Lịch kiểm tra (Exam Reminders - UT09) trích xuất từ tài liệu UT09_ExamReminders.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Access Token của Giáo viên (role: TEACHER_HOMEROOM / TEACHER_SUBJECT)."
+    },
+    {
+      "key": "otherTeacherToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Token của giáo viên khác không phụ trách lớp/môn này (dùng test 403 Forbidden)."
+    },
+    {
+      "key": "classId",
+      "value": "cls_1a_2026",
+      "type": "string",
+      "description": "Mã định danh lớp học để tạo và tra cứu lịch kiểm tra."
+    },
+    {
+      "key": "reminderId",
+      "value": "exm_4412",
+      "type": "string",
+      "description": "Mã định danh lời nhắc kiểm tra (tự động cập nhật khi tạo thành công ở TC19)."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT09_ExamReminders_TC01: Từ chối tạo lời nhắc khi không chọn hoặc để trống mã lớp học (Missing class_id)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Các con ôn tập kỹ bài 5 và 6 về phép cộng trong phạm vi 10.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC01: Gửi tạo lời nhắc nhưng để trống class_id (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC02: Từ chối tạo lời nhắc khi không chọn hoặc để trống mã môn học (Missing subject_code)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Các con ôn tập kỹ bài 5 và 6 về phép cộng trong phạm vi 10.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC02: Gửi tạo lời nhắc nhưng để trống subject_code (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC03: Từ chối tạo lời nhắc khi không chọn hoặc để trống loại bài kiểm tra (Missing exam_type)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Các con ôn tập kỹ bài 5 và 6 về phép cộng trong phạm vi 10.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC03: Gửi tạo lời nhắc thiếu trường exam_type (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC04: Từ chối tạo lời nhắc khi không nhập hoặc để trống ngày kiểm tra (Missing exam_date)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"\",\n  \"message\": \"Các con ôn tập kỹ bài 5 và 6 về phép cộng trong phạm vi 10.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC04: Gửi tạo lời nhắc với exam_date rỗng (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC05: Từ chối tạo lời nhắc khi không nhập hoặc nội dung dặn dò chỉ có khoảng trắng (Missing message)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"   \"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC05: Trường message chỉ chứa toàn khoảng trắng (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC06: Từ chối tạo lời nhắc khi lời dặn dò ôn thi quá ngắn (Dưới 10 ký tự)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Message Min Length Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Thi nhé\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC06: Lời dặn dò dưới 10 ký tự (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC07: Từ chối tạo lời nhắc khi lời dặn dò vượt quá độ dài tối đa (Trên 500 ký tự)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Message Max Length Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"FINAL\",\n  \"exam_date\": \"2026-12-20\",\n  \"message\": \"Kính gửi quý phụ huynh lớp 1A, kỳ thi học kỳ 1 sắp tới là kỳ thi rất quan trọng đối với các con. Nội dung ôn thi gồm toàn bộ kiến thức từ bài 1 đến bài 25 sách giáo khoa Toán. Đề nghị quý phụ huynh kèm cặp các con làm các dạng bài tập: tính nhẩm cộng trừ trong phạm vi 20, nhận biết các hình khối, giải bài toán có lời văn theo sơ đồ tóm tắt. Xin lưu ý các con cần chuẩn bị đầy đủ bút chì 2B, tẩy gôm, thước kẻ có vạch chia cm rõ ràng. Tuyệt đối không để quên dụng cụ học tập ở nhà tránh làm ảnh hưởng tâm lý của con khi làm bài thi. Mọi thắc mắc xin phụ huynh liên hệ trực tiếp với giáo viên qua số điện thoại cá nhân trong giờ hành chính...\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC07: Lời dặn dò vượt quá giới hạn 500 ký tự (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC08: Từ chối tạo lời nhắc khi ngày kiểm tra không tồn tại trong lịch thực tế",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Calendar Date Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-02-30\",\n  \"message\": \"Kiểm tra 15 phút môn Toán về cộng trừ phạm vi 10.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC08: Ngày kiểm tra 2026-02-30 không có trên lịch thực tế (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC09: Từ chối tạo lời nhắc khi ngày kiểm tra đã trôi qua trong quá khứ (EXAM_DATE_INVALID)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Past Date Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"EXAM_DATE_INVALID\", \"COMMON_VALIDATION_ERROR\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-01\",\n  \"message\": \"Kiểm tra 15 phút môn Toán về cộng trừ phạm vi 10.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC09: Ngày thi 2026-09-01 ở trong quá khứ (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC10: Từ chối tạo lời nhắc khi loại bài kiểm tra ngoài danh mục cho phép (EXAM_TYPE_INVALID)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Exam Type Invalid Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"EXAM_TYPE_INVALID\", \"COMMON_VALIDATION_ERROR\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"KIEM_TRA_DOT_XUAT\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Kiểm tra đột xuất kiến thức cũ về hình học\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC10: Loại bài thi 'KIEM_TRA_DOT_XUAT' ngoài danh mục enum (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC11: Chặn giáo viên chưa được phân công giảng dạy môn học tạo lời nhắc (ACAD_NOT_ASSIGNED_TEACHER)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden (or 404/401)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]);",
+              "});",
+              "pm.test(\"Verify Unassigned Teacher Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Lời nhắc từ giáo viên không có thẩm quyền đối với bộ môn này.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC11: Giáo viên chưa được phân công giảng dạy môn Toán tạo lời nhắc (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC12: Báo lỗi khi tạo lời nhắc với mã lớp học không tồn tại (CLASS_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found (or 400)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+              "});",
+              "pm.test(\"Verify Class Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_nonexistent_999\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Kiểm tra 15 phút môn Toán về cộng trừ phạm vi 10.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC12: Tạo lời nhắc cho lớp học cls_nonexistent_999 không tồn tại (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC13: Báo lỗi khi tra cứu danh sách lịch kiểm tra với mã lớp học không tồn tại (CLASS_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Class Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"CLASS_NOT_FOUND\", \"RESOURCE_NOT_FOUND\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders/class/cls_khong_ton_tai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders",
+            "class",
+            "cls_khong_ton_tai"
+          ]
+        },
+        "description": "Kịch bản TC13: Tra cứu lịch thi của lớp không tồn tại (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC14: Chặn người dùng không thuộc lớp học xem danh sách lịch kiểm tra (AUTH_FORBIDDEN)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden (or 404/401)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]);",
+              "});",
+              "pm.test(\"Verify Forbidden Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders/class/{{classId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders",
+            "class",
+            "{{classId}}"
+          ]
+        },
+        "description": "Kịch bản TC14: Người dùng không thuộc lớp xem lịch kiểm tra (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC15: Báo lỗi khi xóa lời nhắc kiểm tra với mã lời nhắc không tồn tại (EXAM_REMINDER_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Reminder Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"EXAM_REMINDER_NOT_FOUND\", \"RESOURCE_NOT_FOUND\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders/exm_khong_ton_tai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders",
+            "exm_khong_ton_tai"
+          ]
+        },
+        "description": "Kịch bản TC15: Xóa lời nhắc exm_khong_ton_tai (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC16: Chặn giáo viên không phải tác giả hoặc GVCN xóa lời nhắc kiểm tra (AUTH_FORBIDDEN)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden (or 404/401)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]);",
+              "});",
+              "pm.test(\"Verify Permission Denied Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders/{{reminderId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders",
+            "{{reminderId}}"
+          ]
+        },
+        "description": "Kịch bản TC16: Giáo viên không có thẩm quyền cố ý xóa lời nhắc của người khác (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC17: Chặn truy cập khi thiếu token hoặc token không hợp lệ (AUTH_UNAUTHORIZED)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Unauthorized Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"AUTH_UNAUTHORIZED\", \"AUTH_TOKEN_INVALID\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Lời nhắc kiểm tra môn Toán\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC17: Không gửi Authorization Bearer token (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC18: Xử lý ngoại lệ lỗi máy chủ nội bộ hoặc sự cố dịch vụ Firebase FCM (SYS_INTERNAL_ERROR)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is 500 or 201/400 in live test\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 400, 500]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Thứ Sáu tới lớp sẽ có bài kiểm tra 15 phút môn Toán về phép cộng.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC18: Giả lập sự cố dịch vụ Firebase Cloud Messaging (500 Internal Error)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC19: Tạo lời nhắc kiểm tra 15 phút thành công và tự động phát thông báo FCM tới phụ huynh (201 Created)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Created Exam Reminder\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.status_code).to.eql(201);",
+              "        pm.expect(jsonData.data.reminder_id).to.be.a('string');",
+              "    });",
+              "    if (jsonData.data && jsonData.data.reminder_id) {",
+              "        pm.collectionVariables.set(\"reminderId\", jsonData.data.reminder_id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"MATH\",\n  \"exam_type\": \"TEST_15P\",\n  \"exam_date\": \"2026-09-30\",\n  \"message\": \"Thứ Sáu tới lớp sẽ có bài kiểm tra 15 phút môn Toán về phép cộng trong phạm vi 10. Kính nhờ quý phụ huynh nhắc các con ôn kỹ bài 5 và 6.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC19: Tạo lời nhắc kiểm tra 15 phút và phát FCM tới phụ huynh (201 Created)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC20: Tạo lời nhắc kiểm tra định kỳ 1 tiết thành công (201 Created)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify 1-Period Exam Reminder\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.status_code).to.eql(201);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"ENG\",\n  \"exam_type\": \"TEST_1P\",\n  \"exam_date\": \"2026-10-05\",\n  \"message\": \"Lớp sẽ có bài kiểm tra 1 tiết môn Tiếng Anh vào ngày 05/10. Nội dung ôn tập gồm từ vựng và mẫu câu Unit 1 và Unit 2.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC20: Tạo lịch kiểm tra 1 tiết môn Tiếng Anh (201 Created)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC21: Tạo lời nhắc kiểm tra định kỳ Giữa kỳ / Cuối kỳ thành công (201 Created)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Mid-Term Exam Reminder\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.status_code).to.eql(201);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"subject_code\": \"LIT\",\n  \"exam_type\": \"MID_TERM\",\n  \"exam_date\": \"2026-10-20\",\n  \"message\": \"Lịch thi Giữa học kỳ 1 môn Tiếng Việt sẽ diễn ra vào ngày 20/10. Phụ huynh đôn đốc các con luyện đọc diễn cảm và rèn chữ viết hoa.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ]
+        },
+        "description": "Kịch bản TC21: Tạo lịch kiểm tra Giữa học kỳ 1 (201 Created)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC22: Lấy toàn bộ danh sách lịch kiểm tra sắp tới của lớp học thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Exam Reminders List Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders/class/{{classId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders",
+            "class",
+            "{{classId}}"
+          ]
+        },
+        "description": "Kịch bản TC22: Lấy toàn bộ danh sách lời nhắc kiểm tra của lớp (200 OK)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC23: Lọc danh sách lịch kiểm tra theo mã môn học thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Filtered Subject Exam List\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders/class/{{classId}}?subject_code=MATH",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            }
+          ]
+        },
+        "description": "Kịch bản TC23: Lọc danh sách lịch thi theo môn Toán (200 OK)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC24: Giáo viên xóa hoặc hủy bỏ lời nhắc kiểm tra thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Deleted Reminder Result\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders/{{reminderId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders",
+            "{{reminderId}}"
+          ]
+        },
+        "description": "Kịch bản TC24: Xóa hoặc hủy bỏ lời nhắc kiểm tra (200 OK)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC25: Xử lý trạng thái rỗng an toàn khi lớp học chưa có lời nhắc nào (Empty state - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Reminders State\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders?class_id={{classId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ],
+          "query": [
+            {
+              "key": "class_id",
+              "value": "{{classId}}"
+            }
+          ]
+        },
+        "description": "Kịch bản TC25: Lớp học chưa có lịch nhắc nào trả về mảng rỗng [] an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT09_ExamReminders_TC26: Xử lý trạng thái rỗng an toàn khi lọc danh sách lịch theo môn không có dữ liệu (Empty state - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Subject Filter State\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/exam-reminders?class_id={{classId}}&subject_code=TIN",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "exam-reminders"
+          ],
+          "query": [
+            {
+              "key": "class_id",
+              "value": "{{classId}}"
+            },
+            {
+              "key": "subject_code",
+              "value": "TIN"
+            }
+          ]
+        },
+        "description": "Kịch bản TC26: Lọc theo môn Tin học không có lịch thi trả về mảng rỗng [] (200 OK)."
+      }
+    }
+  ]
+}

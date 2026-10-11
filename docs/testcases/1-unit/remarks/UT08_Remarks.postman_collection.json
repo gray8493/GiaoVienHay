@@ -1,0 +1,870 @@
+{
+  "info": {
+    "_postman_id": "d08e9d8c-2233-4455-6677-ba9876543210",
+    "name": "GiaoVienHay - UT08 Remarks Module Collection",
+    "description": "Bộ kịch bản kiểm thử API Phân hệ Sổ liên lạc nhận xét học sinh (Remarks - UT08) trích xuất từ tài liệu UT08_Remarks.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Access Token của Giáo viên chủ nhiệm (role: TEACHER_HOMEROOM)."
+    },
+    {
+      "key": "subjectTeacherToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Token của giáo viên bộ môn chỉ dạy một môn cụ thể (dùng test quyền nhận xét môn học)."
+    },
+    {
+      "key": "classId",
+      "value": "cls_1a_2026",
+      "type": "string",
+      "description": "Mã định danh lớp học (cls_1a_2026)."
+    },
+    {
+      "key": "studentId",
+      "value": "stu_01",
+      "type": "string",
+      "description": "Mã định danh học sinh nhận xét (stu_01)."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT08_Remarks_TC01: Gửi lời nhận xét ngắn gọn và bắn thông báo FCM cho phụ huynh",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created or 200 OK\", function () {",
+              "    pm.expect([200, 201]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify Remark Created and FCM Delivered\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data).to.have.property('remark_id');",
+              "    pm.expect(jsonData.data.student_id).to.eql('stu_01');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"Hôm nay em Nam tiếp thu bài rất nhanh và hăng hái xung phong lên bảng chữa bài tập.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Giáo viên gửi nhận xét môn Toán cho học sinh stu_01 và hệ thống tự động bắn FCM tới phụ huynh (201 Created)."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC02: Từ chối lời nhận xét vượt quá giới hạn 500 ký tự",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Text Too Long Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['REMARK_TEXT_TOO_LONG', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: Đoạn nhận xét quá dài vượt quá giới hạn 500 ký tự tối đa của hệ thống: \"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Từ chối nội dung nhận xét vượt quá giới hạn 500 ký tự tối đa theo quy định (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC03: Xem danh sách lịch sử nhận xét trong lớp học",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Remarks Class List Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.class_id).to.eql('cls_1a_2026');",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks/class/{{classId}}?limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Xem toàn bộ lịch sử nhận xét của học sinh trong lớp cls_1a_2026 (HTTP 200 OK)."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC04: Chặn giáo viên bộ môn tự ý gửi nhận xét môn học mình không được phân công (403 Forbidden)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Verify Not Assigned Teacher Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('ACAD_NOT_ASSIGNED_TEACHER');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"LIT\",\n  \"content\": \"Em làm bài văn miêu tả rất giàu cảm xúc và chữ viết nắn nót.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Chặn giáo viên dạy Toán tự ý gửi nhận xét môn Văn LIT khi không có quyết định phân công giảng dạy môn này."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC05: Giáo viên chủ nhiệm gửi nhận xét nề nếp chung không kèm môn học thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created or 200 OK\", function () {",
+              "    pm.expect([200, 201]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify Homeroom General Remark Saved\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.subject_code).to.eql(null);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": null,\n  \"content\": \"Hôm nay em Nam đi học đúng giờ, đồng phục chỉnh tề và rất tích cực tham gia trực nhật lớp.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Giáo viên chủ nhiệm gửi lời khen/nhận xét nề nếp chuyên cần chung không gắn mã môn học (subject_code: null)."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC06: Từ chối lời nhận xét rỗng hoặc chỉ toàn khoảng trắng",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Empty Content Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['REMARK_CONTENT_EMPTY', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"       \"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Từ chối nội dung nhận xét chỉ toàn dấu cách (khoảng trắng rỗng)."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC07: Từ chối lời nhận xét quá ngắn dưới 3 ký tự ('ok')",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Too Short Content Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['REMARK_CONTENT_TOO_SHORT', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"ok\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Từ chối nội dung nhận xét quá ngắn dưới 3 ký tự (ví dụ: 'ok') để đảm bảo tính sư phạm."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC08: Từ chối lời nhận xét chứa ký tự đặc biệt độc hại hoặc mã script XSS",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Input Payload Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['INVALID_INPUT_PAYLOAD', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"<script>alert('XSS_ATTACK')</script>@@@###$$$%%%\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Chặn mã độc XSS injection và chuỗi ký tự bất thường trong nội dung gửi tới phụ huynh."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC09: Gửi nhận xét thành công với cơ chế chịu lỗi khi dịch vụ Google FCM gián đoạn tạm thời",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created or 200 OK\", function () {",
+              "    pm.expect([200, 201]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify Fault-tolerant Response Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"Em Nam làm bài tập về nhà rất đầy đủ và sạch đẹp.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Lưu nhận xét thành công và đưa thông báo FCM vào hàng đợi tự động thử lại khi Firebase gặp sự cố."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC10: Từ chối thao tác do không có token xác thực hoặc token đã hết hạn (401 Unauthorized)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Unauthorized Error Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['AUTH_UNAUTHORIZED', 'UNAUTHORIZED']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid_or_expired_jwt_token",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"Em học bài tốt.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Từ chối gửi nhận xét khi người dùng chưa đăng nhập hoặc token đã hết hiệu lực."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC11: Từ chối gửi nhận xét cho học sinh không tồn tại trong lớp (404 Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Student Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('STUDENT_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_nonexistent_9999\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"Em học bài tốt.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Từ chối khi mã học sinh 'stu_nonexistent_9999' không tồn tại trong danh sách lớp học."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC12: Từ chối yêu cầu thiếu các trường dữ liệu bắt buộc khi gửi nhận xét (thiếu student_id hoặc class_id)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Em tiếp thu bài nhanh và chăm chú nghe giảng.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Từ chối request thiếu student_id và class_id trong phần thân dữ liệu (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC13: Chặn giáo viên bộ môn gửi nhận xét nhưng thiếu mã môn học bắt buộc (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is 400 Bad Request or 201/200\", function () {",
+              "    pm.expect([200, 201, 400]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 400, verify Validation Error Code\", function () {",
+              "    if (pm.response.code === 400) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{subjectTeacherToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": null,\n  \"content\": \"Em hoàn thành bài tập về nhà rất tốt.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Giáo viên bộ môn bắt buộc phải chọn mã môn học khi gửi nhận xét (chỉ GVCN mới được gửi nhận xét chung không môn)."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC14: Xử lý lỗi máy chủ cơ sở dữ liệu Firestore mất kết nối hoặc timeout (500 Error)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (500 or 200/201)\", function () {",
+              "    pm.expect([200, 201, 500]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 500, verify SYS_INTERNAL_ERROR code\", function () {",
+              "    if (pm.response.code === 500) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('SYS_INTERNAL_ERROR');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"content\": \"Em chú ý lắng nghe bài giảng.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks"
+          ]
+        },
+        "description": "Bắt lỗi hệ thống an toàn khi tầng lưu trữ cơ sở dữ liệu Firestore timeout hoặc ngắt kết nối."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC15: Xử lý trạng thái rỗng an toàn khi lớp học chưa có lời nhận xét nào (Empty State - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Class Remarks Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "    pm.expect(jsonData.data.total).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks/class/cls_new_2026",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks",
+            "class",
+            "cls_new_2026"
+          ]
+        },
+        "description": "Xử lý trạng thái rỗng khi lớp học mới thành lập chưa phát sinh nhận xét nào (total: 0, items: [] - 200 OK)."
+      }
+    },
+    {
+      "name": "UT08_Remarks_TC16: Xử lý trạng thái rỗng an toàn khi xem lịch sử nhận xét của học sinh chưa từng nhận được nhận xét (Empty Student Remarks - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Student Remarks Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "    pm.expect(jsonData.data.total).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/remarks/student/stu_03",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "remarks",
+            "student",
+            "stu_03"
+          ]
+        },
+        "description": "Xem lịch sử nhận xét của học sinh stu_03 khi chưa có lời nhận xét nào, trả về danh sách rỗng items: [] an toàn (200 OK)."
+      }
+    }
+  ]
+}

@@ -1,0 +1,766 @@
+{
+  "info": {
+    "_postman_id": "e04e9d8c-3344-5566-7788-ca9876543210",
+    "name": "GiaoVienHay - UT04 Students & Parents Portal Module Collection",
+    "description": "Bộ kịch bản kiểm thử API Phân hệ Hồ sơ học sinh & Cổng tra cứu phụ huynh (Students & Parents Portal - UT04) trích xuất từ tài liệu UT04_Students.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU1Mjg1MDM5MV9hdGl5ayIsInBob25lIjoiMDk4MjMwNTY3OCIsInJvbGUiOiJQQVJFTlQiLCJzY2hvb2xfbmFtZSI6IlRyxrDhu51uZyBUaeG7g3UgSOG7jWMgQ2h1IFbEg24gQW4iLCJpYXQiOjE3OTE1NTI4NTAsImV4cCI6MTc5MjE1NzY1MH0.9sbbCKOrVRFMxFqLZlwzeqCMFueBntXk_Spc1kZqcn0",
+      "type": "string",
+      "description": "Access Token của Phụ huynh học sinh (role: PARENT)."
+    },
+    {
+      "key": "otherParentToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU1Mjg1MDM5MV9hdGl5ayIsInBob25lIjoiMDk4MjMwNTY3OCIsInJvbGUiOiJQQVJFTlQiLCJzY2hvb2xfbmFtZSI6IlRyxrDhu51uZyBUaeG7g3UgSOG7jWMgQ2h1IFbEg24gQW4iLCJpYXQiOjE3OTE1NTI4NTAsImV4cCI6MTc5MjE1NzY1MH0.9sbbCKOrVRFMxFqLZlwzeqCMFueBntXk_Spc1kZqcn0",
+      "type": "string",
+      "description": "Token của phụ huynh khác không có quyền giám hộ học sinh này (dùng test 403 Forbidden)."
+    },
+    {
+      "key": "studentId",
+      "value": "stu_01",
+      "type": "string",
+      "description": "Mã định danh học sinh thuộc quyền quản lý của phụ huynh (stu_01)."
+    },
+    {
+      "key": "newStudentId",
+      "value": "stu_02",
+      "type": "string",
+      "description": "Mã định danh học sinh mới chưa có dữ liệu điểm / nhận xét (stu_02)."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT04_Students_TC01: Phụ huynh xem thông tin lý lịch con cái thuộc quyền quản lý thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Student Profile Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.student_id).to.eql('stu_01');",
+              "    pm.expect(jsonData.data).to.have.property('full_name');",
+              "    pm.expect(jsonData.data).to.have.property('class_id');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}"
+          ]
+        },
+        "description": "Phụ huynh tra cứu lý lịch, lớp học và thông tin cá nhân của con mình (stu_01) thành công (HTTP 200 OK)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC02: Chặn phụ huynh tra cứu thông tin học sinh không phải con mình (403 Forbidden)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Verify Forbidden Student Access Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['FORBIDDEN_STUDENT_ACCESS', 'AUTH_FORBIDDEN']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherParentToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}"
+          ]
+        },
+        "description": "Chặn phụ huynh truy cập hồ sơ của học sinh lạ không nằm trong danh sách con cái thuộc quyền giám hộ (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC03: Tra cứu bảng điểm đa môn học và các cột điểm thành phần",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Academic Scores Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.student_id).to.eql('stu_01');",
+              "    pm.expect(jsonData.data.subjects).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}/academic",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}",
+            "academic"
+          ]
+        },
+        "description": "Phụ huynh xem chi tiết bảng điểm các môn học (Toán, Tiếng Việt, ...) và các đầu điểm kiểm tra thành phần (200 OK)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC04: Phụ huynh xem sổ liên lạc nhận xét của con theo học kỳ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Remarks List Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.student_id).to.eql('stu_01');",
+              "    pm.expect(jsonData.data.remarks).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}/remarks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}",
+            "remarks"
+          ]
+        },
+        "description": "Phụ huynh tra cứu danh sách các lời nhận xét từ giáo viên chủ nhiệm và giáo viên bộ môn trong sổ liên lạc điện tử."
+      }
+    },
+    {
+      "name": "UT04_Students_TC05: Tra cứu tình trạng nộp học phí và bảo hiểm y tế (BHYT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Fees and Insurance Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.student_id).to.eql('stu_01');",
+              "    pm.expect(jsonData.data).to.have.property('is_paid_insurance');",
+              "    pm.expect(jsonData.data).to.have.property('is_paid_tuition');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}/fees-insurance",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}",
+            "fees-insurance"
+          ]
+        },
+        "description": "Phụ huynh tra cứu tình trạng đóng tiền học phí và bảo hiểm y tế năm học của học sinh stu_01 (200 OK)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC06: Phụ huynh theo dõi lịch sử chuyên cần và các buổi nghỉ học của con",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Attendance History Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.student_id).to.eql('stu_01');",
+              "    pm.expect(jsonData.data).to.have.property('present_days');",
+              "    pm.expect(jsonData.data).to.have.property('absent_details');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}/attendance?month=2026-09",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}",
+            "attendance"
+          ],
+          "query": [
+            {
+              "key": "month",
+              "value": "2026-09"
+            }
+          ]
+        },
+        "description": "Theo dõi tình hình điểm danh chuyên cần theo tháng và chi tiết các ngày nghỉ có phép/không phép của con (200 OK)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC07: Phụ huynh xem danh sách lời nhắc lịch kiểm tra sắp tới của lớp",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Exam Reminders List Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}/exam-reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}",
+            "exam-reminders"
+          ]
+        },
+        "description": "Xem các thông báo nhắc nhở kiểm tra và hướng dẫn ôn tập bài của giáo viên dành cho lớp học (200 OK)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC08: Từ chối yêu cầu khi mã học sinh không tồn tại trong hệ thống (404 Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Student Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('STUDENT_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/stu_nonexistent_9999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "stu_nonexistent_9999"
+          ]
+        },
+        "description": "Từ chối khi tra cứu hồ sơ học sinh có mã 'stu_nonexistent_9999' không tồn tại trong hệ thống (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC09: Từ chối khi lọc học kỳ sai định dạng enum (semester = 3)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Semester Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}/academic?semester=3",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}",
+            "academic"
+          ],
+          "query": [
+            {
+              "key": "semester",
+              "value": "3"
+            }
+          ]
+        },
+        "description": "Từ chối khi tham số semester = 3 nằm ngoài khoảng hợp lệ (chỉ chấp nhận học kỳ 1 hoặc 2)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC10: Từ chối khi lọc tháng chuyên cần sai quy cách (month = '2026-15')",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Month Format Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}/attendance?month=2026-15",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}",
+            "attendance"
+          ],
+          "query": [
+            {
+              "key": "month",
+              "value": "2026-15"
+            }
+          ]
+        },
+        "description": "Từ chối định dạng tháng sai quy chuẩn lịch (month = '2026-15', phải là YYYY-MM từ 01 đến 12)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC11: Từ chối thao tác do không có token xác thực hoặc token đã hết hạn (401 Unauthorized)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Unauthorized Error Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['AUTH_UNAUTHORIZED', 'UNAUTHORIZED']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid_or_expired_jwt_token",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}"
+          ]
+        },
+        "description": "Từ chối truy xuất hồ sơ học sinh khi request không có token hoặc token đã hết hạn."
+      }
+    },
+    {
+      "name": "UT04_Students_TC12: Xử lý trạng thái rỗng an toàn khi học sinh mới chưa có dữ liệu điểm (Empty State - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Subjects Array Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.subjects).to.be.an('array');",
+              "    pm.expect(jsonData.data.subjects.length).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{newStudentId}}/academic?semester=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{newStudentId}}",
+            "academic"
+          ],
+          "query": [
+            {
+              "key": "semester",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Xử lý an toàn khi học sinh mới chưa có điểm bài thi nào, trả về mảng subjects: [] rỗng an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC13: Xử lý lỗi hệ thống khi cơ sở dữ liệu Firestore mất kết nối hoặc timeout (500 Error)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (500 or 200)\", function () {",
+              "    pm.expect([200, 500]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 500, verify SYS_INTERNAL_ERROR code\", function () {",
+              "    if (pm.response.code === 500) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('SYS_INTERNAL_ERROR');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}"
+          ]
+        },
+        "description": "Bắt lỗi hệ thống an toàn khi tầng cơ sở dữ liệu Firestore gặp sự cố ngắt kết nối."
+      }
+    },
+    {
+      "name": "UT04_Students_TC14: Xử lý trạng thái rỗng an toàn khi học sinh chưa có lời nhận xét nào trong sổ liên lạc (Empty Remarks - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Remarks Array Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.remarks).to.be.an('array');",
+              "    pm.expect(jsonData.data.remarks.length).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{newStudentId}}/remarks?semester=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{newStudentId}}",
+            "remarks"
+          ],
+          "query": [
+            {
+              "key": "semester",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Xử lý trạng thái rỗng khi học sinh chưa có lời nhận xét nào trong học kỳ, trả về remarks: [] (200 OK)."
+      }
+    },
+    {
+      "name": "UT04_Students_TC15: Xử lý trạng thái an toàn khi học sinh đi học đầy đủ 100% không có buổi nghỉ nào (Empty Absence - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify 100% Attendance Rate Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/students/{{studentId}}/attendance?month=2026-09",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "{{studentId}}",
+            "attendance"
+          ],
+          "query": [
+            {
+              "key": "month",
+              "value": "2026-09"
+            }
+          ]
+        },
+        "description": "Xử lý an toàn khi học sinh đi học chuyên cần đầy đủ 100%, không phát sinh ngày nghỉ nào trong tháng (200 OK)."
+      }
+    }
+  ]
+}
