@@ -225,14 +225,152 @@ export class SupabaseService implements OnModuleInit {
     systemLimits: null,
   };
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    this.seedMemoryStore();
+    this.initSupabaseClient();
+  }
 
-  onModuleInit() {
+  private seedMemoryStore() {
+    const sch1 = {
+      id: 'sch_cva_01',
+      code: 'SCH-101',
+      name: 'Trường Tiểu Học Chu Văn An',
+      academic_year: '2024-2025',
+      address: '115 Thụy Khuê, Tây Hồ, Hà Nội',
+      phone: '02438452331',
+      email: 'c1chuvanan@hanoiedu.vn',
+      is_deleted: false,
+    };
+    const sch2 = {
+      id: 'sch_lqd_02',
+      code: 'SCH-102',
+      name: 'Trường THCS Lê Quý Đôn',
+      academic_year: '2024-2025',
+      address: 'Số 9 Võ Văn Tần, Quận 3, TP. Hồ Chí Minh',
+      phone: '02839304445',
+      email: 'thcslequydon@tphcm.edu.vn',
+      is_deleted: false,
+    };
+    this.memoryStore.schools.set(sch1.id, sch1);
+    this.memoryStore.schools.set(sch2.id, sch2);
+
+    const cls1 = {
+      id: 'cls_1a_01',
+      name: 'Lớp 1A',
+      grade_level: 1,
+      academic_year: '2024-2025',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      homeroom_teacher_id: 'usr_gv_01',
+      homeroom_teacher: 'Cô Nguyễn Thị Lan',
+      invite_code: 'GVH1A2024',
+      student_count: 3,
+      is_deleted: false,
+    };
+    const cls2 = {
+      id: 'cls_1b_02',
+      name: 'Lớp 1B',
+      grade_level: 1,
+      academic_year: '2024-2025',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      homeroom_teacher_id: 'usr_gv_02',
+      homeroom_teacher: 'Thầy Lê Hoàng Nam',
+      invite_code: 'GVH1B2024',
+      student_count: 2,
+      is_deleted: false,
+    };
+    this.memoryStore.classes.set(cls1.id, cls1);
+    this.memoryStore.classes.set(cls2.id, cls2);
+
+    const adminUser = {
+      id: 'usr_admin_01',
+      code: 'ADM-1001',
+      full_name: 'Thầy Trần Văn Bình',
+      phone: '0988001122',
+      email: 'hieutruong.binh@school.edu.vn',
+      role: 'ADMIN',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      assigned_info: 'Ban Giám Hiệu - Quản trị viên cấp cao',
+      is_active: true,
+      is_deleted: false,
+      ai_daily_quota: 100,
+      ai_used_today: 5,
+      ai_model_tier: 'PRO',
+    };
+    const adminRoot = {
+      id: 'usr_admin_root',
+      code: 'ADM-ROOT',
+      full_name: 'Quản trị viên Hệ thống',
+      phone: '0988888888',
+      email: 'admin@giaovienhay.vn',
+      role: 'ADMIN',
+      school_name: 'Sở GD&ĐT / Hệ thống GiaoVienHay',
+      assigned_info: 'Quản trị viên Hệ thống Cấp cao',
+      is_active: true,
+      is_deleted: false,
+      ai_daily_quota: 100,
+      ai_used_today: 0,
+      ai_model_tier: 'PRO',
+    };
+    const gv1 = {
+      id: 'usr_gv_01',
+      code: 'GV-1001',
+      full_name: 'Cô Nguyễn Thị Lan',
+      phone: '0912345678',
+      email: 'lan.nguyen@school.edu.vn',
+      role: 'TEACHER_HOMEROOM',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      assigned_info: 'Chủ nhiệm Lớp 1A',
+      is_active: true,
+      is_deleted: false,
+      ai_daily_quota: 40,
+      ai_used_today: 12,
+      ai_model_tier: 'AUTO',
+    };
+    const gv2 = {
+      id: 'usr_gv_02',
+      code: 'GV-1002',
+      full_name: 'Thầy Lê Hoàng Nam',
+      phone: '0912345679',
+      email: 'nam.le@school.edu.vn',
+      role: 'TEACHER_SUBJECT',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      assigned_info: 'Giáo viên bộ môn Tin học & Tiếng Anh',
+      is_active: true,
+      is_deleted: false,
+      ai_daily_quota: 30,
+      ai_used_today: 8,
+      ai_model_tier: 'AUTO',
+    };
+    const ph1 = {
+      id: 'usr_ph_01',
+      code: 'PH-1001',
+      full_name: 'Bác Phạm Văn Hùng',
+      phone: '0987654321',
+      email: 'hung.pham@gmail.com',
+      role: 'PARENT',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      assigned_info: 'Phụ huynh em Phạm Minh Anh (Lớp 1A)',
+      is_active: true,
+      is_deleted: false,
+      ai_daily_quota: 10,
+      ai_used_today: 1,
+      ai_model_tier: 'FREE',
+    };
+    [adminUser, adminRoot, gv1, gv2, ph1].forEach((u) => {
+      this.memoryStore.users.set(u.id, u);
+    });
+  }
+
+  private initSupabaseClient() {
     const supabaseUrl =
-      this.configService.get<string>('SUPABASE_URL') || 'https://vhlcirathqrhmltfkhnd.supabase.co';
+      this.configService?.get<string>('SUPABASE_URL') ||
+      process.env.SUPABASE_URL ||
+      'https://vhlcirathqrhmltfkhnd.supabase.co';
     const supabaseKey =
-      this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
-      this.configService.get<string>('SUPABASE_ANON_KEY') ||
+      this.configService?.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      this.configService?.get<string>('SUPABASE_ANON_KEY') ||
+      process.env.SUPABASE_ANON_KEY ||
       'sb_secret_MM1I8eRoXr0H1cfW2BBgkA_Z1VcIAKr';
 
     if (supabaseUrl && supabaseKey) {
@@ -250,8 +388,12 @@ export class SupabaseService implements OnModuleInit {
       } catch (err: any) {
         this.logger.warn(`[Supabase Database] Không thể khởi tạo Supabase Client: ${err?.message || err}`);
       }
-    } else {
-      this.logger.warn('[Supabase Database] Chưa cấu hình SUPABASE_URL hoặc SUPABASE_SERVICE_ROLE_KEY. Sử dụng RAM Cache.');
+    }
+  }
+
+  onModuleInit() {
+    if (!this.supabase) {
+      this.initSupabaseClient();
     }
   }
 
