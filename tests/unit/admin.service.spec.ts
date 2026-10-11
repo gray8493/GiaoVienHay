@@ -1,8 +1,8 @@
-import { NotFoundException, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+﻿import { NotFoundException, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { AdminService } from '../../apps/api/src/modules/12-admin/admin.service';
-import { FirebaseDataConnectService } from '../../apps/api/src/common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../apps/api/src/common/supabase/supabase.service';
 import { UserRole, ErrorCode } from '@giaovienhay/shared-types';
 import { UpdateSystemLimitsDto } from '../../apps/api/src/modules/12-admin/dto/admin.dto';
 

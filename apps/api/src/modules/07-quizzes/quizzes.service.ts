@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -8,7 +8,7 @@ import {
   Logger,
   Optional,
 } from '@nestjs/common';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 import { GeminiService } from '../../common/gemini/gemini.service';
 import { AttendanceService } from '../05-attendance/attendance.service';
 import { AdminService } from '../12-admin/admin.service';

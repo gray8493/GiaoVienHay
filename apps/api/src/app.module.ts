@@ -5,7 +5,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
 
-import { FirebaseModule } from './common/firebase/firebase.module';
+import { SupabaseModule } from './common/supabase/supabase.module';
 import { GeminiModule } from './common/gemini/gemini.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { TimingInterceptor } from './common/interceptors/timing.interceptor';
@@ -57,7 +57,7 @@ import { AdminModule } from './modules/12-admin/admin.module';
       },
     ]),
 
-    FirebaseModule,
+    SupabaseModule,
     GeminiModule,
 
     // Core & Business Modules

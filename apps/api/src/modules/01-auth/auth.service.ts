@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   OnModuleInit,
   ConflictException,
@@ -8,7 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { FirebaseService } from '../../common/supabase/supabase.service';
 import {
   RegisterDto,
   LoginDto,
@@ -17,7 +17,7 @@ import {
   ChangePasswordDto,
 } from './dto/auth.dto';
 import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 
 @Injectable()
 export class AuthService implements OnModuleInit {

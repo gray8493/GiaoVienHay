@@ -1,783 +1,472 @@
 /**
- * Kịch bản Seed Dữ Liệu SQL cho Hệ Thống GiaoVienHay qua Firebase Data Connect
- * (Cloud SQL PostgreSQL - Không sử dụng NoSQL Firestore)
+ * Kịch bản Nạp Dữ Liệu Mẫu (Seed Data) cho Hệ Thống GiaoVienHay trên Supabase PostgreSQL
+ * Thực thi trực tiếp qua @supabase/supabase-js
  */
 
-const API_KEY = "AIzaSyClBuj8koEYV2e57OrTyGdx6hrarrrwLNo";
-const PROJECT_ID = "giaovienhay-511009";
-const LOCATION = "us-east1";
-const SERVICE_ID = "giaovienhay-511009-service";
+import { createClient } from '@supabase/supabase-js';
 
-const ENDPOINT = `https://firebasedataconnect.googleapis.com/v1alpha/projects/${PROJECT_ID}/locations/${LOCATION}/services/${SERVICE_ID}:executeGraphql?key=${API_KEY}`;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vhlcirathqrhmltfkhnd.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  'sb_secret_MM1I8eRoXr0H1cfW2BBgkA_Z1VcIAKr';
 
-async function executeGraphql(query: string, variables: Record<string, any> = {}, accessToken?: string) {
-  try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-    const res = await fetch(ENDPOINT, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ query, variables }),
-    });
-    const json = await res.json();
-    if (!res.ok || json.error || json.errors) {
-      console.error(`⚠️ Firebase Data Connect trả về lỗi HTTP ${res.status}:`, JSON.stringify(json.error || json.errors || json));
-      return { error: json.error || json.errors || json };
-    }
-    return json;
-  } catch (err: any) {
-    console.error('❌ Lỗi kết nối tới endpoint Data Connect:', err?.message || err);
-    return { error: err };
-  }
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+  global: {
+    headers: {
+      'User-Agent': 'GiaoVienHay-Seed-Script/1.0',
+    },
+  },
+});
 
-async function seedData() {
-  console.log('🚀 Bắt đầu nạp dữ liệu mẫu vào Firebase Data Connect (Cloud SQL PostgreSQL)...');
+async function runSeed() {
+  console.log('🚀 Bắt đầu quá trình nạp Dữ liệu Mẫu (Seed Data) lên Supabase...');
+  console.log(`🔗 Supabase URL: ${SUPABASE_URL}`);
 
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
 
-  // 1. Users
-  console.log('1. Đang nạp dữ liệu Users vào bảng SQL User...');
-  const users = [
-    {
-      id: 'usr_admin_01',
-      code: 'ADM-1001',
-      fullName: 'Thầy Trần Văn Bình',
-      phone: '0988001122',
-      email: 'hieutruong.binh@school.edu.vn',
-      role: 'ADMIN',
-      schoolName: 'Trường Tiểu Học Chu Văn An',
-      assignedInfo: 'Quản trị viên',
-      aiDailyQuota: 100,
-      aiModelTier: 'PRO',
-    },
-    {
-      id: 'usr_gv_01',
-      code: 'GV-1001',
-      fullName: 'Cô Nguyễn Thị Lan',
-      phone: '0912345678',
-      email: 'lan.nguyen@school.edu.vn',
-      role: 'TEACHER_HOMEROOM',
-      schoolName: 'Trường Tiểu Học Chu Văn An',
-      assignedInfo: 'Lớp 1A (Chủ nhiệm)',
-      aiDailyQuota: 35,
-      aiModelTier: 'AUTO',
-    },
-    {
-      id: 'usr_ph_01',
-      code: 'PH-1001',
-      fullName: 'Bác Trần Văn Hùng (Bố Bảo Nam)',
-      phone: '0977112233',
-      email: 'hung.tran@gmail.com',
-      role: 'PARENT',
-      schoolName: 'Trường Tiểu Học Chu Văn An',
-      assignedInfo: 'Phụ huynh em Trần Bảo Nam',
-      aiDailyQuota: 10,
-      aiModelTier: 'FLASH',
-    },
-  ];
+  try {
+    // 1. Trường học (Schools)
+    console.log('🏫 1. Đang nạp danh sách Trường học (Schools)...');
+    const schools = [
+      {
+        id: 'sch_cva_01',
+        code: 'SCH-101',
+        name: 'Trường Tiểu Học Chu Văn An',
+        academic_year: '2024-2025',
+        address: '115 Thụy Khuê, Tây Hồ, Hà Nội',
+        phone: '02438452331',
+        email: 'c1chuvanan@hanoiedu.vn',
+        is_deleted: false,
+      },
+      {
+        id: 'sch_lqd_02',
+        code: 'SCH-102',
+        name: 'Trường THCS Lê Quý Đôn',
+        academic_year: '2024-2025',
+        address: 'Số 9 Võ Văn Tần, Quận 3, TP. Hồ Chí Minh',
+        phone: '02839304445',
+        email: 'thcslequydon@tphcm.edu.vn',
+        is_deleted: false,
+      },
+    ];
+    const { error: errSchool } = await supabase.from('schools').upsert(schools);
+    if (errSchool) console.warn('   ⚠️ Ghi chú bảng schools:', errSchool.message);
+    else console.log('   ✅ Đã nạp thành công 2 trường học.');
 
-  const createUserMutation = `
-    mutation CreateUser(
-      $id: String!
-      $code: String!
-      $fullName: String!
-      $phone: String!
-      $email: String
-      $role: String!
-      $schoolName: String
-      $assignedInfo: String
-      $aiDailyQuota: Int
-      $aiModelTier: String
-    ) {
-      user_insert(
-        data: {
-          id: $id
-          code: $code
-          fullName: $fullName
-          phone: $phone
-          email: $email
-          role: $role
-          schoolName: $schoolName
-          assignedInfo: $assignedInfo
-          aiDailyQuota: $aiDailyQuota
-          aiModelTier: $aiModelTier
-        }
-      )
-    }
-  `;
+    // 2. Tài khoản Người dùng (Users)
+    console.log('👤 2. Đang nạp danh sách Tài khoản Người dùng (Users)...');
+    const users = [
+      {
+        id: 'usr_admin_01',
+        code: 'ADM-1001',
+        full_name: 'Thầy Trần Văn Bình',
+        phone: '0988001122',
+        email: 'hieutruong.binh@school.edu.vn',
+        role: 'ADMIN',
+        school_name: 'Trường Tiểu Học Chu Văn An',
+        assigned_info: 'Ban Giám Hiệu - Quản trị viên cấp cao',
+        is_active: true,
+        is_deleted: false,
+        ai_daily_quota: 100,
+        ai_used_today: 5,
+        ai_model_tier: 'PRO',
+      },
+      {
+        id: 'usr_gv_01',
+        code: 'GV-1001',
+        full_name: 'Cô Nguyễn Thị Lan',
+        phone: '0912345678',
+        email: 'lan.nguyen@school.edu.vn',
+        role: 'TEACHER_HOMEROOM',
+        school_name: 'Trường Tiểu Học Chu Văn An',
+        assigned_info: 'Chủ nhiệm Lớp 1A',
+        is_active: true,
+        is_deleted: false,
+        ai_daily_quota: 40,
+        ai_used_today: 12,
+        ai_model_tier: 'AUTO',
+      },
+      {
+        id: 'usr_gv_02',
+        code: 'GV-1002',
+        full_name: 'Thầy Lê Hoàng Nam',
+        phone: '0912345679',
+        email: 'nam.le@school.edu.vn',
+        role: 'TEACHER_SUBJECT',
+        school_name: 'Trường Tiểu Học Chu Văn An',
+        assigned_info: 'Giáo viên bộ môn Tin học & Tiếng Anh',
+        is_active: true,
+        is_deleted: false,
+        ai_daily_quota: 30,
+        ai_used_today: 8,
+        ai_model_tier: 'AUTO',
+      },
+      {
+        id: 'usr_ph_01',
+        code: 'PH-1001',
+        full_name: 'Bác Trần Văn Hùng',
+        phone: '0977112233',
+        email: 'hung.tran@gmail.com',
+        role: 'PARENT',
+        school_name: 'Trường Tiểu Học Chu Văn An',
+        assigned_info: 'Phụ huynh em Trần Bảo Nam (Lớp 1A)',
+        is_active: true,
+        is_deleted: false,
+        ai_daily_quota: 15,
+        ai_used_today: 1,
+        ai_model_tier: 'FLASH',
+      },
+    ];
+    const { error: errUser } = await supabase.from('users').upsert(users);
+    if (errUser) console.warn('   ⚠️ Ghi chú bảng users:', errUser.message);
+    else console.log('   ✅ Đã nạp thành công 4 tài khoản người dùng.');
 
-  for (const u of users) {
-    await executeGraphql(createUserMutation, u);
+    // 3. Lớp học (Classes)
+    console.log('📚 3. Đang nạp danh sách Lớp học (Classes)...');
+    const classes = [
+      {
+        id: 'cls_1a_01',
+        name: 'Lớp 1A',
+        grade_level: 1,
+        academic_year: '2024-2025',
+        school_name: 'Trường Tiểu Học Chu Văn An',
+        homeroom_teacher_id: 'usr_gv_01',
+        invite_code: 'GVH-1A-2024',
+        student_count: 5,
+        is_deleted: false,
+      },
+      {
+        id: 'cls_1b_02',
+        name: 'Lớp 1B',
+        grade_level: 1,
+        academic_year: '2024-2025',
+        school_name: 'Trường Tiểu Học Chu Văn An',
+        homeroom_teacher_id: 'usr_gv_02',
+        invite_code: 'GVH-1B-2024',
+        student_count: 3,
+        is_deleted: false,
+      },
+    ];
+    const { error: errClass } = await supabase.from('classes').upsert(classes);
+    if (errClass) console.warn('   ⚠️ Ghi chú bảng classes:', errClass.message);
+    else console.log('   ✅ Đã nạp thành công 2 lớp học.');
+
+    // 4. Học sinh (Students)
+    console.log('👦 4. Đang nạp danh sách Học sinh (Students)...');
+    const students = [
+      {
+        id: 'std_01',
+        class_id: 'cls_1a_01',
+        student_code: 'HS-1A-01',
+        full_name: 'Trần Bảo Nam',
+        dob: '2018-05-15',
+        gender: 'MALE',
+        parent_phone: '0977112233',
+        is_deleted: false,
+      },
+      {
+        id: 'std_02',
+        class_id: 'cls_1a_01',
+        student_code: 'HS-1A-02',
+        full_name: 'Nguyễn Hoàng My',
+        dob: '2018-08-20',
+        gender: 'FEMALE',
+        parent_phone: '0911223344',
+        is_deleted: false,
+      },
+      {
+        id: 'std_03',
+        class_id: 'cls_1a_01',
+        student_code: 'HS-1A-03',
+        full_name: 'Lê Minh Khôi',
+        dob: '2018-02-10',
+        gender: 'MALE',
+        parent_phone: '0933445566',
+        is_deleted: false,
+      },
+      {
+        id: 'std_04',
+        class_id: 'cls_1a_01',
+        student_code: 'HS-1A-04',
+        full_name: 'Phạm Quỳnh Anh',
+        dob: '2018-11-04',
+        gender: 'FEMALE',
+        parent_phone: '0944556677',
+        is_deleted: false,
+      },
+      {
+        id: 'std_05',
+        class_id: 'cls_1a_01',
+        student_code: 'HS-1A-05',
+        full_name: 'Vũ Đức Trọng',
+        dob: '2018-09-12',
+        gender: 'MALE',
+        parent_phone: '0955667788',
+        is_deleted: false,
+      },
+    ];
+    const { error: errStudent } = await supabase.from('students').upsert(students);
+    if (errStudent) console.warn('   ⚠️ Ghi chú bảng students:', errStudent.message);
+    else console.log('   ✅ Đã nạp thành công 5 học sinh lớp 1A.');
+
+    // 5. Điểm danh (Attendances)
+    console.log('📅 5. Đang nạp dữ liệu Điểm danh (Attendances)...');
+    const attendances = [
+      {
+        id: 'att_01',
+        class_id: 'cls_1a_01',
+        student_id: 'std_01',
+        date: today,
+        status: 'PRESENT',
+        note: 'Đúng giờ, trang phục chỉnh tề',
+        is_deleted: false,
+      },
+      {
+        id: 'att_02',
+        class_id: 'cls_1a_01',
+        student_id: 'std_02',
+        date: today,
+        status: 'PRESENT',
+        note: 'Đúng giờ',
+        is_deleted: false,
+      },
+      {
+        id: 'att_03',
+        class_id: 'cls_1a_01',
+        student_id: 'std_03',
+        date: today,
+        status: 'LATE',
+        note: 'Đến muộn 15 phút do kẹt xe',
+        is_deleted: false,
+      },
+      {
+        id: 'att_04',
+        class_id: 'cls_1a_01',
+        student_id: 'std_04',
+        date: today,
+        status: 'ABSENT_EXCUSED',
+        note: 'Nghỉ ốm có phép của phụ huynh',
+        is_deleted: false,
+      },
+      {
+        id: 'att_05',
+        class_id: 'cls_1a_01',
+        student_id: 'std_05',
+        date: today,
+        status: 'PRESENT',
+        note: 'Đúng giờ',
+        is_deleted: false,
+      },
+    ];
+    const { error: errAtt } = await supabase.from('attendances').upsert(attendances);
+    if (errAtt) console.warn('   ⚠️ Ghi chú bảng attendances:', errAtt.message);
+    else console.log('   ✅ Đã nạp thành công điểm danh ngày hôm nay.');
+
+    // 6. Bảng điểm (Scores)
+    console.log('📊 6. Đang nạp dữ liệu Bảng điểm (Scores)...');
+    const scores = [
+      {
+        id: 'scr_01',
+        student_id: 'std_01',
+        class_id: 'cls_1a_01',
+        subject: 'Toán học',
+        score_type: '15MIN',
+        score_value: 9.5,
+        term: 1,
+        academic_year: '2024-2025',
+        is_deleted: false,
+      },
+      {
+        id: 'scr_02',
+        student_id: 'std_01',
+        class_id: 'cls_1a_01',
+        subject: 'Tiếng Việt',
+        score_type: '15MIN',
+        score_value: 9.0,
+        term: 1,
+        academic_year: '2024-2025',
+        is_deleted: false,
+      },
+      {
+        id: 'scr_03',
+        student_id: 'std_02',
+        class_id: 'cls_1a_01',
+        subject: 'Toán học',
+        score_type: '15MIN',
+        score_value: 10.0,
+        term: 1,
+        academic_year: '2024-2025',
+        is_deleted: false,
+      },
+      {
+        id: 'scr_04',
+        student_id: 'std_03',
+        class_id: 'cls_1a_01',
+        subject: 'Toán học',
+        score_type: '15MIN',
+        score_value: 8.0,
+        term: 1,
+        academic_year: '2024-2025',
+        is_deleted: false,
+      },
+    ];
+    const { error: errScore } = await supabase.from('scores').upsert(scores);
+    if (errScore) console.warn('   ⚠️ Ghi chú bảng scores:', errScore.message);
+    else console.log('   ✅ Đã nạp thành công 4 bản ghi điểm.');
+
+    // 7. Bài tập trắc nghiệm (Quizzes)
+    console.log('📝 7. Đang nạp dữ liệu Bài tập Trắc nghiệm (Quizzes)...');
+    const quizzes = [
+      {
+        id: 'qz_math_01',
+        teacher_id: 'usr_gv_01',
+        class_id: 'cls_1a_01',
+        subject: 'Toán học',
+        title: 'Ôn tập Phép cộng trong phạm vi 10',
+        questions_json: JSON.stringify([
+          {
+            id: 'q1',
+            question: '3 + 4 bằng bao nhiêu?',
+            options: ['6', '7', '8', '9'],
+            correctAnswer: '7',
+            explanation: '3 cộng 4 bằng 7.',
+          },
+          {
+            id: 'q2',
+            question: 'Số nào lớn nhất trong các số: 5, 8, 2, 9?',
+            options: ['5', '8', '2', '9'],
+            correctAnswer: '9',
+            explanation: 'Số 9 là số lớn nhất.',
+          },
+        ]),
+        is_deleted: false,
+      },
+    ];
+    const { error: errQuiz } = await supabase.from('quizzes').upsert(quizzes);
+    if (errQuiz) console.warn('   ⚠️ Ghi chú bảng quizzes:', errQuiz.message);
+    else console.log('   ✅ Đã nạp thành công bài quiz Toán lớp 1.');
+
+    // 8. Sổ liên lạc / Nhận xét (Remarks)
+    console.log('💬 8. Đang nạp dữ liệu Nhận xét (Remarks)...');
+    const remarks = [
+      {
+        id: 'rmk_01',
+        student_id: 'std_01',
+        teacher_id: 'usr_gv_01',
+        date: today,
+        content: 'Em Bảo Nam hôm nay hăng hái phát biểu xây dựng bài, làm toán rất nhanh và chính xác.',
+        category: 'ACADEMIC',
+        is_deleted: false,
+      },
+      {
+        id: 'rmk_02',
+        student_id: 'std_02',
+        teacher_id: 'usr_gv_01',
+        date: today,
+        content: 'Em Hoàng My viết chữ sạch đẹp, có ý thức giúp đỡ bạn bè trong giờ ra chơi.',
+        category: 'BEHAVIOR',
+        is_deleted: false,
+      },
+    ];
+    const { error: errRemark } = await supabase.from('remarks').upsert(remarks);
+    if (errRemark) console.warn('   ⚠️ Ghi chú bảng remarks:', errRemark.message);
+    else console.log('   ✅ Đã nạp thành công nhận xét học sinh.');
+
+    // 9. Lịch thi / Nhắc hẹn (Exam Reminders)
+    console.log('⏰ 9. Đang nạp dữ liệu Lịch kiểm tra (Exam Reminders)...');
+    const examReminders = [
+      {
+        id: 'exm_01',
+        class_id: 'cls_1a_01',
+        subject: 'Toán học',
+        exam_date: '2024-11-20',
+        title: 'Kiểm tra Giữa Học Kỳ 1 - Môn Toán',
+        note: 'Các em chuẩn bị bút chì, thước kẻ và ôn tập kỹ phép cộng trừ dưới 10.',
+        is_deleted: false,
+      },
+    ];
+    const { error: errExam } = await supabase.from('exam_reminders').upsert(examReminders);
+    if (errExam) console.warn('   ⚠️ Ghi chú bảng exam_reminders:', errExam.message);
+    else console.log('   ✅ Đã nạp thành công lịch kiểm tra.');
+
+    // 10. Khoản thu / Học phí (Fees)
+    console.log('💳 10. Đang nạp dữ liệu Học phí & Bảo hiểm (Fees)...');
+    const fees = [
+      {
+        id: 'fee_01',
+        student_id: 'std_01',
+        title: 'Tiền ăn bán trú Tháng 10/2024',
+        amount: 850000,
+        status: 'PAID',
+        due_date: '2024-10-15',
+        paid_at: now,
+        is_deleted: false,
+      },
+      {
+        id: 'fee_02',
+        student_id: 'std_02',
+        title: 'Bảo hiểm Y tế Học sinh 2024-2025',
+        amount: 680400,
+        status: 'PENDING',
+        due_date: '2024-10-30',
+        is_deleted: false,
+      },
+    ];
+    const { error: errFee } = await supabase.from('fees').upsert(fees);
+    if (errFee) console.warn('   ⚠️ Ghi chú bảng fees:', errFee.message);
+    else console.log('   ✅ Đã nạp thành công dữ liệu học phí.');
+
+    // 11. Thông báo (Notifications)
+    console.log('🔔 11. Đang nạp dữ liệu Thông báo Hệ thống (Notifications)...');
+    const notifications = [
+      {
+        id: 'notif_01',
+        recipient_id: 'usr_ph_01',
+        title: 'Thông báo Điểm danh ngày ' + today,
+        body: 'Em Trần Bảo Nam đã có mặt tại lớp lúc 07:45 đúng giờ.',
+        type: 'ATTENDANCE',
+        is_read: false,
+        is_deleted: false,
+      },
+      {
+        id: 'notif_02',
+        recipient_id: 'usr_ph_01',
+        title: 'Đã nhận điểm kiểm tra môn Toán',
+        body: 'Em Bảo Nam đạt điểm 9.5 bài kiểm tra 15 phút môn Toán.',
+        type: 'SCORE',
+        is_read: false,
+        is_deleted: false,
+      },
+    ];
+    const { error: errNotif } = await supabase.from('notifications').upsert(notifications);
+    if (errNotif) console.warn('   ⚠️ Ghi chú bảng notifications:', errNotif.message);
+    else console.log('   ✅ Đã nạp thành công 2 thông báo.');
+
+    // 12. Hạn mức & Cấu hình AI Hệ thống (System Limits)
+    console.log('⚙️ 12. Đang nạp Cấu hình Hạn mức Hệ thống (System Limits)...');
+    const systemLimits = {
+      id: 'sys_limits_default',
+      gemini_quota_per_teacher: 35,
+      max_quiz_questions: 25,
+      max_upload_size_mb: 20,
+      max_students_per_class: 55,
+      max_classes_per_teacher: 5,
+      ai_model: 'gemini-1.5-flash',
+      allow_subject_teacher_create_class: true,
+      enable_fallback_cache: true,
+      updated_at: now,
+    };
+    const { error: errLimit } = await supabase.from('system_limits').upsert(systemLimits);
+    if (errLimit) console.warn('   ⚠️ Ghi chú bảng system_limits:', errLimit.message);
+    else console.log('   ✅ Đã nạp cấu hình System Limits chuẩn xác.');
+
+    console.log('\n🎉 HOÀN THÀNH TOÀN BỘ QUÁ TRÌNH SEED DỮ LIỆU LÊN SUPABASE!');
+  } catch (error: any) {
+    console.error('❌ Lỗi ngoại lệ trong quá trình nạp dữ liệu mẫu:', error?.message || error);
   }
-
-  // 2. Classes
-  console.log('2. Đang nạp dữ liệu Classes vào bảng SQL Class...');
-  const createClassMutation = `
-    mutation CreateClass(
-      $id: String!
-      $name: String!
-      $gradeLevel: Int!
-      $academicYear: String!
-      $schoolName: String
-      $homeroomTeacherId: String
-      $inviteCode: String!
-      $studentCount: Int
-    ) {
-      class_insert(
-        data: {
-          id: $id
-          name: $name
-          gradeLevel: $gradeLevel
-          academicYear: $academicYear
-          schoolName: $schoolName
-          homeroomTeacherId: $homeroomTeacherId
-          inviteCode: $inviteCode
-          studentCount: $studentCount
-        }
-      )
-    }
-  `;
-
-  await executeGraphql(createClassMutation, {
-    id: 'cls_1a_2026',
-    name: '1A',
-    gradeLevel: 1,
-    academicYear: '2026-2027',
-    schoolName: 'Trường Tiểu Học Chu Văn An',
-    homeroomTeacherId: 'usr_gv_01',
-    inviteCode: 'INV-1A-2026',
-    studentCount: 35,
-  });
-
-  // 3. Students
-  console.log('3. Đang nạp dữ liệu Students vào bảng SQL Student...');
-  const createStudentMutation = `
-    mutation CreateStudent(
-      $id: String!
-      $classId: String!
-      $studentCode: String!
-      $fullName: String!
-      $dob: String
-      $gender: String!
-      $parentPhone: String
-    ) {
-      student_insert(
-        data: {
-          id: $id
-          classId: $classId
-          studentCode: $studentCode
-          fullName: $fullName
-          dob: $dob
-          gender: $gender
-          parentPhone: $parentPhone
-        }
-      )
-    }
-  `;
-
-  const students = [
-    {
-      id: 'stu_01',
-      classId: 'cls_1a_2026',
-      studentCode: 'HS001',
-      fullName: 'Trần Bảo Nam',
-      dob: '2019-05-15',
-      gender: 'MALE',
-      parentPhone: '0977112233',
-    },
-    {
-      id: 'stu_02',
-      classId: 'cls_1a_2026',
-      studentCode: 'HS002',
-      fullName: 'Lê Ngọc Mai',
-      dob: '2019-08-20',
-      gender: 'FEMALE',
-      parentPhone: '0966445566',
-    },
-  ];
-
-  for (const s of students) {
-    await executeGraphql(createStudentMutation, s);
-  }
-
-  // 4. Schools
-  console.log('4. Đang nạp dữ liệu Schools vào bảng SQL School...');
-  const createSchoolMutation = `
-    mutation CreateSchool(
-      $id: String!
-      $code: String!
-      $name: String!
-      $address: String
-      $phone: String
-      $email: String
-    ) {
-      school_insert(
-        data: {
-          id: $id
-          code: $code
-          name: $name
-          address: $address
-          phone: $phone
-          email: $email
-        }
-      )
-    }
-  `;
-
-  await executeGraphql(createSchoolMutation, {
-    id: 'sch_chuvanan',
-    code: 'CHUVANAN',
-    name: 'Trường Tiểu Học Chu Văn An',
-    address: '115 Thụy Khuê, Tây Hồ, Hà Nội',
-    phone: '02438471122',
-    email: 'c1chuvanan@edu.vn',
-  });
-
-  // Thêm các Users bổ sung cho các test case
-  console.log('1.1. Đang nạp bổ sung các Users phục vụ testcase...');
-  const extraUsers = [
-    {
-      id: 'usr_teacher_lan',
-      code: 'GV-1001-ALT',
-      fullName: 'Cô Nguyễn Thị Lan',
-      phone: '0912345670',
-      email: 'teacher.lan@school.edu.vn',
-      role: 'TEACHER_HOMEROOM',
-      schoolName: 'Trường Tiểu Học Chu Văn An',
-      assignedInfo: 'Lớp 1A (Chủ nhiệm & Toán)',
-      aiDailyQuota: 35,
-      aiModelTier: 'AUTO',
-    },
-    {
-      id: 'usr_teacher_other',
-      code: 'GV-1002',
-      fullName: 'Thầy Nguyễn Văn Nam',
-      phone: '0912345679',
-      email: 'nam.nguyen@school.edu.vn',
-      role: 'TEACHER_SUBJECT',
-      schoolName: 'Trường Tiểu Học Chu Văn An',
-      assignedInfo: 'Bộ môn Thể dục & Lớp 2B',
-      aiDailyQuota: 25,
-      aiModelTier: 'FLASH',
-    },
-    {
-      id: 'usr_parent_01',
-      code: 'PH-1001-ALT',
-      fullName: 'Bác Trần Văn Hùng',
-      phone: '0977112230',
-      email: 'hung.tran.ph@gmail.com',
-      role: 'PARENT',
-      schoolName: 'Trường Tiểu Học Chu Văn An',
-      assignedInfo: 'Phụ huynh em Trần Bảo Nam',
-      aiDailyQuota: 10,
-      aiModelTier: 'FLASH',
-    },
-    {
-      id: 'usr_parent_02',
-      code: 'PH-1002',
-      fullName: 'Bác Lê Văn Dũng',
-      phone: '0966445566',
-      email: 'dung.le@gmail.com',
-      role: 'PARENT',
-      schoolName: 'Trường Tiểu Học Chu Văn An',
-      assignedInfo: 'Phụ huynh em Lê Ngọc Mai',
-      aiDailyQuota: 10,
-      aiModelTier: 'FLASH',
-    },
-    {
-      id: 'usr_teacher_locked',
-      code: 'GV-9999',
-      fullName: 'Giáo viên Đang Bị Khóa',
-      phone: '0999888777',
-      email: 'locked.teacher@school.edu.vn',
-      role: 'TEACHER_SUBJECT',
-      schoolName: 'Trường Tiểu Học Chu Văn An',
-      assignedInfo: 'Đình chỉ công tác',
-      aiDailyQuota: 0,
-      aiModelTier: 'FLASH',
-    },
-  ];
-
-  for (const u of extraUsers) {
-    await executeGraphql(createUserMutation, u);
-  }
-
-  // Khóa tài khoản usr_teacher_locked
-  await executeGraphql(`
-    mutation LockUser($id: String!) {
-      user_update(id: $id, data: { isActive: false })
-    }
-  `, { id: 'usr_teacher_locked' });
-
-  // Thêm lớp bổ sung cls_2b_2026
-  await executeGraphql(createClassMutation, {
-    id: 'cls_2b_2026',
-    name: '2B',
-    gradeLevel: 2,
-    academicYear: '2026-2027',
-    schoolName: 'Trường Tiểu Học Chu Văn An',
-    homeroomTeacherId: 'usr_teacher_other',
-    inviteCode: 'INV-2B-2026',
-    studentCount: 30,
-  });
-
-  // Thêm học sinh stu_03
-  await executeGraphql(createStudentMutation, {
-    id: 'stu_03',
-    classId: 'cls_1a_2026',
-    studentCode: 'HS003',
-    fullName: 'Nguyễn Hoàng Long',
-    dob: '2019-03-10',
-    gender: 'MALE',
-    parentPhone: '0988223344',
-  });
-
-  // 5. Attendances
-  console.log('5. Đang nạp dữ liệu Điểm danh vào bảng SQL Attendance...');
-  const createAttendanceMutation = `
-    mutation CreateAttendance(
-      $id: String!
-      $classId: String!
-      $studentId: String!
-      $date: String!
-      $status: String!
-      $note: String
-    ) {
-      attendance_insert(
-        data: {
-          id: $id
-          classId: $classId
-          studentId: $studentId
-          date: $date
-          status: $status
-          note: $note
-        }
-      )
-    }
-  `;
-
-  const attendances = [
-    {
-      id: 'att_01',
-      classId: 'cls_1a_2026',
-      studentId: 'stu_01',
-      date: '2026-09-23',
-      status: 'PRESENT',
-      note: 'Đi học đúng giờ',
-    },
-    {
-      id: 'att_02',
-      classId: 'cls_1a_2026',
-      studentId: 'stu_02',
-      date: '2026-09-23',
-      status: 'LATE',
-      note: 'Đến muộn 15 phút do tắc đường',
-    },
-    {
-      id: 'att_03',
-      classId: 'cls_1a_2026',
-      studentId: 'stu_03',
-      date: '2026-09-23',
-      status: 'ABSENT_EXCUSED',
-      note: 'Phụ huynh đã xin phép do ốm',
-    },
-    {
-      id: 'att_today_01',
-      classId: 'cls_1a_2026',
-      studentId: 'stu_01',
-      date: today,
-      status: 'PRESENT',
-      note: 'Có mặt đầy đủ',
-    },
-    {
-      id: 'att_today_02',
-      classId: 'cls_1a_2026',
-      studentId: 'stu_02',
-      date: today,
-      status: 'PRESENT',
-      note: 'Có mặt đầy đủ',
-    },
-  ];
-
-  for (const a of attendances) {
-    await executeGraphql(createAttendanceMutation, a);
-  }
-
-  // 6. Scores (Bảng điểm)
-  console.log('6. Đang nạp dữ liệu Điểm số vào bảng SQL Score...');
-  const createScoreMutation = `
-    mutation CreateScore(
-      $id: String!
-      $studentId: String!
-      $classId: String!
-      $subject: String!
-      $scoreType: String!
-      $scoreValue: Float!
-      $term: Int!
-      $academicYear: String!
-    ) {
-      score_insert(
-        data: {
-          id: $id
-          studentId: $studentId
-          classId: $classId
-          subject: $subject
-          scoreType: $scoreType
-          scoreValue: $scoreValue
-          term: $term
-          academicYear: $academicYear
-        }
-      )
-    }
-  `;
-
-  const scores = [
-    {
-      id: 'score_01',
-      studentId: 'stu_01',
-      classId: 'cls_1a_2026',
-      subject: 'MATH',
-      scoreType: 'ORAL',
-      scoreValue: 9.5,
-      term: 1,
-      academicYear: '2026-2027',
-    },
-    {
-      id: 'score_02',
-      studentId: 'stu_01',
-      classId: 'cls_1a_2026',
-      subject: 'MATH',
-      scoreType: '15MIN',
-      scoreValue: 9.0,
-      term: 1,
-      academicYear: '2026-2027',
-    },
-    {
-      id: 'score_03',
-      studentId: 'stu_02',
-      classId: 'cls_1a_2026',
-      subject: 'MATH',
-      scoreType: 'ORAL',
-      scoreValue: 8.5,
-      term: 1,
-      academicYear: '2026-2027',
-    },
-    {
-      id: 'score_04',
-      studentId: 'stu_01',
-      classId: 'cls_1a_2026',
-      subject: 'LIT',
-      scoreType: 'ORAL',
-      scoreValue: 9.0,
-      term: 1,
-      academicYear: '2026-2027',
-    },
-  ];
-
-  for (const sc of scores) {
-    await executeGraphql(createScoreMutation, sc);
-  }
-
-  // 7. Quizzes
-  console.log('7. Đang nạp dữ liệu Đề trắc nghiệm vào bảng SQL Quiz...');
-  const createQuizMutation = `
-    mutation CreateQuiz(
-      $id: String!
-      $teacherId: String!
-      $classId: String!
-      $subject: String!
-      $title: String!
-      $questionsJson: String!
-    ) {
-      quiz_insert(
-        data: {
-          id: $id
-          teacherId: $teacherId
-          classId: $classId
-          subject: $subject
-          title: $title
-          questionsJson: $questionsJson
-        }
-      )
-    }
-  `;
-
-  await executeGraphql(createQuizMutation, {
-    id: 'quiz_01',
-    teacherId: 'usr_gv_01',
-    classId: 'cls_1a_2026',
-    subject: 'MATH',
-    title: 'Đề kiểm tra 15 phút Toán - Bảng cộng trong phạm vi 10',
-    questionsJson: JSON.stringify([
-      { question: '5 + 3 = ?', options: ['7', '8', '9', '10'], answer: 1 },
-      { question: '9 - 4 = ?', options: ['4', '5', '6', '7'], answer: 1 },
-      { question: 'Số liền sau của số 7 là số nào?', options: ['6', '7', '8', '9'], answer: 2 },
-    ]),
-  });
-
-  // 8. Remarks
-  console.log('8. Đang nạp dữ liệu Lời nhận xét vào bảng SQL Remark...');
-  const createRemarkMutation = `
-    mutation CreateRemark(
-      $id: String!
-      $studentId: String!
-      $teacherId: String!
-      $date: String!
-      $content: String!
-      $category: String!
-    ) {
-      remark_insert(
-        data: {
-          id: $id
-          studentId: $studentId
-          teacherId: $teacherId
-          date: $date
-          content: $content
-          category: $category
-        }
-      )
-    }
-  `;
-
-  const remarks = [
-    {
-      id: 'rmk_01',
-      studentId: 'stu_01',
-      teacherId: 'usr_gv_01',
-      date: today,
-      content: 'Hôm nay em Nam tiếp thu bài rất nhanh và hăng hái xung phong lên bảng chữa bài tập.',
-      category: 'ACADEMIC',
-    },
-    {
-      id: 'rmk_02',
-      studentId: 'stu_02',
-      teacherId: 'usr_gv_01',
-      date: today,
-      content: 'Em Mai viết chữ sạch đẹp, có ý thức giúp đỡ bạn bè trong giờ học.',
-      category: 'BEHAVIOR',
-    },
-    {
-      id: 'rmk_9912',
-      studentId: 'stu_01',
-      teacherId: 'usr_gv_01',
-      date: '2026-09-23',
-      content: 'Em Nam hăng hái tham gia phát biểu xây dựng bài học môn Toán.',
-      category: 'ACADEMIC',
-    },
-  ];
-
-  for (const rm of remarks) {
-    await executeGraphql(createRemarkMutation, rm);
-  }
-
-  // 9. Exam Reminders
-  console.log('9. Đang nạp dữ liệu Lời nhắc lịch thi vào bảng SQL ExamReminder...');
-  const createExamReminderMutation = `
-    mutation CreateExamReminder(
-      $id: String!
-      $classId: String!
-      $subject: String!
-      $examDate: String!
-      $title: String!
-      $note: String
-    ) {
-      examReminder_insert(
-        data: {
-          id: $id
-          classId: $classId
-          subject: $subject
-          examDate: $examDate
-          title: $title
-          note: $note
-        }
-      )
-    }
-  `;
-
-  const examReminders = [
-    {
-      id: 'rem_01',
-      classId: 'cls_1a_2026',
-      subject: 'MATH',
-      examDate: '2026-10-15',
-      title: 'Kiểm tra giữa Học kỳ 1 môn Toán',
-      note: 'Ôn tập phép cộng trừ trong phạm vi 10 và nhận biết các hình học cơ bản.',
-    },
-    {
-      id: 'rem_02',
-      classId: 'cls_1a_2026',
-      subject: 'LIT',
-      examDate: '2026-10-18',
-      title: 'Kiểm tra giữa Học kỳ 1 môn Tiếng Việt',
-      note: 'Ôn tập bảng chữ cái, quy tắc viết hoa và chính tả đoạn ngắn.',
-    },
-  ];
-
-  for (const er of examReminders) {
-    await executeGraphql(createExamReminderMutation, er);
-  }
-
-  // 10. Fees (Các khoản thu)
-  console.log('10. Đang nạp dữ liệu Khoản thu/Học phí vào bảng SQL Fee...');
-  const createFeeMutation = `
-    mutation CreateFee(
-      $id: String!
-      $studentId: String!
-      $title: String!
-      $amount: Float!
-      $status: String!
-      $dueDate: String!
-    ) {
-      fee_insert(
-        data: {
-          id: $id
-          studentId: $studentId
-          title: $title
-          amount: $amount
-          status: $status
-          dueDate: $dueDate
-        }
-      )
-    }
-  `;
-
-  const fees = [
-    {
-      id: 'fee_01',
-      studentId: 'stu_01',
-      title: 'Tiền ăn bán trú & Chăm sóc bán trú Tháng 10/2026',
-      amount: 850000,
-      status: 'PENDING',
-      dueDate: '2026-10-25',
-    },
-    {
-      id: 'fee_02',
-      studentId: 'stu_01',
-      title: 'Bảo hiểm y tế học sinh năm học 2026-2027',
-      amount: 680400,
-      status: 'PAID',
-      dueDate: '2026-09-30',
-    },
-    {
-      id: 'fee_03',
-      studentId: 'stu_02',
-      title: 'Tiền ăn bán trú & Chăm sóc bán trú Tháng 10/2026',
-      amount: 850000,
-      status: 'PENDING',
-      dueDate: '2026-10-25',
-    },
-  ];
-
-  for (const f of fees) {
-    await executeGraphql(createFeeMutation, f);
-  }
-
-  // 11. Notifications
-  console.log('11. Đang nạp dữ liệu Thông báo vào bảng SQL Notification...');
-  const createNotificationMutation = `
-    mutation CreateNotification(
-      $id: String!
-      $recipientId: String!
-      $title: String!
-      $body: String!
-      $type: String!
-      $isRead: Boolean
-    ) {
-      notification_insert(
-        data: {
-          id: $id
-          recipientId: $recipientId
-          title: $title
-          body: $body
-          type: $type
-          isRead: $isRead
-        }
-      )
-    }
-  `;
-
-  const notifications = [
-    {
-      id: 'notif_01',
-      recipientId: 'usr_parent_01',
-      title: 'Thông báo chuyên cần',
-      body: 'Em Trần Bảo Nam đã có mặt tại lớp 1A đúng giờ hôm nay.',
-      type: 'ATTENDANCE',
-      isRead: false,
-    },
-    {
-      id: 'notif_02',
-      recipientId: 'usr_parent_01',
-      title: 'Công bố điểm kiểm tra',
-      body: 'Giáo viên vừa cập nhật điểm môn Toán cho em Trần Bảo Nam: 9.5 điểm.',
-      type: 'SCORE',
-      isRead: true,
-    },
-    {
-      id: 'notif_remark_01',
-      recipientId: 'usr_parent_01',
-      title: 'Lời nhận xét mới từ giáo viên',
-      body: 'Hôm nay em Nam tiếp thu bài rất nhanh và hăng hái xung phong lên bảng chữa bài tập.',
-      type: 'SYSTEM',
-      isRead: false,
-    },
-  ];
-
-  for (const n of notifications) {
-    await executeGraphql(createNotificationMutation, n);
-  }
-
-  // 12. SystemLimits
-  console.log('12. Đang nạp cấu hình giới hạn hệ thống SystemLimits...');
-  const upsertLimitsMutation = `
-    mutation UpsertSystemLimits(
-      $id: String!
-      $geminiQuotaPerTeacher: Int!
-      $maxQuizQuestions: Int!
-      $maxUploadSizeMb: Int!
-      $maxStudentsPerClass: Int!
-      $maxClassesPerTeacher: Int!
-      $aiModel: String!
-      $allowSubjectTeacherCreateClass: Boolean!
-      $enableFallbackCache: Boolean!
-    ) {
-      systemLimit_upsert(
-        data: {
-          id: $id
-          geminiQuotaPerTeacher: $geminiQuotaPerTeacher
-          maxQuizQuestions: $maxQuizQuestions
-          maxUploadSizeMb: $maxUploadSizeMb
-          maxStudentsPerClass: $maxStudentsPerClass
-          maxClassesPerTeacher: $maxClassesPerTeacher
-          aiModel: $aiModel
-          allowSubjectTeacherCreateClass: $allowSubjectTeacherCreateClass
-          enableFallbackCache: $enableFallbackCache
-        }
-      )
-    }
-  `;
-
-  await executeGraphql(upsertLimitsMutation, {
-    id: 'sys_limits_default',
-    geminiQuotaPerTeacher: 25,
-    maxQuizQuestions: 20,
-    maxUploadSizeMb: 15,
-    maxStudentsPerClass: 55,
-    maxClassesPerTeacher: 5,
-    aiModel: 'gemini-1.5-flash',
-    allowSubjectTeacherCreateClass: true,
-    enableFallbackCache: true,
-  });
-
-  console.log('🎉 Hoàn tất nạp dữ liệu mẫu toàn diện cho cả 12 phân hệ vào SQL Firebase Data Connect (Cloud SQL PostgreSQL)!');
-  process.exit(0);
 }
 
-seedData().catch((err) => {
-  console.error('❌ Lỗi khi nạp dữ liệu vào SQL Data Connect:', err);
-  process.exit(1);
-});
+runSeed();

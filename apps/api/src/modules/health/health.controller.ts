@@ -1,11 +1,11 @@
-import {
+﻿import {
   Controller,
   Get,
   InternalServerErrorException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 
 @ApiTags('Health Check')
 @Controller('health')

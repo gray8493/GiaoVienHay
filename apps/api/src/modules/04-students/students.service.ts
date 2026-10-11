@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 
 @Injectable()
 export class StudentsService {
@@ -29,7 +29,7 @@ export class StudentsService {
     if (studentId === 'stu_02_empty') {
       return {
         student_id: studentId,
-        full_name: student.full_name || student.fullName,
+        full_name: (student as any).full_name || (student as any).fullName,
         class_name: '1A',
         semester: semester || 1,
         subjects: [],
@@ -38,7 +38,7 @@ export class StudentsService {
 
     return {
       student_id: studentId,
-      full_name: student.full_name || student.fullName,
+      full_name: (student as any).full_name || (student as any).fullName,
       class_name: '1A',
       semester: 1,
       subjects: [
