@@ -543,11 +543,14 @@ export class SupabaseService implements OnModuleInit {
           .select('*')
           .eq('is_deleted', false)
           .order('name', { ascending: true });
+        if (error) {
+          this.logger.error(`[Supabase] listSchools query error: ${JSON.stringify(error)}`);
+        }
         if (!error && data && data.length > 0) {
           return data.map((s) => this.mapSchool(s));
         }
       } catch (err: any) {
-        this.logger.debug(`[Supabase] listSchools fallback: ${err?.message}`);
+        this.logger.error(`[Supabase] listSchools fallback: ${err?.message}`);
       }
     }
     return Array.from(this.memoryStore.schools.values()).map((s) => this.mapSchool(s));
