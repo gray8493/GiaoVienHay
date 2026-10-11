@@ -18,6 +18,8 @@ export interface DataConnectUserRecord {
   is_active?: boolean;
   isDeleted: boolean;
   is_deleted?: boolean;
+  passwordHash?: string | null;
+  password_hash?: string | null;
   aiDailyQuota: number;
   ai_daily_quota?: number;
   aiUsedToday: number;
@@ -270,22 +272,37 @@ export class SupabaseService implements OnModuleInit {
   // =========================================================================
 
   private mapUser(u: any): DataConnectUserRecord {
+    const isAct = u.is_active ?? u.isActive ?? true;
+    const isDel = u.is_deleted ?? u.isDeleted ?? false;
+    const pwdHash = u.password_hash ?? u.passwordHash ?? null;
     return {
       id: u.id,
       code: u.code,
       fullName: u.full_name ?? u.fullName ?? '',
+      full_name: u.full_name ?? u.fullName ?? '',
       phone: u.phone,
       email: u.email ?? null,
       role: u.role,
       schoolName: u.school_name ?? u.schoolName ?? null,
+      school_name: u.school_name ?? u.schoolName ?? null,
       assignedInfo: u.assigned_info ?? u.assignedInfo ?? null,
-      isActive: u.is_active ?? u.isActive ?? true,
-      isDeleted: u.is_deleted ?? u.isDeleted ?? false,
+      assigned_info: u.assigned_info ?? u.assignedInfo ?? null,
+      isActive: isAct,
+      is_active: isAct,
+      isDeleted: isDel,
+      is_deleted: isDel,
+      passwordHash: pwdHash,
+      password_hash: pwdHash,
       aiDailyQuota: u.ai_daily_quota ?? u.aiDailyQuota ?? 25,
+      ai_daily_quota: u.ai_daily_quota ?? u.aiDailyQuota ?? 25,
       aiUsedToday: u.ai_used_today ?? u.aiUsedToday ?? 0,
+      ai_used_today: u.ai_used_today ?? u.aiUsedToday ?? 0,
       aiModelTier: u.ai_model_tier ?? u.aiModelTier ?? 'AUTO',
+      ai_model_tier: u.ai_model_tier ?? u.aiModelTier ?? 'AUTO',
       createdAt: u.created_at ?? u.createdAt ?? new Date().toISOString(),
+      created_at: u.created_at ?? u.createdAt ?? new Date().toISOString(),
       updatedAt: u.updated_at ?? u.updatedAt ?? new Date().toISOString(),
+      updated_at: u.updated_at ?? u.updatedAt ?? new Date().toISOString(),
     };
   }
 
@@ -402,8 +419,14 @@ export class SupabaseService implements OnModuleInit {
       }
     }
 
-    this.memoryStore.users.set(user.id, { ...record, ...user });
-    return this.mapUser(record);
+    const fullRecord = {
+      ...record,
+      ...user,
+      password_hash: user.password_hash || user.passwordHash || null,
+      passwordHash: user.password_hash || user.passwordHash || null,
+    };
+    this.memoryStore.users.set(user.id, fullRecord);
+    return this.mapUser(fullRecord);
   }
 
   async updateUserStatus(id: string, isActive: boolean, reason?: string) {
