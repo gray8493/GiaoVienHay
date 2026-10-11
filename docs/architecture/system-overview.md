@@ -14,7 +14,7 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 ### 1.2. Mục tiêu hệ thống GiaoVienHay
 **GiaoVienHay** là nền tảng quản lý và trợ giảng thông minh chuyên biệt cho Cấp 1 & Cấp 2:
 1. **Admin (Quản trị viên Nền tảng / Platform Admin):** Đội ngũ phát triển & quản trị hệ thống, phụ trách vận hành kỹ thuật với 3 quyền hạn chính:
-   - **CRUD:** Quản lý tài nguyên dữ liệu, tài khoản người dùng và thông số hệ thống.
+   - **CRUD:** Quản lý tài nguyên dữ liệu, tài khoản người dùng và thông số hệ thống thông qua Supabase.
    - **Ban (Khóa tài khoản):** Khóa hoặc mở khóa tài khoản người dùng khi vi phạm chính sách hoặc có dấu hiệu bất thường.
    - **Limit (Hạn ngạch & Giới hạn):** Cấu hình hạn mức tài nguyên (số lớp học tối đa mỗi giáo viên, số học sinh tối đa/lớp, hạn ngạch lượt gọi AI Gemini hàng ngày/tháng, dung lượng lưu trữ).
 2. **Giáo viên (Bao gồm GVCN & GV Bộ môn):**
@@ -39,7 +39,7 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 
 ### 2.1. AI Trợ Giảng: Sinh Câu Hỏi & Linh Hoạt Chế Độ Quiz / Mini-Game (Trình chiếu tại lớp)
 - **Từ Tài liệu đến Trắc nghiệm & Trò chơi chỉ trong 10 giây:**
-  - Giáo viên tải file giáo án bài học (`.docx`, `.pdf`).
+  - Giáo viên tải file giáo án bài học (`.docx`, `.pdf`) lên **Supabase Storage**.
   - Giáo viên chủ động chọn: **Số lượng câu hỏi** (3, 5, 10...) và **Độ khó** (Dễ, Vừa, Khó, Phân hóa hỗn hợp).
   - Backend NestJS tích hợp **Google Gemini API** bóc tách kiến thức trọng tâm và tự động sinh cấu trúc câu hỏi trắc nghiệm tương ứng.
   - **Linh hoạt 2 hình thức tổ chức tại lớp:**
@@ -54,10 +54,10 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 - **Cả GVCN và GVBM đều sử dụng linh hoạt trong tiết học.**
 - **Nút Bỏ qua thông minh (Skip):** Nếu quay trúng bạn nào nghỉ học hoặc vắng mặt/không thể lên bảng, Giáo viên chỉ cần bấm nút **"Bỏ qua (Skip)"**, hệ thống lập tức quay vòng mới để chọn học sinh khác.
 - Giao diện quay số / lật thẻ bài ấn tượng, tạo sự công bằng, minh bạch và hào hứng trước khi vào bài học mới.
-- Hỗ trợ giáo viên chấm và nhập điểm miệng trực tiếp lưu ngay vào CSDL môn học đang dạy.
+- Hỗ trợ giáo viên chấm và nhập điểm miệng trực tiếp lưu ngay vào Database môn học đang dạy.
 
 ### 2.3. Quản Lý Học Phí & Bảo Hiểm Y Tế (BHYT)
-- Quản lý trạng thái bằng 2 cờ Boolean trực tiếp trong CSDL:
+- Quản lý trạng thái bằng 2 cờ Boolean trực tiếp trong Database:
   - `is_paid_tuition`: Đã đóng học phí.
   - `is_paid_insurance`: Đã nộp tiền BHYT học sinh.
 - GVCN theo dõi bằng checklist 1-chạm, lọc nhanh danh sách chưa nộp để gửi tin nhắn thông báo tự động (Push Notification FCM) đến phụ huynh.
@@ -72,7 +72,7 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 
 ### 2.5. Nhận Xét Học Sinh Ngắn Gọn Gửi Phụ Huynh
 - **Nhận xét bằng đoạn text ngắn:** Cả GVBM và GVCN đều có thể gửi lời nhận xét ngắn gọn (dưới dạng văn bản ngắn thuần túy, không dùng thẻ nhãn tags rườm rà) về tinh thần học tập, nề nếp hoặc bài làm của học sinh.
-- **Kết nối tức thời tới Phụ huynh:** Nhận xét dạng text được lưu vào collection `/remarks` và bắn thông báo đẩy (FCM) tức thời đến điện thoại phụ huynh.
+- **Kết nối tức thời tới Phụ huynh:** Nhận xét dạng text được lưu vào bảng `remarks` và bắn thông báo đẩy (FCM) tức thời đến điện thoại phụ huynh.
 
 ### 2.6. Thông Báo & Lời Nhắc Lịch Kiểm Tra Sắp Tới (GV Cho Phụ Huynh Đôn Đốc Học Sinh)
 - **Tạo lời nhắc nhanh chóng:** Cả GVBM và GVCN đều có thể tạo thông báo nhắc lịch kiểm tra sắp tới (15 phút, 1 tiết, Giữa kỳ...) kèm theo môn học, ngày kiểm tra và nội dung dặn dò ôn tập bài giảng.
@@ -80,19 +80,18 @@ Trong các trường Tiểu học (Cấp 1) và THCS (Cấp 2), công tác giả
 
 ---
 
-## 3. Kiến trúc CSDL Cốt Lõi (Firebase Cloud Firestore)
-Hệ thống sử dụng **Google Cloud Firestore (NoSQL Document Store)** làm cơ sở dữ liệu duy nhất toàn diện:
+## 3. Kiến trúc CSDL Cốt Lõi (Supabase PostgreSQL)
+Hệ thống sử dụng **Supabase (PostgreSQL)** làm cơ sở dữ liệu quan hệ duy nhất toàn diện:
 
-1. `/users/{userId}`: Tài khoản, email, SĐT, vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`), FCM Device Tokens.
-2. `/classes/{classId}`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`, `subject_teachers` (danh sách phân công GVBM theo môn), `invite_code`, `invite_link`.
-3. `/students/{studentId}`: Hồ sơ học sinh, họ tên, ngày sinh, `classId`, danh sách phụ huynh liên kết (`parent_uids`).
-4. `/attendances/{attendanceId}`: Điểm danh chuyên cần theo ngày (`classId`, `studentId`, `date`, `status = PRESENT/ABSENT_EXCUSED/ABSENT_UNEXCUSED`).
-5. `/scores/{scoreId}`: Sổ điểm các môn học theo từng học sinh (`studentId`, `classId`, `subjectCode`, `semester`, `scoreType`, `scoreValue`, `teacherId`, `teacher_comment`, `isPublished`). Lưu trữ các cột điểm do giáo viên nhập, không tự động tính GPA môn.
-6. `/remarks/{remarkId}`: Sổ nhận xét học sinh (đoạn text ngắn gọn gửi phụ huynh, không dùng nhãn tags).
-7. `/fees_and_insurance/{recordId}`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi nhận ngày nộp `tuition_paid_date`, `insurance_paid_date` (kèm mốc thời gian `tuition_paid_at`, `insurance_paid_at`) và ghi chú thu nộp.
-8. `/quizzes/{quizId}`: Bộ câu hỏi / mini-game tạo từ giáo án phục vụ Giáo viên trình chiếu tương tác tại lớp.
-   - Subcollection `/questions/{questionId}`: Câu hỏi, 4 lựa chọn, đáp án đúng, giải thích, thời gian đếm ngược.
-9. `/quiz_results/{resultId}`: Điểm kiểm tra bài cũ / kết quả tham gia mini-game do Giáo viên trực tiếp nhập tại lớp (Bảng xếp hạng vinh danh tại lớp được lấy từ Sổ điểm môn học `/scores`).
-10. `/exam_reminders/{reminderId}`: Thông báo lời nhắc lịch kiểm tra sắp tới (môn học, loại kiểm tra, ngày thi, lời dặn ôn tập) do GVBM/GVCN tạo gửi tới phụ huynh.
-11. `/notifications/{notificationId}`: Nhật ký thông báo đẩy phát tới phụ huynh qua Firebase Cloud Messaging.
-
+1. `users`: Tài khoản, email, SĐT, vai trò (`ADMIN`, `TEACHER_HOMEROOM`, `TEACHER_SUBJECT`, `PARENT`), FCM Device Tokens.
+2. `classes`: Khối lớp (1 đến 9), tên lớp, năm học, `homeroom_teacher_id`, `subject_teachers` (liên kết phân công GVBM theo môn), `invite_code`, `invite_link`.
+3. `students`: Hồ sơ học sinh, họ tên, ngày sinh, `class_id`, liên kết phụ huynh.
+4. `attendances`: Điểm danh chuyên cần theo ngày (`class_id`, `student_id`, `date`, `status = PRESENT/ABSENT_EXCUSED/ABSENT_UNEXCUSED`).
+5. `scores`: Sổ điểm các môn học theo từng học sinh (`student_id`, `class_id`, `subject_code`, `semester`, `score_type`, `score_value`, `teacher_id`, `teacher_comment`, `is_published`).
+6. `remarks`: Sổ nhận xét học sinh (đoạn text ngắn gọn gửi phụ huynh).
+7. `fees_and_insurance`: Sổ theo dõi nộp Học phí & BHYT với 2 cờ boolean `is_paid_tuition`, `is_paid_insurance`, ghi nhận ngày nộp và mốc thời gian.
+8. `quizzes`: Bộ câu hỏi / mini-game tạo từ giáo án phục vụ Giáo viên trình chiếu tương tác tại lớp.
+   - Bảng `questions`: Câu hỏi, 4 lựa chọn, đáp án đúng, giải thích, thời gian đếm ngược (Liên kết với `quiz_id`).
+9. `quiz_results`: Điểm kiểm tra bài cũ / kết quả tham gia mini-game do Giáo viên trực tiếp nhập tại lớp.
+10. `exam_reminders`: Thông báo lời nhắc lịch kiểm tra sắp tới (môn học, loại kiểm tra, ngày thi, lời dặn ôn tập) do GVBM/GVCN tạo gửi tới phụ huynh.
+11. `notifications`: Nhật ký thông báo đẩy phát tới phụ huynh qua Firebase Cloud Messaging.
