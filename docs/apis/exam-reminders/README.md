@@ -12,6 +12,7 @@ Phân hệ **Exam Reminders** hỗ trợ Giáo viên (cả GVBM và GVCN) gửi 
 | :---: | :--- | :---: | :--- |
 | `POST` | `/api/v1/exam-reminders` | `TEACHER_*` | Tạo lời nhắc lịch kiểm tra $\rightarrow$ Bắn FCM tới toàn bộ PH trong lớp |
 | `GET` | `/api/v1/exam-reminders/class/:classId` | `TEACHER_*`, `PARENT` | Lấy danh sách các lịch kiểm tra sắp tới của lớp học |
+| `DELETE` | `/api/v1/exam-reminders/:id` | `TEACHER_*` | Xóa lời nhắc lịch kiểm tra |
 
 ---
 
