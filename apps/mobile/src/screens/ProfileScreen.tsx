@@ -31,6 +31,7 @@ interface ProfileScreenProps {
   onTabChange?: (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => void;
   onLogout?: () => void;
   onNavigateToMyClasses?: () => void;
+  onNavigateToRegister?: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -38,6 +39,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onTabChange,
   onLogout,
   onNavigateToMyClasses,
+  onNavigateToRegister,
 }) => {
   const [profile, setProfile] = useState<UserProfile>({
     id: 'usr_admin_root',
@@ -151,7 +153,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
-  const handleLogoutPress = () => {
+  const handleLogoutPress = async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm('Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?') : true;
+      if (confirmed) {
+        await authService.logout();
+        await userService.logout();
+        onLogout?.();
+      }
+      return;
+    }
+
     Alert.alert(
       'Đăng Xuất',
       'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?',
@@ -161,6 +173,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           text: 'Đăng Xuất',
           style: 'destructive',
           onPress: async () => {
+            await authService.logout();
             await userService.logout();
             onLogout?.();
           },
@@ -463,6 +476,25 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 <Line x1={21} y1={12} x2={9} y2={12} strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
               <Text style={styles.logoutBtnText}>Đăng Xuất</Text>
+            </TouchableOpacity>
+
+            {/* Direct Register Link for Quick Account Switching */}
+            <TouchableOpacity
+              style={{ marginTop: 14, paddingVertical: 8, alignItems: 'center' }}
+              onPress={async () => {
+                await authService.logout();
+                await userService.logout();
+                if (onNavigateToRegister) {
+                  onNavigateToRegister();
+                } else {
+                  onLogout?.();
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#F58F4C' }}>
+                + Đăng ký tài khoản khác
+              </Text>
             </TouchableOpacity>
           </View>
 

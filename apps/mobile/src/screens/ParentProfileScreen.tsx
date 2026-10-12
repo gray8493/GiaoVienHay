@@ -177,7 +177,16 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
           <TouchableOpacity
             style={styles.logoutBtn}
             activeOpacity={0.85}
-            onPress={() => {
+            onPress={async () => {
+              if (Platform.OS === 'web') {
+                const confirmed = typeof window !== 'undefined' ? window.confirm('Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?') : true;
+                if (confirmed) {
+                  await authService.logout();
+                  onLogout?.();
+                }
+                return;
+              }
+
               Alert.alert('Xác nhận đăng xuất', 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?', [
                 { text: 'Hủy', style: 'cancel' },
                 {

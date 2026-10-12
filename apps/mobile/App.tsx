@@ -1000,6 +1000,7 @@ export default function App() {
                   if (tab === 'profile') setCurrentScreen('profile');
                 }}
                 onLogout={() => setCurrentScreen('login')}
+                onNavigateToRegister={() => setCurrentScreen('role')}
                 onNavigateToMyClasses={() => setCurrentScreen('my_classes')}
               />
             )}
