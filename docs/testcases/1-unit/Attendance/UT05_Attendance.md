@@ -610,7 +610,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -660,7 +660,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -787,7 +787,7 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -857,7 +857,7 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -901,7 +901,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -954,7 +954,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -1005,7 +1005,7 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -1064,7 +1064,7 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -1104,4 +1104,4 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**

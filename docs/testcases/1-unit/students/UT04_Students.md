@@ -60,7 +60,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -95,7 +95,7 @@
     "message": "Bạn không có quyền truy cập hồ sơ học sinh này"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -153,7 +153,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -199,7 +199,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -240,7 +240,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -285,7 +285,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS** 
 
 ---
 
@@ -322,7 +322,7 @@
     ]
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -351,7 +351,7 @@
     "message": "Không tìm thấy hồ sơ học sinh trên hệ thống"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -380,7 +380,7 @@
     "message": "Tham số học kỳ không hợp lệ. Học kỳ chỉ chấp nhận giá trị 1 hoặc 2."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -409,7 +409,7 @@
     "message": "Định dạng tháng không hợp lệ. Tham số month phải có định dạng YYYY-MM với tháng từ 01 đến 12."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -434,7 +434,7 @@
     "message": "Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -468,7 +468,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -503,20 +503,25 @@
 ### UT04_Students_TC14 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI HỌC SINH CHƯA CÓ LỜI NHẬN XÉT NÀO TRONG SỔ LIÊN LẠC (EMPTY REMARKS - 200 OK)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Học sinh `stu_02` mới nhập học hoặc trong học kỳ 1 chưa có bất kỳ lời nhận xét nào từ GVCN hay GVBM trong cơ sở dữ liệu.
   - Phụ huynh đã đăng nhập và có quyền giám hộ học sinh này.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_phu_huynh>`
   - **Tham số đường dẫn (Path Params):** `id = "stu_02"`
   - **Tham số truy vấn (Query Params):** `semester = 1`
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền token vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/students/stu_02/remarks?semester=1`.
   3. Bấm nút **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Phản hồi kèm Header `X-Response-Time`.
   - Mảng nhận xét rỗng `remarks: []`, app hiển thị giao diện Empty State "Chưa có nhận xét nào trong học kỳ này":
+
   ```json
   {
     "success": true,
@@ -528,25 +533,30 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ### UT04_Students_TC15 : XỬ LÝ TRẠNG THÁI AN TOÀN KHI HỌC SINH ĐI HỌC ĐẦY ĐỦ 100% KHÔNG CÓ BUỔI NGHỈ NÀO TRONG THÁNG (EMPTY ABSENCE - 200 OK)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Học sinh `stu_01` trong tháng `2026-09` đi học chuyên cần đầy đủ tất cả các buổi, không có bất kỳ bản ghi vắng mặt (`ABSENT`) nào trong Firestore.
   - Phụ huynh đã đăng nhập hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_phu_huynh>`
   - **Tham số đường dẫn & truy vấn:** `id = "stu_01"`, `month = "2026-09"`
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền token phụ huynh vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/students/stu_01/attendance?month=2026-09`.
   3. Bấm nút **Gửi (Send)** để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Mảng các buổi nghỉ rỗng `absent_dates: []`, tổng số buổi nghỉ `total_absent: 0`, tỷ lệ chuyên cần đạt 100%:
+
   ```json
   {
     "success": true,
@@ -561,5 +571,4 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
-
+- **TRẠNG THÁI KIỂM THỬ: FAILED**

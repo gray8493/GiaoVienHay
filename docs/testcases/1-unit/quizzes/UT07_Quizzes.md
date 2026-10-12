@@ -78,7 +78,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -97,7 +97,6 @@
   {
     "student_id": "stu_01",
     "score": 10.0,
-    "comment": "Trả lời câu hỏi khởi động xuất sắc",
     "mode_played": "STANDARD_QUIZ"
   }
   ```
@@ -123,7 +122,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS** 
 
 ---
 
@@ -165,7 +164,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -203,7 +202,7 @@
     "message": "Tệp giáo án tải lên vượt quá dung lượng cho phép (tối đa 15MB)."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -239,7 +238,7 @@
     "message": "Định dạng tệp không được hỗ trợ (chỉ chấp nhận .pdf và .docx)."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: fAILED**
 
 ---
 
@@ -278,7 +277,7 @@
     "message": "Số lượng câu hỏi (num_questions) phải là số nguyên dương hợp lệ (từ 1 đến 20)."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -424,7 +423,7 @@
     "message": "Không tìm thấy bộ câu hỏi kiểm tra bài cũ."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASSd**
 
 ---
 
@@ -462,7 +461,7 @@
     "message": "Điểm số phải nằm trong khoảng từ 0.0 đến 10.0."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -513,7 +512,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -610,7 +609,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -642,7 +641,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -670,7 +669,7 @@
     "message": "Bộ câu hỏi phải duy trì tối thiểu ít nhất 1 câu hỏi, không thể xóa tiếp."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -710,7 +709,7 @@
     "message": "Đáp án đúng phải thuộc danh sách các lựa chọn [A, B, C, D]."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -749,7 +748,7 @@
     "message": "Nội dung câu hỏi và các phương án lựa chọn không được để trống."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: sFAILED**
 
 ---
 
@@ -875,7 +874,7 @@
     ]
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -924,7 +923,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -970,7 +969,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -1017,6 +1016,7 @@
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Phản hồi kèm Header `X-Response-Time`.
   - Dữ liệu trả về đúng cấu trúc danh sách rỗng an toàn với `total: 0` và `items: []`, giao diện hiển thị Empty State hướng dẫn "Bạn chưa có bộ đề kiểm tra bài cũ nào. Hãy tải lên giáo án để AI hỗ trợ tạo câu hỏi":
+
   ```json
   {
     "success": true,
@@ -1029,7 +1029,7 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -1044,6 +1044,7 @@
     - `Content-Type: application/json`
   - **Tham số đường dẫn (Path Params):** `id = "qz_88219"`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "student_id": "stu_not_exist_9999",
@@ -1059,6 +1060,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống ném ra ngoại lệ **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY HỌC SINH)**.
   - Phản hồi cấu trúc Envelope lỗi chuẩn, không ghi nhận bất kỳ điểm số sai lệch nào vào cơ sở dữ liệu:
+
   ```json
   {
     "success": false,
@@ -1069,5 +1071,4 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
-
+- **TRẠNG THÁI KIỂM THỬ: FAILED**

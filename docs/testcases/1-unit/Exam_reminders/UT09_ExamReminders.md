@@ -31,12 +31,15 @@
 ##### UT09_ExamReminders_TC01 : TỪ CHỐI TẠO LỜI NHẮC KHI KHÔNG CHỌN HOẶC ĐỂ TRỐNG MÃ LỚP HỌC (MISSING CLASS_ID)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ với vai trò `TEACHER_HOMEROOM` hoặc `TEACHER_SUBJECT`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Để trống trường `class_id`:
+
   ```json
   {
     "class_id": "",
@@ -47,14 +50,17 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã `Bearer Token` của giáo viên vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi payload thiếu trường mã lớp học `class_id`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Tuyệt đối không tạo document trong collection `/exam_reminders` và không gửi thông báo FCM.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -70,19 +76,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT09_ExamReminders_TC02 : TỪ CHỐI TẠO LỜI NHẮC KHI KHÔNG CHỌN HOẶC ĐỂ TRỐNG MÃ MÔN HỌC (MISSING SUBJECT_CODE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Không truyền hoặc để trống trường `subject_code`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -93,13 +102,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi payload thiếu trường mã môn học `subject_code`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -115,19 +127,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT09_ExamReminders_TC03 : TỪ CHỐI TẠO LỜI NHẮC KHI KHÔNG CHỌN HOẶC ĐỂ TRỐNG LOẠI BÀI KIỂM TRA (MISSING EXAM_TYPE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Bỏ trống hoặc không truyền trường `exam_type`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -137,13 +152,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi payload thiếu trường `exam_type`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -159,19 +177,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT09_ExamReminders_TC04 : TỪ CHỐI TẠO LỜI NHẮC KHI KHÔNG NHẬP HOẶC ĐỂ TRỐNG NGÀY KIỂM TRA (MISSING EXAM_DATE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Để trống trường `exam_date`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -182,13 +203,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi payload có trường `exam_date` là chuỗi rỗng `""`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -204,19 +228,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT09_ExamReminders_TC05 : TỪ CHỐI TẠO LỜI NHẮC KHI KHÔNG NHẬP HOẶC NỘI DUNG DẶN DÒ CHỈ CÓ KHOẢNG TRẮNG (MISSING MESSAGE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Trường `message` chỉ chứa toàn khoảng trắng:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -227,14 +254,17 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi payload có trường `message` chứa khoảng trắng.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống tự động `trim()` và phát hiện nội dung dặn dò rỗng.
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -250,7 +280,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -261,12 +291,15 @@
 ##### UT09_ExamReminders_TC06 : TỪ CHỐI TẠO LỜI NHẮC KHI LỜI DẶN DÒ ÔN THI QUÁ NGẮN (DƯỚI 10 KÝ TỰ)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Lời dặn dò có độ dài 7 ký tự (< 10 ký tự):
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -277,13 +310,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi dữ liệu có `message` dưới 10 ký tự.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -299,19 +335,23 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
+
 
 ##### UT09_ExamReminders_TC07 : TỪ CHỐI TẠO LỜI NHẮC KHI LỜI DẶN DÒ VƯỢT QUÁ ĐỘ DÀI TỐI ĐA (TRÊN 500 KÝ TỰ)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Lời dặn dò dài 550 ký tự (vượt ngưỡng tối đa 500 ký tự):
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -322,13 +362,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi dữ liệu có `message` vượt quá 500 ký tự.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -344,19 +387,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT09_ExamReminders_TC08 : TỪ CHỐI TẠO LỜI NHẮC KHI NGÀY KIỂM TRA KHÔNG TỒN TẠI TRONG LỊCH THỰC TẾ
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Ngày kiểm tra `2026-02-30` không tồn tại trong lịch thực tế:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -367,13 +413,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi trường `exam_date` là ngày không tồn tại trên lịch thực tế.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -389,19 +438,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT09_ExamReminders_TC09 : TỪ CHỐI TẠO LỜI NHẮC KHI NGÀY KIỂM TRA ĐÃ TRÔI QUA TRONG QUÁ KHÚ (EXAM_DATE_INVALID)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Ngày kiểm tra nhỏ hơn ngày hiện tại:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -412,13 +464,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi trường `exam_date` nhỏ hơn ngày hiện tại (`2026-09-01` < `2026-09-27`).
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - NGÀY KIỂM TRA TRONG QUÁ KHỨ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -434,19 +489,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT09_ExamReminders_TC10 : TỪ CHỐI TẠO LỜI NHẮC KHI LOẠI BÀI KIỂM TRA NGOÀI DANH MỤC CHO PHÉP (EXAM_TYPE_INVALID)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Loại bài kiểm tra không nằm trong enum chuẩn:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -457,13 +515,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi giá trị `exam_type` không thuộc enum (`ORAL_TEST`, `QUIZ`, `TEST_15P`, `TEST_1P`, `MID_TERM`, `FINAL`).
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - LOẠI BÀI THI KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -479,7 +540,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -496,6 +557,7 @@
     - `Authorization: Bearer <token_giao_vien_khong_phu_trach>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -513,6 +575,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống ném ra ngoại lệ cấm truy cập **HTTP 403 (FORBIDDEN - CHƯA ĐƯỢC PHÂN CÔNG)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -523,20 +586,23 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT09_ExamReminders_TC12 : BÁO LỖI KHI TẠO LỜI NHẮC VỚI MÃ LỚP HỌC KHÔNG TỒN TẠI (CLASS_NOT_FOUND)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập hợp lệ.
   - Mã lớp học `cls_nonexistent_999` hoàn toàn không có trong cơ sở dữ liệu hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_nonexistent_999",
@@ -547,13 +613,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của giáo viên vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Gửi payload với `class_id` không tồn tại.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -564,26 +633,31 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT09_ExamReminders_TC13 : BÁO LỖI KHI TRA CỨU DANH SÁCH LỊCH KIỂM TRA VỚI MÃ LỚP HỌC KHÔNG TỒN TẠI (CLASS_NOT_FOUND)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng đã đăng nhập hợp lệ.
   - Mã lớp học `cls_khong_ton_tai` hoàn toàn không tồn tại trong hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_nguoi_dung_hop_le>`
   - **Tham số đường dẫn (Path Params):** `classId = cls_khong_ton_tai`
   - **Tham số truy vấn (Query Params):** Không có
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/exam-reminders/class/cls_khong_ton_tai`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -594,7 +668,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -613,6 +687,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống ném ra ngoại lệ cấm truy cập **HTTP 403 (FORBIDDEN - CẤM TRUY CẬP)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -623,7 +698,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -642,6 +717,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -652,7 +728,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -671,6 +747,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống ném ra ngoại lệ cấm truy cập **HTTP 403 (FORBIDDEN - CẤM TRUY CẬP)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -681,17 +758,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT09_ExamReminders_TC17 : CHẶN TRUY CẬP KHI THIẾU TOKEN HOẶC TOKEN KHÔNG HỢP LỆ (AUTH_UNAUTHORIZED)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Request không truyền header `Authorization` hoặc token xác thực đã hết hạn / không hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** Không truyền Bearer token xác thực
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -702,12 +782,15 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Không cấu hình giá trị `Bearer Token` trong tab **Authorization** trên Postman.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - CHƯA XÁC THỰC)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -718,7 +801,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -736,6 +819,7 @@
     - `Authorization: Bearer <token_giao_vien_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -753,6 +837,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Bộ lọc ngoại lệ toàn cục bắt lỗi và chuyển đổi thành mã trạng thái **HTTP 500 (INTERNAL SERVER ERROR - LỖI MÁY CHỦ NỘI BỘ)** mà không làm crash tiến trình ứng dụng.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -774,13 +859,16 @@
 #### UT09_ExamReminders_TC19 : TẠO LỜI NHẮC KIỂM TRA 15 PHÚT THÀNH CÔNG VÀ TỰ ĐỘNG PHÁT THÔNG BÁO FCM TỚI PHỤ HUYNH
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên đã đăng nhập và được phân công giảng dạy môn Toán (`MATH`) tại lớp `cls_1a_2026`.
   - Lớp học đã có 36 học sinh liên kết phụ huynh và sở hữu FCM Device Token hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_toan>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -791,15 +879,18 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của giáo viên dạy Toán vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Thêm dữ liệu lời nhắc kiểm tra vào phần **Body** định dạng `raw (application/json)`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
   - Lưu document lời nhắc vào collection `/exam_reminders` trong Cloud Firestore.
   - Tự động kích hoạt Multicast FCM Notification đến toàn bộ điện thoại phụ huynh trong lớp.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -816,19 +907,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT09_ExamReminders_TC20 : TẠO LỜI NHẮC KIỂM TRA ĐỊNH KỲ 1 TIẾT THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên bộ môn Tiếng Anh (`ENG`) được phân công tại lớp `cls_1a_2026` đã đăng nhập hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvbm_eng>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -839,14 +933,17 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Thêm dữ liệu lịch thi 1 tiết vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
   - Ghi nhận lịch kiểm tra 1 tiết vào hệ thống và phát thông báo FCM tới phụ huynh.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -863,19 +960,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT09_ExamReminders_TC21 : TẠO LỜI NHẮC KIỂM TRA ĐỊNH KỲ GIỮA KỲ / CUỐI KỲ THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên bộ môn Ngữ Văn (`LIT`) tại lớp `cls_1a_2026` đã đăng nhập hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvbm_lit>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -886,14 +986,17 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/exam-reminders`.
   3. Thêm dữ liệu lịch thi Giữa kỳ (`MID_TERM`) vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
   - Lưu bản ghi và bắn FCM thông báo tới toàn thể phụ huynh trong lớp.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -910,27 +1013,32 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PAS**
 
 ---
 
 #### UT09_ExamReminders_TC22 : LẤY TOÀN BỘ DANH SÁCH LỊCH KIỂM TRA SẮP TỚI CỦA LỚP HỌC THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên hoặc phụ huynh của học sinh lớp `cls_1a_2026` đã đăng nhập thành công.
   - Lớp học đã có các lịch kiểm tra sắp tới trong cơ sở dữ liệu.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_nguoi_dung_hop_le>`
   - **Tham số đường dẫn (Path Params):** `classId = cls_1a_2026`
   - **Tham số truy vấn (Query Params):** Không có (lấy tất cả các môn)
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/exam-reminders/class/cls_1a_2026`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Trả về danh sách tất cả các lời nhắc kiểm tra sắp tới của lớp học, sắp xếp theo thứ tự ngày tăng dần.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -964,27 +1072,32 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT09_ExamReminders_TC23 : LỌC DANH SÁCH LỊCH KIỂM TRA THEO MÃ MÔN HỌC THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Lớp `cls_1a_2026` có lịch kiểm tra các môn Toán (`MATH`) và Tiếng Anh (`ENG`).
   - Người dùng thuộc lớp đã đăng nhập hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_nguoi_dung_hop_le>`
   - **Tham số đường dẫn (Path Params):** `classId = cls_1a_2026`
   - **Tham số truy vấn (Query Params):** `subject_code = MATH`
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/exam-reminders/class/cls_1a_2026?subject_code=MATH`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Chỉ lọc và trả về các lịch kiểm tra thuộc môn Toán học (`MATH`).
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -1006,7 +1119,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -1026,6 +1139,7 @@
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Xóa tài liệu `exm_4412` khỏi collection `/exam_reminders` trong Cloud Firestore.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -1037,7 +1151,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -1057,6 +1171,7 @@
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Phản hồi kèm Header `X-Response-Time`.
   - Dữ liệu trả về đúng cấu trúc Envelope chuẩn với mảng rỗng `reminders: []` và tổng số lượng `total: 0`, ứng dụng hiển thị Empty State "Không có bài kiểm tra nào sắp tới":
+
   ```json
   {
     "success": true,
@@ -1070,7 +1185,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -1082,6 +1197,7 @@
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_hop_le>`
   - **Tham số truy vấn (Query Params):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -1095,6 +1211,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Xử lý bộ lọc an toàn, trả về mảng rỗng `reminders: []` và `total: 0`, không gây lỗi Null Pointer hoặc lỗi cú pháp Firestore query:
+
   ```json
   {
     "success": true,
@@ -1109,5 +1226,4 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
-
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
