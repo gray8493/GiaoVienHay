@@ -34,6 +34,7 @@ import { FeesInsuranceScreen } from './src/screens/FeesInsuranceScreen';
 import { RemarksExamScreen } from './src/screens/RemarksExamScreen';
 import { NotificationScreen } from './src/screens/NotificationScreen';
 import { fcmService } from './src/services/fcm.service';
+import { authService } from './src/services/auth.service';
 
 type ScreenKey =
   | 'parent_home'
@@ -63,13 +64,25 @@ type ScreenKey =
   | 'showcase';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenKey>('teacher_home');
-  const [currentClassId, setCurrentClassId] = useState<string>('cls_6a1');
+  const [currentScreen, setCurrentScreen] = useState<ScreenKey>('login');
+  const [currentClassId, setCurrentClassId] = useState<string>('cls_1a_2026');
   const [currentStudentId, setCurrentStudentId] = useState<string>('stu_02');
   const [remarksInitialTab, setRemarksInitialTab] = useState<'REMARKS' | 'EXAMS'>('REMARKS');
   const [selectedRole, setSelectedRole] = useState<'TEACHER' | 'PARENT'>('TEACHER');
   const [attendanceData, setAttendanceData] = useState<AttendanceSavedData | undefined>(undefined);
   const { width } = useWindowDimensions();
+
+  // Kiểm tra phiên đăng nhập hợp lệ khi khởi động app
+  useEffect(() => {
+    const token = authService.getToken();
+    const user = authService.getUser();
+    if (token && user) {
+      const isParent = user.role === 'PARENT';
+      setCurrentScreen(isParent ? 'parent_home' : 'teacher_home');
+    } else {
+      setCurrentScreen('login');
+    }
+  }, []);
 
   // Tự động nhúng font Plus Jakarta Sans & Be Vietnam Pro chuẩn Stitch AI khi chạy trên Web
   useEffect(() => {
@@ -106,6 +119,34 @@ export default function App() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabBar}
         >
+          <TouchableOpacity
+            style={[styles.tabItem, currentScreen === 'login' && styles.tabItemActive]}
+            onPress={() => setCurrentScreen('login')}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                currentScreen === 'login' && styles.tabTextActive,
+              ]}
+            >
+              🔑 Đăng Nhập
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, currentScreen === 'register' && styles.tabItemActive]}
+            onPress={() => setCurrentScreen('register')}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                currentScreen === 'register' && styles.tabTextActive,
+              ]}
+            >
+              📝 Đăng Ký
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.tabItem, currentScreen === 'parent_home' && styles.tabItemActive]}
             onPress={() => setCurrentScreen('parent_home')}
