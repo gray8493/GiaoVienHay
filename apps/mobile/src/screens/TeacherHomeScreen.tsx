@@ -165,7 +165,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
           const mapped: ClassOption[] = cls.map((c, idx) => ({
             id: c.id,
             name: c.name.startsWith('Lớp ') ? c.name : `Lớp ${c.name}`,
-            studentsCount: c.student_count || 38,
+            studentsCount: typeof c.student_count === 'number' ? c.student_count : 0,
             room: idx === 1 ? 'Phòng 205' : idx === 2 ? 'Phòng 301' : 'Phòng 204',
             roleType: c.role_type || (idx === 0 ? 'HOMEROOM' : 'SUBJECT'),
             subjectBadge: c.subject_name || (idx === 0 ? 'Toán Hình' : idx === 1 ? 'Toán Đại' : 'Tin Học'),
@@ -217,6 +217,10 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   };
 
   const handleTabPress = (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => {
+    if ((tab === 'attendance' || tab === 'gradebook') && isNoClassState) {
+      Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+      return;
+    }
     setActiveTab(tab);
     onTabChange?.(tab);
   };
@@ -1157,7 +1161,14 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
             ) : (
               <TouchableOpacity
                 style={styles.dockTabItem}
-                onPress={() => (onOpenWheel ? onOpenWheel() : handleTabPress('attendance'))}
+                onPress={() => {
+                  if (isNoClassState) {
+                    Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                    return;
+                  }
+                  if (onOpenWheel) onOpenWheel();
+                  else handleTabPress('attendance');
+                }}
                 activeOpacity={0.8}
               >
                 <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2}>

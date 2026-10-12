@@ -832,7 +832,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                   )}
                 </View>
               </View>
-            ))}
+            )))}
           </View>
         </ScrollView>
 

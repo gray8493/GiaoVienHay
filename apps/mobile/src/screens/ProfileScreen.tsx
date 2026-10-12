@@ -25,6 +25,7 @@ import Svg, {
   G,
 } from 'react-native-svg';
 import { userService, UserProfile } from '../services/user.service';
+import { authService } from '../services/auth.service';
 
 interface ProfileScreenProps {
   onBackToHome?: () => void;
@@ -41,15 +42,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onNavigateToMyClasses,
   onNavigateToRegister,
 }) => {
-  const [profile, setProfile] = useState<UserProfile>({
-    id: 'usr_admin_root',
-    phone: '0988 888 888',
-    full_name: 'Cô Nguyễn Thị Lan',
-    email: 'lan.nguyen@chuvanan.edu.vn',
-    role: 'TEACHER_HOMEROOM',
-    homeroom_class: '1A',
-    school_name: 'Trường Tiểu Học Chu Văn An',
-    teaching_subjects: ['Toán', 'Tiếng Việt'],
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    const cached = authService.getUser();
+    return {
+      id: cached?.id || '',
+      phone: cached?.phone || '',
+      full_name: cached?.full_name || 'Giáo viên',
+      email: cached?.email || '',
+      role: cached?.role || 'TEACHER_HOMEROOM',
+      homeroom_class: '',
+      school_name: cached?.school_name || 'Chưa cập nhật',
+      teaching_subjects: cached?.teaching_subjects || [],
+    };
   });
 
   // Modal Đổi mật khẩu
@@ -478,24 +482,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               <Text style={styles.logoutBtnText}>Đăng Xuất</Text>
             </TouchableOpacity>
 
-            {/* Direct Register Link for Quick Account Switching */}
-            <TouchableOpacity
-              style={{ marginTop: 14, paddingVertical: 8, alignItems: 'center' }}
-              onPress={async () => {
-                await authService.logout();
-                await userService.logout();
-                if (onNavigateToRegister) {
-                  onNavigateToRegister();
-                } else {
-                  onLogout?.();
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#F58F4C' }}>
-                + Đăng ký tài khoản khác
-              </Text>
-            </TouchableOpacity>
+
           </View>
 
           {/* Reserved Space for Bottom Dock */}

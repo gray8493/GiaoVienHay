@@ -86,7 +86,8 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
       const detail = await classService.getClassDetail(classId);
       if (detail && detail.students && detail.students.length > 0) {
         const mapped: StudentAttendance[] = detail.students.map((s, idx) => {
-          const parts = (s.full_name || s.name || '').trim().split(' ');
+          const fullName = s.full_name || (s as any).name || '';
+          const parts = fullName.trim().split(' ');
           const initials = parts.length > 1
             ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
             : (parts[0]?.substring(0, 2) || 'HS').toUpperCase();
@@ -94,7 +95,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
             id: idx + 1,
             student_id: s.id,
             code: s.student_code || `HS${String(idx + 1).padStart(4, '0')}`,
-            name: s.full_name || s.name || 'Học sinh',
+            name: fullName || 'Học sinh',
             initials,
             status: 'present',
           };
@@ -544,7 +545,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
                     </View>
                   </View>
                 );
-              })}
+              }))}
             </View>
           </View>
         </ScrollView>

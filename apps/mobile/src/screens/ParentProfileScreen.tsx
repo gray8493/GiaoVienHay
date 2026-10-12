@@ -25,8 +25,8 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
   onNavigateToAddChild,
   onLogout,
 }) => {
-  const [parentName, setParentName] = useState('Bác Trần Văn Hùng');
-  const [parentPhone, setParentPhone] = useState('0977 112 233');
+  const [parentName, setParentName] = useState(() => authService.getUser()?.full_name || 'Phụ huynh');
+  const [parentPhone, setParentPhone] = useState(() => authService.getUser()?.phone || '');
   const [children, setChildren] = useState<ChildItem[]>([]);
 
   useEffect(() => {

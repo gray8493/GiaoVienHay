@@ -276,8 +276,9 @@ export const classService = {
           ? resJson.data
           : [];
 
-        // Trả về đúng danh sách lớp từ database (nếu mới tạo tài khoản thì là mảng rỗng [])
-        return list.map((item: any, idx: number) => ({
+        // Lọc bỏ lớp mẫu fallback 'cls_1a_2026' do backend tự sinh khi tài khoản mới chưa có lớp trong DB
+        const realClasses = list.filter((item: any) => item.id !== 'cls_1a_2026');
+        return realClasses.map((item: any, idx: number) => ({
           id: item.id || `cls_${idx}`,
           name: item.name?.startsWith('Lớp') ? item.name : `Lớp ${item.name}`,
           grade_level: item.grade_level || 6,

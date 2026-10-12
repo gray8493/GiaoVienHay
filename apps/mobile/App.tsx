@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
@@ -35,6 +36,7 @@ import { RemarksExamScreen } from './src/screens/RemarksExamScreen';
 import { NotificationScreen } from './src/screens/NotificationScreen';
 import { fcmService } from './src/services/fcm.service';
 import { authService } from './src/services/auth.service';
+import { classService } from './src/services/class.service';
 
 type ScreenKey =
   | 'parent_home'
@@ -65,13 +67,29 @@ type ScreenKey =
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('login');
-  const [currentClassId, setCurrentClassId] = useState<string>('cls_1a_2026');
-  const [currentClassName, setCurrentClassName] = useState<string>('Lớp 1A');
+  const [currentClassId, setCurrentClassId] = useState<string>('cls_empty');
+  const [currentClassName, setCurrentClassName] = useState<string>('Chưa có lớp');
   const [currentStudentId, setCurrentStudentId] = useState<string>('stu_02');
   const [remarksInitialTab, setRemarksInitialTab] = useState<'REMARKS' | 'EXAMS'>('REMARKS');
   const [selectedRole, setSelectedRole] = useState<'TEACHER' | 'PARENT'>('TEACHER');
   const [attendanceData, setAttendanceData] = useState<AttendanceSavedData | undefined>(undefined);
   const { width } = useWindowDimensions();
+
+  const handleTeacherTabChange = (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => {
+    if ((tab === 'attendance' || tab === 'gradebook') && (currentClassId === 'cls_empty' || !currentClassId)) {
+      Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+      return;
+    }
+    if (tab === 'schedule') {
+      setCurrentScreen(currentClassId === 'cls_empty' ? 'teacher_home_empty' : 'teacher_home');
+    } else if (tab === 'attendance') {
+      setCurrentScreen('attendance');
+    } else if (tab === 'gradebook') {
+      setCurrentScreen('gradebook');
+    } else if (tab === 'profile') {
+      setCurrentScreen('profile');
+    }
+  };
 
   // Kiểm tra phiên đăng nhập hợp lệ khi khởi động app
   useEffect(() => {
@@ -79,7 +97,28 @@ export default function App() {
     const user = authService.getUser();
     if (token && user) {
       const isParent = user.role === 'PARENT';
-      setCurrentScreen(isParent ? 'parent_home' : 'teacher_home');
+      if (isParent) {
+        setCurrentScreen('parent_home');
+      } else {
+        classService
+          .getMyClasses()
+          .then((clsList) => {
+            if (clsList && clsList.length > 0) {
+              setCurrentClassId(clsList[0].id);
+              setCurrentClassName(clsList[0].name || 'Lớp ' + clsList[0].name);
+              setCurrentScreen('teacher_home');
+            } else {
+              setCurrentClassId('cls_empty');
+              setCurrentClassName('Chưa có lớp');
+              setCurrentScreen('teacher_home_empty');
+            }
+          })
+          .catch(() => {
+            setCurrentClassId('cls_empty');
+            setCurrentClassName('Chưa có lớp');
+            setCurrentScreen('teacher_home_empty');
+          });
+      }
     } else {
       setCurrentScreen('login');
     }
@@ -346,7 +385,13 @@ export default function App() {
 
           <TouchableOpacity
             style={[styles.tabItem, currentScreen === 'attendance' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('attendance')}
+            onPress={() => {
+              if (currentClassId === 'cls_empty' || !currentClassId) {
+                Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                return;
+              }
+              setCurrentScreen('attendance');
+            }}
           >
             <Text
               style={[
@@ -374,7 +419,13 @@ export default function App() {
 
           <TouchableOpacity
             style={[styles.tabItem, currentScreen === 'gradebook' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('gradebook')}
+            onPress={() => {
+              if (currentClassId === 'cls_empty' || !currentClassId) {
+                Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                return;
+              }
+              setCurrentScreen('gradebook');
+            }}
           >
             <Text
               style={[
@@ -704,13 +755,8 @@ export default function App() {
             <View style={styles.phoneNotch} />
             <GradebookScreen
               currentClassId={currentClassId}
-              onBackToHome={() => setCurrentScreen('teacher_home')}
-              onTabChange={(tab) => {
-                if (tab === 'schedule') setCurrentScreen('teacher_home');
-                if (tab === 'attendance') setCurrentScreen('attendance');
-                if (tab === 'gradebook') setCurrentScreen('gradebook');
-                if (tab === 'profile') setCurrentScreen('profile');
-              }}
+              onBackToHome={() => setCurrentScreen(currentClassId === 'cls_empty' ? 'teacher_home_empty' : 'teacher_home')}
+              onTabChange={handleTeacherTabChange}
             />
           </View>
 
@@ -718,14 +764,10 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <ProfileScreen
-              onBackToHome={() => setCurrentScreen('teacher_home')}
-              onTabChange={(tab) => {
-                if (tab === 'schedule') setCurrentScreen('teacher_home');
-                if (tab === 'attendance') setCurrentScreen('attendance');
-                if (tab === 'gradebook') setCurrentScreen('gradebook');
-                if (tab === 'profile') setCurrentScreen('profile');
-              }}
+              onBackToHome={() => setCurrentScreen(currentClassId === 'cls_empty' ? 'teacher_home_empty' : 'teacher_home')}
+              onTabChange={handleTeacherTabChange}
               onLogout={() => setCurrentScreen('login')}
+              onNavigateToRegister={() => setCurrentScreen('role')}
               onNavigateToMyClasses={() => setCurrentScreen('my_classes')}
             />
           </View>
@@ -764,7 +806,31 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <LoginScreen
-              onLoginSuccess={() => setCurrentScreen('teacher_home')}
+              onLoginSuccess={(user) => {
+                const isParent = user?.role === 'PARENT' || selectedRole === 'PARENT';
+                if (isParent) {
+                  setCurrentScreen('parent_home');
+                } else {
+                  classService
+                    .getMyClasses()
+                    .then((clsList) => {
+                      if (clsList && clsList.length > 0) {
+                        setCurrentClassId(clsList[0].id);
+                        setCurrentClassName(clsList[0].name || 'Lớp ' + clsList[0].name);
+                        setCurrentScreen('teacher_home');
+                      } else {
+                        setCurrentClassId('cls_empty');
+                        setCurrentClassName('Chưa có lớp');
+                        setCurrentScreen('teacher_home_empty');
+                      }
+                    })
+                    .catch(() => {
+                      setCurrentClassId('cls_empty');
+                      setCurrentClassName('Chưa có lớp');
+                      setCurrentScreen('teacher_home_empty');
+                    });
+                }
+              }}
               onNavigateToSignup={() => setCurrentScreen('role')}
             />
           </View>
@@ -788,7 +854,16 @@ export default function App() {
               initialRole={selectedRole}
               onBack={() => setCurrentScreen('role')}
               onNavigateToLogin={() => setCurrentScreen('login')}
-              onRegisterSuccess={() => setCurrentScreen('teacher_home')}
+              onRegisterSuccess={(user) => {
+                const isParent = user?.role === 'PARENT' || selectedRole === 'PARENT';
+                if (isParent) {
+                  setCurrentScreen('parent_home');
+                } else {
+                  setCurrentClassId('cls_empty');
+                  setCurrentClassName('Chưa có lớp');
+                  setCurrentScreen('teacher_home_empty');
+                }
+              }}
             />
           </View>
         </ScrollView>
@@ -903,25 +978,44 @@ export default function App() {
             {currentScreen === 'teacher_home' && (
               <TeacherHomeScreen
                 currentClassId={currentClassId}
+                hasNoClass={currentClassId === 'cls_empty'}
                 onSelectClass={(clsId, clsName) => {
                   setCurrentClassId(clsId);
                   if (clsName) setCurrentClassName(clsName);
                 }}
-                onEnterClassroom={() => setCurrentScreen('attendance')}
+                onEnterClassroom={() => {
+                  if (currentClassId === 'cls_empty' || !currentClassId) {
+                    Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                    return;
+                  }
+                  setCurrentScreen('attendance');
+                }}
                 onOpenAIQuiz={() => setCurrentScreen('quiz_gen')}
-                onOpenWheel={() => setCurrentScreen('wheel')}
+                onOpenWheel={() => {
+                  if (currentClassId === 'cls_empty' || !currentClassId) {
+                    Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                    return;
+                  }
+                  setCurrentScreen('wheel');
+                }}
                 onManageClass={() => setCurrentScreen('my_classes')}
-                onOpenHealthInsurance={() => setCurrentScreen('fees_insurance')}
+                onOpenHealthInsurance={() => {
+                  if (currentClassId === 'cls_empty' || !currentClassId) {
+                    Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                    return;
+                  }
+                  setCurrentScreen('fees_insurance');
+                }}
                 onOpenRemarksExam={(tab) => {
+                  if (currentClassId === 'cls_empty' || !currentClassId) {
+                    Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                    return;
+                  }
                   if (tab) setRemarksInitialTab(tab);
                   setCurrentScreen('remarks_exam');
                 }}
                 onOpenNotifications={() => setCurrentScreen('notifications')}
-                onTabChange={(tab) => {
-                  if (tab === 'attendance') setCurrentScreen('attendance');
-                  if (tab === 'gradebook') setCurrentScreen('gradebook');
-                  if (tab === 'profile') setCurrentScreen('profile');
-                }}
+                onTabChange={handleTeacherTabChange}
               />
             )}
             {currentScreen === 'teacher_home_empty' && (
@@ -933,21 +1027,22 @@ export default function App() {
                   if (clsName) setCurrentClassName(clsName);
                   setCurrentScreen('teacher_home');
                 }}
-                onEnterClassroom={() => setCurrentScreen('attendance')}
+                onEnterClassroom={() => {
+                  Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                }}
                 onOpenAIQuiz={() => setCurrentScreen('quiz_gen')}
-                onOpenWheel={() => setCurrentScreen('wheel')}
+                onOpenWheel={() => {
+                  Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                }}
                 onManageClass={() => setCurrentScreen('my_classes')}
-                onOpenHealthInsurance={() => setCurrentScreen('fees_insurance')}
-                onOpenRemarksExam={(tab) => {
-                  if (tab) setRemarksInitialTab(tab);
-                  setCurrentScreen('remarks_exam');
+                onOpenHealthInsurance={() => {
+                  Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
+                }}
+                onOpenRemarksExam={() => {
+                  Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
                 }}
                 onOpenNotifications={() => setCurrentScreen('notifications')}
-                onTabChange={(tab) => {
-                  if (tab === 'attendance') setCurrentScreen('attendance');
-                  if (tab === 'gradebook') setCurrentScreen('gradebook');
-                  if (tab === 'profile') setCurrentScreen('profile');
-                }}
+                onTabChange={handleTeacherTabChange}
               />
             )}
             {currentScreen === 'notifications' && (
@@ -990,23 +1085,13 @@ export default function App() {
                 currentClassId={currentClassId}
                 className={currentClassName}
                 onBackToHome={() => setCurrentScreen('teacher_home')}
-                onTabChange={(tab) => {
-                  if (tab === 'schedule') setCurrentScreen('teacher_home');
-                  if (tab === 'attendance') setCurrentScreen('attendance');
-                  if (tab === 'gradebook') setCurrentScreen('gradebook');
-                  if (tab === 'profile') setCurrentScreen('profile');
-                }}
+                onTabChange={handleTeacherTabChange}
               />
             )}
             {currentScreen === 'profile' && (
               <ProfileScreen
-                onBackToHome={() => setCurrentScreen('teacher_home')}
-                onTabChange={(tab) => {
-                  if (tab === 'schedule') setCurrentScreen('teacher_home');
-                  if (tab === 'attendance') setCurrentScreen('attendance');
-                  if (tab === 'gradebook') setCurrentScreen('gradebook');
-                  if (tab === 'profile') setCurrentScreen('profile');
-                }}
+                onBackToHome={() => setCurrentScreen(currentClassId === 'cls_empty' ? 'teacher_home_empty' : 'teacher_home')}
+                onTabChange={handleTeacherTabChange}
                 onLogout={() => setCurrentScreen('login')}
                 onNavigateToRegister={() => setCurrentScreen('role')}
                 onNavigateToMyClasses={() => setCurrentScreen('my_classes')}
@@ -1019,7 +1104,28 @@ export default function App() {
               <LoginScreen
                 onLoginSuccess={(user) => {
                   const isParent = user?.role === 'PARENT' || selectedRole === 'PARENT';
-                  setCurrentScreen(isParent ? 'parent_home' : 'teacher_home');
+                  if (isParent) {
+                    setCurrentScreen('parent_home');
+                  } else {
+                    classService
+                      .getMyClasses()
+                      .then((clsList) => {
+                        if (clsList && clsList.length > 0) {
+                          setCurrentClassId(clsList[0].id);
+                          setCurrentClassName(clsList[0].name || 'Lớp ' + clsList[0].name);
+                          setCurrentScreen('teacher_home');
+                        } else {
+                          setCurrentClassId('cls_empty');
+                          setCurrentClassName('Chưa có lớp');
+                          setCurrentScreen('teacher_home_empty');
+                        }
+                      })
+                      .catch(() => {
+                        setCurrentClassId('cls_empty');
+                        setCurrentClassName('Chưa có lớp');
+                        setCurrentScreen('teacher_home_empty');
+                      });
+                  }
                 }}
                 onNavigateToSignup={() => setCurrentScreen('role')}
               />
@@ -1040,7 +1146,13 @@ export default function App() {
                 onNavigateToLogin={() => setCurrentScreen('login')}
                 onRegisterSuccess={(user) => {
                   const isParent = user?.role === 'PARENT' || selectedRole === 'PARENT';
-                  setCurrentScreen(isParent ? 'parent_home' : 'teacher_home');
+                  if (isParent) {
+                    setCurrentScreen('parent_home');
+                  } else {
+                    setCurrentClassId('cls_empty');
+                    setCurrentClassName('Chưa có lớp');
+                    setCurrentScreen('teacher_home_empty');
+                  }
                 }}
               />
             )}

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -68,20 +68,6 @@ export class ClassesService {
       }
     } catch (e) {}
 
-    if (classes.length === 0) {
-      classes = [
-        {
-          id: 'cls_1a_2026',
-          name: '1A',
-          grade_level: 1,
-          academic_year: '2026-2027',
-          school_name: 'Trường Tiểu Học Chu Văn An',
-          homeroom_teacher_id: teacherId,
-          student_count: 35,
-          invite_code: 'INV-1A-2026',
-        },
-      ];
-    }
 
     // Cache kết quả trong 10 phút (600,000 ms)
     await this.cacheManager.set(cacheKey, classes, 600000);
