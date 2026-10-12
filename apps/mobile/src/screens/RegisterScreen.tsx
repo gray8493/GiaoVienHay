@@ -19,7 +19,7 @@ import { authService } from '../services/auth.service';
 interface RegisterScreenProps {
   initialRole?: 'TEACHER' | 'PARENT';
   onBack?: () => void;
-  onRegisterSuccess?: () => void;
+  onRegisterSuccess?: (user?: any) => void;
   onNavigateToLogin?: () => void;
 }
 
@@ -85,7 +85,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     setLoading(true);
 
     try {
-      await authService.register({
+      const data = await authService.register({
         full_name: fullName,
         phone,
         password,
@@ -94,7 +94,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         teaching_subjects: role === 'TEACHER' ? selectedSubjects : undefined,
       });
 
-      onRegisterSuccess?.();
+      onRegisterSuccess?.(data.user);
     } catch (err: any) {
       setErrorMessage(err.message || 'Đăng ký không thành công');
     } finally {

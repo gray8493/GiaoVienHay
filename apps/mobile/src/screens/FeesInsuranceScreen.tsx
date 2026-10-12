@@ -743,12 +743,12 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
               <View style={styles.editStudentLeft}>
                 <View style={styles.editAvatar}>
                   <Text style={styles.editAvatarText}>
-                    {selectedStudent ? getInitials(selectedStudent.student_name) : 'GB'}
+                    {selectedStudent ? getInitials(selectedStudent.student_name) : 'BN'}
                   </Text>
                 </View>
                 <View>
                   <Text style={styles.editStudentName}>
-                    {selectedStudent?.student_name || 'Trần Gia Bảo'}
+                    {selectedStudent?.student_name || 'Trần Bảo Nam'}
                   </Text>
                   <View style={styles.editCodeBadge}>
                     <Text style={styles.editCodeBadgeText}>

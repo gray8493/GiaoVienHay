@@ -27,7 +27,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 }) => {
   const [classData, setClassData] = useState<ClassDetailData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedStudentId, setExpandedStudentId] = useState<string | null>('stu_02'); // Mặc định mở Trần Gia Bảo như mockup
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>('stu_02'); // Mặc định mở Trần Bảo Nam như database
   const [activeMenuStudentId, setActiveMenuStudentId] = useState<string | null>(null);
 
   // Modals state

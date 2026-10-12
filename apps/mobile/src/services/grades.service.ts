@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { authService } from './auth.service';
 
 const API_BASE_URL =
   Platform.OS === 'android'
@@ -27,13 +28,15 @@ export interface PublishScoresPayload {
 }
 
 export const gradesService = {
-  async getClassGrades(classId: string, subjectCode: string = 'MATH', semester: number = 1) {
+  async getClassGrades(classId: string = 'cls_1a_2026', subjectCode: string = 'MATH', semester: number = 1) {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(
         `${API_BASE_URL}/grades/class/${classId}?subject_code=${subjectCode}&semester=${semester}`,
         {
           headers: {
             'Content-Type': 'application/json',
+            ...authHeader,
           },
         }
       );
@@ -45,13 +48,15 @@ export const gradesService = {
     }
   },
 
-  async getLeaderboard(classId: string, subjectCode: string = 'MATH', semester: number = 1, limit: number = 5) {
+  async getLeaderboard(classId: string = 'cls_1a_2026', subjectCode: string = 'MATH', semester: number = 1, limit: number = 5) {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(
         `${API_BASE_URL}/grades/leaderboard/${classId}?subject_code=${subjectCode}&semester=${semester}&limit=${limit}`,
         {
           headers: {
             'Content-Type': 'application/json',
+            ...authHeader,
           },
         }
       );
@@ -65,10 +70,12 @@ export const gradesService = {
 
   async batchInputScores(payload: BatchScoresPayload) {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/grades/batch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
         body: JSON.stringify(payload),
       });
@@ -82,10 +89,12 @@ export const gradesService = {
 
   async publishScores(payload: PublishScoresPayload) {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/grades/publish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
         body: JSON.stringify(payload),
       });

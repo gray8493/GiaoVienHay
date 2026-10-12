@@ -14,6 +14,7 @@ import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Sto
 import { parentService } from '../services/parent.service';
 
 interface ParentAcademicScreenProps {
+  studentId?: string;
   studentName?: string;
   className?: string;
   onBackToHome?: () => void;
@@ -24,8 +25,9 @@ interface ParentAcademicScreenProps {
 type TabType = 'GRADES' | 'REMARKS' | 'ATTENDANCE';
 
 export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
-  studentName = 'Trần Gia Bảo',
-  className = '6A1',
+  studentId = 'stu_02',
+  studentName = 'Trần Bảo Nam',
+  className = '1A',
   onBackToHome,
   onNavigateToTab,
   onOpenNotifications,
@@ -54,20 +56,20 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
 
   useEffect(() => {
     loadData();
-  }, [currentTab]);
+  }, [currentTab, studentId]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       if (currentTab === 'GRADES') {
-        const data = await parentService.getFullAcademicRecord('stu_02');
+        const data = await parentService.getFullAcademicRecord(studentId);
         setAcademicData(data);
       } else if (currentTab === 'REMARKS') {
-        const data = await parentService.getRemarksAndExams('stu_02');
+        const data = await parentService.getRemarksAndExams(studentId);
         setExamsList(data.exams);
         setRemarksList(data.remarks);
       } else {
-        const data = await parentService.getAttendanceDetails('stu_02', '2026-10');
+        const data = await parentService.getAttendanceDetails(studentId, '2026-10');
         if (data.summary) setAttendanceSummary(data.summary);
         if (data.logs) setAttendanceLogs(data.logs);
       }

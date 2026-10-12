@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import { authService } from './auth.service';
+import { fcmService } from './fcm.service';
 
 const API_BASE_URL =
   Platform.OS === 'android'
@@ -19,14 +21,20 @@ export interface NotificationItem {
 export class NotificationService {
   async getNotifications(): Promise<{ items: NotificationItem[]; unreadCount: number }> {
     try {
+      // Tự động khởi tạo Firebase Cloud Messaging (FCM) ngầm
+      fcmService.initFCM().catch(() => null);
+
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/notifications`, {
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const resJson = await response.json();
+        const data = resJson.data || resJson;
         const items = (data.items || []).map((item: any) => ({
           ...item,
           timeAgo: this.formatTimeAgo(item.created_at),
@@ -71,8 +79,8 @@ export class NotificationService {
       },
       {
         id: 'notif_04',
-        title: 'Phụ huynh Gia Bảo đã đọc nhận xét',
-        body: 'Phụ huynh em Trần Gia Bảo lớp 6A1 đã xác nhận đã đọc.',
+        title: 'Phụ huynh Bảo Nam đã đọc nhận xét',
+        body: 'Phụ huynh em Trần Bảo Nam lớp 1A đã xác nhận đã đọc.',
         type: 'REMARK_READ',
         is_read: true,
         timeAgo: '2 ngày trước',
@@ -88,10 +96,12 @@ export class NotificationService {
 
   async markAsRead(id: string): Promise<boolean> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
       });
       return response.ok;
@@ -102,10 +112,12 @@ export class NotificationService {
 
   async markAllAsRead(): Promise<boolean> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
       });
       return response.ok;
@@ -128,3 +140,4 @@ export class NotificationService {
 }
 
 export const notificationService = new NotificationService();
+export { fcmService };

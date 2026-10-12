@@ -66,8 +66,8 @@ const INITIAL_STUDENTS: StudentAttendance[] = [
   {
     id: 2,
     code: 'HS240102',
-    name: 'Trần Gia Bảo',
-    initials: 'GB',
+    name: 'Trần Bảo Nam',
+    initials: 'BN',
     status: 'absent',
     excused: true,
     reason: 'Bị sốt, mẹ xin phép',
@@ -126,8 +126,8 @@ interface AttendanceScreenProps {
 }
 
 export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
-  classId = 'cls_6a1',
-  className = 'Lớp 6A1',
+  classId = 'cls_1a_2026',
+  className = 'Lớp 1A',
   onBack,
   onSaveSuccess,
 }) => {
@@ -181,7 +181,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
 
     try {
       const records: AttendanceRecordItem[] = students.map((s) => ({
-        student_id: s.code,
+        student_id: s.id < 10 ? `stu_0${s.id}` : `stu_${s.id}`,
         status:
           s.status === 'present'
             ? AttendanceStatus.PRESENT

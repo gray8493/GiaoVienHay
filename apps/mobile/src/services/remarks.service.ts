@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { authService } from './auth.service';
 
 const API_BASE_URL =
   Platform.OS === 'android'
@@ -67,13 +68,13 @@ const DEFAULT_REMARKS: StudentRemarkItem[] = [
     id: 'rem_02',
     student_id: 'stu_02',
     student_code: 'HS240102',
-    student_name: 'Trần Gia Bảo',
+    student_name: 'Trần Bảo Nam',
     subject_code: 'MATH',
     subject_name: 'Toán học',
     content: 'Em tiếp thu bài nhanh, hăng hái phát biểu. Cần trình bày bài sạch hơn.',
     status: 'UNREAD',
     sent_date: 'Gửi 29/09 • Toán học',
-    teacher_name: 'Cô Nguyễn Thu Hà',
+    teacher_name: 'Cô Nguyễn Thị Lan',
   },
   {
     id: 'rem_03',
@@ -159,13 +160,15 @@ const DEFAULT_EXAMS: ExamReminderItem[] = [
 ];
 
 export const remarksService = {
-  async getClassRemarks(classId: string = 'cls_6a1'): Promise<StudentRemarkItem[]> {
+  async getClassRemarks(classId: string = 'cls_1a_2026'): Promise<StudentRemarkItem[]> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/remarks/class/${classId}`, {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
       });
       if (response.ok) {
-        const data = await response.json();
+        const resJson = await response.json();
+        const data = resJson.data || resJson;
         if (Array.isArray(data) && data.length > 0) {
           return data;
         }
@@ -178,10 +181,16 @@ export const remarksService = {
 
   async createRemark(payload: CreateRemarkPayload): Promise<boolean> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/remarks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({
+          student_id: payload.student_id,
+          class_id: payload.class_id || 'cls_1a_2026',
+          subject_code: payload.subject_code || 'MATH',
+          content: payload.content,
+        }),
       });
       if (response.ok) {
         return true;
@@ -192,13 +201,15 @@ export const remarksService = {
     return true;
   },
 
-  async getClassExamReminders(classId: string = 'cls_6a1'): Promise<ExamReminderItem[]> {
+  async getClassExamReminders(classId: string = 'cls_1a_2026'): Promise<ExamReminderItem[]> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/exam-reminders/class/${classId}`, {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
       });
       if (response.ok) {
-        const data = await response.json();
+        const resJson = await response.json();
+        const data = resJson.data || resJson;
         if (Array.isArray(data) && data.length > 0) {
           return data;
         }
@@ -211,14 +222,34 @@ export const remarksService = {
 
   async createExamReminder(payload: CreateExamReminderPayload): Promise<boolean> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
+
+      // Chuẩn hóa exam_type sang enum GradeType Backend
+      let normalizedType = 'TEST_15P';
+      const rawType = payload.exam_type?.toUpperCase() || '';
+      if (rawType.includes('15') || rawType === 'TEST_15P') normalizedType = 'TEST_15P';
+      else if (rawType.includes('1 TIẾT') || rawType.includes('45') || rawType === 'TEST_1P') normalizedType = 'TEST_1P';
+      else if (rawType.includes('GIỮA') || rawType === 'MID_TERM') normalizedType = 'MID_TERM';
+      else if (rawType.includes('CUỐI') || rawType === 'FINAL') normalizedType = 'FINAL';
+      else if (rawType.includes('MIỆNG') || rawType === 'ORAL_TEST') normalizedType = 'ORAL_TEST';
+
+      // Chuẩn hóa ngày DD/MM/YYYY sang YYYY-MM-DD
+      let normalizedDate = payload.exam_date;
+      if (payload.exam_date && payload.exam_date.includes('/')) {
+        const parts = payload.exam_date.split('/');
+        if (parts.length === 3) {
+          normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+
       const response = await fetch(`${API_BASE_URL}/exam-reminders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({
-          class_id: payload.class_id,
-          subject_code: payload.subject_code,
-          exam_type: payload.exam_type,
-          exam_date: payload.exam_date,
+          class_id: payload.class_id || 'cls_1a_2026',
+          subject_code: payload.subject_code || 'MATH',
+          exam_type: normalizedType,
+          exam_date: normalizedDate,
           message: payload.message,
         }),
       });

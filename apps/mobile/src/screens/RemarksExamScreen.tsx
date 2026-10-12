@@ -38,7 +38,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   // Tab A states
   const [searchQuery, setSearchQuery] = useState('');
   const [remarkFilter, setRemarkFilter] = useState<RemarkFilter>('ALL');
-  const [expandedStudentId, setExpandedStudentId] = useState<string | null>('stu_02'); // Mặc định mở Trần Gia Bảo như mockup
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>('stu_02'); // Mặc định mở Trần Bảo Nam như database
 
   // Modal TEA-09.2 Nhập nhận xét
   const [showRemarkModal, setShowRemarkModal] = useState(false);
@@ -509,12 +509,12 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               <View style={styles.sheetStudentLeft}>
                 <View style={styles.sheetAvatarBox}>
                   <Text style={styles.sheetAvatarText}>
-                    {targetStudent ? getInitials(targetStudent.student_name) : 'GB'}
+                    {targetStudent ? getInitials(targetStudent.student_name) : 'BN'}
                   </Text>
                 </View>
                 <View>
                   <Text style={styles.sheetStudentName}>
-                    {targetStudent?.student_name || 'Trần Gia Bảo'}
+                    {targetStudent?.student_name || 'Trần Bảo Nam'}
                   </Text>
                   <View style={styles.sheetStudentCodeBadge}>
                     <Text style={styles.sheetStudentCodeText}>

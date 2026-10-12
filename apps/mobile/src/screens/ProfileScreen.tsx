@@ -40,14 +40,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onNavigateToMyClasses,
 }) => {
   const [profile, setProfile] = useState<UserProfile>({
-    id: 'usr_teacher_ha_01',
-    phone: '0987 654 321',
-    full_name: 'Cô Nguyễn Thu Hà',
-    email: 'ha.nguyen@school.edu.vn',
+    id: 'usr_admin_root',
+    phone: '0988 888 888',
+    full_name: 'Cô Nguyễn Thị Lan',
+    email: 'lan.nguyen@chuvanan.edu.vn',
     role: 'TEACHER_HOMEROOM',
-    homeroom_class: '6A1',
-    school_name: 'THCS Lê Quý Đôn',
-    teaching_subjects: ['Toán', 'Tin Học'],
+    homeroom_class: '1A',
+    school_name: 'Trường Tiểu Học Chu Văn An',
+    teaching_subjects: ['Toán', 'Tiếng Việt'],
   });
 
   // Modal Đổi mật khẩu

@@ -20,6 +20,8 @@ interface ParentHomeScreenProps {
   onNavigateToAcademic?: (initialTab?: 'GRADES' | 'REMARKS' | 'ATTENDANCE') => void;
   onNavigateToAddChild?: () => void;
   onLogout?: () => void;
+  selectedChildId?: string;
+  onSelectChild?: (childId: string) => void;
 }
 
 export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
@@ -28,10 +30,12 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
   onNavigateToAcademic,
   onNavigateToAddChild,
   onLogout,
+  selectedChildId: initialChildId = 'stu_02',
+  onSelectChild,
 }) => {
   const [activeTab, setActiveTab] = useState<'home' | 'academic' | 'fees' | 'profile'>('home');
   const [childrenList, setChildrenList] = useState<ChildItem[]>([]);
-  const [selectedChildId, setSelectedChildId] = useState<string>('stu_02');
+  const [selectedChildId, setSelectedChildId] = useState<string>(initialChildId);
   const [dashboardData, setDashboardData] = useState<ParentDashboardData | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,6 +52,12 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
   }, []);
 
   useEffect(() => {
+    if (initialChildId && initialChildId !== selectedChildId) {
+      setSelectedChildId(initialChildId);
+    }
+  }, [initialChildId]);
+
+  useEffect(() => {
     if (selectedChildId) {
       loadDashboard(selectedChildId);
     }
@@ -58,6 +68,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
     setChildrenList(list);
     if (list.length > 0 && !selectedChildId) {
       setSelectedChildId(list[0].id);
+      onSelectChild?.(list[0].id);
     }
   };
 
@@ -75,6 +86,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
 
   const handleSelectChild = (childId: string) => {
     setSelectedChildId(childId);
+    onSelectChild?.(childId);
     setIsChildSheetVisible(false);
   };
 
@@ -103,9 +115,9 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
   const currentChild = childrenList.find(c => c.id === selectedChildId) || childrenList[0] || {
     id: 'stu_02',
     student_code: 'HS240102',
-    full_name: 'Trần Gia Bảo',
-    avatar_letters: 'GB',
-    class_name: 'Lớp 6A1',
+    full_name: 'Trần Bảo Nam',
+    avatar_letters: 'BN',
+    class_name: 'Lớp 1A',
   };
 
   return (
@@ -186,13 +198,13 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
           <View style={styles.heroDecoCircle} />
           <View style={styles.heroContentLeft}>
             <Text style={styles.heroDateTag}>
-              {dashboardData?.attendance.date_str || 'HÔM NAY • THỨ NĂM, 08/10'}
+              {dashboardData?.attendance.date_str || 'HÔM NAY • 23/09/2026'}
             </Text>
             <Text style={styles.heroTitle}>
-              {dashboardData?.attendance.status_title || 'Vắng Có Phép'}
+              {dashboardData?.attendance.status_title || 'Đã Có Mặt'}
             </Text>
             <Text style={styles.heroSubtitle}>
-              {dashboardData?.attendance.note || 'Bị sốt, mẹ xin phép'}
+              {dashboardData?.attendance.note || 'Đi học đúng giờ'}
             </Text>
           </View>
 
@@ -317,33 +329,31 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
           <View style={styles.timelineHeader}>
             <Text style={styles.timelineTitle}>Lịch học hôm nay</Text>
             <View style={styles.pillCount}>
-              <Text style={styles.pillCountText}>2 tiết</Text>
+              <Text style={styles.pillCountText}>
+                {dashboardData?.today_schedule?.length ? `${dashboardData.today_schedule.length} tiết` : '0 tiết'}
+              </Text>
             </View>
           </View>
 
           <View style={styles.timelineCard}>
-            {/* Timeline Item 1 */}
-            <View style={styles.timelineRow}>
-              <View style={styles.timelineNodeCol}>
-                <View style={styles.timelineDotActive} />
-                <View style={styles.timelineLine} />
+            {dashboardData?.today_schedule && dashboardData.today_schedule.length > 0 ? (
+              dashboardData.today_schedule.map((item, idx) => (
+                <View key={idx} style={styles.timelineRow}>
+                  <View style={styles.timelineNodeCol}>
+                    <View style={idx === 0 ? styles.timelineDotActive : styles.timelineDotInactive} />
+                    {idx < (dashboardData.today_schedule?.length || 0) - 1 && <View style={styles.timelineLine} />}
+                  </View>
+                  <View style={styles.timelineContentWrap}>
+                    <Text style={styles.lessonTitle}>{item.period_title}</Text>
+                    <Text style={styles.lessonMeta}>{item.time_room}</Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: '#A06D53' }}>Hôm nay không có tiết học nào</Text>
               </View>
-              <View style={styles.timelineContentWrap}>
-                <Text style={styles.lessonTitle}>Tiết 2: Toán Hình</Text>
-                <Text style={styles.lessonMeta}>08:15 – 09:00 • Phòng 204</Text>
-              </View>
-            </View>
-
-            {/* Timeline Item 2 */}
-            <View style={styles.timelineRow}>
-              <View style={styles.timelineNodeCol}>
-                <View style={styles.timelineDotInactive} />
-              </View>
-              <View style={styles.timelineContentWrap}>
-                <Text style={styles.lessonTitle}>Tiết 4: Sinh hoạt lớp</Text>
-                <Text style={styles.lessonMeta}>10:15 – 11:00 • Phòng 204</Text>
-              </View>
-            </View>
+            )}
           </View>
         </View>
       </ScrollView>

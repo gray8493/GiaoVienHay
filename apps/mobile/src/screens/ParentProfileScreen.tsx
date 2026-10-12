@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { Svg, Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
+import { parentService, ChildItem } from '../services/parent.service';
+import { authService } from '../services/auth.service';
 
 interface ParentProfileScreenProps {
   onBackToHome?: () => void;
@@ -23,6 +25,31 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
   onNavigateToAddChild,
   onLogout,
 }) => {
+  const [parentName, setParentName] = useState('Bác Trần Văn Hùng');
+  const [parentPhone, setParentPhone] = useState('0977 112 233');
+  const [children, setChildren] = useState<ChildItem[]>([]);
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    await authService.ensureToken();
+    const user = authService.getUser();
+    if (user) {
+      if (user.full_name) setParentName(user.full_name);
+      if (user.phone) setParentPhone(user.phone);
+    }
+    const kids = await parentService.getLinkedChildren();
+    setChildren(kids);
+  };
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    return (name.slice(0, 2) || 'PH').toUpperCase();
+  };
+
   return (
     <View style={styles.container}>
       {/* Background Decor Stars */}
@@ -58,13 +85,13 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
           </TouchableOpacity>
 
           <View style={styles.profileIdentityRow}>
-            {/* Letter Avatar LH */}
+            {/* Letter Avatar */}
             <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>LH</Text>
+              <Text style={styles.avatarText}>{getInitials(parentName)}</Text>
             </View>
 
             <View style={styles.profileNameGroup}>
-              <Text style={styles.profileNameTitle}>Chị Lê Thị Hoa</Text>
+              <Text style={styles.profileNameTitle}>{parentName}</Text>
               <View style={styles.roleBadgePill}>
                 <Text style={styles.roleBadgeText}>Phụ huynh</Text>
               </View>
@@ -80,7 +107,7 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
                 <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </View>
-            <Text style={styles.phoneText}>0912 345 678</Text>
+            <Text style={styles.phoneText}>{parentPhone}</Text>
           </View>
         </View>
 
@@ -88,33 +115,22 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Con Của Tôi</Text>
 
-          {/* Child 1 */}
-          <View style={styles.childRow}>
-            <View style={styles.childRowLeft}>
-              <View style={styles.childAvatarSmall}>
-                <Text style={styles.childAvatarSmallText}>GB</Text>
+          {children.map((child, idx) => (
+            <React.Fragment key={child.id || idx}>
+              <View style={styles.childRow}>
+                <View style={styles.childRowLeft}>
+                  <View style={styles.childAvatarSmall}>
+                    <Text style={styles.childAvatarSmallText}>{child.avatar_letters || 'BN'}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.childNameText}>{child.full_name}</Text>
+                    <Text style={styles.childClassText}>{child.class_name}</Text>
+                  </View>
+                </View>
               </View>
-              <View>
-                <Text style={styles.childNameText}>Trần Gia Bảo</Text>
-                <Text style={styles.childClassText}>Lớp 6A1</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.itemDivider} />
-
-          {/* Child 2 */}
-          <View style={styles.childRow}>
-            <View style={styles.childRowLeft}>
-              <View style={styles.childAvatarSmall}>
-                <Text style={styles.childAvatarSmallText}>GH</Text>
-              </View>
-              <View>
-                <Text style={styles.childNameText}>Trần Gia Hân</Text>
-                <Text style={styles.childClassText}>Lớp 8A2</Text>
-              </View>
-            </View>
-          </View>
+              {idx < children.length - 1 && <View style={styles.itemDivider} />}
+            </React.Fragment>
+          ))}
 
           <View style={styles.itemDivider} />
 
@@ -164,7 +180,14 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
             onPress={() => {
               Alert.alert('Xác nhận đăng xuất', 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?', [
                 { text: 'Hủy', style: 'cancel' },
-                { text: 'Đăng xuất', style: 'destructive', onPress: onLogout },
+                {
+                  text: 'Đăng xuất',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await authService.logout();
+                    onLogout?.();
+                  },
+                },
               ]);
             }}
           >

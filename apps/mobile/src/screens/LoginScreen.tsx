@@ -17,7 +17,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { authService } from '../services/auth.service';
 
 interface LoginScreenProps {
-  onLoginSuccess?: () => void;
+  onLoginSuccess?: (user?: any) => void;
   onNavigateToSignup?: () => void;
 }
 
@@ -40,8 +40,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setLoading(true);
 
     try {
-      await authService.login({ phone, password });
-      onLoginSuccess?.();
+      const data = await authService.login({ phone, password });
+      onLoginSuccess?.(data.user);
     } catch (err: any) {
       setErrorMessage(err.message || 'Đăng nhập không thành công');
     } finally {

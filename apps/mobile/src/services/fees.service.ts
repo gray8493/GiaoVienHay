@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { authService } from './auth.service';
 
 const API_BASE_URL =
   Platform.OS === 'android'
@@ -64,7 +65,7 @@ const DEFAULT_RECORDS: StudentFeeRecord[] = [
     record_id: 'fee_02',
     student_id: 'stu_02',
     student_code: 'HS240102',
-    student_name: 'Trần Gia Bảo',
+    student_name: 'Trần Bảo Nam',
     insurance: { is_paid: false, paid_date: null },
     tuition: { is_paid: true, paid_date: '22/09' },
     note: null,
@@ -99,14 +100,16 @@ const DEFAULT_RECORDS: StudentFeeRecord[] = [
 ];
 
 export const feesService = {
-  async getClassFeesList(classId: string = 'cls_6a1'): Promise<ClassFeesSummary> {
+  async getClassFeesList(classId: string = 'cls_1a_2026'): Promise<ClassFeesSummary> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/fees-insurance/class/${classId}`, {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const resJson = await response.json();
+        const data = resJson.data || resJson;
         if (data && data.records) {
           const records: StudentFeeRecord[] = data.records.map((r: any, idx: number) => ({
             record_id: r.record_id || `fee_0${idx + 1}`,
@@ -124,7 +127,7 @@ export const feesService = {
 
           return {
             class_id: classId,
-            class_name: 'Lớp 6A1',
+            class_name: 'Lớp 1A',
             term_name: 'HK1',
             total_students: total,
             insurance_paid_count: insurancePaid,
@@ -143,7 +146,7 @@ export const feesService = {
 
     return {
       class_id: classId,
-      class_name: 'Lớp 6A1',
+      class_name: 'Lớp 1A',
       term_name: 'HK1',
       total_students: 38,
       insurance_paid_count: 35,
@@ -158,9 +161,10 @@ export const feesService = {
 
   async toggleFeeStatus(payload: ToggleFeePayload): Promise<boolean> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/fees-insurance/toggle`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify(payload),
       });
 
@@ -175,9 +179,10 @@ export const feesService = {
 
   async sendFeeReminder(payload: RemindFeePayload): Promise<boolean> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/fees-insurance/remind`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify(payload),
       });
 

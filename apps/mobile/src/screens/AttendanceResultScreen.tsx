@@ -55,9 +55,9 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
   const defaultAbsentStudents = [
     {
       id: 2,
-      name: 'Trần Gia Bảo',
+      name: 'Trần Bảo Nam',
       code: 'HS240102',
-      initials: 'GB',
+      initials: 'BN',
       excused: true,
       reason: 'Bị sốt, mẹ xin phép',
     },

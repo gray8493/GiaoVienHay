@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { authService } from './auth.service';
 
 const API_BASE_URL =
   Platform.OS === 'android'
@@ -63,10 +64,10 @@ const DEFAULT_STUDENTS: StudentItem[] = [
   {
     id: 'stu_02',
     student_code: 'HS240102',
-    full_name: 'Trần Gia Bảo',
-    dob: '2014-03-12',
+    full_name: 'Trần Bảo Nam',
+    dob: '2019-05-15',
     gender: 'MALE',
-    parent_phone: '0912 345 678',
+    parent_phone: '0977 112 233',
   },
   {
     id: 'stu_03',
@@ -95,16 +96,19 @@ const DEFAULT_STUDENTS: StudentItem[] = [
 ];
 
 export const classService = {
-  async getClassDetail(classId: string = 'cls_6a1'): Promise<ClassDetailData> {
+  async getClassDetail(classId: string = 'cls_1a_2026'): Promise<ClassDetailData> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/${classId}`, {
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
       });
 
       if (response.ok) {
-        return await response.json();
+        const resJson = await response.json();
+        return resJson.data || resJson;
       }
     } catch (e) {
       console.warn('Backend not reachable, fallback to mock class detail:', e);
@@ -112,28 +116,31 @@ export const classService = {
 
     return {
       id: classId,
-      name: 'Lớp 6A1',
-      grade_level: 6,
+      name: 'Lớp 1A',
+      grade_level: 1,
       academic_year: '2026-2027',
-      school_name: 'THCS Lê Quý Đôn',
-      homeroom_teacher: 'Cô Nguyễn Thu Hà',
-      student_count: 38,
-      invite_code: 'INV-6A1-9821',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      homeroom_teacher: 'Cô Nguyễn Thị Lan',
+      student_count: 35,
+      invite_code: 'INV-1A-2026',
       students: DEFAULT_STUDENTS,
     };
   },
 
-  async generateInviteCode(classId: string = 'cls_6a1'): Promise<InviteCodeResult> {
+  async generateInviteCode(classId: string = 'cls_1a_2026'): Promise<InviteCodeResult> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/${classId}/invite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
       });
 
       if (response.ok) {
-        return await response.json();
+        const resJson = await response.json();
+        return resJson.data || resJson;
       }
     } catch (e) {
       console.warn('Backend not reachable, fallback to mock invite code:', e);
@@ -147,18 +154,21 @@ export const classService = {
     };
   },
 
-  async addStudent(classId: string = 'cls_6a1', payload: AddStudentPayload): Promise<StudentItem> {
+  async addStudent(classId: string = 'cls_1a_2026', payload: AddStudentPayload): Promise<StudentItem> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/${classId}/students`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
         body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        return await response.json();
+        const resJson = await response.json();
+        return resJson.data || resJson;
       }
     } catch (e) {
       console.warn('Backend not reachable, fallback to local student create:', e);
@@ -169,18 +179,20 @@ export const classService = {
       id: 'stu_' + Date.now(),
       student_code: `HS240${randomNum}`,
       full_name: payload.full_name,
-      dob: payload.dob || '2014-01-01',
+      dob: payload.dob || '2019-01-01',
       gender: payload.gender || 'MALE',
       parent_phone: payload.parent_phone || '',
     };
   },
 
-  async removeStudent(classId: string = 'cls_6a1', studentId: string): Promise<boolean> {
+  async removeStudent(classId: string = 'cls_1a_2026', studentId: string): Promise<boolean> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/${classId}/students/${studentId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeader,
         },
       });
 
@@ -195,17 +207,19 @@ export const classService = {
 
   async createClass(payload: { name: string; grade_level: number; academic_year: string }): Promise<any> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
         body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        return await response.json();
+        const resJson = await response.json();
+        return resJson.data || resJson;
       }
     } catch (e) {
       console.warn('Backend not reachable, fallback createClass:', e);
@@ -223,17 +237,19 @@ export const classService = {
 
   async joinClass(inviteCode: string): Promise<any> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
         body: JSON.stringify({ invite_code: inviteCode }),
       });
 
       if (response.ok) {
-        return await response.json();
+        const resJson = await response.json();
+        return resJson.data || resJson;
       }
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Mã mời tham gia lớp học không hợp lệ');
@@ -244,17 +260,24 @@ export const classService = {
 
   async getMyClasses(): Promise<MyClassItem[]> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/my-classes`, {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          return data.map((item: any, idx: number) => ({
+        const resJson = await response.json();
+        const list = Array.isArray(resJson)
+          ? resJson
+          : Array.isArray(resJson?.data)
+          ? resJson.data
+          : [];
+
+        if (list.length > 0) {
+          return list.map((item: any, idx: number) => ({
             id: item.id || `cls_${idx}`,
             name: item.name?.startsWith('Lớp') ? item.name : `Lớp ${item.name}`,
             grade_level: item.grade_level || 6,

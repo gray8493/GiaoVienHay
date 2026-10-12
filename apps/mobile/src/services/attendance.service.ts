@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { authService } from './auth.service';
 
 const API_BASE_URL =
   Platform.OS === 'android'
@@ -55,11 +56,12 @@ export class AttendanceService {
     token?: string
   ): Promise<SubmitAttendanceResponse> {
     try {
+      const authHeader = token ? { Authorization: `Bearer ${token}` } : await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/attendance/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...authHeader,
         },
         body: JSON.stringify(payload),
       });
@@ -69,7 +71,8 @@ export class AttendanceService {
         throw new Error(errorData.message || 'Không thể lưu điểm danh');
       }
 
-      return await response.json();
+      const resJson = await response.json();
+      return resJson.data || resJson;
     } catch (err: any) {
       console.warn('[AttendanceService] submitAttendance fallback/mock:', err?.message);
       // Fallback mock khi BE offline
@@ -97,10 +100,11 @@ export class AttendanceService {
     token?: string
   ): Promise<TodayPresentStudentsResponse> {
     try {
+      const authHeader = token ? { Authorization: `Bearer ${token}` } : await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/attendance/today/${classId}`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...authHeader,
         },
       });
 
@@ -108,7 +112,8 @@ export class AttendanceService {
         throw new Error('Lỗi tải danh sách có mặt');
       }
 
-      return await response.json();
+      const resJson = await response.json();
+      return resJson.data || resJson;
     } catch (err: any) {
       console.warn('[AttendanceService] getTodayPresentStudents mock fallback:', err?.message);
       return {
@@ -138,6 +143,7 @@ export class AttendanceService {
     token?: string
   ) {
     try {
+      const authHeader = token ? { Authorization: `Bearer ${token}` } : await authService.getAuthHeaderAsync();
       const queryParams = new URLSearchParams();
       if (date) queryParams.append('date', date);
       if (month) queryParams.append('month', month);
@@ -146,7 +152,7 @@ export class AttendanceService {
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...authHeader,
         },
       });
 
@@ -154,7 +160,8 @@ export class AttendanceService {
         throw new Error('Lỗi tải lịch sử điểm danh');
       }
 
-      return await response.json();
+      const resJson = await response.json();
+      return resJson.data || resJson;
     } catch (err: any) {
       console.warn('[AttendanceService] getClassAttendance fallback:', err?.message);
       return [];

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { authService } from './auth.service';
 
 const API_BASE_URL =
   Platform.OS === 'android'
@@ -34,41 +35,55 @@ export interface ChangePasswordPayload {
 export const userService = {
   async getProfile(): Promise<UserProfile> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/users/me`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Lỗi tải thông tin cá nhân');
+      if (response.ok) {
+        const resJson = await response.json();
+        const user = resJson.data || resJson;
+        if (user && user.id) {
+          return {
+            id: user.id,
+            phone: user.phone || '0988 888 888',
+            full_name: user.full_name || 'Quản trị viên Hệ thống',
+            email: user.email || 'admin@giaovienhay.vn',
+            role: user.role || 'ADMIN',
+            school_name: user.school_name || 'Trường Tiểu Học Chu Văn An',
+            teaching_subjects: user.teaching_subjects || ['Toán', 'Tiếng Việt'],
+          };
+        }
       }
-
-      return await response.json();
     } catch (error: any) {
-      // Mock dữ liệu chuẩn TEA-03 khi chạy offline
-      return {
-        id: 'usr_teacher_ha_01',
-        phone: '0987 654 321',
-        full_name: 'Cô Nguyễn Thu Hà',
-        email: 'ha.nguyen@school.edu.vn',
-        role: 'TEACHER_HOMEROOM',
-        homeroom_class: '6A1',
-        school_name: 'THCS Lê Quý Đôn',
-        teaching_subjects: ['Toán', 'Tin Học'],
-      };
+      console.warn('Lỗi tải thông tin cá nhân:', error.message);
     }
+
+    const cachedUser = authService.getUser();
+    return {
+      id: cachedUser?.id || 'usr_01',
+      phone: cachedUser?.phone || '0988 888 888',
+      full_name: cachedUser?.full_name || 'Cô Nguyễn Thị Lan',
+      email: cachedUser?.email || 'lan.nguyen@chuvanan.edu.vn',
+      role: cachedUser?.role || 'TEACHER_HOMEROOM',
+      homeroom_class: '1A',
+      school_name: cachedUser?.school_name || 'Trường Tiểu Học Chu Văn An',
+      teaching_subjects: cachedUser?.teaching_subjects || ['Toán', 'Tiếng Việt'],
+    };
   },
 
   async updateProfile(payload: UpdateProfilePayload): Promise<UserProfile> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/users/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
         body: JSON.stringify(payload),
       });
@@ -78,57 +93,21 @@ export const userService = {
         throw new Error(errorData.message || 'Cập nhật hồ sơ thất bại');
       }
 
-      return await response.json();
-    } catch (error: any) {
-      console.warn('Update profile notice:', error.message);
-      return {
-        id: 'usr_teacher_ha_01',
-        phone: '0987 654 321',
-        full_name: payload.full_name || 'Cô Nguyễn Thu Hà',
-        email: payload.email || 'ha.nguyen@school.edu.vn',
-        role: 'TEACHER_HOMEROOM',
-        homeroom_class: '6A1',
-        school_name: payload.school_name || 'THCS Lê Quý Đôn',
-        teaching_subjects: payload.teaching_subjects || ['Toán', 'Tin Học'],
-      };
-    }
-  },
-
-  async changePassword(payload: ChangePasswordPayload) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
-        },
-        body: JSON.stringify({
-          current_password: payload.current_password || payload.old_password,
-          new_password: payload.new_password,
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.message || 'Mật khẩu hiện tại không chính xác');
-      }
-
-      return data;
+      const resJson = await response.json();
+      const updated = resJson.data || resJson;
+      authService.setUser({ ...authService.getUser(), ...updated });
+      return updated;
     } catch (error: any) {
       throw error;
     }
   },
 
+  async changePassword(payload: ChangePasswordPayload) {
+    const currentPassword = payload.current_password || payload.old_password || '';
+    return authService.changePassword(currentPassword, payload.new_password);
+  },
+
   async logout() {
-    try {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
-        },
-      });
-    } catch (error) {}
-    return { success: true };
+    return authService.logout();
   },
 };

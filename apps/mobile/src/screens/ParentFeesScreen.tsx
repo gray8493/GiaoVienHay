@@ -12,6 +12,7 @@ import { Svg, Path, Rect, Circle, Line, Polyline } from 'react-native-svg';
 import { parentService } from '../services/parent.service';
 
 interface ParentFeesScreenProps {
+  studentId?: string;
   studentName?: string;
   className?: string;
   onBackToHome?: () => void;
@@ -19,8 +20,9 @@ interface ParentFeesScreenProps {
 }
 
 export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
-  studentName = 'Trần Gia Bảo',
-  className = '6A1',
+  studentId = 'stu_02',
+  studentName = 'Trần Bảo Nam',
+  className = '1A',
   onBackToHome,
   onNavigateToTab,
 }) => {
@@ -42,6 +44,21 @@ export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
       payment_method: 'Nộp tiền mặt tại lớp',
     },
   });
+
+  useEffect(() => {
+    loadFeesData();
+  }, [studentId]);
+
+  const loadFeesData = async () => {
+    try {
+      const data = await parentService.getChildFeesInsurance(studentId);
+      if (data) {
+        setFeesData(data);
+      }
+    } catch (e) {
+      console.warn('Error fetching fees data:', e);
+    }
+  };
 
   return (
     <View style={styles.container}>

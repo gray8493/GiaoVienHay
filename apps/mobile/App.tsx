@@ -33,6 +33,7 @@ import { ParentNotificationScreen } from './src/screens/ParentNotificationScreen
 import { FeesInsuranceScreen } from './src/screens/FeesInsuranceScreen';
 import { RemarksExamScreen } from './src/screens/RemarksExamScreen';
 import { NotificationScreen } from './src/screens/NotificationScreen';
+import { fcmService } from './src/services/fcm.service';
 
 type ScreenKey =
   | 'parent_home'
@@ -64,6 +65,7 @@ type ScreenKey =
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('teacher_home');
   const [currentClassId, setCurrentClassId] = useState<string>('cls_6a1');
+  const [currentStudentId, setCurrentStudentId] = useState<string>('stu_02');
   const [remarksInitialTab, setRemarksInitialTab] = useState<'REMARKS' | 'EXAMS'>('REMARKS');
   const [selectedRole, setSelectedRole] = useState<'TEACHER' | 'PARENT'>('TEACHER');
   const [attendanceData, setAttendanceData] = useState<AttendanceSavedData | undefined>(undefined);
@@ -90,6 +92,7 @@ export default function App() {
         document.head.appendChild(style);
       }
     }
+    fcmService.initFCM().catch(() => null);
   }, []);
 
   return (
@@ -482,8 +485,9 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <ParentAcademicScreen
-              studentName="Trần Gia Bảo"
-              className="6A1"
+              studentId="stu_02"
+              studentName="Trần Bảo Nam"
+              className="1A"
               onBackToHome={() => setCurrentScreen('parent_home')}
               onNavigateToTab={(tabKey) => {
                 if (tabKey === 'home') setCurrentScreen('parent_home');
@@ -499,8 +503,9 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <ParentFeesScreen
-              studentName="Trần Gia Bảo"
-              className="6A1"
+              studentId="stu_02"
+              studentName="Trần Bảo Nam"
+              className="1A"
               onBackToHome={() => setCurrentScreen('parent_home')}
               onNavigateToTab={(tabKey) => {
                 if (tabKey === 'home') setCurrentScreen('parent_home');
@@ -748,6 +753,8 @@ export default function App() {
           <View style={styles.phoneFrame}>
             {currentScreen === 'parent_home' && (
               <ParentHomeScreen
+                selectedChildId={currentStudentId}
+                onSelectChild={(id) => setCurrentStudentId(id)}
                 onOpenNotifications={() => setCurrentScreen('parent_notifications')}
                 onNavigateToTab={(tabKey) => {
                   if (tabKey === 'academic') setCurrentScreen('parent_academic');
@@ -761,8 +768,9 @@ export default function App() {
             )}
             {currentScreen === 'parent_academic' && (
               <ParentAcademicScreen
-                studentName="Trần Gia Bảo"
-                className="6A1"
+                studentId={currentStudentId}
+                studentName="Trần Bảo Nam"
+                className="1A"
                 onBackToHome={() => setCurrentScreen('parent_home')}
                 onNavigateToTab={(tabKey) => {
                   if (tabKey === 'home') setCurrentScreen('parent_home');
@@ -775,8 +783,9 @@ export default function App() {
             )}
             {currentScreen === 'parent_fees' && (
               <ParentFeesScreen
-                studentName="Trần Gia Bảo"
-                className="6A1"
+                studentId={currentStudentId}
+                studentName="Trần Bảo Nam"
+                className="1A"
                 onBackToHome={() => setCurrentScreen('parent_home')}
                 onNavigateToTab={(tabKey) => {
                   if (tabKey === 'home') setCurrentScreen('parent_home');
@@ -958,7 +967,10 @@ export default function App() {
             )}
             {currentScreen === 'login' && (
               <LoginScreen
-                onLoginSuccess={() => setCurrentScreen(selectedRole === 'PARENT' ? 'parent_home' : 'teacher_home')}
+                onLoginSuccess={(user) => {
+                  const isParent = user?.role === 'PARENT' || selectedRole === 'PARENT';
+                  setCurrentScreen(isParent ? 'parent_home' : 'teacher_home');
+                }}
                 onNavigateToSignup={() => setCurrentScreen('role')}
               />
             )}
@@ -976,7 +988,10 @@ export default function App() {
                 initialRole={selectedRole}
                 onBack={() => setCurrentScreen('role')}
                 onNavigateToLogin={() => setCurrentScreen('login')}
-                onRegisterSuccess={() => setCurrentScreen(selectedRole === 'PARENT' ? 'parent_home' : 'teacher_home')}
+                onRegisterSuccess={(user) => {
+                  const isParent = user?.role === 'PARENT' || selectedRole === 'PARENT';
+                  setCurrentScreen(isParent ? 'parent_home' : 'teacher_home');
+                }}
               />
             )}
           </View>

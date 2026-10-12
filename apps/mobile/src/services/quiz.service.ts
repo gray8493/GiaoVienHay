@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { authService } from './auth.service';
 
 const API_BASE_URL =
   Platform.OS === 'android'
@@ -87,11 +88,12 @@ const DEFAULT_SAMPLE_QUESTIONS: QuizQuestion[] = [
 export const quizService = {
   async generateQuizFromAi(payload: GenerateQuizPayload): Promise<QuizDetail> {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/quizzes/generate-ai`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
         body: JSON.stringify({
           subject_code: payload.subject_code,
@@ -126,6 +128,7 @@ export const quizService = {
 
   async getMyQuizzes(classId?: string, subjectCode?: string) {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const query = new URLSearchParams();
       if (classId) query.append('class_id', classId);
       if (subjectCode) query.append('subject_code', subjectCode);
@@ -133,7 +136,7 @@ export const quizService = {
       const response = await fetch(`${API_BASE_URL}/quizzes?${query.toString()}`, {
         method: 'GET',
         headers: {
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
       });
 
@@ -145,7 +148,7 @@ export const quizService = {
           quiz_id: 'qz_88219',
           title: 'Kiểm tra bài 12: Hình học Chương 2',
           subject_code: 'MATH',
-          class_id: classId || '6A1',
+          class_id: classId || 'cls_1a_2026',
           total_questions: 5,
           difficulty_level: 'MEDIUM',
         },
@@ -155,10 +158,11 @@ export const quizService = {
 
   async getWheelCandidates(quizId: string = 'qz_88219') {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/quizzes/${quizId}/wheel-candidates`, {
         method: 'GET',
         headers: {
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
       });
 
@@ -194,11 +198,12 @@ export const quizService = {
     },
   ) {
     try {
+      const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/quizzes/${quizId}/in-class-scores`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer mock_jwt_token_demo',
+          ...authHeader,
         },
         body: JSON.stringify({
           ...payload,

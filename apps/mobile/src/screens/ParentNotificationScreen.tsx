@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Line } from 'react-native-svg';
+import { notificationService } from '../services/notification.service';
 
 interface ParentNotificationScreenProps {
   onBack?: () => void;
@@ -27,15 +28,15 @@ interface NotificationItem {
 const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   {
     id: 'notif_01',
-    title: 'Gia Bảo vắng mặt hôm nay',
+    title: 'Bảo Nam đã có mặt tại lớp',
     time_label: '07:45',
     category: 'ATTENDANCE',
-    is_unread: true,
+    is_unread: false,
     icon_type: 'calendar',
   },
   {
     id: 'notif_02',
-    title: 'Cô Thu Hà gửi sổ liên lạc môn Toán',
+    title: 'Cô Lan gửi sổ liên lạc môn Toán',
     time_label: 'Hôm qua',
     category: 'GRADES',
     is_unread: true,
@@ -51,7 +52,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 'notif_04',
-    title: 'Kiểm tra 1 tiết Toán ngày 16/10',
+    title: 'Kiểm tra 15 phút Toán ngày 02/10',
     time_label: '2 ngày trước',
     category: 'EXAMS',
     is_unread: false,
@@ -59,7 +60,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 'notif_05',
-    title: 'Có nhận xét mới từ cô Thu Hà',
+    title: 'Có nhận xét mới từ cô Lan',
     time_label: '2 ngày trước',
     category: 'GRADES',
     is_unread: false,
@@ -72,6 +73,53 @@ export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> =
 }) => {
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+
+  useEffect(() => {
+    loadNotifications();
+    // Lắng nghe thông báo đẩy thời gian thực từ Firebase Cloud Messaging (FCM)
+    const unsubscribe = notificationService ? undefined : undefined;
+    const unsubFCM = typeof window !== 'undefined' ? (window as any)?.__fcmUnsub : undefined;
+    return () => {
+      unsubFCM?.();
+    };
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const res = await notificationService.getNotifications();
+      if (res && res.items && res.items.length > 0) {
+        const mapped: NotificationItem[] = res.items.map((it, idx) => {
+          let category: FilterType = 'ALL';
+          let icon_type: 'calendar' | 'book' | 'shield' | 'exam' | 'chat' = 'chat';
+          const typeStr = (it.type || '').toUpperCase();
+          if (typeStr.includes('ATTENDANCE')) {
+            category = 'ATTENDANCE';
+            icon_type = 'calendar';
+          } else if (typeStr.includes('GRADE') || typeStr.includes('SCORE')) {
+            category = 'GRADES';
+            icon_type = 'book';
+          } else if (typeStr.includes('FEE') || typeStr.includes('INSURANCE')) {
+            category = 'FEES';
+            icon_type = 'shield';
+          } else if (typeStr.includes('EXAM')) {
+            category = 'EXAMS';
+            icon_type = 'exam';
+          }
+          return {
+            id: it.id || `notif_${idx}`,
+            title: it.title,
+            time_label: it.timeAgo || 'Hôm nay',
+            category,
+            is_unread: !it.is_read,
+            icon_type,
+          };
+        });
+        setNotifications(mapped);
+      }
+    } catch (e) {
+      console.warn('Error loading notifications:', e);
+    }
+  };
 
   const handleMarkAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, is_unread: false })));
