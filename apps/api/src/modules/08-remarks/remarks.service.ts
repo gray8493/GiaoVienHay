@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   Logger,
   BadRequestException,
@@ -46,13 +46,16 @@ export class RemarksService {
       });
     }
 
-    if (dto.student_id.includes('nonexistent') || dto.student_id === 'stu_nonexistent_9999') {
-      throw new NotFoundException({
-        success: false,
-        status_code: 404,
-        error_code: 'STUDENT_NOT_FOUND',
-        message: 'Không tìm thấy hồ sơ học sinh trong lớp học.',
-      });
+    if ((this.dataConnect as any).getStudentById) {
+      const student = await (this.dataConnect as any).getStudentById(dto.student_id);
+      if (!student) {
+        throw new NotFoundException({
+          success: false,
+          status_code: 404,
+          error_code: 'STUDENT_NOT_FOUND',
+          message: 'Không tìm thấy hồ sơ học sinh trong lớp học.',
+        });
+      }
     }
 
     const trimmedContent = (dto.content || '').trim();
@@ -187,23 +190,16 @@ export class RemarksService {
   }
 
   async getClassRemarks(classId: string, limit: number = 20, studentId?: string) {
-    if (classId === 'cls_new_2026') {
-      return {
-        class_id: classId,
-        total: 0,
-        items: [],
-      };
+    let remarks: any[] = [];
+    if ((this.dataConnect as any).getClassRemarks) {
+      try {
+        remarks = await (this.dataConnect as any).getClassRemarks(classId, limit, studentId);
+      } catch (e) {}
     }
 
-    const items = [
-      {
-        remark_id: 'rmk_9912',
-        student_id: 'stu_01',
-        subject_code: 'MATH',
-        content: 'Hôm nay em Nam tiếp thu bài rất nhanh và hăng hái xung phong lên bảng chữa bài tập.',
-        created_at: '2026-09-23T10:15:00.000Z',
-      },
-    ].filter((item) => !studentId || item.student_id === studentId).slice(0, Math.max(0, limit));
+    const items = (remarks || [])
+      .filter((item) => !studentId || item.student_id === studentId)
+      .slice(0, Math.max(0, limit));
 
     return {
       class_id: classId,
@@ -213,26 +209,25 @@ export class RemarksService {
   }
 
   async getStudentRemarks(studentId: string) {
-    if (studentId === 'stu_03') {
-      return {
-        student_id: studentId,
-        total: 0,
-        items: [],
-      };
+    let remarks: any[] = [];
+    if ((this.dataConnect as any).getRemarksByStudent) {
+      try {
+        remarks = await (this.dataConnect as any).getRemarksByStudent(studentId);
+      } catch (e) {}
     }
+
+    const items = (remarks || []).map((r: any) => ({
+      remark_id: r.remark_id || r.id,
+      student_id: studentId,
+      subject_code: r.subject_code || r.subject || 'MATH',
+      content: r.content,
+      created_at: r.created_at || r.createdAt || new Date().toISOString(),
+    }));
 
     return {
       student_id: studentId,
-      total: 1,
-      items: [
-        {
-          remark_id: 'rmk_9912',
-          student_id: studentId,
-          subject_code: 'MATH',
-          content: 'Em học tập tốt',
-          created_at: '2026-09-23T10:15:00.000Z',
-        },
-      ],
+      total: items.length,
+      items,
     };
   }
 

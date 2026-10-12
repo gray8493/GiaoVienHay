@@ -16,6 +16,10 @@ describe('QuizzesService (Unit Tests UT07 - All 28 Cases)', () => {
       createQuiz: jest.fn().mockResolvedValue(true),
       getQuizById: jest.fn().mockResolvedValue(null),
       recordScore: jest.fn().mockResolvedValue(true),
+      getStudentById: jest.fn().mockImplementation(async (id: string) => {
+        if (!id || id === 'stu_not_exist_9999') return null;
+        return { id, full_name: 'Học sinh' };
+      }),
     };
 
     mockGeminiService = {

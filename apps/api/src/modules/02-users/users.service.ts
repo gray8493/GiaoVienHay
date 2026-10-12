@@ -26,7 +26,15 @@ export class UsersService {
         message: 'Không tìm thấy thông tin tài khoản',
       });
     }
-    const { password_hash, ...safeUser } = user;
+
+    if (user.is_active === false || user.isActive === false) {
+      throw new ForbiddenException({
+        error_code: 'AUTH_FORBIDDEN',
+        message: 'Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ Quản trị viên để được hỗ trợ.',
+      });
+    }
+
+    const safeUser = this.serializeUser(user);
 
     // Lưu vào RAM cache trong 5 phút (300 giây)
     await this.cacheManager.set(cacheKey, safeUser, 300 * 1000);
@@ -39,10 +47,10 @@ export class UsersService {
       throw new NotFoundException({
         error_code: ErrorCode.USER_NOT_FOUND,
         message: 'Không tìm thấy hồ sơ người dùng trong hệ thống.',
+        details: null,
       });
     }
-    const { password_hash, ...safeUser } = user;
-    return safeUser;
+    return this.serializeUser(user);
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -56,16 +64,22 @@ export class UsersService {
 
     if (user.is_active === false || user.isActive === false) {
       throw new ForbiddenException({
-        error_code: ErrorCode.USER_INACTIVE,
+        error_code: 'AUTH_FORBIDDEN',
         message: 'Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ Quản trị viên để được hỗ trợ.',
       });
     }
 
-    if (dto.teaching_subjects && dto.teaching_subjects.some(s => s === 'INVALID_CODE_XYZ')) {
-      throw new BadRequestException({
-        error_code: 'INVALID_SUBJECT_CODE',
-        message: 'Mã môn học INVALID_CODE_XYZ không nằm trong danh mục chương trình GDPT',
-      });
+    const VALID_GDPT_SUBJECTS = [
+      'MATH', 'LIT', 'ETHICS', 'ENG', 'SCI', 'HIST', 'GEO', 'PE', 'ART', 'MUSIC', 'TECH', 'INF', 'NAT_SOC',
+    ];
+    if (dto.teaching_subjects) {
+      const invalidSubject = dto.teaching_subjects.find((s) => !VALID_GDPT_SUBJECTS.includes(s));
+      if (invalidSubject) {
+        throw new BadRequestException({
+          error_code: 'INVALID_SUBJECT_CODE',
+          message: `Mã môn học ${invalidSubject} không nằm trong danh mục chương trình GDPT`,
+        });
+      }
     }
 
     const updatedData = {
@@ -80,14 +94,40 @@ export class UsersService {
     // Xóa cache cũ để dữ liệu mới được cập nhật tức thời
     await this.cacheManager.del(`user_profile_${userId}`);
 
-    const { password_hash, ...safeUser } = updatedData;
-    return safeUser;
+    return this.serializeUser(updatedData);
+  }
+
+  private serializeUser(user: any): any {
+    if (!user) return null;
+    const uid = user.uid || user.id;
+    const fullName = user.full_name || user.fullName;
+    return {
+      uid,
+      id: uid,
+      email: user.email || null,
+      phone: user.phone || null,
+      full_name: fullName,
+      fullName: fullName,
+      school_name: user.school_name !== undefined ? user.school_name : (user.schoolName !== undefined ? user.schoolName : null),
+      role: user.role || 'TEACHER_HOMEROOM',
+      avatar_url: user.avatar_url || user.avatarUrl || null,
+      teaching_subjects: user.teaching_subjects || user.teachingSubjects || [],
+      is_active: user.is_active !== undefined ? Boolean(user.is_active) : (user.isActive !== undefined ? Boolean(user.isActive) : true),
+      created_at: user.created_at || user.createdAt || new Date().toISOString(),
+    };
   }
 
   async registerDeviceToken(userId: string, dto: RegisterDeviceTokenDto) {
+    const token = dto.device_token || dto.fcm_device_token;
+    if (!token || token.trim() === '') {
+      throw new BadRequestException({
+        error_code: 'EMPTY_DEVICE_TOKEN',
+        message: 'fcm_device_token không được để trống',
+      });
+    }
     return {
-      message: 'Đăng ký Device Token FCM thành công',
-      device_token: dto.device_token,
+      message: 'Đăng ký thiết bị nhận thông báo thành công',
+      device_token: token,
     };
   }
 

@@ -19,6 +19,22 @@ describe('RemarksService (Unit Tests UT08 - All 16 Cases)', () => {
       createRemark: jest.fn().mockResolvedValue(true),
       getRemarksByStudent: jest.fn().mockResolvedValue([]),
       createNotification: jest.fn().mockResolvedValue(true),
+      getStudentById: jest.fn().mockImplementation(async (id: string) => {
+        if (!id || id === 'stu_nonexistent_9999') return null;
+        return { id, class_id: 'cls_1a_2026' };
+      }),
+      getClassRemarks: jest.fn().mockImplementation(async (classId: string) => {
+        if (classId === 'cls_new_2026') return [];
+        return [
+          {
+            remark_id: 'rmk_9912',
+            student_id: 'stu_01',
+            subject_code: 'MATH',
+            content: 'Hôm nay em Nam tiếp thu bài rất nhanh và hăng hái xung phong lên bảng chữa bài tập.',
+            created_at: '2026-09-23T10:15:00.000Z',
+          },
+        ];
+      }),
     };
 
     service = new RemarksService(mockDataConnect);

@@ -21,16 +21,24 @@ export class JwtAuthGuard implements CanActivate {
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException({
-        message: 'Yêu cầu mã xác thực Bearer Token hợp lệ',
+        message: 'Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.',
         error_code: ErrorCode.AUTH_UNAUTHORIZED,
       });
     }
 
     const token = authHeader.split(' ')[1];
+    const isLogout = request.url?.includes('/auth/logout');
+
     if (!token || token.trim() === '' || token === 'invalid_jwt_token' || token === 'invalid_token') {
+      if (isLogout) {
+        throw new UnauthorizedException({
+          message: 'Token xác thực không hợp lệ hoặc đã bị thu hồi',
+          error_code: ErrorCode.AUTH_TOKEN_INVALID,
+        });
+      }
       throw new UnauthorizedException({
-        message: 'Token xác thực không hợp lệ hoặc đã bị thu hồi',
-        error_code: ErrorCode.AUTH_TOKEN_INVALID,
+        message: 'Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.',
+        error_code: ErrorCode.AUTH_UNAUTHORIZED,
       });
     }
 
@@ -40,15 +48,15 @@ export class JwtAuthGuard implements CanActivate {
       request.user = payload;
       return true;
     } catch (err: any) {
-      if (err?.name === 'TokenExpiredError') {
+      if (isLogout) {
         throw new UnauthorizedException({
-          message: 'Phiên làm việc đã hết hạn hoặc token không hợp lệ',
-          error_code: ErrorCode.AUTH_TOKEN_EXPIRED,
+          message: 'Token xác thực không hợp lệ hoặc đã bị thu hồi',
+          error_code: ErrorCode.AUTH_TOKEN_INVALID,
         });
       }
       throw new UnauthorizedException({
-        message: 'Token xác thực không hợp lệ hoặc đã bị thu hồi',
-        error_code: ErrorCode.AUTH_TOKEN_INVALID,
+        message: 'Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.',
+        error_code: ErrorCode.AUTH_UNAUTHORIZED,
       });
     }
   }
