@@ -89,16 +89,23 @@ export class ClassesService {
     } catch (e) {}
 
     if (!cls) {
-      cls = {
-        id: classId,
-        name: '1A',
-        grade_level: 1,
-        academic_year: '2026-2027',
-        school_name: 'Trường Tiểu Học Chu Văn An',
-        homeroom_teacher_id: userId,
-        student_count: 35,
-        invite_code: 'INV-1A-2026',
-      };
+      if (classId === 'cls_1a_2026') {
+        cls = {
+          id: classId,
+          name: '1A',
+          grade_level: 1,
+          academic_year: '2026-2027',
+          school_name: 'Trường Tiểu Học Chu Văn An',
+          homeroom_teacher_id: userId,
+          student_count: 35,
+          invite_code: 'INV-1A-2026',
+        };
+      } else {
+        throw new NotFoundException({
+          error_code: 'CLASS_NOT_FOUND',
+          message: 'Không tìm thấy lớp học',
+        });
+      }
     }
 
     const students = await this.getClassStudents(classId);
@@ -245,15 +252,19 @@ export class ClassesService {
   private async getClassStudents(classId: string) {
     try {
       const sqlStudents = await this.dataConnect.listStudentsByClass(classId);
-      if (sqlStudents && sqlStudents.length > 0) {
+      if (sqlStudents !== undefined && sqlStudents !== null) {
         return sqlStudents;
       }
     } catch (e) {}
 
-    return [
-      { id: 'stu_01', full_name: 'Trần Bảo Nam', student_code: 'HS001', gender: 'MALE', dob: '2019-05-15', is_deleted: false },
-      { id: 'stu_02', full_name: 'Lê Ngọc Mai', student_code: 'HS002', gender: 'FEMALE', dob: '2019-08-20', is_deleted: false },
-      { id: 'stu_03', full_name: 'Hoàng Minh Khôi', student_code: 'HS003', gender: 'MALE', dob: '2019-11-10', is_deleted: false },
-    ];
+    if (classId === 'cls_1a_2026') {
+      return [
+        { id: 'stu_01', full_name: 'Trần Bảo Nam', student_code: 'HS001', gender: 'MALE', dob: '2019-05-15', is_deleted: false },
+        { id: 'stu_02', full_name: 'Lê Ngọc Mai', student_code: 'HS002', gender: 'FEMALE', dob: '2019-08-20', is_deleted: false },
+        { id: 'stu_03', full_name: 'Hoàng Minh Khôi', student_code: 'HS003', gender: 'MALE', dob: '2019-11-10', is_deleted: false },
+      ];
+    }
+
+    return [];
   }
 }

@@ -50,25 +50,12 @@ export interface ParentDashboardData {
   }>;
 }
 
-const DEFAULT_CHILDREN: ChildItem[] = [
-  {
-    id: 'stu_02',
-    student_code: 'HS240102',
-    full_name: 'Trần Bảo Nam',
-    avatar_letters: 'BN',
-    class_name: 'Lớp 1A',
-    school_name: 'Trường Tiểu Học Chu Văn An',
-    attendance_status: 'Có mặt',
-    attendance_note: 'Đúng giờ',
-  },
-];
-
 export const parentService = {
   async getLinkedChildren(): Promise<ChildItem[]> {
     const user = authService.getUser();
     const userId = user?.id || user?.phone || 'guest';
 
-    // Đọc danh sách con đã liên kết từ Storage
+    // 1. Đọc danh sách con đã liên kết từ Storage
     let savedChildren: ChildItem[] = [];
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
@@ -81,11 +68,11 @@ export const parentService = {
       return savedChildren;
     }
 
-    // Nếu là tài khoản phụ huynh demo seed trong DB (0912345678)
-    if (user?.phone === '0912345678') {
+    // 2. Nếu là tài khoản phụ huynh demo seed trong DB (0977112233)
+    if (user?.phone === '0977112233') {
       try {
         const authHeader = await authService.getAuthHeaderAsync();
-        const res = await fetch(`${API_BASE_URL}/students/stu_02`, {
+        const res = await fetch(`${API_BASE_URL}/students/std_01`, {
           headers: { 'Content-Type': 'application/json', ...authHeader },
         }).catch(() => null);
 
@@ -101,69 +88,35 @@ export const parentService = {
               .join('')
               .toUpperCase();
 
-            return [
-              {
-                id: student.id,
-                student_code: student.student_code || student.code || 'HS240102',
-                full_name: student.full_name,
-                avatar_letters: initials || 'BN',
-                class_name: student.class_name ? `Lớp ${student.class_name}` : 'Lớp 1A',
-                school_name: student.school_name || 'Trường Tiểu Học Chu Văn An',
-                attendance_status: 'Có mặt',
-                attendance_note: 'Đúng giờ',
-              },
-            ];
+            const classNameStr = student.class_name
+              ? (student.class_name.startsWith('Lớp') ? student.class_name : `Lớp ${student.class_name}`)
+              : 'Lớp 1A';
+
+            const child: ChildItem = {
+              id: student.id,
+              student_code: student.student_code || student.code || 'HS-1A-01',
+              full_name: student.full_name,
+              avatar_letters: initials || 'BN',
+              class_name: classNameStr,
+              school_name: student.school_name || 'Trường Tiểu Học Chu Văn An',
+              attendance_status: 'Có mặt',
+              attendance_note: 'Đúng giờ',
+            };
+
+            return [child];
           }
         }
       } catch (e) {}
-      return DEFAULT_CHILDREN;
     }
 
-    // Với tài khoản phụ huynh mới đăng ký: ban đầu chưa có con liên kết
+    // Với tài khoản phụ huynh mới chưa liên kết: trả về mảng rỗng để hiển thị PAR-01.empty
     return [];
   },
 
-  async getChildDashboard(studentId: string = 'stu_02'): Promise<ParentDashboardData> {
-    const defaultData: ParentDashboardData = {
-      child:
-        studentId === 'stu_08'
-          ? DEFAULT_CHILDREN[1]
-          : DEFAULT_CHILDREN[0],
-      attendance: {
-        status_title: 'Đã Có Mặt',
-        note: 'Đi học đúng giờ',
-        date_str: 'HÔM NAY • 23/09/2026',
-      },
-      latest_grade: {
-        subject: 'Toán học',
-        score: 9.0,
-        test_type: '15 phút',
-      },
-      latest_remark: {
-        count_label: '1 lời mới',
-        status_label: 'Chưa đọc',
-        teacher_name: 'Cô Nguyễn Thị Lan',
-        content: 'Hôm nay Nam làm bài tập rất nhanh và hăng hái phát biểu xây dựng bài.',
-      },
-      fees_insurance: {
-        type: 'BHYT',
-        status_label: 'Chưa nộp',
-      },
-      upcoming_exam: {
-        subject: 'Toán học',
-        exam_date: '02/10',
-      },
-      today_schedule: [
-        {
-          period_title: 'Tiết 1: Toán học',
-          time_room: '07:15 – 08:00 • Lớp 1A',
-        },
-        {
-          period_title: 'Tiết 2: Tiếng Việt',
-          time_room: '08:15 – 09:00 • Lớp 1A',
-        },
-      ],
-    };
+  async getChildDashboard(studentId: string): Promise<ParentDashboardData | null> {
+    if (!studentId) {
+      return null;
+    }
 
     try {
       const authHeader = await authService.getAuthHeaderAsync();
@@ -173,18 +126,64 @@ export const parentService = {
         headers: { 'Content-Type': 'application/json', ...authHeader },
       }).catch(() => null);
 
-      if (profileRes && profileRes.ok) {
-        const resJson = await profileRes.json();
-        const profile = resJson.data || resJson;
-        if (profile.full_name) {
-          defaultData.child.full_name = profile.full_name;
-        }
-        if (profile.class_name) {
-          defaultData.child.class_name = `Lớp ${profile.class_name}`;
-        }
+      if (!profileRes || !profileRes.ok) {
+        return null;
       }
 
-      // 2. Fetch Academic Record (latest grade & schedule)
+      const pJson = await profileRes.json();
+      const profile = pJson.data || pJson;
+
+      const initials = (profile.full_name || 'HS')
+        .split(' ')
+        .filter(Boolean)
+        .map((w: string) => w[0])
+        .slice(-2)
+        .join('')
+        .toUpperCase();
+
+      const classNameFormatted = profile.class_name
+        ? (profile.class_name.startsWith('Lớp') ? profile.class_name : `Lớp ${profile.class_name}`)
+        : 'Lớp học';
+
+      const dashboardData: ParentDashboardData = {
+        child: {
+          id: profile.id || studentId,
+          student_code: profile.student_code || profile.code || '',
+          full_name: profile.full_name || 'Học sinh',
+          avatar_letters: initials || 'HS',
+          class_name: classNameFormatted,
+          school_name: profile.school_name || '',
+          attendance_status: 'Có mặt',
+          attendance_note: 'Đúng giờ',
+        },
+        attendance: {
+          status_title: 'Chưa điểm danh',
+          note: 'Chưa có ghi nhận hôm nay',
+          date_str: 'HÔM NAY',
+        },
+        latest_grade: {
+          subject: 'Chưa có',
+          score: 0,
+          test_type: '',
+        },
+        latest_remark: {
+          count_label: '0 lời mới',
+          status_label: 'Chưa có',
+          teacher_name: '',
+          content: 'Chưa có nhận xét nào từ giáo viên',
+        },
+        fees_insurance: {
+          type: 'BHYT',
+          status_label: 'Chưa có',
+        },
+        upcoming_exam: {
+          subject: 'Không có',
+          exam_date: '--/--',
+        },
+        today_schedule: [],
+      };
+
+      // 2. Fetch Academic Record
       const academicRes = await fetch(`${API_BASE_URL}/students/${studentId}/academic`, {
         headers: { 'Content-Type': 'application/json', ...authHeader },
       }).catch(() => null);
@@ -196,16 +195,15 @@ export const parentService = {
           const firstSubj = academic.subjects[0];
           if (firstSubj.scores && firstSubj.scores.length > 0) {
             const lastScore = firstSubj.scores[firstSubj.scores.length - 1];
-            defaultData.latest_grade = {
-              subject: firstSubj.subject_name?.replace(' học', '') || 'Toán',
-              score: lastScore.value || 9.0,
+            dashboardData.latest_grade = {
+              subject: firstSubj.subject_name?.replace(' học', '') || 'Môn học',
+              score: lastScore.value !== undefined ? Number(lastScore.value) : 0,
               test_type: lastScore.label?.replace('Kiểm tra ', '') || '15 phút',
             };
           }
-          // Dynamically populate schedule from enrolled subjects
-          defaultData.today_schedule = academic.subjects.slice(0, 3).map((sub: any, i: number) => ({
+          dashboardData.today_schedule = academic.subjects.slice(0, 3).map((sub: any, i: number) => ({
             period_title: `Tiết ${i + 1}: ${sub.subject_name}`,
-            time_room: `${(7 + i).toString().padStart(2, '0')}:15 – ${(8 + i).toString().padStart(2, '0')}:00 • Lớp ${defaultData.child.class_name}`,
+            time_room: `${(7 + i).toString().padStart(2, '0')}:15 – ${(8 + i).toString().padStart(2, '0')}:00 • ${dashboardData.child.class_name}`,
           }));
         }
       }
@@ -224,10 +222,10 @@ export const parentService = {
           if (latestRec.status === 'ABSENT_EXCUSED') statusTitle = 'Vắng Có Phép';
           else if (latestRec.status === 'ABSENT_UNEXCUSED') statusTitle = 'Vắng Không Phép';
 
-          defaultData.attendance = {
+          dashboardData.attendance = {
             status_title: statusTitle,
             note: latestRec.note || (latestRec.status === 'PRESENT' ? 'Đi học đúng giờ' : 'Nghỉ học'),
-            date_str: latestRec.date ? `HÔM NAY • ${latestRec.date}` : defaultData.attendance.date_str,
+            date_str: latestRec.date ? `HÔM NAY • ${latestRec.date}` : dashboardData.attendance.date_str,
           };
         }
       }
@@ -242,7 +240,7 @@ export const parentService = {
         const remarks = resJson.data || resJson;
         if (Array.isArray(remarks) && remarks.length > 0) {
           const latestRmk = remarks[remarks.length - 1];
-          defaultData.latest_remark = {
+          dashboardData.latest_remark = {
             count_label: `${remarks.length} lời mới`,
             status_label: 'Đã nhận',
             teacher_name: latestRmk.teacher_name || 'Giáo viên bộ môn',
@@ -259,8 +257,8 @@ export const parentService = {
       if (feesRes && feesRes.ok) {
         const resJson = await feesRes.json();
         const feesData = resJson.data || resJson;
-        if (feesData.insurance) {
-          defaultData.fees_insurance = {
+        if (feesData && feesData.insurance) {
+          dashboardData.fees_insurance = {
             type: 'BHYT',
             status_label: feesData.insurance.is_paid ? 'Đã nộp' : 'Chưa nộp',
           };
@@ -277,66 +275,86 @@ export const parentService = {
         const exams = resJson.data || resJson;
         if (Array.isArray(exams) && exams.length > 0) {
           const firstExam = exams[0];
-          defaultData.upcoming_exam = {
-            subject: firstExam.subject_name?.replace(' học', '') || 'Toán',
-            exam_date: firstExam.exam_date ? firstExam.exam_date.substring(5).replace('-', '/') : '16/10',
+          dashboardData.upcoming_exam = {
+            subject: firstExam.subject_name?.replace(' học', '') || 'Môn học',
+            exam_date: firstExam.exam_date ? firstExam.exam_date.substring(5).replace('-', '/') : '--/--',
           };
         }
       }
-    } catch (e) {
-      console.warn('Backend students parent portal offline, using mockup data:', e);
-    }
 
-    return defaultData;
+      return dashboardData;
+    } catch (e) {
+      console.warn('Backend student portal error:', e);
+      return null;
+    }
   },
 
   async linkNewChild(studentCode: string): Promise<ChildItem> {
     const user = authService.getUser();
     const userId = user?.id || user?.phone || 'guest';
-    let childToReturn: ChildItem;
+    const authHeader = await authService.getAuthHeaderAsync();
 
+    // 1. Thử tra cứu hồ sơ học sinh trực tiếp qua ID hoặc mã học sinh
+    let foundStudent: any = null;
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const res = await fetch(`${API_BASE_URL}/classes/join`, {
-        method: 'POST',
+      const res = await fetch(`${API_BASE_URL}/students/${studentCode}`, {
         headers: { 'Content-Type': 'application/json', ...authHeader },
-        body: JSON.stringify({ invite_code: studentCode }),
       }).catch(() => null);
 
       if (res && res.ok) {
         const resJson = await res.json();
-        const data = resJson.data || resJson;
-        childToReturn = {
-          id: data.student_id || `stu_${Date.now()}`,
-          student_code: studentCode,
-          full_name: data.full_name || 'Học sinh mới',
-          avatar_letters: 'HS',
-          class_name: data.class_name ? `Lớp ${data.class_name}` : 'Lớp 1A',
-          attendance_status: 'Có mặt',
-          attendance_note: 'Đúng giờ',
-        };
-      } else {
-        childToReturn = {
-          id: `stu_${Date.now()}`,
-          student_code: studentCode.toUpperCase(),
-          full_name: 'Nguyễn Minh Quân',
-          avatar_letters: 'MQ',
-          class_name: 'Lớp 1A',
-          attendance_status: 'Có mặt',
-          attendance_note: 'Đúng giờ',
-        };
+        foundStudent = resJson.data || resJson;
       }
-    } catch (e) {
-      childToReturn = {
-        id: `stu_${Date.now()}`,
-        student_code: studentCode.toUpperCase(),
-        full_name: 'Nguyễn Minh Quân',
-        avatar_letters: 'MQ',
-        class_name: 'Lớp 1A',
-        attendance_status: 'Có mặt',
-        attendance_note: 'Đúng giờ',
-      };
+    } catch (e) {}
+
+    // 2. Nếu không tìm thấy, thử qua mã mời lớp học
+    if (!foundStudent) {
+      try {
+        const joinRes = await fetch(`${API_BASE_URL}/classes/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader },
+          body: JSON.stringify({ invite_code: studentCode }),
+        }).catch(() => null);
+
+        if (joinRes && joinRes.ok) {
+          const joinJson = await joinRes.json();
+          const joinData = joinJson.data || joinJson;
+          foundStudent = {
+            id: joinData.student_id || `stu_${Date.now()}`,
+            student_code: studentCode,
+            full_name: joinData.full_name || 'Học sinh',
+            class_name: joinData.class_name || 'Lớp học',
+          };
+        }
+      } catch (e) {}
     }
+
+    if (!foundStudent || !foundStudent.id) {
+      throw new Error(`Không tìm thấy học sinh với mã "${studentCode}". Vui lòng kiểm tra lại mã học sinh hoặc mã mời lớp học do giáo viên cung cấp.`);
+    }
+
+    const initials = (foundStudent.full_name || 'HS')
+      .split(' ')
+      .filter(Boolean)
+      .map((w: string) => w[0])
+      .slice(-2)
+      .join('')
+      .toUpperCase();
+
+    const classNameFormatted = foundStudent.class_name
+      ? (foundStudent.class_name.startsWith('Lớp') ? foundStudent.class_name : `Lớp ${foundStudent.class_name}`)
+      : 'Lớp học';
+
+    const childToReturn: ChildItem = {
+      id: foundStudent.id,
+      student_code: foundStudent.student_code || studentCode,
+      full_name: foundStudent.full_name,
+      avatar_letters: initials || 'HS',
+      class_name: classNameFormatted,
+      school_name: foundStudent.school_name || 'Trường học',
+      attendance_status: 'Có mặt',
+      attendance_note: 'Đúng giờ',
+    };
 
     // Lưu vào LocalStorage của tài khoản phụ huynh hiện tại
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -352,7 +370,9 @@ export const parentService = {
     return childToReturn;
   },
 
-  async getFullAcademicRecord(studentId: string = 'stu_02') {
+  async getFullAcademicRecord(studentId: string) {
+    if (!studentId) return [];
+
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const res = await fetch(`${API_BASE_URL}/students/${studentId}/academic`, {
@@ -362,11 +382,11 @@ export const parentService = {
       if (res && res.ok) {
         const resJson = await res.json();
         const data = resJson.data || resJson;
-        if (data.subjects && data.subjects.length > 0) {
-          const colors = ['#F58F4C', '#4A47D2', '#00875A', '#FF5630'];
+        if (data.subjects && Array.isArray(data.subjects) && data.subjects.length > 0) {
+          const colors = ['#F58F4C', '#4A47D2', '#00875A', '#FF5630', '#7E57C2'];
           return data.subjects.map((sub: any, idx: number) => {
             const scores = (sub.scores || []).map((s: any) => ({
-              label: s.label?.replace('Kiểm tra ', '') || '15 phút',
+              label: s.label?.replace('Kiểm tra ', '') || 'Điểm',
               value: s.value !== undefined ? String(s.value) : '--',
             }));
             const validScores = scores.filter((s: any) => s.value !== '--' && !isNaN(Number(s.value)));
@@ -389,33 +409,12 @@ export const parentService = {
       }
     } catch (e) {}
 
-    return [
-      {
-        subject_name: 'Toán',
-        dot_color: '#F58F4C',
-        average_score: 'TB 9.2',
-        scores: [
-          { label: 'Miệng', value: '9.0' },
-          { label: '15 phút', value: '9.5' },
-          { label: '1 Tiết', value: '--' },
-          { label: 'Thi GK', value: '--' },
-        ],
-      },
-      {
-        subject_name: 'Ngữ Văn',
-        dot_color: '#4A47D2',
-        average_score: 'TB 8.5',
-        scores: [
-          { label: 'Miệng', value: '8.0' },
-          { label: '15 phút', value: '8.5' },
-          { label: '1 Tiết', value: '9.0' },
-          { label: 'Thi GK', value: '--' },
-        ],
-      },
-    ];
+    return [];
   },
 
-  async getRemarksAndExams(studentId: string = 'stu_02') {
+  async getRemarksAndExams(studentId: string) {
+    if (!studentId) return { exams: [], remarks: [] };
+
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const [remRes, examRes] = await Promise.all([
@@ -437,7 +436,7 @@ export const parentService = {
           remarksList = list.map((r: any) => ({
             id: r.remark_id || r.id,
             teacher_title: `${r.teacher_name || 'Giáo viên'} • ${r.subject || 'Rèn luyện'}`,
-            date_str: r.created_at ? r.created_at.substring(5, 10).replace('-', '/') : 'Hôm nay',
+            date_str: r.created_at ? r.created_at.substring(5, 10).replace('-', '/') : 'Gần đây',
             content: r.content,
             is_read: true,
           }));
@@ -450,40 +449,27 @@ export const parentService = {
         if (Array.isArray(list)) {
           examsList = list.map((e: any) => ({
             id: e.reminder_id || e.id,
-            title: `Kiểm tra ${e.subject_name || 'Toán'}`,
+            title: `Kiểm tra ${e.subject_name || 'Môn học'}`,
             date_label: e.exam_date || 'Sắp tới',
             icon: 'calendar_month',
           }));
         }
       }
 
-      if (remarksList.length > 0 || examsList.length > 0) {
-        return { exams: examsList, remarks: remarksList };
-      }
+      return { exams: examsList, remarks: remarksList };
     } catch (e) {}
 
-    return {
-      exams: [
-        {
-          id: 'exm_01',
-          title: 'Kiểm tra 15 phút Toán',
-          date_label: '02/10/2026',
-          icon: 'calendar_month',
-        },
-      ],
-      remarks: [
-        {
-          id: 'rmk_01',
-          teacher_title: 'Cô Nguyễn Thị Lan • Toán',
-          date_str: 'Hôm nay',
-          content: 'Hôm nay Nam làm bài tập rất nhanh và hăng hái phát biểu.',
-          is_read: true,
-        },
-      ],
-    };
+    return { exams: [], remarks: [] };
   },
 
-  async getAttendanceDetails(studentId: string = 'stu_02', month: string = '2026-10') {
+  async getAttendanceDetails(studentId: string, month: string = '2026-10') {
+    if (!studentId) {
+      return {
+        summary: null,
+        logs: [],
+      };
+    }
+
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const res = await fetch(`${API_BASE_URL}/students/${studentId}/attendance?month=${month}`, {
@@ -494,10 +480,10 @@ export const parentService = {
         const resJson = await res.json();
         const data = resJson.data || resJson;
         const records = Array.isArray(data.records) ? data.records : [];
-        const presentCount = data.total_present || records.filter((r: any) => r.status === 'PRESENT').length || 20;
-        const absentCount = data.total_absent_excused || 0;
-        const total = presentCount + absentCount || 22;
-        const rate = Math.round((presentCount / total) * 100);
+        const presentCount = data.total_present || records.filter((r: any) => r.status === 'PRESENT').length || 0;
+        const absentCount = data.total_absent_excused || records.filter((r: any) => r.status?.includes('ABSENT')).length || 0;
+        const total = presentCount + absentCount;
+        const rate = total > 0 ? Math.round((presentCount / total) * 100) : 100;
 
         const logs = records.map((r: any, idx: number) => ({
           id: `log_0${idx + 1}`,
@@ -514,39 +500,22 @@ export const parentService = {
             present_count: presentCount,
             absent_count: absentCount,
             rate_week: `${rate}%`,
-            note: absentCount === 0 ? 'Chuyên cần xuất sắc' : 'Có phép nghỉ ốm',
+            note: absentCount === 0 ? 'Chuyên cần đầy đủ' : 'Có phép nghỉ ốm',
           },
-          logs: logs.length > 0 ? logs : [
-            {
-              id: 'log_01',
-              date_title: 'Hôm nay',
-              status: 'PRESENT',
-              status_label: 'Có mặt',
-            },
-          ],
+          logs,
         };
       }
     } catch (e) {}
 
     return {
-      summary: {
-        present_count: 20,
-        absent_count: 1,
-        rate_week: '95%',
-        note: 'Chuyên cần tốt',
-      },
-      logs: [
-        {
-          id: 'log_01',
-          date_title: 'Hôm nay',
-          status: 'PRESENT',
-          status_label: 'Có mặt',
-        },
-      ],
+      summary: null,
+      logs: [],
     };
   },
 
-  async getChildFeesInsurance(studentId: string = 'stu_02') {
+  async getChildFeesInsurance(studentId: string) {
+    if (!studentId) return null;
+
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const res = await fetch(`${API_BASE_URL}/students/${studentId}/fees-insurance`, {
@@ -556,6 +525,10 @@ export const parentService = {
       if (res && res.ok) {
         const resJson = await res.json();
         const data = resJson.data || resJson;
+        if (!data || (!data.insurance && !data.tuition)) {
+          return null;
+        }
+
         const ins = data.insurance || {};
         const tui = data.tuition || {};
         const insPaid = !!ins.is_paid;
@@ -572,7 +545,7 @@ export const parentService = {
             type: 'BHYT',
             status: insPaid ? 'PAID' : 'UNPAID',
             status_label: insPaid ? 'Đã nộp' : 'Chưa nộp',
-            deadline: ins.deadline ? `Hạn ${ins.deadline}` : 'Hạn 15/10/2026',
+            deadline: ins.deadline ? `Hạn ${ins.deadline}` : 'Hạn nộp đợt 1',
             paid_date: ins.paid_date || undefined,
             payment_method: ins.payment_method || 'Chuyển khoản / Tiền mặt',
           },
@@ -580,33 +553,15 @@ export const parentService = {
             type: 'Học phí',
             status: tuiPaid ? 'PAID' : 'UNPAID',
             status_label: tuiPaid ? 'Đã nộp' : 'Chưa nộp',
-            paid_date: tui.paid_date || '15/09',
+            paid_date: tui.paid_date || undefined,
             payment_method: tui.payment_method || 'Đã đóng online',
           },
         };
       }
     } catch (e) {
-      console.warn('Backend not reachable, fallback fees data:', e);
+      console.warn('Backend not reachable, getChildFeesInsurance error:', e);
     }
 
-    return {
-      student_id: studentId,
-      completed_ratio: '1/2',
-      remaining_count: 'Còn 1 khoản',
-      term_label: 'Học kỳ 1 • 2026–2027',
-      insurance: {
-        type: 'BHYT',
-        status: 'UNPAID',
-        status_label: 'Chưa nộp',
-        deadline: 'Hạn 15/10/2026',
-      },
-      tuition: {
-        type: 'Học phí',
-        status: 'PAID',
-        status_label: 'Đã nộp',
-        paid_date: '22/09',
-        payment_method: 'Nộp tiền mặt tại lớp',
-      },
-    };
+    return null;
   },
 };

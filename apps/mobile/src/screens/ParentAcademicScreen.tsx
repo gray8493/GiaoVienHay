@@ -25,9 +25,9 @@ interface ParentAcademicScreenProps {
 type TabType = 'GRADES' | 'REMARKS' | 'ATTENDANCE';
 
 export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
-  studentId = 'stu_02',
-  studentName = 'Trần Bảo Nam',
-  className = '1A',
+  studentId = '',
+  studentName = 'Học sinh',
+  className = '',
   onBackToHome,
   onNavigateToTab,
   onOpenNotifications,
@@ -44,12 +44,7 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
   const [remarksList, setRemarksList] = useState<any[]>([]);
 
   // Dữ liệu Chuyên cần
-  const [attendanceSummary, setAttendanceSummary] = useState<any>({
-    present_count: 4,
-    absent_count: 2,
-    rate_week: '66.7%',
-    note: 'Cần nộp giấy xác nhận khám bệnh vào Thứ Hai',
-  });
+  const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -59,6 +54,15 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
   }, [currentTab, studentId]);
 
   const loadData = async () => {
+    if (!studentId) {
+      setAcademicData([]);
+      setExamsList([]);
+      setRemarksList([]);
+      setAttendanceSummary(null);
+      setAttendanceLogs([]);
+      return;
+    }
+
     setLoading(true);
     try {
       if (currentTab === 'GRADES') {
@@ -71,7 +75,9 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
       } else {
         const data = await parentService.getAttendanceDetails(studentId, '2026-10');
         if (data.summary) setAttendanceSummary(data.summary);
+        else setAttendanceSummary(null);
         if (data.logs) setAttendanceLogs(data.logs);
+        else setAttendanceLogs([]);
       }
     } catch (e) {
       console.warn('Lỗi khi tải dữ liệu học tập phụ huynh:', e);
@@ -211,41 +217,48 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
         {/* ======================================================== */}
         {!loading && currentTab === 'GRADES' && (
           <View style={styles.tabContentWrap}>
-            {academicData.map((item, index) => (
-              <View key={index} style={styles.subjectCard}>
-                {/* Subject Header */}
-                <View style={styles.subjectHeader}>
-                  <View style={styles.subjectTitleGroup}>
-                    <View style={[styles.subjectDot, { backgroundColor: item.dot_color || '#F58F4C' }]} />
-                    <Text style={styles.subjectName} numberOfLines={1}>
-                      {item.subject_name}
-                    </Text>
-                  </View>
-                  <View style={styles.avgBadgePill}>
-                    <Text style={styles.avgBadgeText} numberOfLines={1}>
-                      {item.average_score}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* 4 Score Columns Grid: FIX LỖI ĐÈ CHỮ */}
-                <View style={styles.scoresGrid}>
-                  {item.scores?.map((score: any, idx: number) => {
-                    const isFaint = score.value === '--';
-                    return (
-                      <View key={idx} style={[styles.scoreBox, isFaint && styles.scoreBoxFaint]}>
-                        <Text style={styles.scoreTypeLabel} numberOfLines={1}>
-                          {score.label}
-                        </Text>
-                        <Text style={[styles.scoreValueText, isFaint && styles.scoreValueFaint]} numberOfLines={1}>
-                          {score.value}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
+            {academicData.length === 0 ? (
+              <View style={styles.emptyTabCard}>
+                <Text style={styles.emptyTabTitle}>Chưa có điểm số</Text>
+                <Text style={styles.emptyTabSub}>Giáo viên bộ môn chưa cập nhật bảng điểm cho học kỳ này.</Text>
               </View>
-            ))}
+            ) : (
+              academicData.map((item, index) => (
+                <View key={index} style={styles.subjectCard}>
+                  {/* Subject Header */}
+                  <View style={styles.subjectHeader}>
+                    <View style={styles.subjectTitleGroup}>
+                      <View style={[styles.subjectDot, { backgroundColor: item.dot_color || '#F58F4C' }]} />
+                      <Text style={styles.subjectName} numberOfLines={1}>
+                        {item.subject_name}
+                      </Text>
+                    </View>
+                    <View style={styles.avgBadgePill}>
+                      <Text style={styles.avgBadgeText} numberOfLines={1}>
+                        {item.average_score}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* 4 Score Columns Grid: FIX LỖI ĐÈ CHỮ */}
+                  <View style={styles.scoresGrid}>
+                    {item.scores?.map((score: any, idx: number) => {
+                      const isFaint = score.value === '--';
+                      return (
+                        <View key={idx} style={[styles.scoreBox, isFaint && styles.scoreBoxFaint]}>
+                          <Text style={styles.scoreTypeLabel} numberOfLines={1}>
+                            {score.label}
+                          </Text>
+                          <Text style={[styles.scoreValueText, isFaint && styles.scoreValueFaint]} numberOfLines={1}>
+                            {score.value}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -354,110 +367,121 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
         {/* ======================================================== */}
         {!loading && currentTab === 'ATTENDANCE' && (
           <View style={styles.tabContentWrap}>
-            {/* Stats Summary Card: FIX LỖI RỚT CHỮ CÓ MẶT / VẮNG */}
-            <View style={styles.attendanceSummaryCard}>
-              {/* Cột Có mặt */}
-              <View style={styles.attStatCol}>
-                <View style={styles.attIconCircleGreen}>
-                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#006C49" strokeWidth={2.5}>
-                    <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                </View>
-                <Text style={styles.attStatNumberGreen}>{attendanceSummary.present_count}</Text>
-                <Text style={styles.attStatLabel} numberOfLines={1}>Có mặt</Text>
+            {!attendanceSummary && attendanceLogs.length === 0 ? (
+              <View style={styles.emptyTabCard}>
+                <Text style={styles.emptyTabTitle}>Chưa có dữ liệu điểm danh</Text>
+                <Text style={styles.emptyTabSub}>Chưa có ghi nhận chuyên cần nào của học sinh trong tháng này.</Text>
               </View>
+            ) : (
+              <>
+                {/* Stats Summary Card: FIX LỖI RỚT CHỮ CÓ MẶT / VẮNG */}
+                <View style={styles.attendanceSummaryCard}>
+                  {/* Cột Có mặt */}
+                  <View style={styles.attStatCol}>
+                    <View style={styles.attIconCircleGreen}>
+                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#006C49" strokeWidth={2.5}>
+                        <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
+                    </View>
+                    <Text style={styles.attStatNumberGreen}>{attendanceSummary?.present_count ?? 0}</Text>
+                    <Text style={styles.attStatLabel} numberOfLines={1}>Có mặt</Text>
+                  </View>
 
-              <View style={styles.attDividerVer} />
+                  <View style={styles.attDividerVer} />
 
-              {/* Cột Vắng */}
-              <View style={styles.attStatCol}>
-                <View style={styles.attIconCircleRed}>
-                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#BA1A1A" strokeWidth={2.5}>
-                    <Line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round" />
-                    <Line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round" />
-                  </Svg>
+                  {/* Cột Vắng */}
+                  <View style={styles.attStatCol}>
+                    <View style={styles.attIconCircleRed}>
+                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#BA1A1A" strokeWidth={2.5}>
+                        <Line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round" />
+                        <Line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round" />
+                      </Svg>
+                    </View>
+                    <Text style={styles.attStatNumberRed}>{attendanceSummary?.absent_count ?? 0}</Text>
+                    <Text style={styles.attStatLabel} numberOfLines={1}>Vắng</Text>
+                  </View>
                 </View>
-                <Text style={styles.attStatNumberRed}>{attendanceSummary.absent_count}</Text>
-                <Text style={styles.attStatLabel} numberOfLines={1}>Vắng</Text>
-              </View>
-            </View>
 
-            {/* Attendance Log Detail Card: FIX LỖI RỚT CHỮ TRONG LOG */}
-            <View style={styles.attendanceLogCard}>
-              {attendanceLogs.map((log, idx) => {
-                const isAbsent = log.status === 'ABSENT';
-                const isExcused = log.permit_status === 'EXCUSED';
+                {/* Attendance Log Detail Card: FIX LỖI RỚT CHỮ TRONG LOG */}
+                <View style={styles.attendanceLogCard}>
+                  {attendanceLogs.map((log, idx) => {
+                    const isAbsent = log.status === 'ABSENT';
+                    const isExcused = log.permit_status === 'EXCUSED';
 
-                return (
-                  <View key={log.id || idx}>
-                    <View style={styles.logRow}>
-                      <View style={styles.logRowHeader}>
-                        <View style={styles.logDateGroup}>
-                          <View style={[styles.logIndicatorDot, { backgroundColor: isAbsent ? '#EF4444' : '#10B981' }]} />
-                          <Text style={styles.logDateTitle} numberOfLines={1}>{log.date_title}</Text>
-                        </View>
+                    return (
+                      <View key={log.id || idx}>
+                        <View style={styles.logRow}>
+                          <View style={styles.logRowHeader}>
+                            <View style={styles.logDateGroup}>
+                              <View style={[styles.logIndicatorDot, { backgroundColor: isAbsent ? '#EF4444' : '#10B981' }]} />
+                              <Text style={styles.logDateTitle} numberOfLines={1}>{log.date_title}</Text>
+                            </View>
 
-                        {/* Badges bên phải */}
-                        <View style={styles.logBadgesGroup}>
-                          {isAbsent ? (
-                            <>
-                              <View style={styles.badgeAbsent}>
-                                <Text style={styles.badgeAbsentText}>VẮNG</Text>
-                              </View>
-                              <View style={styles.badgePermitWhite}>
-                                <Svg width={12} height={12} viewBox="0 0 20 20" fill={isExcused ? '#10B981' : '#EF4444'}>
-                                  {isExcused ? (
-                                    <Path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
-                                  ) : (
-                                    <Path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM6.28 7.34a.75.75 0 011.06-1.06L10 8.94l2.66-2.66a.75.75 0 111.06 1.06L11.06 10l2.66 2.66a.75.75 0 11-1.06 1.06L10 11.06l-2.66 2.66a.75.75 0 01-1.06-1.06L8.94 10 6.28 7.34z" clipRule="evenodd" />
-                                  )}
-                                </Svg>
-                                <Text style={styles.badgePermitText} numberOfLines={1}>{log.permit_label}</Text>
-                              </View>
-                            </>
-                          ) : (
-                            <View style={styles.badgePresentGreen}>
-                              <Text style={styles.badgePresentText} numberOfLines={1}>Có mặt</Text>
+                            {/* Badges bên phải */}
+                            <View style={styles.logBadgesGroup}>
+                              {isAbsent ? (
+                                <>
+                                  <View style={styles.badgeAbsent}>
+                                    <Text style={styles.badgeAbsentText}>VẮNG</Text>
+                                  </View>
+                                  <View style={styles.badgePermitWhite}>
+                                    <Svg width={12} height={12} viewBox="0 0 20 20" fill={isExcused ? '#10B981' : '#EF4444'}>
+                                      {isExcused ? (
+                                        <Path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                                      ) : (
+                                        <Path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM6.28 7.34a.75.75 0 011.06-1.06L10 8.94l2.66-2.66a.75.75 0 111.06 1.06L11.06 10l2.66 2.66a.75.75 0 11-1.06 1.06L10 11.06l-2.66 2.66a.75.75 0 01-1.06-1.06L8.94 10 6.28 7.34z" clipRule="evenodd" />
+                                      )}
+                                    </Svg>
+                                    <Text style={styles.badgePermitText} numberOfLines={1}>{log.permit_label}</Text>
+                                  </View>
+                                </>
+                              ) : (
+                                <View style={styles.badgePresentGreen}>
+                                  <Text style={styles.badgePresentText} numberOfLines={1}>Có mặt</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+
+                          {/* Ghi chú lý do nếu vắng */}
+                          {log.reason && (
+                            <View style={styles.logReasonRow}>
+                              <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#6B6880" strokeWidth={2}>
+                                <Circle cx="12" cy="12" r="10" />
+                                <Line x1="12" y1="16" x2="12" y2="12" />
+                                <Line x1="12" y1="8" x2="12.01" y2="8" />
+                              </Svg>
+                              <Text style={styles.logReasonText}>Lý do: {log.reason}</Text>
                             </View>
                           )}
                         </View>
+                        {idx < attendanceLogs.length - 1 && <View style={styles.hairlineDivider} />}
                       </View>
+                    );
+                  })}
+                </View>
 
-                      {/* Ghi chú lý do nếu vắng */}
-                      {log.reason && (
-                        <View style={styles.logReasonRow}>
-                          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#6B6880" strokeWidth={2}>
-                            <Circle cx="12" cy="12" r="10" />
-                            <Line x1="12" y1="16" x2="12" y2="12" />
-                            <Line x1="12" y1="8" x2="12.01" y2="8" />
-                          </Svg>
-                          <Text style={styles.logReasonText}>Lý do: {log.reason}</Text>
-                        </View>
-                      )}
+                {/* Motivational Footer Note */}
+                {attendanceSummary && (
+                  <View style={styles.attFooterNoteCard}>
+                    <View style={styles.attFooterIconBox}>
+                      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#984704" strokeWidth={2}>
+                        <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <Polyline points="9 12 11 14 15 10" />
+                      </Svg>
                     </View>
-                    {idx < attendanceLogs.length - 1 && <View style={styles.hairlineDivider} />}
+                    <View style={styles.attFooterTextWrap}>
+                      <Text style={styles.attFooterTitle} numberOfLines={1}>
+                        Chuyên cần: {attendanceSummary.rate_week || '100%'}
+                      </Text>
+                      <Text style={styles.attFooterSub} numberOfLines={1}>
+                        {attendanceSummary.note || 'Tình trạng chuyên cần'}
+                      </Text>
+                    </View>
                   </View>
-                );
-              })}
-            </View>
-
-            {/* Motivational Footer Note */}
-            <View style={styles.attFooterNoteCard}>
-              <View style={styles.attFooterIconBox}>
-                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#984704" strokeWidth={2}>
-                  <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <Polyline points="9 12 11 14 15 10" />
-                </Svg>
-              </View>
-              <View style={styles.attFooterTextWrap}>
-                <Text style={styles.attFooterTitle} numberOfLines={1}>
-                  Chuyên cần tuần này: {attendanceSummary.rate_week}
-                </Text>
-                <Text style={styles.attFooterSub} numberOfLines={1}>
-                  {attendanceSummary.note}
-                </Text>
-              </View>
-            </View>
+                )}
+              </>
+            )}
           </View>
         )}
       </ScrollView>
@@ -1131,5 +1155,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     marginTop: 2,
+  },
+  emptyTabCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F0EBF4',
+    marginVertical: 12,
+  },
+  emptyTabTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E1B2E',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyTabSub: {
+    fontSize: 13,
+    color: '#6B6880',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

@@ -26,52 +26,40 @@ export class StudentsService {
       scoresList = await this.dataConnect.getScoresByStudent(studentId);
     } catch (e) {}
 
-    if (studentId === 'stu_02_empty') {
+    if (studentId === 'stu_02_empty' || scoresList.length === 0) {
       return {
         student_id: studentId,
         full_name: (student as any).full_name || (student as any).fullName,
-        class_name: '1A',
+        class_name: (student as any).class_name || (student as any).className || '1A',
         semester: semester || 1,
         subjects: [],
       };
     }
 
+    const subjectMap: Record<string, { code: string; name: string; scores: any[] }> = {};
+    for (const sc of scoresList) {
+      const code = sc.subject || 'MATH';
+      const name = code === 'MATH' ? 'Toán học' : code === 'LITERATURE' ? 'Tiếng Việt' : code;
+      if (!subjectMap[code]) {
+        subjectMap[code] = { code, name, scores: [] };
+      }
+      subjectMap[code].scores.push({
+        type: sc.scoreType || sc.score_type,
+        label: 'Kiểm tra ' + (sc.scoreType || sc.score_type),
+        value: sc.scoreValue || sc.score_value,
+      });
+    }
+
     return {
       student_id: studentId,
       full_name: (student as any).full_name || (student as any).fullName,
-      class_name: '1A',
-      semester: 1,
-      subjects: [
-        {
-          subject_code: 'MATH',
-          subject_name: 'Toán học',
-          scores: scoresList.length > 0
-            ? scoresList.filter((s) => s.subject === 'MATH').map((s) => ({
-                type: s.scoreType || s.score_type,
-                label: 'Kiểm tra ' + (s.scoreType || s.score_type),
-                value: s.scoreValue || s.score_value,
-              }))
-            : [
-                { type: 'ORAL_TEST', label: 'Kiểm tra miệng', value: 9.0, comment: 'Học thuộc bảng cộng' },
-                { type: 'TEST_15P', label: 'Kiểm tra 15 phút', value: 8.5 },
-                { type: 'MID_TERM', label: 'Thi Giữa kỳ', value: 9.5 },
-              ],
-        },
-        {
-          subject_code: 'LITERATURE',
-          subject_name: 'Tiếng Việt',
-          scores: scoresList.length > 0
-            ? scoresList.filter((s) => s.subject === 'LITERATURE').map((s) => ({
-                type: s.scoreType || s.score_type,
-                label: 'Kiểm tra ' + (s.scoreType || s.score_type),
-                value: s.scoreValue || s.score_value,
-              }))
-            : [
-                { type: 'ORAL_TEST', label: 'Đọc bài cũ', value: 8.0 },
-                { type: 'TEST_15P', label: 'Chính tả 15 phút', value: 9.0 },
-              ],
-        },
-      ],
+      class_name: (student as any).class_name || (student as any).className || '1A',
+      semester: semester || 1,
+      subjects: Object.values(subjectMap).map((s) => ({
+        subject_code: s.code,
+        subject_name: s.name,
+        scores: s.scores,
+      })),
     };
   }
 
@@ -151,28 +139,39 @@ export class StudentsService {
       }
     } catch (e) {}
 
-    return [
-      {
-        remark_id: 'rmk_01',
-        teacher_name: 'Cô Nguyễn Thị Lan',
-        subject: 'Toán học',
-        content: 'Hôm nay Nam làm bài tập rất nhanh và hăng hái phát biểu xây dựng bài.',
-        created_at: new Date().toISOString(),
-        parent_acknowledged: true,
-      },
-    ];
+    return [];
   }
 
   async getExamReminders(studentId: string) {
-    return [
-      {
-        id: 'exm_01',
-        subject_name: 'Toán học',
-        exam_type: 'TEST_15P',
-        exam_date: '2026-10-02',
-        content_scope: 'Phép cộng trong phạm vi 10 (Bài 5 và Bài 6)',
-      },
-    ];
+    const student = await this.findStudent(studentId);
+    let list: any[] = [];
+    if ((student as any)?.class_id && this.dataConnect.getExamRemindersByClass) {
+      try {
+        const sqlReminders = await this.dataConnect.getExamRemindersByClass((student as any).class_id);
+        if (sqlReminders && sqlReminders.length > 0) {
+          list = sqlReminders.map((r: any) => ({
+            id: r.id,
+            subject_name: r.subject || r.subject_name || 'Toán học',
+            exam_type: r.exam_type || 'TEST_15P',
+            exam_date: r.exam_date || r.examDate || '2026-10-02',
+            content_scope: r.note || r.title || 'Phạm vi kiểm tra',
+          }));
+        }
+      } catch (e) {}
+    }
+    if (list.length > 0) return list;
+    if (studentId === 'stu_01') {
+      return [
+        {
+          id: 'exm_01',
+          subject_name: 'Toán học',
+          exam_type: 'TEST_15P',
+          exam_date: '2026-10-02',
+          content_scope: 'Phép cộng trong phạm vi 10 (Bài 5 và Bài 6)',
+        },
+      ];
+    }
+    return [];
   }
 
   private async findStudent(studentId: string, parentUid?: string) {
@@ -202,14 +201,21 @@ export class StudentsService {
       return sqlStudent;
     }
 
-    return {
-      id: studentId,
-      full_name: 'Trần Bảo Nam',
-      dob: '2019-05-15',
-      gender: 'MALE',
-      class_id: 'cls_1a_2026',
-      class_name: '1A',
-      parent_uids: ['parent_01'],
-    };
+    if (studentId === 'stu_01') {
+      return {
+        id: studentId,
+        full_name: 'Trần Bảo Nam',
+        dob: '2019-05-15',
+        gender: 'MALE',
+        class_id: 'cls_1a_2026',
+        class_name: '1A',
+        parent_uids: ['parent_01', 'usr_parent_01'],
+      };
+    }
+
+    throw new NotFoundException({
+      error_code: 'STUDENT_NOT_FOUND',
+      message: 'Không tìm thấy hồ sơ học sinh trên hệ thống',
+    });
   }
 }

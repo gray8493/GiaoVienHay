@@ -21,7 +21,7 @@ interface ParentHomeScreenProps {
   onNavigateToAddChild?: () => void;
   onLogout?: () => void;
   selectedChildId?: string;
-  onSelectChild?: (childId: string) => void;
+  onSelectChild?: (childId: string, fullName?: string, className?: string) => void;
 }
 
 export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
@@ -30,7 +30,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
   onNavigateToAcademic,
   onNavigateToAddChild,
   onLogout,
-  selectedChildId: initialChildId = 'stu_02',
+  selectedChildId: initialChildId = '',
   onSelectChild,
 }) => {
   const [activeTab, setActiveTab] = useState<'home' | 'academic' | 'fees' | 'profile'>('home');
@@ -60,15 +60,31 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
   useEffect(() => {
     if (selectedChildId) {
       loadDashboard(selectedChildId);
+    } else {
+      setDashboardData(null);
     }
   }, [selectedChildId]);
 
   const loadChildren = async () => {
-    const list = await parentService.getLinkedChildren();
-    setChildrenList(list);
-    if (list.length > 0 && !selectedChildId) {
-      setSelectedChildId(list[0].id);
-      onSelectChild?.(list[0].id);
+    setLoading(true);
+    try {
+      const list = await parentService.getLinkedChildren();
+      setChildrenList(list);
+      if (list.length > 0) {
+        const targetId = (selectedChildId && list.some(c => c.id === selectedChildId))
+          ? selectedChildId
+          : list[0].id;
+        setSelectedChildId(targetId);
+        const child = list.find(c => c.id === targetId) || list[0];
+        onSelectChild?.(targetId, child.full_name, child.class_name);
+      } else {
+        setSelectedChildId('');
+        setDashboardData(null);
+      }
+    } catch (e) {
+      console.warn('Error loading parent children:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -86,13 +102,16 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
 
   const handleSelectChild = (childId: string) => {
     setSelectedChildId(childId);
-    onSelectChild?.(childId);
+    const child = childrenList.find(c => c.id === childId);
+    if (child) {
+      onSelectChild?.(child.id, child.full_name, child.class_name);
+    }
     setIsChildSheetVisible(false);
   };
 
   const handleLinkChild = async () => {
     if (!studentCodeInput.trim()) {
-      Alert.alert('Thông báo', 'Vui lòng nhập mã học sinh hoặc mã mời (Ví dụ: HS240105 hoặc INV-6A1-9821)');
+      Alert.alert('Thông báo', 'Vui lòng nhập mã học sinh hoặc mã mời (Ví dụ: HS-1A-01 hoặc GVH-1A-2024)');
       return;
     }
 
@@ -101,6 +120,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
       const newChild = await parentService.linkNewChild(studentCodeInput.trim());
       setChildrenList(prev => [...prev, newChild]);
       setSelectedChildId(newChild.id);
+      onSelectChild?.(newChild.id, newChild.full_name, newChild.class_name);
       setIsAddChildModalVisible(false);
       setIsChildSheetVisible(false);
       setStudentCodeInput('');
@@ -112,13 +132,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
     }
   };
 
-  const currentChild = childrenList.find(c => c.id === selectedChildId) || childrenList[0] || {
-    id: 'stu_02',
-    student_code: 'HS240102',
-    full_name: 'Trần Bảo Nam',
-    avatar_letters: 'BN',
-    class_name: 'Lớp 1A',
-  };
+  const currentChild = childrenList.find(c => c.id === selectedChildId) || childrenList[0] || null;
 
   return (
     <View style={styles.container}>
@@ -159,203 +173,286 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ================= 1. HEADER ================= */}
-        <View style={styles.headerRow}>
-          {/* Child Switcher Pill */}
-          <TouchableOpacity
-            style={styles.childSwitcherPill}
-            onPress={() => setIsChildSheetVisible(true)}
-            activeOpacity={0.85}
-          >
-            <View style={styles.childAvatarBadge}>
-              <Text style={styles.childAvatarText}>{currentChild.avatar_letters || 'GB'}</Text>
+        {childrenList.length === 0 ? (
+          /* ================= PAR-01.empty: CHƯA CÓ HỌC SINH LIÊN KẾT ================= */
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyHeaderRow}>
+              <View style={styles.emptyWelcomeWrap}>
+                <Text style={styles.emptyWelcomeSub}>Xin chào quý phụ huynh,</Text>
+                <Text style={styles.emptyWelcomeTitle}>GiaoVienHay • Sổ Liên Lạc</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.bellButton}
+                onPress={onOpenNotifications}
+                activeOpacity={0.85}
+              >
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
+                  <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <Path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </Svg>
+              </TouchableOpacity>
             </View>
-            <View style={styles.childNameWrap}>
-              <Text style={styles.childNameTitle} numberOfLines={1}>{currentChild.full_name}</Text>
-              <Text style={styles.childClassSub}>{currentChild.class_name}</Text>
-            </View>
-            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2.5}>
-              <Path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
-          </TouchableOpacity>
 
-          {/* Notification Bell */}
-          <TouchableOpacity
-            style={styles.bellButton}
-            onPress={onOpenNotifications}
-            activeOpacity={0.85}
-          >
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
-              <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <Path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </Svg>
-            <View style={styles.redDot} />
-          </TouchableOpacity>
-        </View>
-
-        {/* ================= 2. HERO CARD ================= */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroDecoCircle} />
-          <View style={styles.heroContentLeft}>
-            <Text style={styles.heroDateTag}>
-              {dashboardData?.attendance.date_str || 'HÔM NAY • 23/09/2026'}
-            </Text>
-            <Text style={styles.heroTitle}>
-              {dashboardData?.attendance.status_title || 'Đã Có Mặt'}
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              {dashboardData?.attendance.note || 'Đi học đúng giờ'}
-            </Text>
-          </View>
-
-          {/* Icon Box Bên Phải */}
-          <View style={styles.heroIconBox}>
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-              <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <Line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" />
-              <Line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
-              <Line x1="3" y1="10" x2="21" y2="10" />
-              <Polyline points="9 16 11 18 15 14" strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
-          </View>
-        </View>
-
-        {/* ================= 3. BENTO GRID 2x2 ================= */}
-        <View style={styles.bentoGrid}>
-          {/* Tile 1: Điểm mới */}
-          <TouchableOpacity
-            style={styles.bentoTile}
-            activeOpacity={0.85}
-            onPress={() => (onNavigateToAcademic ? onNavigateToAcademic('GRADES') : onNavigateToTab?.('academic'))}
-          >
-            <View style={styles.bentoTileTop}>
-              <View style={styles.bentoIconBox}>
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                  <Polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" strokeLinejoin="round" />
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIconCircle}>
+                <Svg width={44} height={44} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
+                  <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <Circle cx="9" cy="7" r="4" />
+                  <Path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </Svg>
               </View>
-              <Text style={styles.bentoCategoryLabel}>Điểm mới</Text>
-            </View>
-            <View style={styles.bentoTileBottom}>
-              <Text style={styles.bentoMainValue}>
-                {dashboardData?.latest_grade.subject || 'Toán'} {dashboardData?.latest_grade.score || '9.0'}
-              </Text>
-              <View style={styles.bentoPillTag}>
-                <Text style={styles.bentoPillText}>{dashboardData?.latest_grade.test_type || '15 phút'}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
 
-          {/* Tile 2: Nhận xét */}
-          <TouchableOpacity
-            style={styles.bentoTile}
-            activeOpacity={0.85}
-            onPress={() => (onNavigateToAcademic ? onNavigateToAcademic('REMARKS') : onNavigateToTab?.('academic'))}
-          >
-            <View style={styles.bentoTileTop}>
-              <View style={styles.bentoIconBox}>
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                  <Path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                </Svg>
-              </View>
-              <Text style={styles.bentoCategoryLabel}>Nhận xét</Text>
-            </View>
-            <View style={styles.bentoTileBottom}>
-              <Text style={styles.bentoMainValue}>
-                {dashboardData?.latest_remark.count_label || '1 lời mới'}
+              <Text style={styles.emptyCardTitle}>Chưa liên kết học sinh</Text>
+              <Text style={styles.emptyCardDesc}>
+                Tài khoản phụ huynh của bạn chưa liên kết với hồ sơ học sinh nào. Vui lòng nhập mã học sinh hoặc mã mời từ giáo viên chủ nhiệm để bắt đầu theo dõi quá trình học tập của con.
               </Text>
-              <View style={styles.bentoPillTag}>
-                <Text style={styles.bentoPillText}>{dashboardData?.latest_remark.status_label || 'Chưa đọc'}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
 
-          {/* Tile 3: Thu phí */}
-          <TouchableOpacity
-            style={styles.bentoTile}
-            activeOpacity={0.85}
-            onPress={() => onNavigateToTab?.('fees')}
-          >
-            <View style={styles.bentoTileTop}>
-              <View style={styles.bentoIconBox}>
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                  <Rect x="2" y="4" width="20" height="16" rx="2" />
-                  <Line x1="2" y1="10" x2="22" y2="10" strokeLinecap="round" />
-                  <Line x1="6" y1="15" x2="10" y2="15" strokeLinecap="round" />
-                </Svg>
-              </View>
-              <Text style={styles.bentoCategoryLabel}>Thu phí</Text>
-            </View>
-            <View style={styles.bentoTileBottom}>
-              <Text style={styles.bentoMainValue}>
-                {dashboardData?.fees_insurance.type || 'BHYT'}
-              </Text>
-              <View style={styles.bentoPillTag}>
-                <Text style={styles.bentoPillText}>{dashboardData?.fees_insurance.status_label || 'Chưa nộp'}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+              <View style={styles.emptyActionButtons}>
+                <TouchableOpacity
+                  style={styles.emptyPrimaryBtn}
+                  onPress={() => setIsAddChildModalVisible(true)}
+                  activeOpacity={0.85}
+                >
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.5}>
+                    <Line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round" />
+                    <Line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round" />
+                  </Svg>
+                  <Text style={styles.emptyPrimaryBtnText}>Nhập Mã Học Sinh</Text>
+                </TouchableOpacity>
 
-          {/* Tile 4: Kiểm tra */}
-          <TouchableOpacity
-            style={styles.bentoTile}
-            activeOpacity={0.85}
-            onPress={() => (onNavigateToAcademic ? onNavigateToAcademic('REMARKS') : onNavigateToTab?.('academic'))}
-          >
-            <View style={styles.bentoTileTop}>
-              <View style={styles.bentoIconBox}>
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                  <Path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                  <Rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-                  <Line x1="9" y1="11" x2="15" y2="11" strokeLinecap="round" />
-                  <Line x1="9" y1="15" x2="13" y2="15" strokeLinecap="round" />
-                </Svg>
+                <TouchableOpacity
+                  style={styles.emptySecondaryBtn}
+                  onPress={() => {
+                    if (onNavigateToAddChild) {
+                      onNavigateToAddChild();
+                    } else {
+                      setIsAddChildModalVisible(true);
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                    <Path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <Path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </Svg>
+                  <Text style={styles.emptySecondaryBtnText}>Vào Lớp Bằng Link / Mã Mời</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.bentoCategoryLabel}>Kiểm tra</Text>
-            </View>
-            <View style={styles.bentoTileBottom}>
-              <Text style={styles.bentoMainValue}>
-                {dashboardData?.upcoming_exam.subject || 'Toán'}
-              </Text>
-              <View style={styles.bentoPillTag}>
-                <Text style={styles.bentoPillText}>{dashboardData?.upcoming_exam.exam_date || '16/10'}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* ================= 4. TIMELINE SECTION ================= */}
-        <View style={styles.timelineSection}>
-          <View style={styles.timelineHeader}>
-            <Text style={styles.timelineTitle}>Lịch học hôm nay</Text>
-            <View style={styles.pillCount}>
-              <Text style={styles.pillCountText}>
-                {dashboardData?.today_schedule?.length ? `${dashboardData.today_schedule.length} tiết` : '0 tiết'}
-              </Text>
             </View>
           </View>
+        ) : (
+          /* ================= NORMAL DASHBOARD: CÓ HỌC SINH ================= */
+          <>
+            {/* ================= 1. HEADER ================= */}
+            <View style={styles.headerRow}>
+              {/* Child Switcher Pill */}
+              <TouchableOpacity
+                style={styles.childSwitcherPill}
+                onPress={() => setIsChildSheetVisible(true)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.childAvatarBadge}>
+                  <Text style={styles.childAvatarText}>{currentChild?.avatar_letters || 'HS'}</Text>
+                </View>
+                <View style={styles.childNameWrap}>
+                  <Text style={styles.childNameTitle} numberOfLines={1}>{currentChild?.full_name || 'Học sinh'}</Text>
+                  <Text style={styles.childClassSub}>{currentChild?.class_name || ''}</Text>
+                </View>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2.5}>
+                  <Path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </TouchableOpacity>
 
-          <View style={styles.timelineCard}>
-            {dashboardData?.today_schedule && dashboardData.today_schedule.length > 0 ? (
-              dashboardData.today_schedule.map((item, idx) => (
-                <View key={idx} style={styles.timelineRow}>
-                  <View style={styles.timelineNodeCol}>
-                    <View style={idx === 0 ? styles.timelineDotActive : styles.timelineDotInactive} />
-                    {idx < (dashboardData.today_schedule?.length || 0) - 1 && <View style={styles.timelineLine} />}
+              {/* Notification Bell */}
+              <TouchableOpacity
+                style={styles.bellButton}
+                onPress={onOpenNotifications}
+                activeOpacity={0.85}
+              >
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
+                  <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <Path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </Svg>
+                <View style={styles.redDot} />
+              </TouchableOpacity>
+            </View>
+
+            {/* ================= 2. HERO CARD ================= */}
+            <View style={styles.heroCard}>
+              <View style={styles.heroDecoCircle} />
+              <View style={styles.heroContentLeft}>
+                <Text style={styles.heroDateTag}>
+                  {dashboardData?.attendance.date_str || 'HÔM NAY'}
+                </Text>
+                <Text style={styles.heroTitle}>
+                  {dashboardData?.attendance.status_title || 'Chưa điểm danh'}
+                </Text>
+                <Text style={styles.heroSubtitle}>
+                  {dashboardData?.attendance.note || 'Chưa có ghi nhận hôm nay'}
+                </Text>
+              </View>
+
+              {/* Icon Box Bên Phải */}
+              <View style={styles.heroIconBox}>
+                <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                  <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <Line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" />
+                  <Line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
+                  <Line x1="3" y1="10" x2="21" y2="10" />
+                  <Polyline points="9 16 11 18 15 14" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </View>
+            </View>
+
+            {/* ================= 3. BENTO GRID 2x2 ================= */}
+            <View style={styles.bentoGrid}>
+              {/* Tile 1: Điểm mới */}
+              <TouchableOpacity
+                style={styles.bentoTile}
+                activeOpacity={0.85}
+                onPress={() => (onNavigateToAcademic ? onNavigateToAcademic('GRADES') : onNavigateToTab?.('academic'))}
+              >
+                <View style={styles.bentoTileTop}>
+                  <View style={styles.bentoIconBox}>
+                    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                      <Polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" strokeLinejoin="round" />
+                    </Svg>
                   </View>
-                  <View style={styles.timelineContentWrap}>
-                    <Text style={styles.lessonTitle}>{item.period_title}</Text>
-                    <Text style={styles.lessonMeta}>{item.time_room}</Text>
+                  <Text style={styles.bentoCategoryLabel}>Điểm mới</Text>
+                </View>
+                <View style={styles.bentoTileBottom}>
+                  <Text style={styles.bentoMainValue}>
+                    {dashboardData?.latest_grade && dashboardData.latest_grade.subject !== 'Chưa có'
+                      ? `${dashboardData.latest_grade.subject} ${dashboardData.latest_grade.score}`
+                      : 'Chưa có điểm'}
+                  </Text>
+                  <View style={styles.bentoPillTag}>
+                    <Text style={styles.bentoPillText}>
+                      {dashboardData?.latest_grade?.test_type || 'Chờ cập nhật'}
+                    </Text>
                   </View>
                 </View>
-              ))
-            ) : (
-              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, color: '#A06D53' }}>Hôm nay không có tiết học nào</Text>
+              </TouchableOpacity>
+
+              {/* Tile 2: Nhận xét */}
+              <TouchableOpacity
+                style={styles.bentoTile}
+                activeOpacity={0.85}
+                onPress={() => (onNavigateToAcademic ? onNavigateToAcademic('REMARKS') : onNavigateToTab?.('academic'))}
+              >
+                <View style={styles.bentoTileTop}>
+                  <View style={styles.bentoIconBox}>
+                    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                      <Path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                    </Svg>
+                  </View>
+                  <Text style={styles.bentoCategoryLabel}>Nhận xét</Text>
+                </View>
+                <View style={styles.bentoTileBottom}>
+                  <Text style={styles.bentoMainValue}>
+                    {dashboardData?.latest_remark?.count_label || '0 lời mới'}
+                  </Text>
+                  <View style={styles.bentoPillTag}>
+                    <Text style={styles.bentoPillText}>
+                      {dashboardData?.latest_remark?.status_label || 'Chưa có'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Tile 3: Thu phí */}
+              <TouchableOpacity
+                style={styles.bentoTile}
+                activeOpacity={0.85}
+                onPress={() => onNavigateToTab?.('fees')}
+              >
+                <View style={styles.bentoTileTop}>
+                  <View style={styles.bentoIconBox}>
+                    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                      <Rect x="2" y="4" width="20" height="16" rx="2" />
+                      <Line x1="2" y1="10" x2="22" y2="10" strokeLinecap="round" />
+                      <Line x1="6" y1="15" x2="10" y2="15" strokeLinecap="round" />
+                    </Svg>
+                  </View>
+                  <Text style={styles.bentoCategoryLabel}>Thu phí</Text>
+                </View>
+                <View style={styles.bentoTileBottom}>
+                  <Text style={styles.bentoMainValue}>
+                    {dashboardData?.fees_insurance?.type || 'BHYT'}
+                  </Text>
+                  <View style={styles.bentoPillTag}>
+                    <Text style={styles.bentoPillText}>
+                      {dashboardData?.fees_insurance?.status_label || 'Chưa có'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Tile 4: Kiểm tra */}
+              <TouchableOpacity
+                style={styles.bentoTile}
+                activeOpacity={0.85}
+                onPress={() => (onNavigateToAcademic ? onNavigateToAcademic('REMARKS') : onNavigateToTab?.('academic'))}
+              >
+                <View style={styles.bentoTileTop}>
+                  <View style={styles.bentoIconBox}>
+                    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                      <Path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                      <Rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                      <Line x1="9" y1="11" x2="15" y2="11" strokeLinecap="round" />
+                      <Line x1="9" y1="15" x2="13" y2="15" strokeLinecap="round" />
+                    </Svg>
+                  </View>
+                  <Text style={styles.bentoCategoryLabel}>Kiểm tra</Text>
+                </View>
+                <View style={styles.bentoTileBottom}>
+                  <Text style={styles.bentoMainValue}>
+                    {dashboardData?.upcoming_exam?.subject || 'Không có'}
+                  </Text>
+                  <View style={styles.bentoPillTag}>
+                    <Text style={styles.bentoPillText}>
+                      {dashboardData?.upcoming_exam?.exam_date || '--/--'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* ================= 4. TIMELINE SECTION ================= */}
+            <View style={styles.timelineSection}>
+              <View style={styles.timelineHeader}>
+                <Text style={styles.timelineTitle}>Lịch học hôm nay</Text>
+                <View style={styles.pillCount}>
+                  <Text style={styles.pillCountText}>
+                    {dashboardData?.today_schedule?.length ? `${dashboardData.today_schedule.length} tiết` : '0 tiết'}
+                  </Text>
+                </View>
               </View>
-            )}
-          </View>
-        </View>
+
+              <View style={styles.timelineCard}>
+                {dashboardData?.today_schedule && dashboardData.today_schedule.length > 0 ? (
+                  dashboardData.today_schedule.map((item, idx) => (
+                    <View key={idx} style={styles.timelineRow}>
+                      <View style={styles.timelineNodeCol}>
+                        <View style={idx === 0 ? styles.timelineDotActive : styles.timelineDotInactive} />
+                        {idx < (dashboardData.today_schedule?.length || 0) - 1 && <View style={styles.timelineLine} />}
+                      </View>
+                      <View style={styles.timelineContentWrap}>
+                        <Text style={styles.lessonTitle}>{item.period_title}</Text>
+                        <Text style={styles.lessonMeta}>{item.time_room}</Text>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: '#A06D53' }}>Hôm nay không có tiết học nào</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* ================= 5. PARENT DOCK (Floating Dark Pill) ================= */}
@@ -379,6 +476,10 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
         <TouchableOpacity
           style={styles.dockItem}
           onPress={() => {
+            if (childrenList.length === 0) {
+              Alert.alert('Chưa liên kết học sinh', 'Vui lòng liên kết tài khoản con của bạn trước khi xem bảng điểm và nhận xét.');
+              return;
+            }
             setActiveTab('academic');
             if (onNavigateToAcademic) {
               onNavigateToAcademic('GRADES');
@@ -401,6 +502,10 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
         <TouchableOpacity
           style={styles.dockItem}
           onPress={() => {
+            if (childrenList.length === 0) {
+              Alert.alert('Chưa liên kết học sinh', 'Vui lòng liên kết tài khoản con của bạn trước khi xem thông tin thu phí & BHYT.');
+              return;
+            }
             setActiveTab('fees');
             onNavigateToTab?.('fees');
           }}
@@ -472,45 +577,53 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
 
             {/* Thẻ Card Trắng với các hàng phân tách */}
             <View style={styles.childrenListCard}>
-              {childrenList.map((ch, index) => {
-                const isSelected = ch.id === selectedChildId;
-                const isFirst = index === 0;
+              {childrenList.length === 0 ? (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, color: '#6B6880', textAlign: 'center' }}>
+                    Chưa có học sinh nào được liên kết
+                  </Text>
+                </View>
+              ) : (
+                childrenList.map((ch, index) => {
+                  const isSelected = ch.id === selectedChildId;
+                  const isFirst = index === 0;
 
-                return (
-                  <View key={ch.id}>
-                    <TouchableOpacity
-                      style={[
-                        styles.childItemRow,
-                        isSelected ? styles.childItemRowSelected : styles.childItemRowNormal,
-                      ]}
-                      onPress={() => handleSelectChild(ch.id)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.childRowLeft}>
-                        <View style={[styles.childAvatarLetter, isSelected && styles.childAvatarLetterWhite]}>
-                          <Text style={styles.avatarLetterText}>{ch.avatar_letters}</Text>
+                  return (
+                    <View key={ch.id}>
+                      <TouchableOpacity
+                        style={[
+                          styles.childItemRow,
+                          isSelected ? styles.childItemRowSelected : styles.childItemRowNormal,
+                        ]}
+                        onPress={() => handleSelectChild(ch.id)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.childRowLeft}>
+                          <View style={[styles.childAvatarLetter, isSelected && styles.childAvatarLetterWhite]}>
+                            <Text style={styles.avatarLetterText}>{ch.avatar_letters}</Text>
+                          </View>
+                          <View>
+                            <Text style={styles.childRowName}>{ch.full_name}</Text>
+                            <Text style={styles.childRowClass}>{ch.class_name}</Text>
+                          </View>
                         </View>
-                        <View>
-                          <Text style={styles.childRowName}>{ch.full_name}</Text>
-                          <Text style={styles.childRowClass}>{ch.class_name}</Text>
-                        </View>
-                      </View>
 
-                      {/* Vòng tròn check cam hoặc vòng xám rỗng */}
-                      {isSelected ? (
-                        <View style={styles.checkCircleActive}>
-                          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={3}>
-                            <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
-                          </Svg>
-                        </View>
-                      ) : (
-                        <View style={styles.checkCircleInactive} />
-                      )}
-                    </TouchableOpacity>
-                    <View style={styles.childDivider} />
-                  </View>
-                );
-              })}
+                        {/* Vòng tròn check cam hoặc vòng xám rỗng */}
+                        {isSelected ? (
+                          <View style={styles.checkCircleActive}>
+                            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={3}>
+                              <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                            </Svg>
+                          </View>
+                        ) : (
+                          <View style={styles.checkCircleInactive} />
+                        )}
+                      </TouchableOpacity>
+                      <View style={styles.childDivider} />
+                    </View>
+                  );
+                })
+              )}
 
               {/* Hàng 3: + Thêm Con */}
               <TouchableOpacity
@@ -1233,5 +1346,107 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  /* PAR-01.empty Styles */
+  emptyContainer: {
+    width: '100%',
+    paddingBottom: 40,
+  },
+  emptyHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  emptyWelcomeWrap: {
+    flex: 1,
+  },
+  emptyWelcomeSub: {
+    fontSize: 13,
+    color: '#6B6880',
+    fontWeight: '500',
+  },
+  emptyWelcomeTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    marginTop: 2,
+  },
+  emptyCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#1E1B2E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F0EBF4',
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyCardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyCardDesc: {
+    fontSize: 14,
+    color: '#6B6880',
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyActionButtons: {
+    width: '100%',
+    gap: 12,
+  },
+  emptyPrimaryBtn: {
+    width: '100%',
+    height: 50,
+    borderRadius: 9999,
+    backgroundColor: '#F58F4C',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#F58F4C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  emptyPrimaryBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  emptySecondaryBtn: {
+    width: '100%',
+    height: 50,
+    borderRadius: 9999,
+    backgroundColor: '#FFF1E6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptySecondaryBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F58F4C',
   },
 });

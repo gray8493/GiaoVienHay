@@ -7,6 +7,7 @@ import {
   ScrollView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Line, Polyline } from 'react-native-svg';
 import { parentService } from '../services/parent.service';
@@ -20,45 +21,39 @@ interface ParentFeesScreenProps {
 }
 
 export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
-  studentId = 'stu_02',
-  studentName = 'Trần Bảo Nam',
-  className = '1A',
+  studentId = '',
+  studentName = 'Học sinh',
+  className = '',
   onBackToHome,
   onNavigateToTab,
 }) => {
-  const [feesData, setFeesData] = useState<any>({
-    completed_ratio: '1/2',
-    remaining_count: 'Còn 1 khoản',
-    term_label: 'Học kỳ 1 • 2026–2027',
-    insurance: {
-      type: 'BHYT',
-      status: 'UNPAID',
-      status_label: 'Chưa nộp',
-      deadline: 'Hạn 15/10/2026',
-    },
-    tuition: {
-      type: 'Học phí',
-      status: 'PAID',
-      status_label: 'Đã nộp',
-      paid_date: '22/09',
-      payment_method: 'Nộp tiền mặt tại lớp',
-    },
-  });
+  const [feesData, setFeesData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadFeesData();
   }, [studentId]);
 
   const loadFeesData = async () => {
+    if (!studentId) {
+      setFeesData(null);
+      return;
+    }
+
+    setLoading(true);
     try {
       const data = await parentService.getChildFeesInsurance(studentId);
-      if (data) {
-        setFeesData(data);
-      }
+      setFeesData(data);
     } catch (e) {
       console.warn('Error fetching fees data:', e);
+      setFeesData(null);
+    } finally {
+      setLoading(false);
     }
   };
+
+  const isInsPaid = feesData?.insurance?.status === 'PAID';
+  const isTuiPaid = feesData?.tuition?.status === 'PAID';
 
   return (
     <View style={styles.container}>
@@ -85,97 +80,146 @@ export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
               <Path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
             </Svg>
             <Text style={styles.studentBadgeText} numberOfLines={1}>
-              {studentName} • {className}
+              {studentName} {className ? `• ${className}` : ''}
             </Text>
           </View>
         </View>
 
-        {/* Summary Card with Circular Ring (1/2 completion) */}
-        <View style={styles.summaryCard}>
-          <View style={styles.circleRingWrapper}>
-            <Svg width={64} height={64} viewBox="0 0 64 64">
-              <Circle cx="32" cy="32" r="26" stroke="#FFF1E6" strokeWidth={6} fill="none" />
-              <Circle
-                cx="32"
-                cy="32"
-                r="26"
-                stroke="#F58F4C"
-                strokeWidth={6}
-                strokeDasharray="163.36"
-                strokeDashoffset="81.68"
-                strokeLinecap="round"
-                fill="none"
-                transform="rotate(-90 32 32)"
-              />
-            </Svg>
-            <Text style={styles.ringRatioText}>1/2</Text>
+        {loading && (
+          <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+            <ActivityIndicator color="#F58F4C" size="small" />
           </View>
+        )}
 
-          <View style={styles.summaryTextGroup}>
-            <Text style={styles.summaryMainTitle}>Còn 1 khoản</Text>
-            <Text style={styles.summarySubtitle}>Cần hoàn thành sớm</Text>
-            <Text style={styles.summaryTermText}>Học kỳ 1 • 2026–2027</Text>
+        {!loading && !feesData && (
+          <View style={styles.emptyFeesCard}>
+            <View style={styles.emptyFeesIconBox}>
+              <Svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                <Rect x="2" y="4" width="20" height="16" rx="2" />
+                <Line x1="2" y1="10" x2="22" y2="10" />
+              </Svg>
+            </View>
+            <Text style={styles.emptyFeesTitle}>Chưa có thông báo thu phí</Text>
+            <Text style={styles.emptyFeesSub}>
+              Nhà trường hoặc giáo viên chưa phát hành đợt thu học phí hay BHYT nào cho học sinh này.
+            </Text>
           </View>
-        </View>
+        )}
 
-        {/* Stacked Fee List */}
-        <View style={styles.feeListWrap}>
-          {/* Fee Item 1: BHYT */}
-          <TouchableOpacity
-            style={styles.feeItemCard}
-            activeOpacity={0.9}
-            onPress={() => Alert.alert('Bảo hiểm y tế', 'Hạn chót nộp BHYT là 15/10/2026. Phụ huynh có thể nộp trực tiếp tại văn phòng trường hoặc chuyển khoản cho GVCN.')}
-          >
-            <View style={styles.feeItemHeader}>
-              <View style={styles.feeItemLeft}>
-                <View style={styles.feeIconTile}>
-                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                    <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </Svg>
-                </View>
-                <Text style={styles.feeItemTitle}>BHYT</Text>
-              </View>
-
-              <View style={styles.unpaidPill}>
-                <View style={styles.unpaidEmptyCircle} />
-                <Text style={styles.unpaidPillText}>Chưa nộp</Text>
-              </View>
-            </View>
-
-            <View style={styles.feeItemMeta}>
-              <Text style={styles.feeMetaText}>Hạn 15/10/2026</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Fee Item 2: Học phí */}
-          <View style={styles.feeItemCard}>
-            <View style={styles.feeItemHeader}>
-              <View style={styles.feeItemLeft}>
-                <View style={styles.feeIconTile}>
-                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <Polyline points="14 2 14 8 20 8" />
-                    <Line x1="16" y1="13" x2="8" y2="13" />
-                    <Line x1="16" y1="17" x2="8" y2="17" />
-                  </Svg>
-                </View>
-                <Text style={styles.feeItemTitle}>Học phí</Text>
-              </View>
-
-              <View style={styles.paidPill}>
-                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={3}>
-                  <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+        {!loading && feesData && (
+          <>
+            {/* Summary Card with Circular Ring */}
+            <View style={styles.summaryCard}>
+              <View style={styles.circleRingWrapper}>
+                <Svg width={64} height={64} viewBox="0 0 64 64">
+                  <Circle cx="32" cy="32" r="26" stroke="#FFF1E6" strokeWidth={6} fill="none" />
+                  <Circle
+                    cx="32"
+                    cy="32"
+                    r="26"
+                    stroke="#F58F4C"
+                    strokeWidth={6}
+                    strokeDasharray="163.36"
+                    strokeDashoffset={isInsPaid && isTuiPaid ? '0' : !isInsPaid && !isTuiPaid ? '163.36' : '81.68'}
+                    strokeLinecap="round"
+                    fill="none"
+                    transform="rotate(-90 32 32)"
+                  />
                 </Svg>
-                <Text style={styles.paidPillText}>Đã nộp</Text>
+                <Text style={styles.ringRatioText}>{feesData.completed_ratio || '0/2'}</Text>
+              </View>
+
+              <View style={styles.summaryTextGroup}>
+                <Text style={styles.summaryMainTitle}>{feesData.remaining_count || 'Chưa hoàn thành'}</Text>
+                <Text style={styles.summarySubtitle}>
+                  {isInsPaid && isTuiPaid ? 'Đã hoàn tất tất cả khoản phí' : 'Cần hoàn thành sớm'}
+                </Text>
+                <Text style={styles.summaryTermText}>{feesData.term_label || 'Học kỳ 1 • 2026–2027'}</Text>
               </View>
             </View>
 
-            <View style={styles.feeItemMeta}>
-              <Text style={styles.feeMetaText}>22/09</Text>
-              <Text style={styles.feeMetaText}>Nộp tiền mặt tại lớp</Text>
+            {/* Stacked Fee List */}
+            <View style={styles.feeListWrap}>
+              {/* Fee Item 1: BHYT */}
+              <TouchableOpacity
+                style={styles.feeItemCard}
+                activeOpacity={0.9}
+                onPress={() => Alert.alert('Bảo hiểm y tế', 'Hạn chót nộp BHYT theo thông báo của trường. Phụ huynh có thể nộp trực tiếp tại văn phòng trường hoặc chuyển khoản cho GVCN.')}
+              >
+                <View style={styles.feeItemHeader}>
+                  <View style={styles.feeItemLeft}>
+                    <View style={styles.feeIconTile}>
+                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                        <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      </Svg>
+                    </View>
+                    <Text style={styles.feeItemTitle}>BHYT</Text>
+                  </View>
+
+                  {isInsPaid ? (
+                    <View style={styles.paidPill}>
+                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={3}>
+                        <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
+                      <Text style={styles.paidPillText}>Đã nộp</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.unpaidPill}>
+                      <View style={styles.unpaidEmptyCircle} />
+                      <Text style={styles.unpaidPillText}>Chưa nộp</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.feeItemMeta}>
+                  <Text style={styles.feeMetaText}>
+                    {feesData.insurance?.deadline || 'Chưa có hạn nộp'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Fee Item 2: Học phí */}
+              <View style={styles.feeItemCard}>
+                <View style={styles.feeItemHeader}>
+                  <View style={styles.feeItemLeft}>
+                    <View style={styles.feeIconTile}>
+                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                        <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <Polyline points="14 2 14 8 20 8" />
+                        <Line x1="16" y1="13" x2="8" y2="13" />
+                        <Line x1="16" y1="17" x2="8" y2="17" />
+                      </Svg>
+                    </View>
+                    <Text style={styles.feeItemTitle}>Học phí</Text>
+                  </View>
+
+                  {isTuiPaid ? (
+                    <View style={styles.paidPill}>
+                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={3}>
+                        <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
+                      <Text style={styles.paidPillText}>Đã nộp</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.unpaidPill}>
+                      <View style={styles.unpaidEmptyCircle} />
+                      <Text style={styles.unpaidPillText}>Chưa nộp</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.feeItemMeta}>
+                  {feesData.tuition?.paid_date && (
+                    <Text style={styles.feeMetaText}>{feesData.tuition.paid_date}</Text>
+                  )}
+                  {feesData.tuition?.payment_method && (
+                    <Text style={styles.feeMetaText}>{feesData.tuition.payment_method}</Text>
+                  )}
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Dock điều hướng đáy (Tab Thu Phí Active) */}
@@ -208,14 +252,14 @@ export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
           <Text style={styles.dockLabel}>Học tập</Text>
         </TouchableOpacity>
 
-        {/* Tab 3: Thu phí (ACTIVE Bubble) */}
+        {/* Tab Thu Phí (Active) */}
         <TouchableOpacity
           style={styles.dockItem}
           activeOpacity={0.85}
         >
           <View style={styles.dockIconBubbleActive}>
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2}>
-              <Rect x="2" y="5" width="20" height="14" rx="2" />
+              <Rect x="2" y="4" width="20" height="16" rx="2" />
               <Line x1="2" y1="10" x2="22" y2="10" />
             </Svg>
           </View>
@@ -243,15 +287,10 @@ export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFCFA3',
-    position: 'relative',
+    backgroundColor: '#FAF8FC',
   },
   bgDecorWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     zIndex: 0,
   },
   scrollArea: {
@@ -259,103 +298,132 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   scrollContent: {
+    paddingTop: Platform.OS === 'ios' ? 54 : 36,
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 48 : 24,
     paddingBottom: 110,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '800',
     color: '#1E1B2E',
-    letterSpacing: -0.3,
   },
   studentBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFF1E6',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#ECE8F0',
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 9999,
-    alignSelf: 'flex-start',
-    marginTop: 8,
   },
   studentBadgeText: {
     fontSize: 12,
     fontWeight: '600',
     color: '#6B6880',
+    maxWidth: 160,
   },
-
-  /* Summary Card */
-  summaryCard: {
+  emptyFeesCard: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-    shadowColor: '#F58F4C',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 3,
+    borderColor: '#F0EBF4',
+    marginVertical: 16,
+  },
+  emptyFeesIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyFeesTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1E1B2E',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyFeesSub: {
+    fontSize: 13,
+    color: '#6B6880',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  summaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
     gap: 20,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F0EBF4',
+    shadowColor: '#1E1B2E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 2,
   },
   circleRingWrapper: {
     width: 64,
     height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-    flexShrink: 0,
   },
   ringRatioText: {
     position: 'absolute',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: '#F58F4C',
   },
   summaryTextGroup: {
     flex: 1,
+    gap: 2,
   },
   summaryMainTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: '#1E1B2E',
-    lineHeight: 22,
   },
   summarySubtitle: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
     color: '#6B6880',
-    marginTop: 3,
   },
   summaryTermText: {
-    fontSize: 12,
-    color: 'rgba(107, 104, 128, 0.8)',
-    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#A06D53',
+    marginTop: 4,
   },
-
-  /* Fee List */
   feeListWrap: {
-    gap: 12,
+    gap: 14,
   },
   feeItemCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-    shadowColor: '#F58F4C',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 2,
+    borderColor: '#F0EBF4',
+    shadowColor: '#1E1B2E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   feeItemHeader: {
     flexDirection: 'row',
@@ -378,24 +446,22 @@ const styles = StyleSheet.create({
   },
   feeItemTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#1E1B2E',
   },
   unpaidPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E0EB',
+    backgroundColor: '#F5F3F7',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 9999,
   },
   unpaidEmptyCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     borderWidth: 1.5,
     borderColor: '#6B6880',
   },
@@ -429,8 +495,6 @@ const styles = StyleSheet.create({
     color: '#6B6880',
     fontWeight: '500',
   },
-
-  /* Dock */
   dockContainer: {
     position: 'absolute',
     bottom: 16,

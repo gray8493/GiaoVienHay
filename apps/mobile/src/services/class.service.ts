@@ -116,14 +116,12 @@ export const classService = {
 
     return {
       id: classId,
-      name: 'Lớp 1A',
+      name: 'Lớp học',
       grade_level: 1,
       academic_year: '2026-2027',
-      school_name: 'Trường Tiểu Học Chu Văn An',
-      homeroom_teacher: 'Cô Nguyễn Thị Lan',
-      student_count: 35,
-      invite_code: 'INV-1A-2026',
-      students: DEFAULT_STUDENTS,
+      school_name: '',
+      student_count: 0,
+      students: [],
     };
   },
 
