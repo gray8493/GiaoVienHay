@@ -1,0 +1,1662 @@
+{
+  "info": {
+    "_postman_id": "f10e9d8c-7654-3210-fedc-ba9876543210",
+    "name": "GiaoVienHay - UT10 Fees & Insurance Collection",
+    "description": "Bộ kịch bản kiểm thử API Quản lý Thu nộp Học phí & Bảo hiểm y tế (Fees & Insurance - UT10) trích xuất từ tài liệu UT10_Fees_Insurance.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Access Token của Giáo viên chủ nhiệm (role: TEACHER_HOMEROOM)."
+    },
+    {
+      "key": "otherTeacherToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Token của giáo viên khác không phải chủ nhiệm lớp này (dùng test 403 Forbidden)."
+    },
+    {
+      "key": "classId",
+      "value": "cls_1a_2026",
+      "type": "string",
+      "description": "Mã định danh lớp học để tra cứu và gửi lời nhắc thu nộp."
+    },
+    {
+      "key": "recordId",
+      "value": "fee_02",
+      "type": "string",
+      "description": "Mã định danh bản ghi theo dõi thu nộp của học sinh."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT10_FeesInsurance_TC01: Từ chối cập nhật khi không truyền hoặc để trống mã bản ghi (Missing record_id)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC01: Gửi cập nhật trạng thái nhưng để trống record_id (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC02: Từ chối cập nhật khi không chọn hoặc để trống loại khoản thu (Missing fee_type)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC02: Gửi cập nhật nhưng để trống fee_type (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC03: Từ chối cập nhật khi thiếu trạng thái cờ đã nộp (Missing is_paid)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"paid_date\": \"2026-09-27\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC03: Thiếu cờ boolean is_paid trong payload (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC04: Từ chối cập nhật đã nộp tiền nhưng thiếu ngày nộp thực tế (Missing paid_date when is_paid is true)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC04: Đánh dấu is_paid = true nhưng paid_date để trống (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC05: Từ chối gửi thông báo nhắc nhở khi thiếu hoặc để trống mã lớp (Missing class_id in remind)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"\",\n  \"fee_type\": \"INSURANCE\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC05: Gửi nhắc nhở nhưng để trống class_id (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC06: Từ chối gửi thông báo nhắc nhở khi thiếu hoặc để trống loại khoản thu (Missing fee_type in remind)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"fee_type\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC06: Gửi nhắc nhở nhưng để trống fee_type (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC07: Từ chối cập nhật khi ngày nộp tiền không tồn tại trong lịch thực tế",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Date Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-02-30\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC07: Ngày nộp tiền 2026-02-30 không tồn tại (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC08: Từ chối cập nhật khi ngày nộp tiền ở tương lai",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Future Date Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-12-31\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC08: Ngày nộp 2026-12-31 lớn hơn ngày hiện tại (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC09: Từ chối cập nhật khi ghi chú vượt quá độ dài tối đa (Trên 255 ký tự)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Note Max Length Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\",\n  \"note\": \"Ghi chú thu phí dài quá giới hạn: Phụ huynh đến trường trực tiếp nộp tiền mặt vào buổi sáng tiết sinh hoạt lớp ngày hôm nay, đã nhận đủ số tiền theo quy định và đã ký tên vào sổ theo dõi thu nộp của giáo viên chủ nhiệm. Kính nhờ ban giám hiệu và phòng tài vụ cập nhật hóa đơn tài chính cho phụ huynh.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC09: Ghi chú vượt quá 255 ký tự (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC10: Từ chối cập nhật khi loại khoản thu không nằm trong enum chuẩn",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Fee Type Invalid Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"TIEN_QUY_LOP\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC10: fee_type 'TIEN_QUY_LOP' không nằm trong [TUITION, INSURANCE] (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC11: Từ chối gửi lời nhắc khi loại khoản thu nhắc nhở ngoài danh mục cho phép",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Remind Fee Type Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"fee_type\": \"DONG_PHUC\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC11: fee_type nhắc nhở 'DONG_PHUC' ngoài [TUITION, INSURANCE, BOTH] (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC12: Từ chối cập nhật khi đợt thu phí đã được nhà trường đóng khóa sổ (FEE_TERM_LOCKED)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Locked Term Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"FEE_TERM_LOCKED\", \"COMMON_VALIDATION_ERROR\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC12: Đợt thu đã bị khóa sổ is_locked = true (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC13: Báo lỗi khi tra cứu danh sách thu nộp với mã lớp học không tồn tại (CLASS_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Class Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"CLASS_NOT_FOUND\", \"RESOURCE_NOT_FOUND\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/class/cls_khong_ton_tai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "class",
+            "cls_khong_ton_tai"
+          ]
+        },
+        "description": "Kịch bản TC13: Tra cứu lớp học cls_khong_ton_tai không tồn tại (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC14: Chặn giáo viên không phải GVCN truy cập danh sách thu nộp của lớp (AUTH_FORBIDDEN)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden (or 404/401)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]);",
+              "});",
+              "pm.test(\"Verify Forbidden Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/class/{{classId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "class",
+            "{{classId}}"
+          ]
+        },
+        "description": "Kịch bản TC14: Giáo viên không phải chủ nhiệm lớp xem danh sách thu nộp (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC15: Báo lỗi khi cập nhật bản ghi thu nộp không tồn tại (FEE_RECORD_NOT_FOUND)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Record Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"FEE_RECORD_NOT_FOUND\", \"RESOURCE_NOT_FOUND\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"fee_non_existent\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC15: Cập nhật bản ghi fee_non_existent không tồn tại (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC16: Chặn giáo viên không phải GVCN của lớp cập nhật bản ghi thu nộp (AUTH_FORBIDDEN)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden (or 404/401)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]);",
+              "});",
+              "pm.test(\"Verify Forbidden Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC16: Giáo viên khác cập nhật bản ghi thu nộp (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC17: Báo lỗi khi gửi lời nhắc cho lớp học không tồn tại (CLASS_NOT_FOUND in remind)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Class Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(404);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"CLASS_NOT_FOUND\", \"RESOURCE_NOT_FOUND\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_khong_ton_tai\",\n  \"fee_type\": \"INSURANCE\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC17: Gửi nhắc nhở cho lớp không tồn tại cls_khong_ton_tai (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC18: Chặn giáo viên không phải GVCN gửi thông báo nhắc nhở phụ huynh (AUTH_FORBIDDEN in remind)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden (or 404/401)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]);",
+              "});",
+              "pm.test(\"Verify Forbidden Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"fee_type\": \"INSURANCE\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC18: Giáo viên không phải chủ nhiệm gửi thông báo thu nộp (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC19: Chặn truy cập khi thiếu token hoặc token không hợp lệ (AUTH_UNAUTHORIZED)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Unauthorized Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"AUTH_UNAUTHORIZED\", \"AUTH_TOKEN_INVALID\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/class/{{classId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "class",
+            "{{classId}}"
+          ]
+        },
+        "description": "Kịch bản TC19: Không truyền Bearer token xác thực (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC20: Xử lý ngoại lệ lỗi máy chủ nội bộ hoặc sự cố dịch vụ Firebase FCM khi đôn đốc thu nộp (SYS_INTERNAL_ERROR)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is 500 or 200/400 in live test\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 500]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"custom_message\": \"Nhắc nhở nộp BHYT\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC20: Giả lập lỗi máy chủ kết nối Firebase FCM (500 Internal Error)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC21: GVCN xem toàn bộ danh sách thu nộp học phí & BHYT của lớp chủ nhiệm thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Fees List Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/class/{{classId}}?fee_type=ALL&unpaid_only=false",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "fee_type",
+              "value": "ALL"
+            },
+            {
+              "key": "unpaid_only",
+              "value": "false"
+            }
+          ]
+        },
+        "description": "Kịch bản TC21: Lấy toàn bộ danh sách thu nộp Học phí & BHYT của lớp (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC22: Lọc danh sách học sinh chưa nộp BHYT của lớp thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Unpaid Insurance Filter\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/class/{{classId}}?fee_type=INSURANCE&unpaid_only=true",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "fee_type",
+              "value": "INSURANCE"
+            },
+            {
+              "key": "unpaid_only",
+              "value": "true"
+            }
+          ]
+        },
+        "description": "Kịch bản TC22: Lọc danh sách học sinh chưa nộp BHYT (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC23: Lọc danh sách học sinh chưa nộp học phí của lớp thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Unpaid Tuition Filter\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/class/{{classId}}?fee_type=TUITION&unpaid_only=true",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "fee_type",
+              "value": "TUITION"
+            },
+            {
+              "key": "unpaid_only",
+              "value": "true"
+            }
+          ]
+        },
+        "description": "Kịch bản TC23: Lọc danh sách học sinh chưa nộp Học phí (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC24: Cập nhật trạng thái đã nộp BHYT kèm ngày nộp thực tế thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Insurance Paid Status\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.is_paid).to.eql(true);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\",\n  \"note\": \"Đã nộp tiền mặt tại lớp\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC24: Đánh dấu đã nộp BHYT kèm ngày nộp thực tế (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC25: Cập nhật trạng thái đã nộp học phí kèm ngày nộp thực tế thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Tuition Paid Status\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.is_paid).to.eql(true);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"fee_03\",\n  \"fee_type\": \"TUITION\",\n  \"is_paid\": true,\n  \"paid_date\": \"2026-09-27\",\n  \"note\": \"Nộp học phí tháng 9\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC25: Đánh dấu đã nộp Học phí kèm ngày nộp thực tế (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC26: Hoàn tác cập nhật trạng thái từ đã nộp về chưa nộp thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Undo to Unpaid Status\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.is_paid).to.eql(false);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"record_id\": \"{{recordId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"is_paid\": false,\n  \"paid_date\": null,\n  \"note\": \"Điều chỉnh do nhầm lẫn học sinh\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/toggle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "toggle"
+          ]
+        },
+        "description": "Kịch bản TC26: Hoàn tác trạng thái nộp tiền từ true về false (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC27: GVCN gửi thông báo FCM đôn đốc phụ huynh chưa nộp BHYT thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Remind Insurance Push Result\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"custom_message\": \"Kính nhờ quý phụ huynh chưa hoàn thành BHYT năm học 2026-2027 vui lòng nộp tiền mặt cho GVCN trước ngày 15/10.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC27: GVCN gửi thông báo đẩy đôn đốc nộp BHYT (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC28: GVCN gửi thông báo FCM nhắc phụ huynh chưa nộp cả 2 nghĩa vụ (BOTH) thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Remind Both Push Result\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"fee_type\": \"BOTH\",\n  \"custom_message\": \"Kính nhờ quý phụ huynh kiểm tra và hoàn thành các khoản nghĩa vụ Học phí và BHYT của con trước hạn chót của nhà trường.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC28: Gửi thông báo đôn đốc cả 2 khoản Học phí & BHYT (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC29: Xử lý trạng thái rỗng an toàn khi lớp học chưa khởi tạo bản ghi thu nộp nào trong CSDL (Empty state - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Records State\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/class/cls_new_2026",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "class",
+            "cls_new_2026"
+          ]
+        },
+        "description": "Kịch bản TC29: Lớp học chưa có dữ liệu thu nộp trả về records: [] an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC30: Xử lý trạng thái rỗng an toàn khi lọc danh sách chưa nộp nhưng 100% học sinh đã hoàn thành (Empty state - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify 100% Paid State\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/class/{{classId}}?status=UNPAID&fee_type=TUITION",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "UNPAID"
+            },
+            {
+              "key": "fee_type",
+              "value": "TUITION"
+            }
+          ]
+        },
+        "description": "Kịch bản TC30: Toàn bộ học sinh đã hoàn thành nghĩa vụ (200 OK)."
+      }
+    },
+    {
+      "name": "UT10_FeesInsurance_TC31: Xử lý an toàn khi gửi thông báo đôn đốc nhưng cơ sở dữ liệu không có phụ huynh nào còn nợ tiền (Zero notified - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Zero Notified Count\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"{{classId}}\",\n  \"fee_type\": \"INSURANCE\",\n  \"custom_message\": \"Nhắc nhở nộp BHYT.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/fees-insurance/remind",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "fees-insurance",
+            "remind"
+          ]
+        },
+        "description": "Kịch bản TC31: Gửi đôn đốc khi 100% đã nộp, hệ thống trả về notified_parents_count: 0 (200 OK)."
+      }
+    }
+  ]
+}

@@ -61,7 +61,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -100,7 +100,7 @@
     "message": "Nội dung nhận xét không được vượt quá 500 ký tự"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -147,7 +147,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -186,7 +186,7 @@
     "message": "Giáo viên chưa được phân công giảng dạy môn học này tại lớp."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -233,7 +233,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -272,7 +272,7 @@
     "message": "Nội dung nhận xét không được để trống hoặc chỉ có khoảng trắng."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -310,7 +310,7 @@
     "message": "Nội dung nhận xét phải có tối thiểu 3 ký tự để đảm bảo tính sư phạm."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -346,7 +346,7 @@
     "message": "Nội dung nhận xét chứa ký tự đặc biệt không hợp lệ hoặc mã độc tiềm ẩn."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -388,7 +388,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -414,7 +414,7 @@
     "message": "Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -451,7 +451,7 @@
     "message": "Không tìm thấy hồ sơ học sinh trong lớp học."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -490,7 +490,7 @@
     ]
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -529,7 +529,7 @@
     "message": "Giáo viên bộ môn bắt buộc phải chọn mã môn học khi gửi nhận xét."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -564,19 +564,24 @@
 ### UT08_Remarks_TC15 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỚP HỌC CHƯA CÓ LỜI NHẬN XÉT NÀO TRONG CƠ SỞ DỮ LIỆU (EMPTY STATE - 200 OK)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Lớp học `cls_new_2026` mới được tạo lập đầu năm học và chưa có giáo viên nào gửi bất kỳ lời nhận xét nào trong collection `/remarks`.
   - Giáo viên chủ nhiệm đã đăng nhập hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien>`
   - **Tham số đường dẫn (Path Params):** `classId = cls_new_2026`
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền token giáo viên vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/remarks/class/cls_new_2026`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Phản hồi kèm Header `X-Response-Time`.
   - Dữ liệu trả về đúng cấu trúc danh sách rỗng an toàn với `total: 0` và `items: []`, giao diện hiển thị Empty State "Chưa có lời nhận xét nào trong lớp học":
+
   ```json
   {
     "success": true,
@@ -590,7 +595,7 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -609,6 +614,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Trả về danh sách rỗng an toàn `items: []` và `total: 0`, không gây lỗi null pointer khi render danh sách trên app phụ huynh:
+
   ```json
   {
     "success": true,
@@ -622,5 +628,4 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
-
+- **TRẠNG THÁI KIỂM THỬ: FAILED**

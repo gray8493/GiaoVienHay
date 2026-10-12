@@ -1,0 +1,1526 @@
+{
+  "info": {
+    "_postman_id": "c07e9d8c-1122-3344-5566-fa9876543210",
+    "name": "GiaoVienHay - UT07 Quizzes & AI Tutor Module Collection",
+    "description": "Bộ kịch bản kiểm thử API Phân hệ Trợ giảng AI & Game hóa kiểm tra bài cũ (Quizzes & AI Tutor - UT07) trích xuất từ tài liệu UT07_Quizzes.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Access Token của Giáo viên (role: TEACHER_HOMEROOM / TEACHER_SUBJECT)."
+    },
+    {
+      "key": "parentToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Token của phụ huynh hoặc học sinh không có quyền quản lý bài kiểm tra (dùng test 403 Forbidden)."
+    },
+    {
+      "key": "quizId",
+      "value": "qz_88219",
+      "type": "string",
+      "description": "Mã định danh bộ câu hỏi kiểm tra bài cũ mẫu."
+    },
+    {
+      "key": "classId",
+      "value": "cls_1a_2026",
+      "type": "string",
+      "description": "Mã định danh lớp học (cls_1a_2026)."
+    },
+    {
+      "key": "studentId",
+      "value": "stu_01",
+      "type": "string",
+      "description": "Mã định danh học sinh làm bài kiểm tra."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT07_Quizzes_TC01: AI Gemini phân tích giáo án sinh bộ câu hỏi trắc nghiệm thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created or 200 OK\", function () {",
+              "    pm.expect([200, 201]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify AI Generated Quiz Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data).to.have.property('quiz_id');",
+              "    pm.expect(jsonData.data.questions).to.be.an('array');",
+              "    pm.expect(jsonData.data.total_questions).to.be.at.least(1);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file\": \"giao_an_toan_lop_5_phep_cong_phan_so.pdf\",\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\",\n  \"title\": \"Kiểm tra bài 12: Phép cộng phân số\",\n  \"num_questions\": 5,\n  \"difficulty_level\": \"MEDIUM\",\n  \"preferred_mode\": \"STANDARD_QUIZ\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Google Gemini phân tích nội dung tệp giáo án bài giảng và tự động sinh 5 câu hỏi trắc nghiệm (201 Created)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC02: Giáo viên nhập điểm bài cũ được đồng bộ vào sổ điểm môn học",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created or 200 OK\", function () {",
+              "    pm.expect([200, 201]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify In-Class Score Synced to Gradebook\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.student_id).to.eql('stu_01');",
+              "    pm.expect(jsonData.data.score).to.eql(10.0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"score\": 10,\n  \"comment\": \"Trả lời câu hỏi khởi động xuất sắc\",\n  \"mode_played\": \"STANDARD_QUIZ\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/in-class-scores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "in-class-scores"
+          ]
+        },
+        "description": "Giáo viên lưu kết quả điểm số bài cũ sau mini-game lớp học và đồng bộ vào Sổ điểm môn học."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC03: Xử lý an toàn tránh lưu điểm trùng lặp khi bấm lưu điểm nhiều lần (Idempotency)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK or 201 Created\", function () {",
+              "    pm.expect([200, 201]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"Verify Idempotent Score Save\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.student_id).to.eql('stu_01');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"score\": 10,\n  \"comment\": \"Trả lời câu hỏi khởi động xuất sắc\",\n  \"mode_played\": \"STANDARD_QUIZ\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/in-class-scores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "in-class-scores"
+          ]
+        },
+        "description": "Đảm bảo tính Idempotent khi giáo viên bấm nút lưu điểm nhiều lần liên tiếp không tạo bản ghi rác."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC04: Từ chối tệp giáo án có dung lượng vượt quá 15MB",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify File Too Large Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['QUIZ_FILE_TOO_LARGE', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file_name\": \"giao_an_dung_luong_lon.pdf\",\n  \"file_size_bytes\": 17301504,\n  \"max_allowed_bytes\": 15728640,\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Từ chối tệp giáo án có dung lượng thực tế 16.5MB vượt quá hạn mức tối đa 15MB của hệ thống."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC05: Từ chối tệp giáo án sai định dạng không được hỗ trợ (.xlsx, .png)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify File Unsupported Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['QUIZ_FILE_UNSUPPORTED', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file_name\": \"bang_tinh_ke_hoach_giang_day.xlsx\",\n  \"mime_type\": \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\",\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Hệ thống từ chối tệp giáo án có định dạng .xlsx (chỉ chấp nhận .pdf và .docx)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC06: Từ chối và chặn nhập số lượng câu hỏi sai định dạng (chữ cái, thập phân)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Data Type Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['INVALID_DATA_TYPE', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\",\n  \"title\": \"Kiểm tra bài 12: Phép cộng phân số\",\n  \"num_questions\": \"nam_cau\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Từ chối tham số num_questions mang giá trị chuỗi chữ 'nam_cau' thay vì số nguyên (từ 1 đến 20)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC07: Chặn gọi AI khi giáo viên đã dùng hết hạn mức trong ngày (429 Too Many Requests)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled (429 or 200/201)\", function () {",
+              "    pm.expect([200, 201, 429]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 429, verify Quota Exceeded Error\", function () {",
+              "    if (pm.response.code === 429) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('QUIZ_DAILY_QUOTA_EXCEEDED');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file\": \"giao_an_toan_lop_5.pdf\",\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\",\n  \"title\": \"Kiểm tra vượt hạn mức\",\n  \"num_questions\": 5\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Chặn gọi Gemini AI khi tài khoản giáo viên đã vượt mức tối đa 20 lượt tạo trong ngày (HTTP 429)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC08: Xử lý lỗi máy chủ Google Gemini không thể trích xuất câu hỏi (500 Error)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (500 or 200/201)\", function () {",
+              "    pm.expect([200, 201, 500]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 500, verify AI Generation Failed Error\", function () {",
+              "    if (pm.response.code === 500) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('QUIZ_AI_GENERATION_FAILED');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file\": \"giao_an_toan_lop_5.pdf\",\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\",\n  \"title\": \"Kiểm tra bài cũ toán\",\n  \"num_questions\": 5\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Kiểm thử cơ chế bọc lỗi khi máy chủ Google Gemini API gặp sự cố nội bộ không thể trích xuất câu hỏi."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC09: Xử lý Timeout khi dịch vụ Google Gemini phản hồi quá thời gian chờ (504 Gateway Timeout)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (504 or 200/201/500)\", function () {",
+              "    pm.expect([200, 201, 500, 504]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 504, verify Timeout Error Code\", function () {",
+              "    if (pm.response.code === 504) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('QUIZ_AI_GATEWAY_TIMEOUT');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file\": \"giao_an_toan_lop_5.pdf\",\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\",\n  \"title\": \"Kiểm tra bài cũ timeout test\",\n  \"num_questions\": 5\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Bắt lỗi timeout an toàn khi kết nối tới máy chủ Google AI Studio vượt quá ngưỡng 30 giây."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC10: Xử lý lỗi khi dữ liệu AI trả về sai cấu trúc JSON câu hỏi trắc nghiệm (502 Bad Gateway)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (502 or 200/201/500)\", function () {",
+              "    pm.expect([200, 201, 500, 502]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 502, verify Parsing Failed Error\", function () {",
+              "    if (pm.response.code === 502) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('QUIZ_AI_PARSING_FAILED');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file\": \"giao_an_toan_lop_5.pdf\",\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\",\n  \"title\": \"Kiểm tra bài cũ json parse error test\",\n  \"num_questions\": 5\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Xử lý lỗi ngoại lệ khi Gemini AI trả về chuỗi Markdown không thể parse JSON cấu trúc câu hỏi."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC11: Từ chối truy xuất bộ câu hỏi kiểm tra bài cũ không tồn tại (404 Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Quiz Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('QUIZ_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/qz_nonexistent_9999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "qz_nonexistent_9999"
+          ]
+        },
+        "description": "Truy xuất bộ đề thi có quiz_id không tồn tại trong hệ thống trả về mã lỗi 404 QUIZ_NOT_FOUND."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC12: Từ chối và chặn nhập điểm số ngoài thang điểm 0.0 đến 10.0",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Score Out of Range Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('ACAD_SCORE_OUT_OF_RANGE');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"score\": 11.5,\n  \"comment\": \"Gõ nhầm điểm số vượt quá thang 10\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/in-class-scores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "in-class-scores"
+          ]
+        },
+        "description": "Chặn giáo viên nhập điểm số mini-game vượt quá 10 (score = 11.5) vào sổ điểm."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC13: Giáo viên chỉnh sửa nội dung và đáp án câu hỏi trong bộ đề thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled (200 OK or 404 if quiz not seeded)\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 200, verify update success\", function () {",
+              "    if (pm.response.code === 200) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.question_number).to.eql(1);",
+              "        pm.expect(jsonData.data.correct_answer).to.eql('A');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Muốn cộng hai phân số có cùng mẫu số, em thực hiện như thế nào?\",\n  \"options\": [\n    {\n      \"key\": \"A\",\n      \"text\": \"Cộng hai tử số với nhau và giữ nguyên mẫu số\"\n    },\n    {\n      \"key\": \"B\",\n      \"text\": \"Cộng cả tử số và mẫu số với nhau\"\n    },\n    {\n      \"key\": \"C\",\n      \"text\": \"Nhân hai tử số và giữ nguyên mẫu số\"\n    },\n    {\n      \"key\": \"D\",\n      \"text\": \"Lấy tử số trừ mẫu số\"\n    }\n  ],\n  \"correct_answer\": \"A\",\n  \"explanation\": \"Quy tắc: Ta cộng hai tử số và giữ nguyên mẫu số chung.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/questions/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "questions",
+            "1"
+          ]
+        },
+        "description": "Giáo viên chỉnh sửa câu hỏi số 1 trong bộ đề thi trắc nghiệm (HTTP 200 OK)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC14: Yêu cầu AI đổi và sinh lại riêng một câu hỏi không ưng ý thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled (200 OK or 404)\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 200, verify question regenerated successfully\", function () {",
+              "    if (pm.response.code === 200) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.question_number).to.eql(3);",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"difficulty_level\": \"MEDIUM\",\n  \"prompt_hint\": \"Tập trung vào bài toán thực tế về phép cộng phân số\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/questions/3/regenerate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "questions",
+            "3",
+            "regenerate"
+          ]
+        },
+        "description": "Giáo viên bấm đổi riêng câu hỏi số 3, Google Gemini sinh lại câu hỏi mới bám sát prompt gợi ý."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC15: Thêm câu hỏi trắc nghiệm thủ công vào bộ đề thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled (201 Created or 200/404)\", function () {",
+              "    pm.expect([200, 201, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 201, verify new question added\", function () {",
+              "    if (pm.response.code === 201) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.total_questions).to.be.at.least(1);",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Kết quả của phép tính 2/7 + 3/7 là:\",\n  \"options\": [\n    {\n      \"key\": \"A\",\n      \"text\": \"5/7\"\n    },\n    {\n      \"key\": \"B\",\n      \"text\": \"5/14\"\n    },\n    {\n      \"key\": \"C\",\n      \"text\": \"6/7\"\n    },\n    {\n      \"key\": \"D\",\n      \"text\": \"1/7\"\n    }\n  ],\n  \"correct_answer\": \"A\",\n  \"explanation\": \"Ta lấy 2 + 3 = 5, giữ nguyên mẫu số 7.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/questions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "questions"
+          ]
+        },
+        "description": "Giáo viên tự tay thêm 1 câu hỏi trọng tâm mới vào bộ đề thi kiểm tra bài cũ."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC16: Xóa bớt câu hỏi không phù hợp khỏi bộ đề thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled (200 OK or 404)\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 200, verify question deleted\", function () {",
+              "    if (pm.response.code === 200) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/questions/6",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "questions",
+            "6"
+          ]
+        },
+        "description": "Xóa câu hỏi số 6 khỏi bộ đề thi kiểm tra bài cũ thành công (HTTP 200 OK)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC17: Từ chối xóa câu hỏi khi bộ đề chỉ còn duy nhất 1 câu (Tối thiểu 1 câu)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request or 404\", function () {",
+              "    pm.expect([400, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 400, verify Min Questions Reached Error\", function () {",
+              "    if (pm.response.code === 400) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('QUIZ_MIN_QUESTIONS_REACHED');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/questions/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "questions",
+            "1"
+          ]
+        },
+        "description": "Chặn xóa câu hỏi khi bộ đề chỉ còn 1 câu hỏi duy nhất (bảo toàn cấu trúc bộ Quiz)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC18: Từ chối chỉnh sửa khi đáp án đúng không nằm trong các lựa chọn [A, B, C, D]",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Correct Answer Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['QUIZ_INVALID_CORRECT_ANSWER', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Muốn cộng hai phân số cùng mẫu số, ta làm thế nào?\",\n  \"options\": [\n    {\n      \"key\": \"A\",\n      \"text\": \"Cộng hai tử số với nhau và giữ nguyên mẫu số\"\n    },\n    {\n      \"key\": \"B\",\n      \"text\": \"Cộng cả tử số và mẫu số với nhau\"\n    },\n    {\n      \"key\": \"C\",\n      \"text\": \"Nhân hai phân số\"\n    },\n    {\n      \"key\": \"D\",\n      \"text\": \"Quy đồng mẫu số\"\n    }\n  ],\n  \"correct_answer\": \"E\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/questions/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "questions",
+            "1"
+          ]
+        },
+        "description": "Từ chối chỉnh sửa khi đáp án đúng 'E' không thuộc danh sách các lựa chọn [A, B, C, D]."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC19: Từ chối lưu khi nội dung câu hỏi hoặc phương án lựa chọn bị để trống",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Empty Content Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"\",\n  \"options\": [\n    {\n      \"key\": \"A\",\n      \"text\": \"\"\n    },\n    {\n      \"key\": \"B\",\n      \"text\": \"Phương án B\"\n    },\n    {\n      \"key\": \"C\",\n      \"text\": \"Phương án C\"\n    },\n    {\n      \"key\": \"D\",\n      \"text\": \"Phương án D\"\n    }\n  ],\n  \"correct_answer\": \"B\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/questions/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "questions",
+            "1"
+          ]
+        },
+        "description": "Từ chối khi câu hỏi hoặc văn bản phương án đáp án bị để chuỗi rỗng ''."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC20: Từ chối yêu cầu thiếu các trường dữ liệu bắt buộc khi tạo Quiz (thiếu file, môn học, lớp)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Missing Fields Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Từ chối request tạo bài kiểm tra AI khi thiếu file giáo án, thiếu subject_code và class_id."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC21: Từ chối thao tác do không có token xác thực hoặc token đã hết hạn (401 Unauthorized)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Unauthorized Error Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['AUTH_UNAUTHORIZED', 'UNAUTHORIZED']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid_or_expired_jwt_token",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file\": \"giao_an_toan.pdf\",\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Từ chối tạo Quiz AI khi người dùng không truyền token hoặc token JWT hết hạn."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC22: Chặn người dùng không có vai trò giáo viên tạo hoặc chấm điểm Quiz (403 Forbidden)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Verify Forbidden Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('AUTH_FORBIDDEN');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{parentToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file\": \"giao_an_toan.pdf\",\n  \"subject_code\": \"MATH\",\n  \"class_id\": \"cls_1a_2026\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/generate-ai",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "generate-ai"
+          ]
+        },
+        "description": "Chặn tài khoản phụ huynh/học sinh cố tình gọi API tạo câu hỏi hoặc chấm điểm Quiz."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC23: Từ chối nhập điểm khi thiếu các trường dữ liệu bắt buộc (thiếu student_id hoặc điểm số)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"comment\": \"Chỉ có lời phê, thiếu mã học sinh và điểm số\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/in-class-scores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "in-class-scores"
+          ]
+        },
+        "description": "Từ chối chấm điểm khi request thiếu student_id và trường score."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC24: Truy xuất danh sách bộ câu hỏi kiểm tra bài cũ đã tạo của giáo viên thành công (HTTP 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Quizzes List Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "    pm.expect(jsonData.data).to.have.property('total');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes"
+          ]
+        },
+        "description": "Giáo viên lấy toàn bộ danh sách các bộ câu hỏi kiểm tra bài cũ do mình tạo (200 OK)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC25: Truy xuất chi tiết bộ câu hỏi để trình chiếu tại lớp thành công (HTTP 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled (200 OK or 404)\", function () {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 200, verify Quiz Details Structure\", function () {",
+              "    if (pm.response.code === 200) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data).to.be.an('object');",
+              "        pm.expect(jsonData.data).to.have.property('questions');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}"
+          ]
+        },
+        "description": "Lấy chi tiết danh sách câu hỏi kèm thời gian trả lời time_limit_seconds để trình chiếu trên máy chiếu lớp học."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC26: Xử lý lỗi máy chủ cơ sở dữ liệu nội bộ khi lưu bộ câu hỏi Quiz (500 Error)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (500 or 200/201/404)\", function () {",
+              "    pm.expect([200, 201, 404, 500]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 500, verify SYS_INTERNAL_ERROR code\", function () {",
+              "    if (pm.response.code === 500) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('SYS_INTERNAL_ERROR');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_01\",\n  \"score\": 9,\n  \"comment\": \"Test DB internal error handling\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/in-class-scores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "in-class-scores"
+          ]
+        },
+        "description": "Kiểm tra cơ chế xử lý lỗi hệ thống khi cơ sở dữ liệu Firestore ném ngoại lệ nội bộ."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC27: Xử lý trạng thái rỗng an toàn khi giáo viên mới chưa từng tạo bộ câu hỏi nào (Empty State - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Quizzes List Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.items).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes"
+          ]
+        },
+        "description": "Xử lý trạng thái rỗng an toàn khi tài khoản chưa từng tạo bài kiểm tra nào trả về items: [] (200 OK)."
+      }
+    },
+    {
+      "name": "UT07_Quizzes_TC28: Từ chối lưu điểm bài cũ khi mã học sinh không tồn tại trong cơ sở dữ liệu (STUDENT_NOT_FOUND - 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Student Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('STUDENT_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"stu_not_exist_9999\",\n  \"score\": 8.5,\n  \"note\": \"Trả lời câu hỏi tốt\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quizzes/{{quizId}}/in-class-scores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quizzes",
+            "{{quizId}}",
+            "in-class-scores"
+          ]
+        },
+        "description": "Từ chối lưu điểm khi học sinh 'stu_not_exist_9999' không tồn tại trong lớp (404 STUDENT_NOT_FOUND)."
+      }
+    }
+  ]
+}

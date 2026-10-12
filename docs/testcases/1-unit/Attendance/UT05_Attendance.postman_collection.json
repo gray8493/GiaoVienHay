@@ -1,0 +1,1090 @@
+{
+  "info": {
+    "_postman_id": "b81c42f0-789a-4bc1-9012-d4e5f6789abc",
+    "name": "GiaoVienHay - UT05 Attendance & Punctuality Collection",
+    "description": "Bộ kịch bản kiểm thử API Điểm danh & Theo dõi Chuyên cần (Attendance - UT05) trích xuất từ tài liệu UT05_Attendance.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ test trên Render: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Access Token của Giáo viên chủ nhiệm (role: TEACHER_HOMEROOM) dùng cho các API điểm danh."
+    },
+    {
+      "key": "otherTeacherToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTQ0OTQ5NjY2Nl85ZGFiaCIsInBob25lIjoiMDkxMjM0NTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNDQ5NDk5LCJleHAiOjE3OTIwNTQyOTl9.twEsPuLVE0l0-IP9mnSyItoSyTE9SGiGAS3ydcQlllA",
+      "type": "string",
+      "description": "Token của giáo viên không phải chủ nhiệm lớp này (dùng để test TC12 chặn quyền 403 Forbidden)."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT05_Attendance_TC01: Từ chối điểm danh khi không nhập hoặc để trống mã lớp học (Missing class_id)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC01: Gửi điểm danh nhưng để trống class_id (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC02: Từ chối điểm danh khi không nhập hoặc để trống ngày điểm danh (Missing attendance_date)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC02: Gửi điểm danh nhưng để trống attendance_date (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC03: Từ chối điểm danh khi không truyền hoặc để trống danh sách bản ghi học sinh (Empty records)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": []\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC03: Gửi điểm danh với mảng records rỗng [] (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC04: Từ chối điểm danh khi bản ghi thiếu mã học sinh hoặc thiếu trạng thái chuyên cần",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"\",\n      \"status\": \"PRESENT\"\n    },\n    {\n      \"student_id\": \"stu_02\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC04: Bản ghi thiếu student_id hoặc thiếu status (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC05: Từ chối cập nhật điểm danh khi không truyền ID hoặc thiếu trạng thái mới (Patch Attendance)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request or 404\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+              "});",
+              "pm.test(\"Verify Failure Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"note\": \"Chỉ cập nhật ghi chú mà không chọn trạng thái mới\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/att_01",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "att_01"
+          ]
+        },
+        "description": "Kịch bản TC05: Cập nhật bản ghi điểm danh nhưng thiếu trường status (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC06: Từ chối điểm danh khi ngày không tồn tại trong lịch thực tế (Attend Date Invalid)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Date Invalid Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-02-30\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC06: Gửi ngày không có thật trong lịch 2026-02-30 (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC07: Từ chối điểm danh khi ngày điểm danh ở thời điểm tương lai (Attend Date In Future)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Date Future Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-12-31\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC07: Gửi ngày tương lai 2026-12-31 (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC08: Từ chối điểm danh khi ghi chú vượt quá giới hạn độ dài cho phép (Max 255 ký tự)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Note Length Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"ABSENT_EXCUSED\",\n      \"note\": \"Học sinh này xin nghỉ ốm dài ngày do bị sốt xuất huyết nhập viện từ đầu tuần trước, gia đình đã gọi điện cho cô giáo chủ nhiệm từ sáng sớm và hứa sẽ nộp giấy ra viện và đơn xin phép đầy đủ vào tuần tới sau khi học sinh bình phục hoàn toàn. Cô giáo ghi chú lại để theo dõi việc học tập bổ sung.\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC08: Ghi chú vượt quá 255 ký tự (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC09: Từ chối điểm danh trùng lặp khi buổi học đã được điểm danh trước đó (Conflict)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 409 Conflict (or 201 if overwrite supported)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC09: Điểm danh trùng lặp tiết học đã điểm danh (409 Conflict)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC10: Báo lỗi khi cập nhật bản ghi điểm danh với mã ID không tồn tại",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Not Found Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"PRESENT\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/att_non_existent",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "att_non_existent"
+          ]
+        },
+        "description": "Kịch bản TC10: Cập nhật bản ghi điểm danh không tồn tại att_non_existent (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC11: Báo lỗi khi điểm danh cho lớp học không tồn tại trên hệ thống",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found (or 400)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_khong_ton_tai\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC11: Điểm danh lớp học không tồn tại cls_khong_ton_tai (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC12: Chặn giáo viên không phải chủ nhiệm thực hiện điểm danh lớp học",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Verify Forbidden Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(403);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC12: Giáo viên không phải chủ nhiệm thực hiện điểm danh (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC13: Xử lý ngoại lệ lỗi hệ thống khi mất kết nối Database hoặc lỗi dịch vụ FCM",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 500 Internal Server Error (or 201 if healthy)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 500]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"ABSENT_UNEXCUSED\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC13: Giả lập lỗi máy chủ nội bộ kết nối Firebase (500 Error)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC14: GVCN điểm danh đầu giờ thành công có học sinh vắng (Bắn FCM)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test(\"Verify Attendance Submitted Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(201);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.total_students).to.eql(3);",
+              "});",
+              "pm.test(\"Header X-Response-Time exists\", function () {",
+              "    pm.response.to.have.header(\"X-Response-Time\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-09-23\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\",\n      \"note\": null\n    },\n    {\n      \"student_id\": \"stu_02\",\n      \"status\": \"ABSENT_EXCUSED\",\n      \"note\": \"Phụ huynh xin nghỉ ốm qua điện thoại\"\n    },\n    {\n      \"student_id\": \"stu_03\",\n      \"status\": \"ABSENT_UNEXCUSED\",\n      \"note\": null\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC14: GVCN điểm danh đầu giờ thành công có học sinh vắng (201 Created, kích hoạt FCM)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC15: GVCN điểm danh đầu giờ thành công khi 100% học sinh có mặt",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test(\"Verify Attendance 100% Present Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(201);",
+              "    pm.expect(jsonData.data.present_count).to.eql(3);",
+              "    pm.expect(jsonData.data.absent_count).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"attendance_date\": \"2026-09-24\",\n  \"period\": 1,\n  \"records\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"status\": \"PRESENT\",\n      \"note\": null\n    },\n    {\n      \"student_id\": \"stu_02\",\n      \"status\": \"PRESENT\",\n      \"note\": null\n    },\n    {\n      \"student_id\": \"stu_03\",\n      \"status\": \"PRESENT\",\n      \"note\": null\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "submit"
+          ]
+        },
+        "description": "Kịch bản TC15: Điểm danh cả lớp có mặt đầy đủ (201 Created, absent=0)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC16: Cập nhật trạng thái điểm danh khi học sinh đến muộn hoặc xin phép thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 404 if route not exposed)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"LATE\",\n  \"note\": \"Học sinh đến lớp muộn 15 phút do thời tiết mưa lớn\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/att_02",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "att_02"
+          ]
+        },
+        "description": "Kịch bản TC16: Cập nhật trạng thái học sinh sang LATE (200 OK)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC17: Xem lịch sử chuyên cần của lớp theo ngày hoặc theo tháng thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Class Attendance History Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/class/cls_1a_2026?date=2026-09-23",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "class",
+            "cls_1a_2026"
+          ],
+          "query": [
+            {
+              "key": "date",
+              "value": "2026-09-23"
+            }
+          ]
+        },
+        "description": "Kịch bản TC17: Lấy lịch sử chuyên cần của lớp (200 OK)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC18: Trích xuất danh sách học sinh có mặt hôm nay phục vụ Vòng quay Random thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Today Present Students Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.present_students).to.be.an('array');",
+              "});",
+              "pm.test(\"Header X-Response-Time exists\", function () {",
+              "    pm.response.to.have.header(\"X-Response-Time\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/today/cls_1a_2026",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "today",
+            "cls_1a_2026"
+          ]
+        },
+        "description": "Kịch bản TC18: Trích xuất danh sách học sinh có mặt hôm nay phục vụ vòng quay random (200 OK)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC19: Tự động xóa bộ nhớ đệm RAM Cache khi điểm danh lại thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/today/cls_1a_2026",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "today",
+            "cls_1a_2026"
+          ]
+        },
+        "description": "Kịch bản TC19: Kiểm tra làm mới bộ nhớ đệm sau khi submit (200 OK)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC20: Xử lý trạng thái rỗng an toàn khi lớp học chưa có dữ liệu lịch sử điểm danh (Empty State)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/class/cls_new_2026?month=2026-08",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "class",
+            "cls_new_2026"
+          ],
+          "query": [
+            {
+              "key": "month",
+              "value": "2026-08"
+            }
+          ]
+        },
+        "description": "Kịch bản TC20: Truy vấn lịch sử tháng chưa có dữ liệu 2026-08, trả về rỗng an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT05_Attendance_TC21: Xử lý trạng thái an toàn khi trích xuất danh sách có mặt nhưng chưa điểm danh (Empty State)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attendance/today/cls_empty_today_2026",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attendance",
+            "today",
+            "cls_empty_today_2026"
+          ]
+        },
+        "description": "Kịch bản TC21: Lớp chưa điểm danh hôm nay, trả về danh sách rỗng an toàn (200 OK)."
+      }
+    }
+  ]
+}

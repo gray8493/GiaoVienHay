@@ -31,12 +31,15 @@
 ##### UT05_Attendance_TC01 : TỪ CHỐI ĐIỂM DANH KHI KHÔNG NHẬP HOẶC ĐỂ TRỐNG MÃ LỚP HỌC (MISSING CLASS_ID)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Không truyền hoặc để trống trường `class_id`:
+
   ```json
   {
     "class_id": "",
@@ -51,13 +54,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Gửi payload thiếu trường `class_id`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -73,19 +79,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT05_Attendance_TC02 : TỪ CHỐI ĐIỂM DANH KHI KHÔNG NHẬP HOẶC ĐỂ TRỐNG NGÀY ĐIỂM DANH (MISSING ATTENDANCE_DATE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Để trống trường `attendance_date`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -100,13 +109,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Gửi payload thiếu `attendance_date`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -122,19 +134,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT05_Attendance_TC03 : TỪ CHỐI ĐIỂM DANH KHI KHÔNG TRUYỀN HOẶC ĐỂ TRỐNG DANH SÁCH BẢN GHI HỌC SINH (MISSING / EMPTY RECORDS)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Mảng `records` rỗng `[]`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -144,13 +159,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Gửi payload có mảng `records: []`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -166,19 +184,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT05_Attendance_TC04 : TỪ CHỐI ĐIỂM DANH KHI BẢN GHI THIẾU MÃ HỌC SINH HOẶC THIẾU TRẠNG THÁI CHUYÊN CẦN
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Phần tử thiếu `student_id` và phần tử thiếu `status`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -196,13 +217,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Gửi payload thiếu thông tin bắt buộc trong phần tử mảng.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -222,33 +246,39 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT05_Attendance_TC05 : TỪ CHỐI CẬP NHẬT ĐIỂM DANH KHI KHÔNG TRUYỀN ID HOẶC THIẾU TRẠNG THÁI MỚI (PATCH ATTENDANCE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Tham số đường dẫn (Path Params):** `id = att_01`
   - **Dữ liệu thân (Body JSON):** Không truyền trường bắt buộc `status`:
+
   ```json
   {
     "note": "Chỉ cập nhật ghi chú mà không chọn trạng thái mới"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/attendance/att_01`.
   3. Gửi Body JSON thiếu trường bắt buộc `status`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -264,7 +294,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FALED**
 
 ---
 
@@ -275,12 +305,15 @@
 ##### UT05_Attendance_TC06 : TỪ CHỐI ĐIỂM DANH KHI NGÀY KHÔNG TỒN TẠI TRONG LỊCH THỰC TẾ (ATTEND_DATE_INVALID)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Nhập ngày không tồn tại trên lịch thực tế `2026-02-30`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -295,13 +328,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Gửi dữ liệu có ngày `2026-02-30` vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -317,20 +353,23 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT05_Attendance_TC07 : TỪ CHỐI ĐIỂM DANH KHI NGÀY ĐIỂM DANH Ở THỜI ĐIỂM TƯƠNG LAI (ATTEND_DATE_IN_FUTURE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ vào hệ thống.
   - Ngày hiện tại của hệ thống là `2026-09-27`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Nhập ngày điểm danh trong tương lai `2026-12-31`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -345,13 +384,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Gửi dữ liệu có ngày vượt quá ngày hiện tại.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -367,19 +409,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT05_Attendance_TC08 : TỪ CHỐI ĐIỂM DANH KHI GHI CHÚ VƯỢT QUÁ GIỚI HẠN ĐỘ DÀI CHO PHÉP (MAX 255 KÝ TỰ)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ vào hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Chuỗi `note` dài 310 ký tự:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -395,13 +440,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Thêm bản ghi có `note` vượt quá 255 ký tự vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -417,19 +465,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT05_Attendance_TC09 : TỪ CHỐI ĐIỂM DANH TRÙNG LẶP KHI BUỔI HỌC ĐÃ ĐƯỢC ĐIỂM DANH TRƯỚC ĐÓ (ATTEND_ALREADY_EXISTS)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Lớp `cls_1a_2026` đã được điểm danh tiết 1 ngày `2026-09-23` thành công trước đó trong cơ sở dữ liệu.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Gửi lại yêu cầu điểm danh cùng ngày và cùng tiết:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -444,14 +495,17 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Gửi payload điểm danh trùng với buổi học đã có dữ liệu.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ xung đột dữ liệu **HTTP 409 (CONFLICT - XUNG ĐỘT BẢN GHI)**.
   - Ngăn chặn ghi đè làm sai lệch dữ liệu lịch sử điểm danh của lớp.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -462,34 +516,40 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT05_Attendance_TC10 : BÁO LỖI KHI CẬP NHẬT BẢN GHI ĐIỂM DANH VỚI MÃ ID KHÔNG TỒN TẠI (ATTEND_RECORD_NOT_FOUND)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ với vai trò `TEACHER_HOMEROOM`.
   - Mã bản ghi điểm danh `att_non_existent` không tồn tại trong Firestore collection `/attendances`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Tham số đường dẫn (Path Params):** `id = att_non_existent`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "status": "PRESENT"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/attendance/att_non_existent`.
   3. Thêm Body JSON hợp lệ.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -500,20 +560,23 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT05_Attendance_TC11 : BÁO LỖI KHI ĐIỂM DANH CHO LỚP HỌC KHÔNG TỒN TẠI TRÊN HỆ THỐNG (CLASS_NOT_FOUND)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ.
   - Mã lớp học `cls_khong_ton_tai` hoàn toàn không có trong cơ sở dữ liệu hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_khong_ton_tai",
@@ -528,12 +591,15 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -544,19 +610,22 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT05_Attendance_TC12 : CHẶN GIÁO VIÊN KHÔNG PHẢI CHỦ NHIỆM THỰC HIỆN ĐIỂM DANH LỚP HỌC (CLASS_NOT_HOMEROOM_TEACHER)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên bộ môn hoặc giáo viên khác (`usr_teacher_other`) đã đăng nhập nhưng không được phân công làm Chủ nhiệm tại lớp `cls_1a_2026`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_giao_vien_bo_mon>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -571,13 +640,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của giáo viên không có thẩm quyền GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Thêm dữ liệu điểm danh vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 403 (FORBIDDEN - CẤM TRUY CẬP)** do vi phạm quyền hạn RBAC.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -588,20 +660,23 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT05_Attendance_TC13 : XỬ LÝ NGOẠI LỆ LỖI HỆ THỐNG KHI MẤT KẾT NỐI DATABASE HOẶC LỖI DỊCH VỤ ĐẨY FCM
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập hợp lệ.
   - Cơ sở dữ liệu Cloud Firestore hoặc dịch vụ Firebase Cloud Messaging (FCM) tạm thời gặp sự cố mất kết nối, timeout hoặc ném lỗi ngoại lệ chưa được kiểm soát.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -616,13 +691,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Giả lập / Mocking kết nối Firestore hoặc Firebase FCM ném ra lỗi ngoại lệ `FirebaseError: Deadline Exceeded / Service Unavailable`.
   3. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Bộ lọc ngoại lệ toàn cục (Global Exception Filter) bắt lỗi và chuyển đổi thành mã trạng thái **HTTP 500 (INTERNAL SERVER ERROR - LỖI MÁY CHỦ NỘI BỘ)** mà không làm crash tiến trình ứng dụng.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -644,14 +722,17 @@
 #### UT05_Attendance_TC14 : GVCN ĐIỂM DANH ĐẦU GIỜ THÀNH CÔNG CÓ HỌC SINH VẮNG VÀ TỰ ĐỘNG BẮN FCM THÔNG BÁO TỚI PHỤ HUYNH
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên chủ nhiệm đã đăng nhập thành công với vai trò `TEACHER_HOMEROOM` và được phân công phụ trách lớp `cls_1a_2026`.
   - Các học sinh `stu_01`, `stu_02`, `stu_03` đã tồn tại trong bộ sưu tập `/students` và đã liên kết tài khoản phụ huynh với FCM token hợp lệ.
   - Buổi học ngày `2026-09-23` chưa được điểm danh trước đó.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -677,17 +758,20 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Thêm dữ liệu điểm danh đầy đủ vào phần **Body** định dạng `raw (application/json)`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
   - Phản hồi kèm Header đo lường hiệu năng: `X-Response-Time: <duration>ms`.
   - Ghi nhận 3 bản ghi điểm danh vào cơ sở dữ liệu Cloud Firestore tại collection `/attendances`.
   - Tự động xóa bộ nhớ đệm In-Memory RAM Cache danh sách học sinh có mặt hôm nay của lớp (`att_present_cls_1a_2026_2026-09-23`).
   - Hệ thống tự động phát sự kiện xử lý ngầm (Event-driven qua `EventEmitter2` sự kiện `attendance.absent`) để Worker gửi Multicast FCM Notification đến 2 phụ huynh có học sinh vắng (`stu_02`, `stu_03`) mà không block luồng phản hồi HTTP của giáo viên.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -703,20 +787,23 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 #### UT05_Attendance_TC15 : GVCN ĐIỂM DANH ĐẦU GIỜ THÀNH CÔNG KHI 100% HỌC SINH CÓ MẶT (KHÔNG CÓ HỌC SINH VẮNG)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập thành công với vai trò `TEACHER_HOMEROOM` tại lớp `cls_1a_2026`.
   - Buổi học ngày `2026-09-24` chưa được điểm danh.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Tất cả học sinh đều có trạng thái `PRESENT`:
+
   ```json
   {
     "class_id": "cls_1a_2026",
@@ -742,16 +829,19 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/attendance/submit`.
   3. Gửi request với dữ liệu 100% học sinh có mặt.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
   - Phản hồi kèm Header `X-Response-Time`.
   - Lưu đầy đủ 3 bản ghi điểm danh vào Cloud Firestore.
   - Số lượng phụ huynh cần thông báo `notified_parents_queued = 0`, không kích hoạt sự kiện FCM ngầm.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -767,21 +857,24 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT05_Attendance_TC16 : CẬP NHẬT TRẠNG THÁI ĐIỂM DANH KHI HỌC SINH ĐẾN MUỘN HOẶC XIN PHÉP THÀNH CÔNG (PATCH ATTENDANCE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - GVCN đã đăng nhập thành công.
   - Bản ghi điểm danh `att_02` của học sinh `stu_02` đang ở trạng thái `ABSENT_UNEXCUSED`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_gvcn_hop_le>`
     - `Content-Type: application/json`
   - **Tham số đường dẫn (Path Params):** `id = att_02`
   - **Dữ liệu thân (Body JSON):** Cập nhật sang trạng thái `LATE` (hoặc `ABSENT_EXCUSED`):
+
   ```json
   {
     "status": "LATE",
@@ -789,14 +882,17 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`PATCH`**, nhập đường dẫn API: `/api/v1/attendance/att_02`.
   3. Thêm trạng thái cập nhật `LATE` và ghi chú vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Cập nhật tài liệu `att_02` trong Firestore: đổi trạng thái thành `LATE`, cập nhật `note` và `updated_at`.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -805,27 +901,32 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT05_Attendance_TC17 : XEM LỊCH SỬ CHUYÊN CẦN CỦA LỚP THEO NGÀY HOẶC THEO THÁNG THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Giáo viên phụ trách lớp `cls_1a_2026` đã đăng nhập thành công.
   - Đã có dữ liệu điểm danh ngày `2026-09-23` và tháng `2026-09` trong Cloud Firestore.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien_hop_le>`
   - **Tham số đường dẫn (Path Params):** `classId = cls_1a_2026`
   - **Tham số truy vấn (Query Params):** `date = 2026-09-23` (hoặc `month = 2026-09`)
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/attendance/class/cls_1a_2026?date=2026-09-23`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Trả về danh sách chi tiết các bản ghi chuyên cần của từng học sinh trong ngày hoặc tháng được chỉ định.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -853,28 +954,33 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 #### UT05_Attendance_TC18 : TRÍCH XUẤT DANH SÁCH HỌC SINH CÓ MẶT HÔM NAY PHỤC VỤ VÒNG QUAY RANDOM THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Lớp `cls_1a_2026` đã hoàn thành điểm danh đầu giờ hôm nay (`2026-09-23`).
   - Có các học sinh mang trạng thái `PRESENT`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien_hop_le>`
   - **Tham số đường dẫn (Path Params):** `classId = cls_1a_2026`
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của giáo viên vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/attendance/today/cls_1a_2026`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Phản hồi kèm Header `X-Response-Time` với độ trễ cực thấp (< 5ms khi Cache-hit).
   - Kết quả được lưu tạm vào bộ nhớ RAM In-Memory Cache (`att_present_cls_1a_2026_<today>`) với thời gian tồn tại (TTL) 15 phút.
   - Trả về danh sách chính xác các học sinh thực tế có mặt hôm nay (loại trừ các học sinh vắng) phục vụ nạp danh sách vào tính năng Vòng quay may mắn kiểm tra bài cũ.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -899,7 +1005,7 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -925,20 +1031,25 @@
 #### UT05_Attendance_TC20 : XỬ LÝ TRẠNG THÁI RỖNG AN TOÀN KHI LỚP HỌC CHƯA CÓ DỮ LIỆU LỊCH SỬ ĐIỂM DANH TRONG CƠ SỞ DỮ LIỆU (EMPTY STATE - 200 OK)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Lớp học mới tạo hoặc trong tháng truy vấn (`2026-08`) chưa từng có bất kỳ buổi học nào được ghi nhận điểm danh trong Firestore collection `/attendances`.
   - Giáo viên chủ nhiệm đã đăng nhập hợp lệ với vai trò `TEACHER_HOMEROOM`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_gvcn_hop_le>`
   - **Tham số đường dẫn (Path Params):** `classId = cls_new_2026`
   - **Tham số truy vấn (Query Params):** `month = "2026-08"`
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã xác thực `Authentication Token` của GVCN vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/attendance/history/cls_new_2026?month=2026-08`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Phản hồi kèm Header `X-Response-Time`.
   - Cơ sở dữ liệu không có dữ liệu khớp nhưng hệ thống xử lý an toàn, trả về mảng rỗng `records: []` kèm thống kê `total: 0`, không gây ra lỗi máy chủ nội bộ (500) hoặc lỗi crash frontend:
+
   ```json
   {
     "success": true,
@@ -953,26 +1064,31 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 #### UT05_Attendance_TC21 : XỬ LÝ TRẠNG THÁI AN TOÀN KHI TRÍCH XUẤT DANH SÁCH CÓ MẶT NHƯNG CHƯA ĐIỂM DANH HOẶC CẢ LỚP ĐỀU VẮNG HÔM NAY (EMPTY STATE - 200 OK)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Lớp `cls_1a_2026` trong ngày hôm nay chưa được thực hiện điểm danh buổi sáng (chưa có bản ghi điểm danh trong DB hôm nay), hoặc ngày hôm nay cả lớp đều vắng mặt (không có học sinh nào có trạng thái `PRESENT`).
   - Giáo viên bộ môn hoặc GVCN đã đăng nhập hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_giao_vien_hop_le>`
   - **Tham số đường dẫn (Path Params):** `classId = cls_1a_2026`
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền token Giáo viên vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/attendance/today/cls_1a_2026`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Trả về danh sách rỗng an toàn `present_students: []` và `total_present: 0`.
   - Tính năng Vòng quay may mắn (Random Wheel) nhận được mảng rỗng và hiển thị thông báo giao diện "Chưa có học sinh có mặt hôm nay để thực hiện quay số", hệ thống không bị crash:
+
   ```json
   {
     "success": true,
@@ -988,5 +1104,4 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
-
+- **TRẠNG THÁI KIỂM THỬ: FAILED**

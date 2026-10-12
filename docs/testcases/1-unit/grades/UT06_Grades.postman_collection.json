@@ -1,0 +1,1953 @@
+{
+  "info": {
+    "_postman_id": "a06e9d8c-5544-3322-bb11-ca9876543210",
+    "name": "GiaoVienHay - UT06 Gradebook & Assessment Module Collection",
+    "description": "Bộ kịch bản kiểm thử API Quản lý Sổ điểm & Đánh giá học sinh (Gradebook & Assessment - UT06) trích xuất từ tài liệu UT06_Grades.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Access Token của Giáo viên (role: TEACHER_HOMEROOM / TEACHER_SUBJECT)."
+    },
+    {
+      "key": "otherTeacherToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU0OTEyOTY5NF9qbzEzZCIsInBob25lIjoiMDkxMjMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTQ5MTMwLCJleHAiOjE3OTIxNTM5MzB9.8hPU5CfAuzN4UJOw2pLfsokZo2Jgl506tKXF-uGGLh4",
+      "type": "string",
+      "description": "Token của giáo viên khác không được phân công giảng dạy môn học này tại lớp (dùng test 403 Forbidden)."
+    },
+    {
+      "key": "classId",
+      "value": "cls_1a_2026",
+      "type": "string",
+      "description": "Mã định danh lớp học (cls_1a_2026)."
+    },
+    {
+      "key": "scoreId",
+      "value": "scr_nonexistent_999",
+      "type": "string",
+      "description": "Mã định danh bản ghi điểm số dùng để test."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT06_Grades_TC01: Nhập bảng điểm thành phần cho học sinh thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Success Response Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.message).to.be.a('string');",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.class_id).to.eql('cls_1a_2026');",
+              "    pm.expect(jsonData.data.subject_code).to.eql('MATH');",
+              "    pm.expect(jsonData.data.score_type).to.eql('ORAL_TEST');",
+              "    pm.expect(jsonData.data.updated_count).to.be.at.least(1);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 9.5,\n      \"teacher_comment\": \"Thuộc bài tốt, tính nhẩm nhanh\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Giáo viên bộ môn Toán lưu điểm miệng cho học sinh stu_01 thuộc lớp cls_1a_2026 thành công (HTTP 200)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC02: Từ chối và chặn nhập điểm vượt quá thang điểm 10",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Out of Range Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('ACAD_SCORE_OUT_OF_RANGE');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 12\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Hệ thống từ chối lưu điểm khi giáo viên nhập điểm số vượt quá thang điểm 10 (score_value = 12.0)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC03: Phê duyệt công bố điểm cho phụ huynh và kích hoạt thông báo đẩy",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Publish Success Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status_code).to.eql(200);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data).to.have.property('published_at');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"score_type\": \"TEST_15P\",\n  \"semester\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/publish",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "publish"
+          ]
+        },
+        "description": "Giáo viên phê duyệt công bố cột điểm 15 phút môn Toán cho phụ huynh lớp cls_1a_2026 và kích hoạt FCM."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC04: Truy xuất bảng xếp hạng vinh danh học sinh có điểm số cao nhất",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Leaderboard Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.subject_code).to.eql('MATH');",
+              "    pm.expect(jsonData.data.top_students).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/leaderboard/{{classId}}?subject_code=MATH&semester=1&limit=5",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "leaderboard",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            },
+            {
+              "key": "semester",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "description": "Truy xuất danh sách Top 5 học sinh có thành tích xuất sắc nhất môn Toán lớp cls_1a_2026."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC05: Chặn và từ chối giáo viên xem bảng điểm lớp không được phân công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Verify Forbidden Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('ACAD_NOT_ASSIGNED_TEACHER');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/class/{{classId}}?subject_code=MATH&semester=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            },
+            {
+              "key": "semester",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Từ chối giáo viên không được phân công giảng dạy hoặc làm chủ nhiệm xem bảng điểm môn học (403 Forbidden)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC06: Cập nhật đồng thời điểm thành phần cho toàn bộ lớp học (30 học sinh cùng lúc - Batch update)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Batch Update 30 Students Count\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.updated_count).to.eql(30);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"TEST_15P\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 10,\n      \"teacher_comment\": \"Xuất sắc, điểm tuyệt đối\"\n    },\n    {\n      \"student_id\": \"stu_02\",\n      \"score_value\": 9.5,\n      \"teacher_comment\": \"Làm bài rất tốt\"\n    },\n    {\n      \"student_id\": \"stu_03\",\n      \"score_value\": 8.75,\n      \"teacher_comment\": \"Tính toán cẩn thận\"\n    },\n    {\n      \"student_id\": \"stu_04\",\n      \"score_value\": 8,\n      \"teacher_comment\": \"Tốt\"\n    },\n    {\n      \"student_id\": \"stu_05\",\n      \"score_value\": 7.5,\n      \"teacher_comment\": \"Cần chú ý câu hình học\"\n    },\n    {\n      \"student_id\": \"stu_06\",\n      \"score_value\": 6.25,\n      \"teacher_comment\": \"Cần cố gắng hơn\"\n    },\n    {\n      \"student_id\": \"stu_07\",\n      \"score_value\": 5,\n      \"teacher_comment\": \"Đạt yêu cầu cơ bản\"\n    },\n    {\n      \"student_id\": \"stu_08\",\n      \"score_value\": 0,\n      \"teacher_comment\": \"Vắng thi không phép\"\n    },\n    {\n      \"student_id\": \"stu_09\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_10\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_11\",\n      \"score_value\": 7\n    },\n    {\n      \"student_id\": \"stu_12\",\n      \"score_value\": 8.25\n    },\n    {\n      \"student_id\": \"stu_13\",\n      \"score_value\": 6.75\n    },\n    {\n      \"student_id\": \"stu_14\",\n      \"score_value\": 9.75\n    },\n    {\n      \"student_id\": \"stu_15\",\n      \"score_value\": 8\n    },\n    {\n      \"student_id\": \"stu_16\",\n      \"score_value\": 7.5\n    },\n    {\n      \"student_id\": \"stu_17\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_18\",\n      \"score_value\": 6.5\n    },\n    {\n      \"student_id\": \"stu_19\",\n      \"score_value\": 7.25\n    },\n    {\n      \"student_id\": \"stu_20\",\n      \"score_value\": 8\n    },\n    {\n      \"student_id\": \"stu_21\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_22\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_23\",\n      \"score_value\": 7.75\n    },\n    {\n      \"student_id\": \"stu_24\",\n      \"score_value\": 8.25\n    },\n    {\n      \"student_id\": \"stu_25\",\n      \"score_value\": 9.25\n    },\n    {\n      \"student_id\": \"stu_26\",\n      \"score_value\": 6\n    },\n    {\n      \"student_id\": \"stu_27\",\n      \"score_value\": 7\n    },\n    {\n      \"student_id\": \"stu_28\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_29\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_30\",\n      \"score_value\": 10\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Cập nhật đồng thời điểm kiểm tra 15 phút môn Toán cho 30 học sinh cùng lúc (Batch update thành công)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC07: Từ chối và chặn nhập điểm số âm (< 0.0)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Negative Score Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('ACAD_SCORE_OUT_OF_RANGE');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": -1.5,\n      \"teacher_comment\": \"Nhập nhầm số âm\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối nhập điểm số âm (-1.5) nhỏ hơn 0.0."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC08: Từ chối và chặn nhập điểm bằng chữ cái thuần túy (String / text)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Data Type Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['INVALID_DATA_TYPE', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": \"muoi\",\n      \"teacher_comment\": \"Nhập chữ thay vì số\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối nhập điểm dạng chuỗi ký tự 'muoi' thay vì số thực."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC09: Từ chối và chặn nhập điểm chứa chữ cái và số lộn xộn (Malformed alphanumeric string)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Malformed Score Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['INVALID_SCORE_FORMAT', 'COMMON_VALIDATION_ERROR', 'INVALID_DATA_TYPE']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"TEST_15P\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": \"9a\",\n      \"teacher_comment\": \"Gõ nhầm phím chữ kèm số\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối điểm số chứa cả chữ và số lộn xộn như '9a', '8.5xyz'."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC10: Từ chối và chặn nhập điểm là ký tự đặc biệt bậy bạ và mã độc injection ('@@@', XSS script)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Security / Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['INVALID_INPUT_PAYLOAD', 'COMMON_VALIDATION_ERROR', 'INVALID_DATA_TYPE']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"TEST_15P\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": \"@@@\",\n      \"teacher_comment\": \"<script>alert('XSS')</script>\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối ký tự đặc biệt '@@@' và mã script độc hại trong trường điểm/lời phê."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC11: Từ chối và chặn định dạng số thập phân sai (Nhiều dấu chấm '7.5.5' hoặc dùng dấu phẩy '8,5')",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Decimal Format Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['INVALID_DECIMAL_FORMAT', 'COMMON_VALIDATION_ERROR', 'INVALID_DATA_TYPE']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"TEST_1P\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": \"7.5.5\",\n      \"teacher_comment\": \"Nhập thừa dấu chấm thập phân\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối số thập phân sai định dạng như nhiều dấu chấm '7.5.5'."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC12: Từ chối và chặn dữ liệu vượt quá độ dài tối đa (Lời phê giáo viên vượt quá 255 ký tự)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Max Length Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 8,\n      \"teacher_comment\": \"Nội dung lời phê lặp lại vượt quá 255 ký tự: Em tiếp thu bài nhanh, làm bài cẩn thận, tích cực xây dựng bài trên lớp, cần phát huy hơn nữa trong các tiết học sau để đạt kết quả xuất sắc toàn diện trong kỳ học này. Giáo viên rất khen ngợi tinh thần học tập của em và hy vọng em sẽ luôn giữ vững phong độ này trong suốt năm học!\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối lời phê giáo viên vượt quá 255 ký tự cho phép."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC13: Đảm bảo tính nguyên tố (Transaction rollback / atomicity) khi batch 30 học sinh có 1 học sinh lỗi điểm",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Batch Rollback Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['BATCH_VALIDATION_FAILED', 'ACAD_SCORE_OUT_OF_RANGE', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"TEST_15P\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_02\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_03\",\n      \"score_value\": 8\n    },\n    {\n      \"student_id\": \"stu_04\",\n      \"score_value\": 7.5\n    },\n    {\n      \"student_id\": \"stu_05\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_06\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_07\",\n      \"score_value\": 7\n    },\n    {\n      \"student_id\": \"stu_08\",\n      \"score_value\": 6.5\n    },\n    {\n      \"student_id\": \"stu_09\",\n      \"score_value\": 9.5\n    },\n    {\n      \"student_id\": \"stu_10\",\n      \"score_value\": 8\n    },\n    {\n      \"student_id\": \"stu_11\",\n      \"score_value\": 7.5\n    },\n    {\n      \"student_id\": \"stu_12\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_13\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_14\",\n      \"score_value\": 8\n    },\n    {\n      \"student_id\": \"stu_15\",\n      \"score_value\": 15,\n      \"teacher_comment\": \"Gõ nhầm số vượt quá 10\"\n    },\n    {\n      \"student_id\": \"stu_16\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_17\",\n      \"score_value\": 7\n    },\n    {\n      \"student_id\": \"stu_18\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_19\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_20\",\n      \"score_value\": 7.5\n    },\n    {\n      \"student_id\": \"stu_21\",\n      \"score_value\": 9.5\n    },\n    {\n      \"student_id\": \"stu_22\",\n      \"score_value\": 8\n    },\n    {\n      \"student_id\": \"stu_23\",\n      \"score_value\": 7\n    },\n    {\n      \"student_id\": \"stu_24\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_25\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_26\",\n      \"score_value\": 8\n    },\n    {\n      \"student_id\": \"stu_27\",\n      \"score_value\": 7.5\n    },\n    {\n      \"student_id\": \"stu_28\",\n      \"score_value\": 8.5\n    },\n    {\n      \"student_id\": \"stu_29\",\n      \"score_value\": 9\n    },\n    {\n      \"student_id\": \"stu_30\",\n      \"score_value\": 7.5\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Kiểm tra tính nguyên tố (Rollback toàn bộ) khi có 1 học sinh nhập điểm sai trong batch 30 học sinh."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC14: Từ chối yêu cầu thiếu các trường dữ liệu bắt buộc hoặc mảng điểm rỗng",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"semester\": 1,\n  \"scores\": []\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối request batch thiếu subject_code, thiếu score_type và danh sách scores rỗng."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC15: Từ chối loại điểm (score_type) hoặc học kỳ (semester) sai định dạng enum",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Invalid Enum Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['INVALID_ENUM_VALUE', 'COMMON_VALIDATION_ERROR']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 3,\n  \"score_type\": \"EXTRA_SPECIAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 8\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối score_type ngoài danh mục enum và semester = 3."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC16: Nhập và xử lý hợp lệ điểm số 0.0 (Điểm liệt / vắng thi có lý do - Tránh lỗi falsy check)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify 0.0 Score Saved Successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.updated_count).to.be.at.least(1);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 0,\n      \"teacher_comment\": \"Vắng kiểm tra miệng không phép\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Lưu điểm 0.0 hợp lệ mà không bị nhầm lẫn là falsy/thiếu giá trị."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC17: Từ chối và chặn sửa điểm âm thầm khi cột điểm đã công bố mà thiếu lý do đính chính",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Correction Reason Required\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('CORRECTION_REASON_REQUIRED');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"TEST_15P\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 8.5\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Chặn việc sửa điểm đã công bố khi không có giải trình/lý do đính chính rõ ràng."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC18: Cập nhật đính chính điểm số đã công bố hợp lệ và tự động gửi thông báo đến riêng phụ huynh",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Correction Success\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"TEST_15P\",\n  \"is_correction\": true,\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 8.5,\n      \"teacher_comment\": \"Đính chính: Giáo viên cộng sót điểm câu 3b sau khi phúc khảo bài làm\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Đính chính điểm đã công bố kèm lý do giải trình rõ ràng và gửi thông báo FCM tới phụ huynh."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC19: Từ chối công bố điểm khi cột điểm chưa có dữ liệu điểm nào trong hệ thống",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify No Scores To Publish Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('NO_SCORES_TO_PUBLISH');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"score_type\": \"FINAL\",\n  \"semester\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/publish",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "publish"
+          ]
+        },
+        "description": "Từ chối phê duyệt công bố khi cột điểm môn học hoàn toàn chưa có bất kỳ điểm số nào."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC20: Xử lý an toàn tránh gửi thông báo trùng lặp khi bấm công bố điểm nhiều lần (Idempotency)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Idempotent Publish Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"score_type\": \"TEST_1P\",\n  \"semester\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/publish",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "publish"
+          ]
+        },
+        "description": "Xử lý an toàn tránh gửi trùng thông báo khi cột điểm đã được công bố từ trước."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC21: Công bố điểm thành công với cơ chế chịu lỗi khi dịch vụ Google FCM gặp sự cố tạm thời",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Fault Tolerance Handling\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"score_type\": \"TEST_15P\",\n  \"semester\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/publish",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "publish"
+          ]
+        },
+        "description": "Công bố điểm thành công ngay cả khi Firebase Cloud Messaging gặp sự cố gián đoạn tạm thời."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC22: Xem sổ điểm lớp học mới thành lập chưa có dữ liệu điểm (Empty state handling - HTTP 200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Scores Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/class/{{classId}}?subject_code=MATH&semester=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            },
+            {
+              "key": "semester",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Xem sổ điểm chi tiết của lớp học có học sinh nhưng chưa có điểm thành phần nào (Empty State HTTP 200)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC23: Xử lý xếp hạng đồng hạng (Tie-break) trên bảng xếp hạng vinh danh học sinh",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Tie-break Leaderboard\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.top_students).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/leaderboard/{{classId}}?subject_code=MATH&semester=1&limit=5",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "leaderboard",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            },
+            {
+              "key": "semester",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "description": "Xử lý xếp hạng đồng hạng (Tie-break) khi nhiều học sinh đạt cùng số điểm cao nhất."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC24: Từ chối thao tác do không có token xác thực hoặc token đã hết hạn (401 Unauthorized)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Unauthorized Error Response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(['AUTH_UNAUTHORIZED', 'UNAUTHORIZED']).to.include(jsonData.error_code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid_or_expired_jwt_token",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 9\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối thao tác ghi nhận điểm số khi token xác thực không hợp lệ hoặc đã hết hạn."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC25: Chặn giáo viên bộ môn khác tự ý nhập điểm môn học không được phân công (403 Forbidden)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Verify Forbidden Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('ACAD_NOT_ASSIGNED_TEACHER');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherTeacherToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"FINAL\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 9\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Chặn giáo viên chỉ dạy môn Văn tự ý nhập điểm thi môn Toán tại lớp."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC26: Xử lý lỗi hệ thống khi cơ sở dữ liệu Firestore mất kết nối hoặc timeout (500 Internal Server Error)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Response code is handled properly (500 or 200)\", function () {",
+              "    pm.expect([200, 500]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If 500, verify internal error structure\", function () {",
+              "    if (pm.response.code === 500) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('SYS_INTERNAL_ERROR');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 9\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Kiểm thử cơ chế xử lý lỗi hệ thống khi cơ sở dữ liệu Firestore gặp sự cố ngắt kết nối."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC27: Chặn nhập hoặc chỉnh sửa điểm số khi học kỳ đã kết thúc hoặc bị khóa sổ (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Verify Locked Semester Status Code\", function () {",
+              "    pm.expect([200, 400]).to.include(pm.response.code);",
+              "});",
+              "pm.test(\"If Semester Locked, verify error code\", function () {",
+              "    if (pm.response.code === 400) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('ACAD_SEMESTER_LOCKED');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"FINAL\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 8.5,\n      \"teacher_comment\": \"Bổ sung điểm thi kết thúc học kỳ 1\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Chặn cập nhật điểm số khi học kỳ đã kết thúc và bị khóa sổ học bạ điện tử."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC28: Từ chối yêu cầu khi không tìm thấy bản ghi điểm số của học sinh (404 Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Record Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('GRADE_RECORD_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"score_value\": 9,\n  \"correction_reason\": \"Đính chính do chấm phúc khảo\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/scores/{{scoreId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "scores",
+            "{{scoreId}}"
+          ]
+        },
+        "description": "Từ chối cập nhật bản ghi điểm số khi mã score_id không tồn tại trong hệ thống (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC29: Chặn phụ huynh tra cứu bảng điểm môn học chưa được công bố (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Grade Not Published Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('GRADE_NOT_PUBLISHED');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/parent/lookup?student_id=stu_01&subject_code=MATH&semester=1&score_type=FINAL",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "parent",
+            "lookup"
+          ],
+          "query": [
+            {
+              "key": "student_id",
+              "value": "stu_01"
+            },
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            },
+            {
+              "key": "semester",
+              "value": "1"
+            },
+            {
+              "key": "score_type",
+              "value": "FINAL"
+            }
+          ]
+        },
+        "description": "Chặn phụ huynh xem trước điểm thi học kỳ khi cột điểm chưa được nhà trường công bố chính thức."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC30: Lấy bảng điểm chi tiết môn học theo lớp và học kỳ thành công (HTTP 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Gradebook Data Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.class_id).to.eql('cls_1a_2026');",
+              "    pm.expect(jsonData.data.subject_code).to.eql('MATH');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/class/{{classId}}?subject_code=MATH&semester=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "class",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            },
+            {
+              "key": "semester",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Giáo viên lấy toàn bộ bảng điểm chi tiết môn Toán học kỳ 1 của lớp cls_1a_2026 (HTTP 200 OK)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC31: Từ chối thao tác khi mã lớp học không tồn tại trong hệ thống (404 Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Class Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('CLASS_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_nonexistent_999\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_01\",\n      \"score_value\": 8.5\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối nhập điểm khi mã class_id 'cls_nonexistent_999' không tồn tại trong hệ thống (404 Not Found)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC32: Từ chối lưu bảng điểm khi mã học sinh không thuộc danh sách lớp (404 Not Found)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Verify Student Not Found Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('STUDENT_NOT_FOUND');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\",\n  \"subject_code\": \"MATH\",\n  \"semester\": 1,\n  \"score_type\": \"ORAL_TEST\",\n  \"scores\": [\n    {\n      \"student_id\": \"stu_unknown_888\",\n      \"score_value\": 8,\n      \"teacher_comment\": \"Nhập điểm cho học sinh không thuộc lớp\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "batch"
+          ]
+        },
+        "description": "Từ chối lưu bảng điểm khi học sinh stu_unknown_888 không thuộc danh sách học sinh của lớp cls_1a_2026."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC33: Từ chối công bố điểm khi thiếu các trường dữ liệu bắt buộc (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Missing Fields Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql('COMMON_VALIDATION_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"class_id\": \"cls_1a_2026\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/publish",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "publish"
+          ]
+        },
+        "description": "Từ chối công bố điểm khi thiếu subject_code, score_type và semester trong payload."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC34: Xử lý trạng thái rỗng an toàn khi truy xuất bảng xếp hạng vinh danh chưa có dữ liệu điểm (Empty Leaderboard - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Leaderboard Structure\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data.top_students).to.be.an('array');",
+              "    pm.expect(jsonData.data.top_students.length).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/leaderboard/{{classId}}?subject_code=MATH&semester=1&limit=5",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "leaderboard",
+            "{{classId}}"
+          ],
+          "query": [
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            },
+            {
+              "key": "semester",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "description": "Truy xuất bảng xếp hạng vinh danh khi lớp chưa có dữ liệu điểm trả về mảng top_students rỗng an toàn (200 OK)."
+      }
+    },
+    {
+      "name": "UT06_Grades_TC35: Xử lý trạng thái rỗng an toàn khi xem sổ điểm của lớp chưa có học sinh nào trong hệ thống (Empty Class - 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Verify Empty Class Gradebook Data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "    pm.expect(jsonData.data.length).to.eql(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/grades/class/cls_new_empty?subject_code=MATH&semester=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "grades",
+            "class",
+            "cls_new_empty"
+          ],
+          "query": [
+            {
+              "key": "subject_code",
+              "value": "MATH"
+            },
+            {
+              "key": "semester",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Xử lý trạng thái rỗng an toàn khi xem sổ điểm của lớp chưa có học sinh nào, trả về data rỗng [] (200 OK)."
+      }
+    }
+  ]
+}

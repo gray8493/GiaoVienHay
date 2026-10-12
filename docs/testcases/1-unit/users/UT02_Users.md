@@ -61,7 +61,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -112,7 +112,7 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -149,7 +149,7 @@
     "message": "Mã môn học INVALID_CODE_XYZ không nằm trong danh mục chương trình GDPT"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -185,7 +185,7 @@
     "message": "Đăng ký thiết bị nhận thông báo thành công"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -221,7 +221,7 @@
     "message": "fcm_device_token không được để trống"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -257,7 +257,7 @@
     "message": "Họ và tên phải có độ dài từ 2 đến 100 ký tự"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -293,7 +293,7 @@
     "message": "URL ảnh đại diện không đúng định dạng hợp lệ (yêu cầu https://...)"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -353,7 +353,7 @@
     "message": "Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ Quản trị viên để được hỗ trợ."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -379,7 +379,7 @@
     "message": "Không tìm thấy hồ sơ người dùng trong hệ thống."
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -417,6 +417,7 @@
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_usr_01>`
   - **Dữ liệu thân (Body JSON):** Cập nhật tên trường hoặc môn giảng dạy:
+
   ```json
   {
     "school_name": "Trường THCS Thăng Long",
@@ -450,7 +451,7 @@
   - Firestore cập nhật `is_deleted = true`, `is_active = false`, `deleted_at = <ISO timestamp>`.
   - Cache `user_profile_usr_01` bị xóa.
   - Yêu cầu truy xuất `GET /api/v1/users/me` bị từ chối với mã **HTTP 404 (NOT FOUND)** hoặc **HTTP 401 (UNAUTHORIZED)** do tài khoản đã bị đánh dấu xóa mềm.
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -468,6 +469,7 @@
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Phản hồi kèm Header `X-Response-Time`.
   - Mảng `teaching_subjects: []` trả về rỗng an toàn, giao diện ứng dụng hiển thị lời nhắc "Bạn chưa cập nhật môn giảng dạy, hãy bổ sung thông tin hồ sơ":
+
   ```json
   {
     "success": true,
@@ -483,25 +485,30 @@
     }
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ### UT02_Users_TC15 : TỪ CHỐI TRA CỨU HỒ SƠ KHI MÃ NGƯỜI DÙNG KHÔNG TỒN TẠI TRONG CƠ SỞ DỮ LIỆU (USER_NOT_FOUND - 404)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng có quyền tra cứu đã đăng nhập hợp lệ.
   - Mã định danh người dùng `usr_not_exist_9999` hoàn toàn không tồn tại trong Cloud Firestore collection `/users`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Authorization: Bearer <token_hop_le>`
   - **Tham số đường dẫn (Path Params):** `id = "usr_not_exist_9999"`
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền token vào mục **Headers**.
   2. Chọn phương thức **`GET`**, nhập đường dẫn API: `/api/v1/users/usr_not_exist_9999`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 404 (NOT FOUND - KHÔNG TÌM THẤY NGƯỜI DÙNG)**.
   - Phản hồi dữ liệu lỗi chuẩn Envelope:
+
   ```json
   {
     "success": false,
@@ -512,5 +519,4 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
-
+- **TRẠNG THÁI KIỂM THỬ: PASS**

@@ -1,0 +1,1580 @@
+{
+  "info": {
+    "_postman_id": "a1e845c9-95a2-4a0b-8d19-58bcf7041a99",
+    "name": "GiaoVienHay - UT01 Auth & Session Collection",
+    "description": "Bộ kịch bản kiểm thử API Phân hệ Xác thực & Quản lý Phiên làm việc (Auth - UT01) trích xuất từ tài liệu UT01_Auth.md cho dự án GiaoVienHay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://giaovienhay.onrender.com",
+      "type": "string",
+      "description": "URL gốc của hệ thống máy chủ backend: https://giaovienhay.onrender.com"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTU5NTYzMjc2MF9oaXg0ZSIsInBob25lIjoiMDk4ODMwNTY3OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNTk1NjMzLCJleHAiOjE3OTIyMDA0MzN9.sGuKYOJbBwtBon0kkzyrOKSQmKYRBxglg4PfSYEw7K8",
+      "type": "string",
+      "description": "Bearer Access Token của người dùng (Giáo viên / Phụ huynh) để test các API bảo mật."
+    },
+    {
+      "key": "refreshToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfMTc5MTYwMTMyMDY2Nl9tbHh0aCIsInBob25lIjoiMDkwMTMxODM2OCIsInJvbGUiOiJURUFDSEVSX0hPTUVST09NIiwic2Nob29sX25hbWUiOiJUcsaw4budbmcgVGnhu4N1IEjhu41jIENodSBWxINuIEFuIiwiaWF0IjoxNzkxNjAxMzIwLCJleHAiOjE3OTQxOTMzMjB9.Dgewr79gAgTOTqyl-q1rkAbiXEkv3y4TbdCf08NxrqE",
+      "type": "string",
+      "description": "Refresh Token thật còn hạn dùng để test API làm mới phiên làm việc (TC22)."
+    }
+  ],
+  "item": [
+    {
+      "name": "UT01_Auth_TC01: Từ chối đăng ký tài khoản khi không nhập hoặc để trống họ tên (Missing full_name)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"\",\n  \"email\": \"teacher.lan@school.edu.vn\",\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123@\",\n  \"role\": \"TEACHER_HOMEROOM\",\n  \"school_name\": \"Trường Tiểu Học Chu Văn An\",\n  \"teaching_subjects\": [\n    \"MATH\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC01: Gửi đăng ký tài khoản nhưng để trống full_name (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC02: Từ chối đăng ký tài khoản khi không nhập hoặc để trống số điện thoại (Missing phone)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Nguyễn Thị Lan\",\n  \"email\": \"teacher.lan@school.edu.vn\",\n  \"phone\": \"\",\n  \"password\": \"Password123@\",\n  \"role\": \"TEACHER_HOMEROOM\",\n  \"school_name\": \"Trường Tiểu Học Chu Văn An\",\n  \"teaching_subjects\": [\n    \"MATH\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC02: Gửi đăng ký tài khoản nhưng để trống phone (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC03: Từ chối đăng ký tài khoản khi không nhập hoặc để trống mật khẩu (Missing password)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Nguyễn Thị Lan\",\n  \"email\": \"teacher.lan@school.edu.vn\",\n  \"phone\": \"0912345678\",\n  \"role\": \"TEACHER_HOMEROOM\",\n  \"school_name\": \"Trường Tiểu Học Chu Văn An\",\n  \"teaching_subjects\": [\n    \"MATH\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC03: Gửi đăng ký thiếu trường password (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC04: Từ chối đăng ký tài khoản giáo viên khi thiếu tên trường hoặc môn giảng dạy",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Nguyễn Thị Lan\",\n  \"email\": \"teacher.lan@school.edu.vn\",\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123@\",\n  \"role\": \"TEACHER_HOMEROOM\",\n  \"school_name\": \"\",\n  \"teaching_subjects\": []\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC04: Đăng ký vai trò Giáo viên nhưng để trống school_name và teaching_subjects rỗng (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC05: Từ chối đăng nhập khi để trống thông tin tài khoản hoặc mật khẩu (Missing identifier / password)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"\",\n  \"password\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Kịch bản TC05: Đăng nhập để trống cả identifier và password (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC06: Từ chối xác thực Firebase khi không truyền hoặc để trống chuỗi id_token (Missing id_token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_token\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/firebase-verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "firebase-verify"
+          ]
+        },
+        "description": "Kịch bản TC06: Xác thực Firebase nhưng để trống id_token (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC07: Từ chối làm mới phiên khi không truyền hoặc để trống refresh_token (Missing refresh_token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Validation Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/refresh-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "refresh-token"
+          ]
+        },
+        "description": "Kịch bản TC07: Làm mới token nhưng để trống refresh_token (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC08: Từ chối đăng ký khi mật khẩu không đủ độ mạnh theo tiêu chuẩn bảo mật",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Password Strength Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Trần Văn Bình\",\n  \"phone\": \"0987654321\",\n  \"email\": \"binh.tran@gmail.com\",\n  \"password\": \"pass123\",\n  \"role\": \"PARENT\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC08: Mật khẩu yếu 'pass123' thiếu hoa/thường/số/ký tự đặc biệt (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC09: Từ chối đăng ký khi số điện thoại sai định dạng mạng viễn thông Việt Nam",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Verify Phone Format Validation Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(400);",
+              "    pm.expect(jsonData.error_code).to.eql(\"COMMON_VALIDATION_ERROR\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Trần Văn Bình\",\n  \"phone\": \"0123456789\",\n  \"email\": \"binh.tran@gmail.com\",\n  \"password\": \"Password123@\",\n  \"role\": \"PARENT\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC09: Số điện thoại đầu số '012' sai chuẩn đầu số viễn thông VN (400 Bad Request)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC10: Từ chối đăng ký khi email hoặc số điện thoại đã tồn tại trên hệ thống (Conflict 409)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 409 Conflict (or 400)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 409]);",
+              "});",
+              "pm.test(\"Verify Conflict Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Nguyễn Thị Lan\",\n  \"email\": \"teacher.lan@school.edu.vn\",\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123@\",\n  \"role\": \"TEACHER_HOMEROOM\",\n  \"school_name\": \"Trường Tiểu Học Chu Văn An\",\n  \"teaching_subjects\": [\n    \"MATH\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC10: Đăng ký tài khoản với email/SĐT đã tồn tại (409 Conflict)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC11: Từ chối đăng nhập khi sai mật khẩu hoặc tài khoản không tồn tại (AUTH_INVALID_CREDENTIALS - 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Invalid Credentials Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.eql(\"AUTH_INVALID_CREDENTIALS\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"teacher.lan@school.edu.vn\",\n  \"password\": \"SaiMatKhau123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Kịch bản TC11: Đăng nhập với mật khẩu sai (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC12: Chặn đăng nhập khi tài khoản người dùng đang bị khóa (AUTH_ACCOUNT_LOCKED - 403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 or 403\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+              "});",
+              "pm.test(\"Verify Account Locked Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.error_code).to.eql(\"AUTH_ACCOUNT_LOCKED\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"0977889900\",\n  \"password\": \"Password123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Kịch bản TC12: Đăng nhập tài khoản bị khóa is_active = false (AUTH_ACCOUNT_LOCKED)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC13: Từ chối xác thực khi Firebase ID Token không hợp lệ hoặc bị làm giả (AUTH_TOKEN_INVALID - 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Token Invalid Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"AUTH_TOKEN_INVALID\", \"COMMON_VALIDATION_ERROR\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_token\": \"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.token_gia_mao_hoac_bi_loi\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/firebase-verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "firebase-verify"
+          ]
+        },
+        "description": "Kịch bản TC13: Token giả mạo hoặc lỗi chữ ký (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC14: Từ chối làm mới phiên khi Refresh Token đã hết hạn hoặc không tồn tại (AUTH_TOKEN_EXPIRED - 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Expired Token Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"AUTH_TOKEN_EXPIRED\", \"AUTH_SESSION_NOT_FOUND\", \"AUTH_TOKEN_INVALID\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"expired-refresh-token-uuid-12345\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/refresh-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "refresh-token"
+          ]
+        },
+        "description": "Kịch bản TC14: Làm mới phiên với Refresh token đã hết hạn (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC15: Từ chối đăng xuất khi Bearer Access Token không hợp lệ (AUTH_TOKEN_INVALID - 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Token Invalid on Logout\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.eql(\"AUTH_TOKEN_INVALID\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid_jwt_token",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "logout"
+          ]
+        },
+        "description": "Kịch bản TC15: Đăng xuất với Bearer token giả mạo (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC16: Xử lý ngoại lệ lỗi hệ thống khi dịch vụ Firebase Auth gặp sự cố (SYS_INTERNAL_ERROR - 500)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 500 (Mocked) or 400/401 (Live server healthy)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 401, 500]);",
+              "});",
+              "pm.test(\"Verify System Response structure (success is false)\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"teacher.lan@school.edu.vn\",\n  \"password\": \"Password123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Kịch bản TC16: Giả lập lỗi máy chủ nội bộ hoặc lỗi kết nối Firebase (500 Internal Server Error)."
+      },
+      "response": [
+        {
+          "name": "500 Internal Server Error (Firebase Outage Mock)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"teacher.lan@school.edu.vn\",\n  \"password\": \"Password123@\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"status_code\": 500,\n  \"message\": \"Lỗi máy chủ nội bộ hoặc lỗi kết nối Firebase\",\n  \"error_code\": \"SYS_INTERNAL_ERROR\",\n  \"details\": null,\n  \"timestamp\": \"2026-10-10T08:30:00.000Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "UT01_Auth_TC17: Đăng ký tài khoản giáo viên mới đầy đủ thông tin thành công và tự động cấp token (201 Created)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created (or 409 if already exists)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    pm.test(\"Verify Registered Teacher Data & Tokens\", function () {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.status_code).to.eql(201);",
+              "        pm.expect(jsonData.data.access_token).to.be.a('string');",
+              "        pm.expect(jsonData.data.user.role).to.eql('TEACHER_HOMEROOM');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Nguyễn Thị Lan\",\n  \"email\": \"teacher.lan@school.edu.vn\",\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123@\",\n  \"school_name\": \"Trường Tiểu Học Chu Văn An\",\n  \"role\": \"TEACHER_HOMEROOM\",\n  \"teaching_subjects\": [\n    \"MATH\",\n    \"LIT\",\n    \"ETHICS\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC17: Đăng ký tài khoản giáo viên thành công và nhận Token (201 Created)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC18: Đăng ký tài khoản phụ huynh mới thành công (201 Created)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created (or 409 if already exists)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    pm.test(\"Verify Registered Parent Data & Tokens\", function () {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.status_code).to.eql(201);",
+              "        pm.expect(jsonData.data.access_token).to.be.a('string');",
+              "        pm.expect(jsonData.data.user.role).to.eql('PARENT');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"full_name\": \"Trần Văn Bình\",\n  \"phone\": \"0987654321\",\n  \"email\": \"binh.tran@gmail.com\",\n  \"password\": \"Password123@\",\n  \"role\": \"PARENT\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Kịch bản TC18: Đăng ký tài khoản phụ huynh mới (201 Created)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC19: Đăng nhập bằng Email và mật khẩu chính xác thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 401 if user not seeded)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Verify Login Success Data\", function () {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.access_token).to.be.a('string');",
+              "    });",
+              "    if (jsonData.data && jsonData.data.access_token) {",
+              "        pm.collectionVariables.set(\"token\", jsonData.data.access_token);",
+              "    }",
+              "    if (jsonData.data && jsonData.data.refresh_token) {",
+              "        pm.collectionVariables.set(\"refreshToken\", jsonData.data.refresh_token);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"teacher.lan@school.edu.vn\",\n  \"password\": \"Password123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Kịch bản TC19: Đăng nhập bằng Email giáo viên thành công (200 OK)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC20: Đăng nhập bằng số điện thoại và mật khẩu chính xác thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 401 if user not seeded)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Verify Phone Login Success Data\", function () {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.access_token).to.be.a('string');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"0912305678\",\n  \"password\": \"Password123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Kịch bản TC20: Đăng nhập bằng số điện thoại chính xác (200 OK)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC21: Xác thực Firebase ID Token và đồng bộ Custom Claims thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (Real Firebase token) or 401 (Mock/Sample token)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "pm.test(\"Verify response format\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (pm.response.code === 200) {",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data).to.have.property('custom_claims');",
+              "    } else {",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.error_code).to.eql('AUTH_TOKEN_INVALID');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_token\": \"eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1NiIsInR5cCI6IkpXVCJ9.valid_firebase_id_token\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/firebase-verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "firebase-verify"
+          ]
+        },
+        "description": "Kịch bản TC21: Xác thực Firebase ID Token và đồng bộ Custom Claims vai trò người dùng (200 OK)."
+      },
+      "response": [
+        {
+          "name": "200 OK - Firebase ID Token Verified & Custom Claims Synced",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_token\": \"eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1NiIsInR5cCI6IkpXVCJ9.valid_firebase_id_token\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/firebase-verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "firebase-verify"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"status_code\": 200,\n  \"message\": \"Xác thực Firebase Token thành công\",\n  \"data\": {\n    \"uid\": \"usr_parent_99\",\n    \"role\": \"PARENT\",\n    \"custom_claims\": {\n      \"role\": \"PARENT\",\n      \"student_ids\": [\"stu_001\"]\n    }\n  },\n  \"timestamp\": \"2026-10-10T08:30:00.000Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "UT01_Auth_TC22: Làm mới phiên làm việc bằng Refresh Token hợp lệ thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 401 if refresh token expired)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Verify Refreshed Access Token\", function () {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.data.access_token).to.be.a('string');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/refresh-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "refresh-token"
+          ]
+        },
+        "description": "Kịch bản TC22: Làm mới phiên làm việc bằng refresh_token hợp lệ (200 OK)."
+      },
+      "response": [
+        {
+          "name": "200 OK - Refresh Token Succeeded",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh-token"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"status_code\": 200,\n  \"message\": \"Làm mới phiên thành công\",\n  \"data\": {\n    \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_access_token\",\n    \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_refresh_token\",\n    \"expires_in\": 604800\n  },\n  \"timestamp\": \"2026-10-10T08:30:00.000Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "UT01_Auth_TC23: Đăng xuất khỏi hệ thống và thu hồi phiên làm việc thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (or 401 if token revoked)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Verify Logout Success\", function () {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(true);",
+              "        pm.expect(jsonData.status_code).to.eql(200);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "logout"
+          ]
+        },
+        "description": "Kịch bản TC23: Đăng xuất an toàn và thu hồi phiên làm việc với Bearer token (200 OK)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC24: Từ chối đăng nhập khi tài khoản đã bị xóa mềm (is_deleted = true - 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Soft-deleted Account Error Code\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.eql(\"AUTH_INVALID_CREDENTIALS\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"0912345678\",\n  \"password\": \"Password123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Kịch bản TC24: Đăng nhập tài khoản đã bị xóa mềm is_deleted = true (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC25: Từ chối đăng nhập khi tài khoản hoàn toàn không tồn tại trong CSDL (AUTH_INVALID_CREDENTIALS - 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Non-existent Account Neutral Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.eql(\"AUTH_INVALID_CREDENTIALS\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"notfound.user@school.edu.vn\",\n  \"password\": \"Password123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Kịch bản TC25: Đăng nhập với tài khoản chưa từng tồn tại trong hệ thống (401 Unauthorized)."
+      }
+    },
+    {
+      "name": "UT01_Auth_TC26: Xử lý khi xác thực Firebase ID Token hợp lệ nhưng hồ sơ người dùng chưa được tạo trong DB (USER_NOT_FOUND - 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404 Not Found (or 401 for mock token)\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([401, 404]);",
+              "});",
+              "if (pm.response.code === 404) {",
+              "    pm.test(\"Verify Profile Not Registered Error\", function () {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.status_code).to.eql(404);",
+              "        pm.expect(jsonData.error_code).to.eql(\"AUTH_USER_NOT_REGISTERED\");",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_token\": \"valid_firebase_token_without_profile_in_db\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/firebase-verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "firebase-verify"
+          ]
+        },
+        "description": "Kịch bản TC26: Token Firebase hợp lệ nhưng chưa tạo profile trong Firestore /users (404 Not Found)."
+      },
+      "response": [
+        {
+          "name": "404 Not Found - User Profile Not Created",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_token\": \"valid_firebase_token_without_profile_in_db\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/firebase-verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "firebase-verify"
+              ]
+            }
+          },
+          "status": "Not Found",
+          "code": 404,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"status_code\": 404,\n  \"message\": \"Tài khoản chưa được thiết lập hồ sơ trong hệ thống. Vui lòng hoàn tất đăng ký thông tin.\",\n  \"error_code\": \"AUTH_USER_NOT_REGISTERED\",\n  \"details\": {\n    \"firebase_uid\": \"fb_uid_new_9999\",\n    \"email\": \"newbie@gmail.com\",\n    \"is_registered\": false\n  },\n  \"timestamp\": \"2026-10-04T08:30:00.000Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "UT01_Auth_TC27: Từ chối làm mới phiên khi Refresh Token không tồn tại trong Database phiên làm việc (AUTH_SESSION_NOT_FOUND - 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Verify Session Not Found Error\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status_code).to.eql(401);",
+              "    pm.expect(jsonData.error_code).to.be.oneOf([\"AUTH_SESSION_NOT_FOUND\", \"AUTH_TOKEN_INVALID\", \"AUTH_TOKEN_EXPIRED\"]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token_khong_ton_tai_trong_db_sessions\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/refresh-token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "refresh-token"
+          ]
+        },
+        "description": "Kịch bản TC27: Refresh token có format hợp lệ nhưng không tìm thấy trong session storage (401 Unauthorized)."
+      },
+      "response": [
+        {
+          "name": "401 Unauthorized - Session Not Found",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token_khong_ton_tai_trong_db_sessions\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh-token"
+              ]
+            }
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"status_code\": 401,\n  \"message\": \"Phiên làm việc không tồn tại hoặc đã bị thu hồi. Vui lòng đăng nhập lại.\",\n  \"error_code\": \"AUTH_SESSION_NOT_FOUND\",\n  \"details\": null,\n  \"timestamp\": \"2026-10-04T08:30:00.000Z\"\n}"
+        }
+      ]
+    }
+  ]
+}

@@ -31,10 +31,13 @@
 ##### UT01_Auth_TC01 : TỪ CHỐI ĐĂNG KÝ TÀI KHOẢN KHI KHÔNG NHẬP HOẶC ĐỂ TRỐNG HỌ TÊN (MISSING FULL_NAME)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng truy cập màn hình đăng ký tài khoản.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Để trống trường `full_name`:
+
   ```json
   {
     "full_name": "",
@@ -47,13 +50,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/register`.
   3. Gửi payload thiếu trường `full_name`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -69,17 +75,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC02 : TỪ CHỐI ĐĂNG KÝ TÀI KHOẢN KHI KHÔNG NHẬP HOẶC ĐỂ TRỐNG SỐ ĐIỆN THOẠI (MISSING PHONE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng truy cập màn hình đăng ký tài khoản.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Không truyền hoặc để trống trường `phone`:
+
   ```json
   {
     "full_name": "Nguyễn Thị Lan",
@@ -92,13 +101,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/register`.
   3. Gửi payload thiếu trường `phone`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -114,17 +126,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC03 : TỪ CHỐI ĐĂNG KÝ TÀI KHOẢN KHI KHÔNG NHẬP HOẶC ĐỂ TRỐNG MẬT KHẨU (MISSING PASSWORD)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng truy cập màn hình đăng ký tài khoản.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Không truyền trường `password`:
+
   ```json
   {
     "full_name": "Nguyễn Thị Lan",
@@ -136,13 +151,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/register`.
   3. Gửi payload thiếu trường `password`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -158,17 +176,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC04 : TỪ CHỐI ĐĂNG KÝ TÀI KHOẢN GIÁO VIÊN KHI THIẾU TÊN TRƯỜNG HOẶC MÔN GIẢNG DẠY
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng đăng ký tài khoản với vai trò Giáo viên (`role: TEACHER_HOMEROOM` hoặc `TEACHER_SUBJECT`).
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Bỏ trống `school_name` và không truyền `teaching_subjects`:
+
   ```json
   {
     "full_name": "Nguyễn Thị Lan",
@@ -181,13 +202,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/register`.
   3. Gửi payload thiếu thông tin trường học và môn dạy của giáo viên.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -207,17 +231,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC05 : TỪ CHỐI ĐĂNG NHẬP KHI ĐỂ TRỐNG THÔNG TIN TÀI KHOẢN HOẶC MẬT KHẨU (MISSING IDENTIFIER / PASSWORD)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng truy cập màn hình đăng nhập.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Để trống trường `identifier` và `password`:
+
   ```json
   {
     "identifier": "",
@@ -225,13 +252,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/login`.
   3. Gửi payload để trống `identifier` và `password`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -251,30 +281,36 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC06 : TỪ CHỐI XÁC THỰC FIREBASE KHI KHÔNG TRUYỀN HOẶC ĐỂ TRỐNG CHUỖI ID_TOKEN (MISSING ID_TOKEN)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Client gọi API xác thực Firebase token.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Không truyền hoặc để trống trường `id_token`:
+
   ```json
   {
     "id_token": ""
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/firebase-verify`.
   3. Gửi payload thiếu chuỗi `id_token`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -290,30 +326,36 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC07 : TỪ CHỐI LÀM MỚI PHIÊN KHI KHÔNG TRUYỀN HOẶC ĐỂ TRỐNG REFRESH_TOKEN (MISSING REFRESH_TOKEN)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Client gọi API làm mới Access Token.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Không truyền hoặc để trống trường `refresh_token`:
+
   ```json
   {
     "refresh_token": ""
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/refresh-token`.
   3. Gửi payload thiếu chuỗi `refresh_token`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -329,7 +371,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -344,6 +386,7 @@
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Mật khẩu quá ngắn hoặc thiếu ký tự đặc biệt (`pass123`):
+
   ```json
   {
     "full_name": "Trần Văn Bình",
@@ -361,6 +404,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -376,7 +420,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
@@ -387,6 +431,7 @@
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):** Số điện thoại không đủ 10 chữ số hoặc sai đầu số (`0123456789`):
+
   ```json
   {
     "full_name": "Trần Văn Bình",
@@ -404,6 +449,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống ném ra ngoại lệ **HTTP 400 (BAD REQUEST - YÊU CẦU KHÔNG HỢP LỆ)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -419,17 +465,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT01_Auth_TC10 : TỪ CHỐI ĐĂNG KÝ KHI EMAIL HOẶC SỐ ĐIỆN THOẠI ĐÃ TỒN TẠI TRÊN HỆ THỐNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Địa chỉ email `teacher.lan@school.edu.vn` hoặc số điện thoại `0912345678` đã được một tài khoản khác đăng ký trước đó trong hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "full_name": "Nguyễn Thị Lan",
@@ -442,13 +491,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/register`.
   3. Gửi payload chứa email/SĐT trùng lặp.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ xung đột dữ liệu **HTTP 409 (CONFLICT - DỮ LIỆU ĐÃ TỒN TẠI)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -464,17 +516,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC11 : TỪ CHỐI ĐĂNG NHẬP KHI SAI MẬT KHẨU HOẶC TÀI KHOẢN KHÔNG TỒN TẠI (AUTH_INVALID_CREDENTIALS)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng nhập mật khẩu không chính xác hoặc email/SĐT chưa từng được đăng ký trong hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "identifier": "teacher.lan@school.edu.vn",
@@ -482,14 +537,17 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/login`.
   3. Truyền thông tin đăng nhập với mật khẩu sai.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - TỪ CHỐI XÁC THỰC)**.
   - Tuyệt đối không sinh bất kỳ token nào.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -500,17 +558,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC12 : CHẶN ĐĂNG NHẬP KHI TÀI KHOẢN NGƯỜI DÙNG ĐANG BỊ KHÓA (AUTH_ACCOUNT_LOCKED)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Tài khoản `banned.user@school.edu.vn` đã bị Quản trị viên khóa (`is_active: false` trong Firestore và bị vô hiệu hóa trên Firebase Auth).
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "identifier": "banned.user@school.edu.vn",
@@ -518,13 +579,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/login`.
   3. Gửi thông tin đăng nhập của tài khoản đang bị khóa.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 403 (FORBIDDEN - TÀI KHOẢN BỊ KHÓA)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -535,30 +599,36 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC13 : TỪ CHỐI XÁC THỰC KHI FIREBASE ID TOKEN KHÔNG HỢP LỆ HOẶC BỊ LÀM GIẢ (AUTH_TOKEN_INVALID)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Chuỗi Firebase ID Token gửi lên bị làm giả, bị chỉnh sửa chữ ký số hoặc sai định dạng.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.token_gia_mao_hoac_bi_loi"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/firebase-verify`.
   3. Gửi chuỗi Token không hợp lệ vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - TOKEN KHÔNG HỢP LỆ)** khi Firebase Admin SDK xác thực thất bại.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -569,30 +639,36 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 ##### UT01_Auth_TC14 : TỪ CHỐI LÀM MỚI PHIÊN KHI REFRESH TOKEN ĐÃ HẾT HẠN HOẶC KHÔNG TỒN TẠI (AUTH_TOKEN_EXPIRED)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Chuỗi `refresh_token` đã hết hạn lưu trữ hoặc không tồn tại trong bộ nhớ phiên làm việc.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "refresh_token": "expired-refresh-token-uuid-12345"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/refresh-token`.
   3. Gửi token đã hết hạn vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - PHIÊN ĐĂNG NHẬP HẾT HẠN)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -603,7 +679,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -614,6 +690,7 @@
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Authorization: Bearer invalid_jwt_token`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {}
   ```
@@ -624,6 +701,7 @@
 - **KẾT QUẢ MONG ĐỢI:**
   - Hệ thống ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - CHƯA XÁC THỰC)**.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -634,17 +712,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 ##### UT01_Auth_TC16 : XỬ LÝ NGOẠI LỆ LỖI HỆ THỐNG KHI DỊCH VỤ FIREBASE AUTH GẶP SỰ CỐ (SYS_INTERNAL_ERROR)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Dịch vụ Firebase Authentication hoặc Cloud Firestore tạm thời gặp sự cố kết nối, timeout mạng hoặc ném lỗi ngoại lệ chưa được kiểm soát.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "identifier": "teacher.lan@school.edu.vn",
@@ -652,13 +733,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Giả lập / Mocking kết nối Firebase SDK ném ra ngoại lệ `FirebaseError: Service Unavailable / Network Timeout`.
   3. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/login`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Bộ lọc ngoại lệ toàn cục (Global Exception Filter) bắt lỗi và chuyển đổi thành mã trạng thái **HTTP 500 (INTERNAL SERVER ERROR - LỖI MÁY CHỦ NỘI BỘ)** mà không làm crash tiến trình ứng dụng.
   - Dữ liệu lỗi phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -669,7 +753,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -680,11 +764,14 @@
 #### UT01_Auth_TC17 : ĐĂNG KÝ TÀI KHOẢN GIÁO VIÊN MỚI ĐẦY ĐỦ THÔNG TIN THÀNH CÔNG VÀ TỰ ĐỘNG CẤP TOKEN
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Email `teacher.lan@school.edu.vn` và số điện thoại `0912345678` chưa từng tồn tại trong hệ thống.
   - Dịch vụ Firebase Authentication và Cloud Firestore hoạt động bình thường.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "full_name": "Nguyễn Thị Lan",
@@ -697,16 +784,19 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/register`.
   3. Thêm dữ liệu đăng ký giáo viên vào phần **Body** định dạng `raw (application/json)`.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
   - Tạo tài khoản trên Firebase Authentication, gán Custom Claims `role: TEACHER_HOMEROOM`.
   - Khởi tạo tài liệu hồ sơ tại collection `/users/{uid}` trong Firestore với `is_active: true`.
   - Tự động sinh cặp `access_token` và `refresh_token` để người dùng vào thẳng màn hình chính.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -731,17 +821,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT01_Auth_TC18 : ĐĂNG KÝ TÀI KHOẢN PHỤ HUYNH MỚI THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Số điện thoại `0987654321` và email `binh.tran@gmail.com` chưa tồn tại trong hệ thống.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "full_name": "Trần Văn Bình",
@@ -752,15 +845,18 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/register`.
   3. Thêm dữ liệu đăng ký phụ huynh vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 201 (CREATED - ĐÃ TẠO THÀNH CÔNG)**.
   - Tạo tài khoản phụ huynh trên Firebase Auth với vai trò `PARENT`.
   - Khởi tạo tài liệu tại `/users/{uid}` và cấp phát cặp Token truy cập.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -783,7 +879,7 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -794,6 +890,7 @@
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "identifier": "teacher.lan@school.edu.vn",
@@ -809,6 +906,7 @@
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Cấp phát cặp Token truy cập hợp lệ kèm thông tin hồ sơ người dùng.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -830,17 +928,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 #### UT01_Auth_TC20 : ĐĂNG NHẬP BẰNG SỐ ĐIỆN THOẠI VÀ MẬT KHẨU CHÍNH XÁC THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Tài khoản phụ huynh với số điện thoại `0987654321` đã đăng ký hợp lệ và đang hoạt động.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "identifier": "0987654321",
@@ -848,14 +949,17 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/login`.
   3. Truyền Số điện thoại và mật khẩu chính xác vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Xác thực danh tính qua SĐT và cấp phát cặp Token truy cập hợp lệ.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -875,31 +979,37 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT01_Auth_TC21 : XÁC THỰC FIREBASE ID TOKEN VÀ ĐỒNG BỘ CUSTOM CLAIMS THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Ứng dụng Client đã xác minh OTP SMS hoặc Social Login thành công qua Firebase SDK và nhận về chuỗi `id_token` hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1NiIsInR5cCI6IkpXVCJ9.valid_firebase_id_token"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/firebase-verify`.
   3. Thêm chuỗi Firebase ID Token hợp lệ vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Backend xác thực chữ ký token qua Firebase Admin SDK, kiểm tra và đồng bộ Custom Claims vai trò người dùng.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -916,31 +1026,37 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT01_Auth_TC22 : LÀM MỚI PHIÊN LÀM VIỆC BẰNG REFRESH TOKEN HỢP LỆ THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Phiên làm việc của người dùng vẫn còn hợp lệ và sở hữu chuỗi `refresh_token` còn thời hạn.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "refresh_token": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Cấu hình tiêu đề `Content-Type: application/json` trong mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/refresh-token`.
   3. Thêm giá trị `refresh_token` hợp lệ vào phần **Body**.
   4. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Cấp phát Access Token mới có thời hạn 3600 giây để tiếp tục phiên làm việc.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -953,30 +1069,36 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT01_Auth_TC23 : ĐĂNG XUẤT KHỎI HỆ THỐNG VÀ THU HỒI PHIÊN LÀM VIỆC THÀNH CÔNG
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng đang đăng nhập với Bearer Access Token hợp lệ.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):**
     - `Authorization: Bearer <token_nguoi_dung_dang_dang_nhap>`
     - `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {}
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền mã `Bearer Token` hợp lệ vào mục **Headers**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/logout`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 200 (OK - THÀNH CÔNG)**.
   - Thu hồi phiên làm việc, vô hiệu hóa Access Token và xóa Refresh Token tương ứng trong hệ thống.
   - Dữ liệu trả về đúng định dạng JSON chuẩn:
+
   ```json
   {
     "success": true,
@@ -985,17 +1107,20 @@
     "timestamp": "2026-09-27T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT01_Auth_TC24 : TỪ CHỐI ĐĂNG NHẬP KHI TÀI KHOẢN ĐÃ BỊ XÓA MỀM (IS_DELETED = TRUE)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Tài khoản người dùng có số điện thoại `0912345678` đã bị xóa mềm trong hệ thống (`is_deleted: true`).
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "phone": "0912345678",
@@ -1003,13 +1128,16 @@
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/login`.
   2. Gửi request đăng nhập với thông tin tài khoản đã xóa mềm.
   3. Bấm nút **Gửi (Send)** trên Postman.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống phản hồi mã trạng thái **HTTP 401 (UNAUTHORIZED - TỪ CHỐI XÁC THỰC)**.
   - Phản hồi kèm Header `X-Response-Time`.
   - Cấu trúc lỗi:
+
   ```json
   {
     "success": false,
@@ -1020,7 +1148,7 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
@@ -1031,6 +1159,7 @@
 - **DỮ LIỆU ĐẦU VÀO:**
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "identifier": "notfound.user@school.edu.vn",
@@ -1047,6 +1176,7 @@
   - Thông báo lỗi trung lập để bảo mật, chống tấn công dò quét tài khoản (User Enumeration Attack): `"Email/Số điện thoại hoặc mật khẩu không chính xác"`.
   - Tuyệt đối không sinh mã Access Token hay Refresh Token.
   - Phản hồi đúng cấu trúc Envelope chuẩn:
+
   ```json
   {
     "success": false,
@@ -1057,31 +1187,37 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: FAILED**
 
 ---
 
 #### UT01_Auth_TC26 : XỬ LÝ KHI XÁC THỰC FIREBASE ID TOKEN HỢP LỆ NHƯNG HỒ SƠ NGƯỜI DÙNG CHƯA ĐƯỢC TẠO TRONG DATABASE (USER_NOT_FOUND - 404)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Người dùng vừa xác thực OTP qua Firebase Auth hoặc đăng nhập bằng tài khoản Google thành công (chuỗi `id_token` hợp lệ do Firebase phát hành).
   - Tuy nhiên, người dùng này chưa hoàn tất bước tạo hồ sơ cá nhân và chưa có bản ghi thông tin trong Firestore collection `/users`.
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "id_token": "<firebase_id_token_hop_le_chua_co_profile>"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Truyền chuỗi `id_token` hợp lệ từ Firebase Auth vào phần **Body**.
   2. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/firebase-verify`.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống xác thực tính hợp lệ của token Firebase thành công, nhưng khi truy vấn Firestore collection `/users` theo `uid` thì không tìm thấy dữ liệu hồ sơ.
   - Hệ thống phản hồi mã trạng thái **HTTP 404 (NOT FOUND - CHƯA CÓ HỒ SƠ NGƯỜI DÙNG)**.
   - Cung cấp mã lỗi `AUTH_USER_NOT_REGISTERED` để ứng dụng di động điều hướng người dùng tới màn hình Onboarding (chọn vai trò Giáo viên/Phụ huynh và nhập thông tin cá nhân):
+
   ```json
   {
     "success": false,
@@ -1096,29 +1232,35 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
+- **TRẠNG THÁI KIỂM THỬ: PASS**
 
 ---
 
 #### UT01_Auth_TC27 : TỪ CHỐI LÀM MỚI PHIÊN KHI REFRESH TOKEN KHÔNG TỒN TẠI TRONG DATABASE PHIÊN LÀM VIỆC (AUTH_SESSION_NOT_FOUND - 401)
 
 - **ĐIỀU KIỆN TIÊN QUYẾT:**
+
   - Chuỗi Refresh Token có cấu trúc JWT hợp lệ về mặt mã hóa nhưng không tồn tại trong bộ lưu trữ phiên làm việc của hệ thống (do đã bị thu hồi sau khi đăng xuất hoặc người dùng đã đăng xuất trên mọi thiết bị).
 - **DỮ LIỆU ĐẦU VÀO:**
+
   - **Tiêu đề (Headers):** `Content-Type: application/json`
   - **Dữ liệu thân (Body JSON):**
+
   ```json
   {
     "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token_khong_ton_tai_trong_db_sessions"
   }
   ```
 - **CÁC BƯỚC THỰC HIỆN:**
+
   1. Chọn phương thức **`POST`**, nhập đường dẫn API: `/api/v1/auth/refresh-token`.
   2. Gửi request làm mới token với Refresh Token không có trong DB.
   3. Bấm nút **Gửi (Send)** trên Postman để thực thi request.
 - **KẾT QUẢ MONG ĐỢI:**
+
   - Hệ thống kiểm tra trong Database phiên làm việc và không tìm thấy bản ghi phiên hợp lệ tương ứng với chuỗi token này.
   - Ném ra ngoại lệ **HTTP 401 (UNAUTHORIZED - PHIÊN KHÔNG TỒN TẠI HOẶC ĐÃ BỊ THU HỒI)**:
+
   ```json
   {
     "success": false,
@@ -1129,5 +1271,4 @@
     "timestamp": "2026-10-04T08:30:00.000Z"
   }
   ```
-- **TRẠNG THÁI KIỂM THỬ:**
-
+- **TRẠNG THÁI KIỂM THỬ: PASS**
