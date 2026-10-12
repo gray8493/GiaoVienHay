@@ -109,9 +109,9 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   const [isClassSheetVisible, setIsClassSheetVisible] = useState<boolean>(false);
 
   // Dynamic Dashboard States from Backend
-  const [teacherName, setTeacherName] = useState('Cô Nguyễn Thị Lan');
-  const [classesList, setClassesList] = useState<ClassOption[]>(TEACHER_CLASSES);
-  const [attendanceStats, setAttendanceStats] = useState<{ presentCount: number; totalCount: number }>({ presentCount: 38, totalCount: 38 });
+  const [teacherName, setTeacherName] = useState<string>(() => authService.getUser()?.full_name || 'Thầy/Cô');
+  const [classesList, setClassesList] = useState<ClassOption[]>([]);
+  const [attendanceStats, setAttendanceStats] = useState<{ presentCount: number; totalCount: number }>({ presentCount: 0, totalCount: 0 });
   const [feesSummary, setFeesSummary] = useState<ClassFeesSummary | null>(null);
   const [examReminders, setExamReminders] = useState<ExamReminderItem[]>([]);
   const [remarksList, setRemarksList] = useState<StudentRemarkItem[]>([]);
@@ -129,8 +129,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   const isNoClassState = hasNoClass || selectedClassId === 'cls_empty' || classesList.length === 0;
   const currentClass =
     classesList.find((c) => c.id === selectedClassId) ||
-    classesList[0] ||
-    TEACHER_CLASSES[0] || {
+    classesList[0] || {
       id: 'cls_empty',
       name: 'Chưa có lớp',
       studentsCount: 0,
@@ -249,9 +248,12 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       });
       setCreateClassModalVisible(false);
       setNewClassName('');
-      Alert.alert('Thành công', `Đã tạo lớp ${created.name} thành công!`);
-      setInternalClassId('cls_6a1');
-      onSelectClass?.('cls_6a1');
+      Alert.alert('Thành công', `Đã tạo lớp ${created.name || newClassName} thành công!`);
+      if (created?.id) {
+        setInternalClassId(created.id);
+        onSelectClass?.(created.id);
+      }
+      await loadClasses();
     } catch (err: any) {
       Alert.alert('Lỗi', err.message || 'Không thể tạo lớp');
     } finally {
@@ -269,11 +271,10 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       const res = await classService.joinClass(joinInviteCode.trim());
       setJoinClassModalVisible(false);
       setJoinInviteCode('');
-      Alert.alert('Thành công', res.message || 'Tham gia lớp học thành công!');
-      setInternalClassId('cls_6a1');
-      onSelectClass?.('cls_6a1');
+      Alert.alert('Thành công', 'Đã tham gia lớp học thành công!');
+      await loadClasses();
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message || 'Mã mời không hợp lệ hoặc đã hết hạn');
+      Alert.alert('Lỗi', err.message || 'Mã mời không hợp lệ');
     } finally {
       setIsSubmitting(false);
     }
@@ -324,7 +325,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
 
               <View style={styles.greetingTextContainer}>
                 <Text style={styles.greetingSubtitle}>Xin chào,</Text>
-                <Text style={styles.greetingTeacherName}>Cô Nguyễn Thu Hà</Text>
+                <Text style={styles.greetingTeacherName}>{teacherName}</Text>
               </View>
             </View>
 
@@ -593,7 +594,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                 onPress={() => setIsClassSheetVisible(true)}
               >
                 <Text style={styles.gvcnBadgeText} numberOfLines={1}>
-                  {isHomeroom ? 'GVCN 6A1' : `GVBM ${currentClass.name.replace('Lớp ', '')}`}
+                  {isHomeroom ? `GVCN ${currentClass.name.replace('Lớp ', '')}` : `GVBM ${currentClass.name.replace('Lớp ', '')}`}
                 </Text>
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
                   <Path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />

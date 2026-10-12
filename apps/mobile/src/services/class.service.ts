@@ -276,57 +276,24 @@ export const classService = {
           ? resJson.data
           : [];
 
-        if (list.length > 0) {
-          return list.map((item: any, idx: number) => ({
-            id: item.id || `cls_${idx}`,
-            name: item.name?.startsWith('Lớp') ? item.name : `Lớp ${item.name}`,
-            grade_level: item.grade_level || 6,
-            academic_year: item.academic_year || '2026–2027',
-            school_name: item.school_name || 'THCS Lê Quý Đôn',
-            student_count: item.student_count || (idx === 0 ? 38 : idx === 1 ? 36 : 35),
-            role_type: (item.role_type || (idx === 0 ? 'HOMEROOM' : 'SUBJECT')) as 'HOMEROOM' | 'SUBJECT',
-            subject_name: item.subject_name || (idx === 1 ? 'Toán' : idx === 2 ? 'Tin Học' : undefined),
-            icon_name: (idx === 0 ? 'groups' : idx === 1 ? 'square_foot' : 'laptop_mac') as any,
-          }));
-        }
+        // Trả về đúng danh sách lớp từ database (nếu mới tạo tài khoản thì là mảng rỗng [])
+        return list.map((item: any, idx: number) => ({
+          id: item.id || `cls_${idx}`,
+          name: item.name?.startsWith('Lớp') ? item.name : `Lớp ${item.name}`,
+          grade_level: item.grade_level || 6,
+          academic_year: item.academic_year || '2026–2027',
+          school_name: item.school_name || 'THCS Lê Quý Đôn',
+          student_count: item.student_count || 0,
+          role_type: (item.role_type || (idx === 0 ? 'HOMEROOM' : 'SUBJECT')) as 'HOMEROOM' | 'SUBJECT',
+          subject_name: item.subject_name || (idx === 1 ? 'Toán' : idx === 2 ? 'Tin Học' : undefined),
+          icon_name: (idx === 0 ? 'groups' : idx === 1 ? 'square_foot' : 'laptop_mac') as any,
+        }));
       }
     } catch (e) {
-      console.warn('Backend not reachable, fallback getMyClasses:', e);
+      console.warn('Backend not reachable, returning empty class list:', e);
     }
 
-    return [
-      {
-        id: 'cls_6a1',
-        name: 'Lớp 6A1',
-        grade_level: 6,
-        academic_year: '2026–2027',
-        school_name: 'THCS Lê Quý Đôn',
-        student_count: 38,
-        role_type: 'HOMEROOM',
-        icon_name: 'groups',
-      },
-      {
-        id: 'cls_6a2',
-        name: 'Lớp 6A2',
-        grade_level: 6,
-        academic_year: '2026–2027',
-        school_name: 'THCS Lê Quý Đôn',
-        student_count: 36,
-        role_type: 'SUBJECT',
-        subject_name: 'Toán',
-        icon_name: 'square_foot',
-      },
-      {
-        id: 'cls_6a3',
-        name: 'Lớp 6A3',
-        grade_level: 6,
-        academic_year: '2026–2027',
-        school_name: 'THCS Lê Quý Đôn',
-        student_count: 35,
-        role_type: 'SUBJECT',
-        subject_name: 'Tin Học',
-        icon_name: 'laptop_mac',
-      },
-    ];
+    // Nếu không kết nối được hoặc lỗi thì trả về mảng rỗng để giáo viên mới thấy giao diện tạo lớp
+    return [];
   },
 };

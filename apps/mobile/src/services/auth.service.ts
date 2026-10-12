@@ -100,32 +100,20 @@ export const authService = {
   },
 
   /**
-   * Đảm bảo luôn có Access Token hợp lệ (tự động khôi phục hoặc cấp phát)
+   * Đảm bảo luôn có Access Token hợp lệ của tài khoản hiện tại
    */
   async ensureToken(): Promise<string | null> {
     const existing = this.getToken();
     if (existing) return existing;
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: '0988888888', password: 'Admin@123' }),
-      });
+    // Nếu có refresh token thì thử refresh
+    const refreshToken = this.getRefreshToken();
+    if (refreshToken) {
+      const newToken = await this.refreshToken();
+      if (newToken) return newToken;
+    }
 
-      if (response.ok) {
-        const resJson = await response.json();
-        const data = resJson.data || resJson;
-        if (data.access_token) {
-          this.setToken(data.access_token);
-          if (data.refresh_token) this.setRefreshToken(data.refresh_token);
-          if (data.user) this.setUser(data.user);
-          return data.access_token;
-        }
-      }
-    } catch (e) {}
-
-    return activeToken;
+    return null;
   },
 
   /**

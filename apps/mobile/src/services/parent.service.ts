@@ -65,42 +65,62 @@ const DEFAULT_CHILDREN: ChildItem[] = [
 
 export const parentService = {
   async getLinkedChildren(): Promise<ChildItem[]> {
-    try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const res = await fetch(`${API_BASE_URL}/students/stu_02`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
+    const user = authService.getUser();
+    const userId = user?.id || user?.phone || 'guest';
 
-      if (res && res.ok) {
-        const resJson = await res.json();
-        const student = resJson.data || resJson;
-        if (student && student.id) {
-          const initials = (student.full_name || 'BN')
-            .split(' ')
-            .filter(Boolean)
-            .map((w: string) => w[0])
-            .slice(-2)
-            .join('')
-            .toUpperCase();
-
-          return [
-            {
-              id: student.id,
-              student_code: student.student_code || student.code || 'HS240102',
-              full_name: student.full_name,
-              avatar_letters: initials || 'BN',
-              class_name: student.class_name ? `Lớp ${student.class_name}` : 'Lớp 1A',
-              school_name: student.school_name || 'Trường Tiểu Học Chu Văn An',
-              attendance_status: 'Có mặt',
-              attendance_note: 'Đúng giờ',
-            },
-          ];
-        }
-      }
-    } catch (e) {
-      console.warn('Backend student profile offline, using fallback:', e);
+    // Đọc danh sách con đã liên kết từ Storage
+    let savedChildren: ChildItem[] = [];
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const stored = window.localStorage.getItem(`gvh_linked_children_${userId}`);
+        if (stored) savedChildren = JSON.parse(stored);
+      } catch (e) {}
     }
-    return DEFAULT_CHILDREN;
+
+    if (savedChildren.length > 0) {
+      return savedChildren;
+    }
+
+    // Nếu là tài khoản phụ huynh demo seed trong DB (0912345678)
+    if (user?.phone === '0912345678') {
+      try {
+        const authHeader = await authService.getAuthHeaderAsync();
+        const res = await fetch(`${API_BASE_URL}/students/stu_02`, {
+          headers: { 'Content-Type': 'application/json', ...authHeader },
+        }).catch(() => null);
+
+        if (res && res.ok) {
+          const resJson = await res.json();
+          const student = resJson.data || resJson;
+          if (student && student.id) {
+            const initials = (student.full_name || 'BN')
+              .split(' ')
+              .filter(Boolean)
+              .map((w: string) => w[0])
+              .slice(-2)
+              .join('')
+              .toUpperCase();
+
+            return [
+              {
+                id: student.id,
+                student_code: student.student_code || student.code || 'HS240102',
+                full_name: student.full_name,
+                avatar_letters: initials || 'BN',
+                class_name: student.class_name ? `Lớp ${student.class_name}` : 'Lớp 1A',
+                school_name: student.school_name || 'Trường Tiểu Học Chu Văn An',
+                attendance_status: 'Có mặt',
+                attendance_note: 'Đúng giờ',
+              },
+            ];
+          }
+        }
+      } catch (e) {}
+      return DEFAULT_CHILDREN;
+    }
+
+    // Với tài khoản phụ huynh mới đăng ký: ban đầu chưa có con liên kết
+    return [];
   },
 
   async getChildDashboard(studentId: string = 'stu_02'): Promise<ParentDashboardData> {
@@ -271,6 +291,10 @@ export const parentService = {
   },
 
   async linkNewChild(studentCode: string): Promise<ChildItem> {
+    const user = authService.getUser();
+    const userId = user?.id || user?.phone || 'guest';
+    let childToReturn: ChildItem;
+
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const res = await fetch(`${API_BASE_URL}/classes/join`, {
@@ -282,26 +306,50 @@ export const parentService = {
       if (res && res.ok) {
         const resJson = await res.json();
         const data = resJson.data || resJson;
-        return {
+        childToReturn = {
           id: data.student_id || `stu_${Date.now()}`,
           student_code: studentCode,
           full_name: data.full_name || 'Học sinh mới',
           avatar_letters: 'HS',
           class_name: data.class_name ? `Lớp ${data.class_name}` : 'Lớp 1A',
+          attendance_status: 'Có mặt',
+          attendance_note: 'Đúng giờ',
+        };
+      } else {
+        childToReturn = {
+          id: `stu_${Date.now()}`,
+          student_code: studentCode.toUpperCase(),
+          full_name: 'Nguyễn Minh Quân',
+          avatar_letters: 'MQ',
+          class_name: 'Lớp 1A',
+          attendance_status: 'Có mặt',
+          attendance_note: 'Đúng giờ',
         };
       }
-    } catch (e) {}
+    } catch (e) {
+      childToReturn = {
+        id: `stu_${Date.now()}`,
+        student_code: studentCode.toUpperCase(),
+        full_name: 'Nguyễn Minh Quân',
+        avatar_letters: 'MQ',
+        class_name: 'Lớp 1A',
+        attendance_status: 'Có mặt',
+        attendance_note: 'Đúng giờ',
+      };
+    }
 
-    // Fallback local create
-    return {
-      id: `stu_${Date.now()}`,
-      student_code: studentCode.toUpperCase(),
-      full_name: 'Nguyễn Minh Quân',
-      avatar_letters: 'MQ',
-      class_name: 'Lớp 1A',
-      attendance_status: 'Có mặt',
-      attendance_note: 'Đúng giờ',
-    };
+    // Lưu vào LocalStorage của tài khoản phụ huynh hiện tại
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const key = `gvh_linked_children_${userId}`;
+        const existingStr = window.localStorage.getItem(key);
+        const existingList: ChildItem[] = existingStr ? JSON.parse(existingStr) : [];
+        const updatedList = [...existingList.filter(c => c.student_code !== childToReturn.student_code), childToReturn];
+        window.localStorage.setItem(key, JSON.stringify(updatedList));
+      } catch (e) {}
+    }
+
+    return childToReturn;
   },
 
   async getFullAcademicRecord(studentId: string = 'stu_02') {
