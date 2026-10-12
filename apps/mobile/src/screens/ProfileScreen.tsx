@@ -321,7 +321,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     </Text>
                     <View style={styles.homeroomBadge}>
                       <Text style={styles.homeroomBadgeText}>
-                        GVCN {profile.homeroom_class || '6A1'}
+                        {profile.homeroom_class ? `GVCN ${profile.homeroom_class}` : 'Giáo viên'}
                       </Text>
                     </View>
                   </View>

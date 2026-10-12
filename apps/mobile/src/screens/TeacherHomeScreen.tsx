@@ -80,7 +80,7 @@ export const TEACHER_CLASSES: ClassOption[] = [
 interface TeacherHomeScreenProps {
   currentClassId?: string;
   hasNoClass?: boolean;
-  onSelectClass?: (classId: string) => void;
+  onSelectClass?: (classId: string, className?: string) => void;
   onEnterClassroom?: () => void;
   onOpenAIQuiz?: () => void;
   onOpenWheel?: () => void;
@@ -176,7 +176,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
           setClassesList(mapped);
           if (mapped[0] && (!currentClassId || currentClassId === 'cls_empty')) {
             setInternalClassId(mapped[0].id);
-            onSelectClass?.(mapped[0].id);
+            onSelectClass?.(mapped[0].id, mapped[0].name);
           }
         } else {
           setClassesList([]);
@@ -191,9 +191,11 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
     try {
       attendanceService.getTodayPresentStudents(clsId).then((res: any) => {
         if (res) {
+          const tot = currentClass.studentsCount || (res.present_students?.length) || 0;
+          const pres = typeof res.total_present === 'number' ? res.total_present : (res.present_students?.length || 0);
           setAttendanceStats({
-            presentCount: res.total_present || 38,
-            totalCount: (res.present_students && res.present_students.length) || 38,
+            presentCount: Math.min(pres, tot > 0 ? tot : pres),
+            totalCount: tot,
           });
         }
       }).catch(() => null);
@@ -221,7 +223,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
 
   const handleChooseClass = (classItem: ClassOption) => {
     setInternalClassId(classItem.id);
-    onSelectClass?.(classItem.id);
+    onSelectClass?.(classItem.id, classItem.name);
     setIsClassSheetVisible(false);
   };
 
@@ -715,13 +717,15 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
 
                     <View>
                       <Text style={styles.bentoPrimaryValue}>
-                        {attendanceStats.presentCount}/{attendanceStats.totalCount}
+                        {attendanceStats.totalCount > 0 ? `${attendanceStats.presentCount}/${attendanceStats.totalCount}` : '0/0'}
                       </Text>
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#ECFDF5', borderColor: '#D1FAE5' }]}>
                           <View style={styles.pulsingGreenDot} />
                           <Text style={[styles.statusBadgeText, { color: '#059669' }]}>
-                            Có mặt {Math.round((attendanceStats.presentCount / (attendanceStats.totalCount || 1)) * 100)}%
+                            {attendanceStats.totalCount > 0
+                              ? `Có mặt ${Math.round((attendanceStats.presentCount / attendanceStats.totalCount) * 100)}%`
+                              : 'Chưa có HS'}
                           </Text>
                         </View>
                       </View>
@@ -809,7 +813,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                     <View>
                       <View style={styles.bhytValueRow}>
                         <Text style={styles.bhytNumerator}>
-                          {feesSummary ? `${feesSummary.insurance_paid_count}/${feesSummary.total_students}` : '35/38'}
+                          {feesSummary ? `${feesSummary.insurance_paid_count}/${feesSummary.total_students}` : currentClass.studentsCount > 0 ? `0/${currentClass.studentsCount}` : '0/0'}
                         </Text>
                         <Text style={styles.bhytStatusLabel}>Đã nộp</Text>
                       </View>
@@ -817,7 +821,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                         <View
                           style={[
                             styles.bhytProgressBarFill,
-                            { width: `${feesSummary ? feesSummary.insurance_percent : 92}%` },
+                            { width: `${feesSummary ? feesSummary.insurance_percent : 0}%` },
                           ]}
                         />
                       </View>
@@ -847,7 +851,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
                           <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>
-                            {remarksList.length > 0 ? `${remarksList.length} lời nhắn 💬` : '12 lời nhắn 💬'}
+                            {remarksList.length > 0 ? `${remarksList.length} lời nhắn 💬` : 'Chưa có lời nhắn 💬'}
                           </Text>
                         </View>
                       </View>
@@ -876,7 +880,17 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
                           <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>
-                            {examReminders.length > 0 ? `${examReminders[0].day_number}/${examReminders[0].month_str ? examReminders[0].month_str.replace('Th', '') : '10'} 📅` : '1 sắp tới 📅'}
+                            {examReminders.length > 0 && examReminders[0].exam_date
+                              ? (() => {
+                                  try {
+                                    const parts = examReminders[0].exam_date.split('-');
+                                    if (parts.length === 3) return `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)} 📅`;
+                                  } catch (e) {}
+                                  return `${examReminders[0].exam_date} 📅`;
+                                })()
+                              : examReminders.length > 0
+                              ? `${examReminders.length} sắp tới 📅`
+                              : 'Chưa có lịch 📅'}
                           </Text>
                         </View>
                       </View>
@@ -967,7 +981,9 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <Text style={styles.bentoSubtitleText} numberOfLines={1}>Gửi phụ huynh</Text>
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
-                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>12 lời nhắn</Text>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>
+                            {remarksList.length > 0 ? `${remarksList.length} lời nhắn` : 'Chưa có lời nhắn'}
+                          </Text>
                         </View>
                       </View>
                     </View>
@@ -989,10 +1005,22 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                     </View>
 
                     <View>
-                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Dặn dò ôn thi</Text>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>
+                        {examReminders[0]?.subject_name || 'Dặn dò ôn thi'}
+                      </Text>
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
-                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>1 sắp tới</Text>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>
+                            {examReminders.length > 0 && examReminders[0].exam_date
+                              ? (() => {
+                                  try {
+                                    const parts = examReminders[0].exam_date.split('-');
+                                    if (parts.length === 3) return `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)}`;
+                                  } catch (e) {}
+                                  return examReminders[0].exam_date;
+                                })()
+                              : 'Chưa có lịch'}
+                          </Text>
                         </View>
                       </View>
                     </View>

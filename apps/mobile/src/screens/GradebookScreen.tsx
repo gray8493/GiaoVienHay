@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   TextInput,
   Image,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, {
@@ -26,6 +27,8 @@ import Svg, {
   G,
 } from 'react-native-svg';
 import { gradesService } from '../services/grades.service';
+import { authService } from '../services/auth.service';
+import { classService } from '../services/class.service';
 
 interface StudentGrade {
   id: string;
@@ -41,75 +44,85 @@ interface StudentGrade {
   comment: string;
 }
 
-const INITIAL_STUDENTS: StudentGrade[] = [
-  {
-    id: 'stu_01',
-    rank: 1,
-    name: 'Nguyễn Bảo Ngọc',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAN4XYmMlAh0YS_lyMLmGO8P9P1bDwHguLcbN7mu-aBuWgsD57phwD8LeEPtkUAhaDS7XTnceb15RirVoyJocj8wyb0riW6IotSq961eR3V_lNX1fEjBebvwryY6ibvuoVgfenEAms-P5nnuFvJaEGzHD4mSoEmd4HM7z6t2nFFTe3U3mem-TfCmb7eF3qoNE5HIQnfSKA-ldiQBPluozb6019iFN--H8AVhg_04lY3nYroMgSZ6zpMGw',
-    oral: 9.8,
-    test15p: 9.5,
-    test1p: 9.5,
-    midTerm: 9.6,
-    stars: 120,
-    comment: 'Toàn diện xuất sắc',
-  },
-  {
-    id: 'stu_02',
-    rank: 2,
-    name: 'Nguyễn Hoàng Long',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB7ngoL_pbEWRPLP7MCSynO8vd4J8yCgOKMGFwdBCIB9tcLn6jmqACgO32kA0zU7nzS7IkAwSUjxWETogjg_qf6JdAlkSGR3k_bVzv2gQ8Ob3o56C-gz6Nij0KaGlLqmbgOcgKimh22JxoXO4OpiLPCxLmIrYA-q9HJzwsSVMb_rJVykneuxjfwurW47aG46oh3FRK0HVB6Evv_onh0N-ONCcDWRoSsPU_ebzV6cd9M5PeVOKStDC2Z6g',
-    oral: 9.0,
-    test15p: 9.5,
-    test1p: 9.0,
-    midTerm: 9.0,
-    stars: 15,
-    comment: 'Tích cực phát biểu',
-  },
-  {
-    id: 'stu_03',
-    rank: 3,
-    name: 'Trần Minh Anh',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAi9qRvNkeKtCfOfL6A-bp49DIAaKDBNqNmed4fkAGZzaTPtr6iWv4WCDyHLnXCVkVa_RMw6s-tK24lEPZb0NOpAkYqC2OnoE4BIszgmiMgfnFKGbUUVEu4z0uPgPwGbcceOJH5wDBkIukGzyEu9mpEhPNBuYeqi0-wHSr3SmNu3CFW0oScQOHm1xhpO-PIHsoZu1zNfEewy-9rBCB6_7_vqGeqEMRXQnEK7oT5PUYKvxPBQG3gpx_4lA',
-    oral: 9.0,
-    test15p: 8.8,
-    test1p: null,
-    midTerm: null,
-    stars: 12,
-    comment: 'Hay giúp đỡ bạn',
-  },
-  {
-    id: 'stu_04',
-    rank: 4,
-    name: 'Lê Gia Hưng',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAyPwJxjkLsY5pwvpTN4KF646UipXL651gt3-Usm5n4uQ2AM2FoNxexqYrRv9nOz-ArjFFRsg68mHn2Z1Jb8xEOQUzZb1Y9_5Ayx0uVYQZImtlBwdJe-6vXWfMu6_UVz14vupznHdij6TxbAVoKsXYr_U2MidzxRMzPbKOxvVPZpFgTdmPQmMlHshS4Q5PZTK_5khyqjA6vOEYdxf_-UHjvkAw5rrf9ovFuOIpI_wCz0afsgU4HdRLJzA',
-    oral: 8.5,
-    test15p: 8.0,
-    test1p: 9.0,
-    midTerm: null,
-    stars: 10,
-    comment: 'Chăm chỉ bài tập',
-  },
-];
-
 interface GradebookScreenProps {
   currentClassId?: string;
+  className?: string;
   onBackToHome?: () => void;
   onTabChange?: (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => void;
 }
 
 export const GradebookScreen: React.FC<GradebookScreenProps> = ({
-  currentClassId = 'cls_6a1',
+  currentClassId = 'cls_1a_2026',
+  className = 'Lớp 1A',
   onBackToHome,
   onTabChange,
 }) => {
-  const [students, setStudents] = useState<StudentGrade[]>(INITIAL_STUDENTS);
+  const [students, setStudents] = useState<StudentGrade[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedSegment, setSelectedSegment] = useState<'all' | 'good' | 'fair' | 'need_effort'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Quản lý môn học & chế độ Xem (Visibility / Read-only) theo Backend & phân quyền
   const [selectedSubject, setSelectedSubject] = useState<'MATH' | 'LIT' | 'CS'>('MATH');
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    loadGradebookData();
+  }, [currentClassId, selectedSubject]);
+
+  const loadGradebookData = async () => {
+    setIsLoading(true);
+    try {
+      const [gradesRes, lbRes, classDetail] = await Promise.all([
+        gradesService.getClassGrades(currentClassId, selectedSubject).catch(() => null),
+        gradesService.getLeaderboard(currentClassId, selectedSubject).catch(() => null),
+        classService.getClassDetail(currentClassId).catch(() => null),
+      ]);
+
+      if (lbRes && lbRes.top_students && lbRes.top_students.length > 0) {
+        setLeaderboard(lbRes.top_students);
+      } else {
+        setLeaderboard([]);
+      }
+
+      if (classDetail && classDetail.students && classDetail.students.length > 0) {
+        const mapped: StudentGrade[] = classDetail.students.map((s: any, idx: number) => {
+          const studentScores = Array.isArray(gradesRes)
+            ? gradesRes.find((g: any) => g.student_id === s.id)?.scores || []
+            : [];
+          const oral = studentScores.find((sc: any) => sc.type === 'ORAL_TEST')?.value ?? null;
+          const test15p = studentScores.find((sc: any) => sc.type === 'TEST_15P')?.value ?? null;
+          const test1p = studentScores.find((sc: any) => sc.type === 'TEST_1P')?.value ?? null;
+          const midTerm = studentScores.find((sc: any) => sc.type === 'MID_TERM')?.value ?? null;
+          const finalScore = studentScores.find((sc: any) => sc.type === 'FINAL')?.value ?? null;
+          const comment = studentScores[0]?.comment || 'Chăm ngoan';
+
+          return {
+            id: s.id,
+            rank: idx + 1,
+            name: s.full_name || s.name || `Học sinh ${idx + 1}`,
+            avatar: `https://api.dicebear.com/7.x/bottts/png?seed=${s.id}`,
+            oral,
+            test15p,
+            test1p,
+            midTerm,
+            final: finalScore,
+            stars: 10 + (idx % 5) * 5,
+            comment,
+          };
+        });
+        setStudents(mapped);
+      } else {
+        setStudents([]);
+      }
+    } catch (e) {
+      setStudents([]);
+      setLeaderboard([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Môn 'LIT' (Ngữ Văn) do GV khác dạy => GVCN chỉ có quyền xem (Read-only)
   const isReadOnly = selectedSubject === 'LIT' || isPreviewMode;
@@ -434,7 +447,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             </View>
             <View>
               <Text style={styles.greetingText}>Xin chào,</Text>
-              <Text style={styles.teacherNameText}>Cô Nguyễn Thu Hà</Text>
+              <Text style={styles.teacherNameText}>{authService.getUser()?.full_name || 'Thầy/Cô'}</Text>
             </View>
           </View>
 
@@ -502,11 +515,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             {/* Chip 1: Class (fixed badge pill) */}
             <View style={styles.classChipFixed}>
               <Text style={styles.classChipFixedText}>
-                {currentClassId === 'cls_6a2'
-                  ? 'Lớp 6A2'
-                  : currentClassId === 'cls_6a3'
-                  ? 'Lớp 6A3'
-                  : 'Lớp 6A1'}
+                {className || (currentClassId === 'cls_1a_2026' ? 'Lớp 1A' : currentClassId.replace('cls_', 'Lớp ').toUpperCase())}
               </Text>
             </View>
 
@@ -570,73 +579,75 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             </View>
 
             {/* 3 Pillars */}
-            <View style={styles.podiumGrid}>
-              {/* Rank 2: Hoàng Long */}
-              <View style={styles.podiumCol}>
-                <View style={styles.podiumAvatarWrap}>
-                  <Image
-                    source={{
-                      uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD1T89ldUCu91qNyOe5l_mf-jHDD_MHVfYxPQX-5dugu0Zo_TnDF2SP7zhn6AbEreyWGcReZrQyjU7v6BJjnW5rb7Air4XhYqD_pdGsLiDyt7moEDkNBpUd_9Q_CLvtjTAViAM7yFTmidv8B7rIo1w1iyYt9-qGcowZ35Lj3m5k9B8a39cBy6Z7x3_i6vmHyMLpcvcJlPAzcHc6uhr3mjQW727psowj5Ae4TpVkjgLLVCjNopROlPL3fA',
-                    }}
-                    style={styles.podiumAvatarImgSmall}
-                  />
-                  <View style={styles.rankPillWhite}>
-                    <Text style={styles.rankPillText}>2</Text>
+            {leaderboard.length >= 3 ? (
+              <View style={styles.podiumGrid}>
+                {/* Rank 2 */}
+                <View style={styles.podiumCol}>
+                  <View style={styles.podiumAvatarWrap}>
+                    <Image
+                      source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[1].student_name}` }}
+                      style={styles.podiumAvatarImgSmall}
+                    />
+                    <View style={styles.rankPillWhite}>
+                      <Text style={styles.rankPillText}>2</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.podiumStudentName} numberOfLines={1}>{leaderboard[1].student_name}</Text>
+                  <Text style={styles.podiumStudentScore}>TB: {leaderboard[1].score}</Text>
+                  <View style={styles.podiumPillar2}>
+                    <Text style={styles.pillarRankLabel}>HẠNG 2</Text>
+                    <Text style={styles.medalEmoji}>🥈</Text>
                   </View>
                 </View>
-                <Text style={styles.podiumStudentName} numberOfLines={1}>Hoàng Long</Text>
-                <Text style={styles.podiumStudentScore}>TB: 9.2</Text>
-                <View style={styles.podiumPillar2}>
-                  <Text style={styles.pillarRankLabel}>HẠNG 2</Text>
-                  <Text style={styles.medalEmoji}>🥈</Text>
-                </View>
-              </View>
 
-              {/* Rank 1: Bảo Ngọc (Quán Quân) */}
-              <View style={styles.podiumColCenter}>
-                <View style={styles.crownWrap}>
-                  <Text style={styles.crownEmoji}>👑</Text>
-                </View>
-                <View style={styles.podiumAvatarWrap}>
-                  <Image
-                    source={{
-                      uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAN4XYmMlAh0YS_lyMLmGO8P9P1bDwHguLcbN7mu-aBuWgsD57phwD8LeEPtkUAhaDS7XTnceb15RirVoyJocj8wyb0riW6IotSq961eR3V_lNX1fEjBebvwryY6ibvuoVgfenEAms-P5nnuFvJaEGzHD4mSoEmd4HM7z6t2nFFTe3U3mem-TfCmb7eF3qoNE5HIQnfSKA-ldiQBPluozb6019iFN--H8AVhg_04lY3nYroMgSZ6zpMGw',
-                    }}
-                    style={styles.podiumAvatarImgLarge}
-                  />
-                  <View style={styles.rankPillOrange}>
-                    <Text style={styles.rankPillTextWhite}>1</Text>
+                {/* Rank 1: Quán Quân */}
+                <View style={styles.podiumColCenter}>
+                  <View style={styles.crownWrap}>
+                    <Text style={styles.crownEmoji}>👑</Text>
+                  </View>
+                  <View style={styles.podiumAvatarWrap}>
+                    <Image
+                      source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[0].student_name}` }}
+                      style={styles.podiumAvatarImgLarge}
+                    />
+                    <View style={styles.rankPillOrange}>
+                      <Text style={styles.rankPillTextWhite}>1</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.podiumStudentName} numberOfLines={1}>{leaderboard[0].student_name}</Text>
+                  <Text style={styles.podiumStudentScoreCenter}>TB: {leaderboard[0].score}</Text>
+                  <View style={styles.podiumPillar1}>
+                    <Text style={styles.pillarRankLabelChampion}>QUÁN QUÂN</Text>
+                    <Text style={styles.starCluster}>⭐⭐⭐</Text>
                   </View>
                 </View>
-                <Text style={styles.podiumStudentName} numberOfLines={1}>Bảo Ngọc</Text>
-                <Text style={styles.podiumStudentScoreCenter}>TB: 9.6 • 120 sao</Text>
-                <View style={styles.podiumPillar1}>
-                  <Text style={styles.pillarRankLabelChampion}>QUÁN QUÂN</Text>
-                  <Text style={styles.starCluster}>⭐⭐⭐</Text>
-                </View>
-              </View>
 
-              {/* Rank 3: Minh Anh */}
-              <View style={styles.podiumCol}>
-                <View style={styles.podiumAvatarWrap}>
-                  <Image
-                    source={{
-                      uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCG7KKLwX8p1yJXHC-LmrkDa8PSi5EvMmSb08bzN5dYC0hK81pvZXl0ywfdZefX7zvf5xhtZ6JZsc3REi53S9000QnW14URUhuatnR54ijleCq6rELTJe4WLyjSeepjZM6-3WmaKgQ0Dn5qo48Fgp5Kb6qrky9iWdQki2XfcktOhCAJF0RidlpRVmqiNJYGNXNKofeUboDkO2dUI2CDqzDgwRaPSFblYtTjs8ivOXM0zvp0U4neqBEJ0w',
-                    }}
-                    style={styles.podiumAvatarImgSmall}
-                  />
-                  <View style={styles.rankPillWhite}>
-                    <Text style={styles.rankPillText}>3</Text>
+                {/* Rank 3 */}
+                <View style={styles.podiumCol}>
+                  <View style={styles.podiumAvatarWrap}>
+                    <Image
+                      source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[2].student_name}` }}
+                      style={styles.podiumAvatarImgSmall}
+                    />
+                    <View style={styles.rankPillWhite}>
+                      <Text style={styles.rankPillText}>3</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.podiumStudentName} numberOfLines={1}>{leaderboard[2].student_name}</Text>
+                  <Text style={styles.podiumStudentScore}>TB: {leaderboard[2].score}</Text>
+                  <View style={styles.podiumPillar3}>
+                    <Text style={styles.pillarRankLabel}>HẠNG 3</Text>
+                    <Text style={styles.medalEmoji}>🥉</Text>
                   </View>
                 </View>
-                <Text style={styles.podiumStudentName} numberOfLines={1}>Minh Anh</Text>
-                <Text style={styles.podiumStudentScore}>TB: 8.9</Text>
-                <View style={styles.podiumPillar3}>
-                  <Text style={styles.pillarRankLabel}>HẠNG 3</Text>
-                  <Text style={styles.medalEmoji}>🥉</Text>
-                </View>
               </View>
-            </View>
+            ) : (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: '#FFFFFF', opacity: 0.9 }}>
+                  Chưa có dữ liệu vinh danh tuần này cho môn học.
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Search Bar */}
@@ -662,7 +673,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
               activeOpacity={0.8}
             >
               <Text style={[styles.segmentText, selectedSegment === 'all' && styles.segmentTextActive]}>
-                Tất cả (40)
+                Tất cả ({students.length})
               </Text>
             </TouchableOpacity>
 
@@ -673,7 +684,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             >
               <View style={styles.grayBullet} />
               <Text style={[styles.segmentText, selectedSegment === 'good' && styles.segmentTextActive]}>
-                Giỏi (18)
+                Giỏi ({students.filter(s => (s.test15p || s.oral || s.test1p || 0) >= 8.0).length})
               </Text>
             </TouchableOpacity>
 
@@ -684,7 +695,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             >
               <View style={styles.grayBullet} />
               <Text style={[styles.segmentText, selectedSegment === 'fair' && styles.segmentTextActive]}>
-                Khá (16)
+                Khá ({students.filter(s => { const a = (s.test15p || s.oral || s.test1p || 0); return a >= 6.5 && a < 8.0; }).length})
               </Text>
             </TouchableOpacity>
 
@@ -695,14 +706,33 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             >
               <View style={styles.grayBullet} />
               <Text style={[styles.segmentText, selectedSegment === 'need_effort' && styles.segmentTextActive]}>
-                Cần cố gắng (6)
+                Cần cố gắng ({students.filter(s => (s.test15p || s.oral || s.test1p || 0) < 6.5).length})
               </Text>
             </TouchableOpacity>
           </ScrollView>
 
           {/* Student Grade Cards Feed */}
           <View style={styles.studentsGradeFeed}>
-            {students.map((student) => (
+            {students.length === 0 ? (
+              <View style={{ padding: 32, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E1B2E', marginBottom: 6 }}>
+                  {searchQuery ? 'Không tìm thấy học sinh phù hợp' : 'Chưa có dữ liệu sổ điểm'}
+                </Text>
+                <Text style={{ fontSize: 13, color: '#6B6880', textAlign: 'center' }}>
+                  {searchQuery ? 'Vui lòng kiểm tra lại từ khóa tìm kiếm' : 'Lớp học chưa có học sinh hoặc chưa có dữ liệu điểm môn này.'}
+                </Text>
+              </View>
+            ) : (
+              (selectedSegment === 'good'
+                ? students.filter(s => (s.test15p || s.oral || s.test1p || 0) >= 8.0)
+                : selectedSegment === 'fair'
+                ? students.filter(s => { const a = (s.test15p || s.oral || s.test1p || 0); return a >= 6.5 && a < 8.0; })
+                : selectedSegment === 'need_effort'
+                ? students.filter(s => (s.test15p || s.oral || s.test1p || 0) < 6.5)
+                : students
+              )
+                .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map((student) => (
               <View key={student.id} style={styles.studentGradeCard}>
                 {/* Header row: rank & avatar & name */}
                 <View style={styles.studentCardHeader}>

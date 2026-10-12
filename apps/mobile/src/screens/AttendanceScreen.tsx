@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -27,9 +27,11 @@ import {
   AttendanceStatus,
   AttendanceRecordItem,
 } from '../services/attendance.service';
+import { classService } from '../services/class.service';
 
 export interface StudentAttendance {
   id: number;
+  student_id?: string;
   code: string;
   name: string;
   initials: string;
@@ -55,69 +57,6 @@ export interface AttendanceSavedData {
   }>;
 }
 
-const INITIAL_STUDENTS: StudentAttendance[] = [
-  {
-    id: 1,
-    code: 'HS240101',
-    name: 'Nguyễn Minh Anh',
-    initials: 'MA',
-    status: 'present',
-  },
-  {
-    id: 2,
-    code: 'HS240102',
-    name: 'Trần Bảo Nam',
-    initials: 'BN',
-    status: 'absent',
-    excused: true,
-    reason: 'Bị sốt, mẹ xin phép',
-  },
-  {
-    id: 3,
-    code: 'HS240103',
-    name: 'Lê Thị Cẩm Tú',
-    initials: 'CT',
-    status: 'present',
-  },
-  {
-    id: 4,
-    code: 'HS240104',
-    name: 'Phạm Hoàng Nam',
-    initials: 'HN',
-    status: 'absent',
-    excused: false,
-    reason: '',
-  },
-  {
-    id: 5,
-    code: 'HS240105',
-    name: 'Võ Khánh Linh',
-    initials: 'KL',
-    status: 'present',
-  },
-  {
-    id: 6,
-    code: 'HS240106',
-    name: 'Đặng Quốc Huy',
-    initials: 'QH',
-    status: 'present',
-  },
-  {
-    id: 7,
-    code: 'HS240107',
-    name: 'Hoàng Hải Đăng',
-    initials: 'HĐ',
-    status: 'present',
-  },
-  {
-    id: 8,
-    code: 'HS240108',
-    name: 'Bùi Thanh Trúc',
-    initials: 'TT',
-    status: 'present',
-  },
-];
-
 interface AttendanceScreenProps {
   classId?: string;
   className?: string;
@@ -131,12 +70,47 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
   onBack,
   onSaveSuccess,
 }) => {
-  const [students, setStudents] = useState<StudentAttendance[]>(INITIAL_STUDENTS);
+  const [students, setStudents] = useState<StudentAttendance[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const totalCount = 38;
+  useEffect(() => {
+    loadClassStudents();
+  }, [classId]);
+
+  const loadClassStudents = async () => {
+    setIsLoading(true);
+    try {
+      const detail = await classService.getClassDetail(classId);
+      if (detail && detail.students && detail.students.length > 0) {
+        const mapped: StudentAttendance[] = detail.students.map((s, idx) => {
+          const parts = (s.full_name || s.name || '').trim().split(' ');
+          const initials = parts.length > 1
+            ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+            : (parts[0]?.substring(0, 2) || 'HS').toUpperCase();
+          return {
+            id: idx + 1,
+            student_id: s.id,
+            code: s.student_code || `HS${String(idx + 1).padStart(4, '0')}`,
+            name: s.full_name || s.name || 'Học sinh',
+            initials,
+            status: 'present',
+          };
+        });
+        setStudents(mapped);
+      } else {
+        setStudents([]);
+      }
+    } catch (e) {
+      setStudents([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const totalCount = students.length;
   const absentCount = students.filter((s) => s.status === 'absent').length;
   const presentCount = totalCount - absentCount;
 
@@ -181,7 +155,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
 
     try {
       const records: AttendanceRecordItem[] = students.map((s) => ({
-        student_id: s.id < 10 ? `stu_0${s.id}` : `stu_${s.id}`,
+        student_id: s.student_id || (s.id < 10 ? `stu_0${s.id}` : `stu_${s.id}`),
         status:
           s.status === 'present'
             ? AttendanceStatus.PRESENT
@@ -318,7 +292,9 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
                     <Line x1={8} y1={2} x2={8} y2={6} />
                     <Line x1={3} y1={10} x2={21} y2={10} />
                   </Svg>
-                  <Text style={styles.datePillText}>Thứ Năm, 08/10/2026</Text>
+                  <Text style={styles.datePillText}>
+                    {new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -447,7 +423,17 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
 
             {/* List of Students */}
             <View style={styles.studentsContainer}>
-              {filteredStudents.map((student, index) => {
+              {filteredStudents.length === 0 ? (
+                <View style={{ padding: 32, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E1B2E', marginBottom: 6 }}>
+                    {searchQuery ? 'Không tìm thấy học sinh phù hợp' : 'Lớp chưa có học sinh'}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#6B6880', textAlign: 'center' }}>
+                    {searchQuery ? 'Vui lòng kiểm tra lại từ khóa tìm kiếm' : 'Lớp học này chưa có danh sách học sinh để thực hiện điểm danh.'}
+                  </Text>
+                </View>
+              ) : (
+                filteredStudents.map((student, index) => {
                 const formattedIndex = String(student.id).padStart(2, '0');
                 const isPresent = student.status === 'present';
 
@@ -560,13 +546,6 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
                 );
               })}
             </View>
-
-            {/* Footer indicator */}
-            <View style={styles.listFooterNote}>
-              <Text style={styles.listFooterNoteText}>
-                +30 học sinh khác trong danh sách
-              </Text>
-            </View>
           </View>
         </ScrollView>
 
@@ -584,10 +563,10 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
 
           {/* Main Action CTA Button: "Lưu & Báo Phụ Huynh" */}
           <TouchableOpacity
-            style={styles.btnSaveAttendance}
+            style={[styles.btnSaveAttendance, totalCount === 0 && { opacity: 0.5 }]}
             onPress={handleSaveAttendance}
             activeOpacity={0.88}
-            disabled={isSubmitting}
+            disabled={isSubmitting || totalCount === 0}
           >
             {isSubmitting ? (
               <ActivityIndicator color="#FFFFFF" size="small" />

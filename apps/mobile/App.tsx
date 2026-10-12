@@ -66,6 +66,7 @@ type ScreenKey =
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('login');
   const [currentClassId, setCurrentClassId] = useState<string>('cls_1a_2026');
+  const [currentClassName, setCurrentClassName] = useState<string>('Lớp 1A');
   const [currentStudentId, setCurrentStudentId] = useState<string>('stu_02');
   const [remarksInitialTab, setRemarksInitialTab] = useState<'REMARKS' | 'EXAMS'>('REMARKS');
   const [selectedRole, setSelectedRole] = useState<'TEACHER' | 'PARENT'>('TEACHER');
@@ -733,6 +734,8 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <AttendanceScreen
+              classId={currentClassId}
+              className={currentClassName}
               onBack={() => setCurrentScreen('teacher_home')}
               onSaveSuccess={(data) => {
                 setAttendanceData(data);
@@ -891,7 +894,7 @@ export default function App() {
             {currentScreen === 'wheel' && (
               <WheelScreen
                 currentClassId={currentClassId}
-                className={currentClassId === 'cls_6a2' ? 'Lớp 6A2' : currentClassId === 'cls_6a3' ? 'Lớp 6A3' : 'Lớp 6A1'}
+                className={currentClassName}
                 subjectName={currentClassId === 'cls_6a2' ? 'Toán Đại' : currentClassId === 'cls_6a3' ? 'Tin Học' : 'Toán Hình'}
                 onBack={() => setCurrentScreen('teacher_home')}
                 onGoHome={() => setCurrentScreen('teacher_home')}
@@ -900,7 +903,10 @@ export default function App() {
             {currentScreen === 'teacher_home' && (
               <TeacherHomeScreen
                 currentClassId={currentClassId}
-                onSelectClass={(clsId) => setCurrentClassId(clsId)}
+                onSelectClass={(clsId, clsName) => {
+                  setCurrentClassId(clsId);
+                  if (clsName) setCurrentClassName(clsName);
+                }}
                 onEnterClassroom={() => setCurrentScreen('attendance')}
                 onOpenAIQuiz={() => setCurrentScreen('quiz_gen')}
                 onOpenWheel={() => setCurrentScreen('wheel')}
@@ -922,8 +928,9 @@ export default function App() {
               <TeacherHomeScreen
                 hasNoClass={true}
                 currentClassId="cls_empty"
-                onSelectClass={(clsId) => {
+                onSelectClass={(clsId, clsName) => {
                   setCurrentClassId(clsId);
+                  if (clsName) setCurrentClassName(clsName);
                   setCurrentScreen('teacher_home');
                 }}
                 onEnterClassroom={() => setCurrentScreen('attendance')}
@@ -963,7 +970,7 @@ export default function App() {
             {currentScreen === 'attendance' && (
               <AttendanceScreen
                 classId={currentClassId}
-                className={currentClassId === 'cls_6a2' ? 'Lớp 6A2' : currentClassId === 'cls_6a3' ? 'Lớp 6A3' : 'Lớp 6A1'}
+                className={currentClassName}
                 onBack={() => setCurrentScreen('teacher_home')}
                 onSaveSuccess={(data) => {
                   setAttendanceData(data);
@@ -981,6 +988,7 @@ export default function App() {
             {currentScreen === 'gradebook' && (
               <GradebookScreen
                 currentClassId={currentClassId}
+                className={currentClassName}
                 onBackToHome={() => setCurrentScreen('teacher_home')}
                 onTabChange={(tab) => {
                   if (tab === 'schedule') setCurrentScreen('teacher_home');

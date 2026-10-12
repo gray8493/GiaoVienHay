@@ -50,12 +50,12 @@ export const userService = {
         if (user && user.id) {
           return {
             id: user.id,
-            phone: user.phone || '0988 888 888',
-            full_name: user.full_name || 'Quản trị viên Hệ thống',
-            email: user.email || 'admin@giaovienhay.vn',
-            role: user.role || 'ADMIN',
-            school_name: user.school_name || 'Trường Tiểu Học Chu Văn An',
-            teaching_subjects: user.teaching_subjects || ['Toán', 'Tiếng Việt'],
+            phone: user.phone || '',
+            full_name: user.full_name || 'Người dùng',
+            email: user.email || '',
+            role: user.role || 'TEACHER_HOMEROOM',
+            school_name: user.school_name || 'Chưa cập nhật',
+            teaching_subjects: user.teaching_subjects || [],
           };
         }
       }
@@ -65,14 +65,14 @@ export const userService = {
 
     const cachedUser = authService.getUser();
     return {
-      id: cachedUser?.id || 'usr_01',
-      phone: cachedUser?.phone || '0988 888 888',
-      full_name: cachedUser?.full_name || 'Cô Nguyễn Thị Lan',
-      email: cachedUser?.email || 'lan.nguyen@chuvanan.edu.vn',
+      id: cachedUser?.id || '',
+      phone: cachedUser?.phone || '',
+      full_name: cachedUser?.full_name || 'Người dùng',
+      email: cachedUser?.email || '',
       role: cachedUser?.role || 'TEACHER_HOMEROOM',
-      homeroom_class: '1A',
-      school_name: cachedUser?.school_name || 'Trường Tiểu Học Chu Văn An',
-      teaching_subjects: cachedUser?.teaching_subjects || ['Toán', 'Tiếng Việt'],
+      homeroom_class: '',
+      school_name: cachedUser?.school_name || 'Chưa cập nhật',
+      teaching_subjects: cachedUser?.teaching_subjects || [],
     };
   },
 

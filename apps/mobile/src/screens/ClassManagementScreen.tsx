@@ -42,10 +42,10 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
   const [copiedToast, setCopiedToast] = useState(false);
 
   // Form State Thêm học sinh
-  const [formName, setFormName] = useState('Ngô Thanh Mai');
-  const [formDob, setFormDob] = useState('15/06/2014');
+  const [formName, setFormName] = useState('');
+  const [formDob, setFormDob] = useState('');
   const [formGender, setFormGender] = useState<'MALE' | 'FEMALE'>('FEMALE');
-  const [formPhone, setFormPhone] = useState('0912 888 999');
+  const [formPhone, setFormPhone] = useState('');
 
   useEffect(() => {
     loadClassData();
