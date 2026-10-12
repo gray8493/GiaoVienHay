@@ -4,14 +4,13 @@
 ---
 
 ## 1. Tổng quan & Định vị sản phẩm
-
-**GiaoVienHay** là giải pháp phần mềm chuyên biệt phục vụ công tác quản trị và giảng dạy tại các trường Tiểu học (Cấp 1) và THCS (Cấp 2). Hệ thống tập trung tối ưu năng suất cho **Giáo viên chủ nhiệm (GVCN)** và **Giáo viên bộ môn (GVBM)** trong các nghiệp vụ hàng ngày: dò bài cũ, tạo mini-game tương tác lớp học bằng AI, điểm danh chuyên cần, đôn đốc BHYT/học phí và kết nối trực tiếp với phụ huynh.
+**GiaoVienHay** là giải pháp phần mềm chuyên biệt phục vụ công tác quản trị và giảng dạy tại các trường Tiểu học (Cấp 1) và THCS (Cấp 2). Hệ thống tập trung tối ưu năng suất cho **Giáo viên chủ nhiệm (GVCN)** và **Giáo viên bộ môn (GVBM)** trong các nghiệp vụ hàng ngày: dò bài cũ, tạo mini-game tương tác lớp học bằng AI, điểm danh chuyên cần, đôn đốc BHYT/học phí và kết nối trực tiếp với phụ huynh. Nền tảng được xây dựng trên hệ sinh thái **Supabase (PostgreSQL)** để đảm bảo tính toàn vẹn dữ liệu và hiệu năng truy vấn cao.
 
 ---
 
 ## 2. Yêu Cầu Chức Năng Cốt Lõi (Functional Requirements - FR)
 
-### FR-01: Quản lý Phân quyền Chi tiết (RBAC Guard in NestJS)
+### FR-01: Quản lý Phân quyền Chi tiết (RBAC Guard in NestJS & Supabase RLS)
 - **FR-01.1:** Phân quyền chuẩn xác giữa 4 nhóm vai trò:
   - `ADMIN`: Quản trị viên nền tảng (Platform Admin), chỉ đảm nhiệm CRUD dữ liệu/tài khoản, Ban (khóa/mở khóa tài khoản) và cấu hình Limit (hạn mức tạo lớp, số học sinh, hạn ngạch AI).
   - `TEACHER_HOMEROOM` (GVCN): **Thiết lập hồ sơ chọn 1 hoặc nhiều môn trực tiếp giảng dạy** + Tự tạo lớp tổng, thêm học sinh, chia sẻ link mời vào lớp + Toàn bộ quyền giảng dạy (dò bài, nhập điểm, tạo game AI, quay random) + Quản lý điểm danh nề nếp, BHYT & học phí, nhận xét học sinh.
@@ -28,12 +27,12 @@
   - Phụ huynh nhấp vào link mời do GVCN chia sẻ, đăng nhập ứng dụng qua SMS OTP/Email, chọn đúng tên con em mình trong danh sách lớp để hoàn tất liên kết.
 
 ### FR-02: Import Docs/PDF bằng AI (Gemini API) Sinh Câu Hỏi Kiểm Tra Bài Cũ
-- **FR-02.1:** Cho phép giáo viên (cả GVCN và GVBM) tải lên tài liệu giáo trình bài học (`.docx`, `.pdf`).
+- **FR-02.1:** Cho phép giáo viên (cả GVCN và GVBM) tải lên tài liệu giáo trình bài học (`.docx`, `.pdf`) lưu trữ trên **Supabase Storage**.
 - **FR-02.2 (Chủ động chọn Số câu & Độ khó):** Giáo viên chủ động chọn:
   - **Số lượng câu hỏi:** Tùy chọn (3, 5, 10... câu).
   - **Độ khó câu hỏi:** Dễ (`EASY`), Vừa (`MEDIUM`), Khó (`HARD`), hoặc Phân hóa hỗn hợp (`MIXED`).
   - Backend NestJS tích hợp **Google Gemini API** (`gemini-1.5-flash`) tự động trích xuất nội dung và sinh đúng bộ câu hỏi trắc nghiệm tương ứng.
-- **FR-02.3:** Lưu trữ câu hỏi vào Firestore collections `/quizzes` và subcollection `/questions`, hỗ trợ chế độ xem trước (preview) và chỉnh sửa nội dung/đáp án.
+- **FR-02.3:** Lưu trữ câu hỏi vào các bảng `quizzes` và `questions` trong PostgreSQL, hỗ trợ chế độ xem trước (preview) và chỉnh sửa nội dung/đáp án.
 - **FR-02.4 (Linh hoạt 2 Chế độ trình chiếu tại lớp):**
   - **Chế độ 1 - Quiz Trắc Nghiệm Tiêu Chuẩn:** Trình chiếu slide câu hỏi từng câu (kèm đồng hồ đếm ngược), kết hợp **Vòng quay may mắn (Lucky Wheel)** để bốc ngẫu nhiên học sinh lên bảng (có nút **Bỏ qua - Skip** nếu trúng bạn nghỉ học).
   - **Chế độ 2 - Chế độ Game Tương Tác:** Nếu không muốn dùng giao diện Quiz thông thường, Giáo viên chuyển sang **Chế độ Game** và lựa chọn 1 trong 3 Mini-game lớp học: *Rung Chuông Vàng*, *Đua Xe*, *Hộp Quà Bí Mật*.
@@ -50,18 +49,18 @@
   - Sau khi Giáo viên nhập điểm môn học, hệ thống sắp xếp thứ hạng điểm cao nhất và cho phép Giáo viên trình chiếu **Bảng Xếp Hạng Điểm Môn Học** lên máy chiếu / bảng lớp:
     + Vinh danh Top học sinh đạt điểm cao nhất của môn học (Top 1, Top 2, Top 3) kèm hiệu ứng chúc mừng hoa điểm mười.
     + Thống kê phổ điểm và danh sách thứ hạng môn học trong lớp để học sinh cùng cố gắng học tập.
-  - Giáo viên có quyền điều chỉnh điểm và phê duyệt công bố điểm vào sổ điểm chính thức (`/scores`) để phụ huynh xem được.
+  - Giáo viên có quyền điều chỉnh điểm và phê duyệt công bố điểm vào sổ điểm chính thức (`scores`) để phụ huynh xem được.
 
 ### FR-04: Dò Bài Cũ & Vòng Quay / Random Học Sinh Lên Bảng
 - **FR-04.1:** Giao diện Vòng quay may mắn (Lucky Wheel) sinh động trên App React Native (hỗ trợ Máy tính bảng / Điện thoại) có hiệu ứng âm thanh, tối ưu chiếu lên máy chiếu/bảng thông minh phòng học.
 - **FR-04.2 (Nút Bỏ qua thông minh):** Nếu quay trúng bạn nào nghỉ học hoặc vắng mặt/không thể lên bảng, Giáo viên chỉ cần bấm nút **"Bỏ qua (Skip)"**, hệ thống lập tức quay vòng mới để chọn học sinh khác.
-- **FR-04.3:** Cho phép giáo viên chấm điểm trực tiếp tại chỗ và lưu vào collection `/scores` của môn học đang dạy.
+- **FR-04.3:** Cho phép giáo viên chấm điểm trực tiếp tại chỗ và lưu vào bảng `scores` của môn học đang dạy.
 
 ### FR-05: Quản lý Học Phí & Bảo Hiểm Y Tế (BHYT) - Không có cổng thanh toán online
-- **FR-05.1:** Quản lý theo dõi trực tiếp trong collection `/fees_and_insurance` với 2 cờ boolean kèm ngày nộp cụ thể:
-  - `is_paid_tuition`: Trạng thái đã nộp học phí kèm ngày nộp `tuition_paid_date` (YYYY-MM-DD) và mốc thời gian `tuition_paid_at`.
-  - `is_paid_insurance`: Trạng thái đã nộp tiền BHYT học sinh kèm ngày nộp `insurance_paid_date` (YYYY-MM-DD) và mốc thời gian `insurance_paid_at`.
-- **FR-05.2:** Giao diện tích chọn 1-chạm (checkbox) cho GVCN/Nhà trường khi phụ huynh nộp trực tiếp tại trường/lớp (hệ thống tự động ghi nhận ngày nộp hiện tại hoặc cho phép GVCN điều chỉnh ngày thực tế). Hệ thống hoàn toàn không tích hợp cổng thanh toán trực tuyến.
+- **FR-05.1:** Quản lý theo dõi trực tiếp trong bảng `fees_and_insurance` với 2 cờ boolean kèm ngày nộp cụ thể:
+  - `is_paid_tuition`: Trạng thái đã nộp học phí kèm ngày nộp `tuition_paid_date` (YYYY-MM-DD).
+  - `is_paid_insurance`: Trạng thái đã nộp tiền BHYT học sinh kèm ngày nộp `insurance_paid_date` (YYYY-MM-DD).
+- **FR-05.2:** Giao diện tích chọn 1-chạm (checkbox) cho GVCN/Nhà trường khi phụ huynh nộp trực tiếp tại trường/lớp. Hệ thống hoàn toàn không tích hợp cổng thanh toán trực tuyến.
 - **FR-05.3:** Hỗ trợ tính năng lọc nhanh danh sách chưa nộp BHYT và phát thông báo nhắc nhở tức thời (Push Notification FCM) đến phụ huynh.
 
 ### FR-06: Điểm Danh Chuyên Cần & Báo Cáo Sĩ Số
@@ -84,7 +83,7 @@
   - Cho phép Giáo viên (cả GVCN và GVBM) nhập lời nhận xét ngắn gọn (đoạn text ngắn) cho từng học sinh về tinh thần học tập, nề nếp hoặc kết quả bài làm.
   - Hệ thống thuần túy sử dụng văn bản ngắn, không dùng hệ thống thẻ nhãn tags rườm rà.
 - **FR-08.2 (Đồng bộ tức thì tới Sổ liên lạc Phụ huynh):**
-  - Nhận xét dạng text được lưu vào collection `/remarks` và tự động gửi thông báo đẩy (FCM) đến ứng dụng của Phụ huynh.
+  - Nhận xét dạng text được lưu vào bảng `remarks` và tự động gửi thông báo đẩy (FCM) đến ứng dụng của Phụ huynh.
   - Phụ huynh có thể xem lời nhận xét chi tiết và xác nhận đã đọc trên ứng dụng di động.
 
 ### FR-09: Tạo Lời Nhắc Lịch Kiểm Tra Cho Phụ Huynh Đôn Đốc Con
@@ -92,6 +91,5 @@
   - Cho phép Giáo viên (cả GVBM và GVCN) tạo thông báo lịch kiểm tra sắp tới (15 phút, 1 tiết, Giữa kỳ, Cuối kỳ) cho lớp học.
   - Thông tin bao gồm: Môn học, Loại bài kiểm tra, Ngày diễn ra kiểm tra, Lời dặn dò/hướng dẫn trọng tâm ôn tập.
 - **FR-09.2 (Đẩy thông báo tức thì qua FCM):**
-  - Hệ thống lưu thông tin vào collection `/exam_reminders` và tự động gửi thông báo đẩy (FCM) đến điện thoại của toàn bộ Phụ huynh trong lớp.
+  - Hệ thống lưu thông tin vào bảng `exam_reminders` và tự động gửi thông báo đẩy (FCM) đến điện thoại của toàn bộ Phụ huynh trong lớp.
   - Phụ huynh nhận thông báo, mở ứng dụng xem chi tiết để kịp thời đôn đốc, nhắc nhở con em ôn bài ở nhà.
-

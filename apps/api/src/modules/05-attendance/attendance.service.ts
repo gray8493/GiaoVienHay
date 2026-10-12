@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   Logger,
   Inject,
@@ -10,7 +10,7 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 import { SubmitAttendanceDto } from './dto/attendance.dto';
 import { AttendanceStatus, NotificationType } from '@giaovienhay/shared-types';
 

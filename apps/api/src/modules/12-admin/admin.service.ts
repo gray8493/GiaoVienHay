@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 import {
   AdminCreateUserDto,
   UpdateAdminUserDto,

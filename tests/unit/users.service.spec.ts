@@ -1,4 +1,4 @@
-jest.mock('@nestjs/cache-manager', () => ({
+﻿jest.mock('@nestjs/cache-manager', () => ({
   CACHE_MANAGER: 'CACHE_MANAGER',
 }));
 
@@ -6,7 +6,7 @@ import { NotFoundException, ForbiddenException, BadRequestException, Unauthorize
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { UsersService } from '../../apps/api/src/modules/02-users/users.service';
-import { FirebaseDataConnectService } from '../../apps/api/src/common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../apps/api/src/common/supabase/supabase.service';
 import { UpdateProfileDto, RegisterDeviceTokenDto } from '../../apps/api/src/modules/02-users/dto/users.dto';
 import { UserRole, ErrorCode } from '@giaovienhay/shared-types';
 

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   Logger,
   BadRequestException,
@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 import { CreateRemarkDto } from './dto/remarks.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
 

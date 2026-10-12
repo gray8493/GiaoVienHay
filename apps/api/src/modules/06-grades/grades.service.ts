@@ -1,11 +1,11 @@
-import {
+﻿import {
   Injectable,
   Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 import { BatchInputScoresDto, PublishScoresDto } from './dto/grades.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
 

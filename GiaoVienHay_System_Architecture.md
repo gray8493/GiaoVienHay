@@ -12,9 +12,9 @@
   - **Mobile App:** React Native (iOS & Android).
   - **Backend API:** NestJS (TypeScript, Kiến trúc **Modular Monolith**).
   - **AI Engine:** Google Gemini API (`gemini-1.5-flash`) bóc tách tài liệu bài học.
-  - **File Storage & Notifications:** Firebase Cloud Storage (lưu trữ file giáo án .docx/.pdf) & Firebase Cloud Messaging (FCM).
-  - **Cơ sở dữ liệu:** **Google Cloud Firestore (100% Firebase NoSQL Document Store)**, đồng bộ Realtime Snapshot.
-  - **Hạ tầng Triển khai (PaaS & Cloud):** Vercel (Next.js Web), Railway / Render (NestJS API), Google Firebase Cloud Platform (Firestore, Storage, FCM, Auth).
+  - **File Storage & Notifications:** Supabase Storage (lưu trữ file giáo án .docx/.pdf) & Firebase Cloud Messaging (FCM) cho thông báo đẩy.
+  - **Cơ sở dữ liệu:** **Supabase PostgreSQL (Relational Database)**, đồng bộ Realtime qua Supabase Realtime.
+  - **Hạ tầng Triển khai (PaaS & Cloud):** Vercel (Next.js Web), Railway / Render (NestJS API), Supabase Cloud Platform (Database, Auth, Storage).
 
 ---
 
@@ -25,7 +25,7 @@
    - Thuật toán thông minh: Truy vấn bảng `attendances` và **chỉ nạp các học sinh CÓ MẶT HÔM NAY (`status = 'PRESENT'`)**, tự động loại trừ học sinh vắng.
    - Vòng quay may mắn (Lucky Wheel) sinh động, công bằng, nhập điểm miệng trực tiếp vào sổ điểm.
 2. **AI Sinh Câu Hỏi Bài Cũ & Tạo 4 Mini-Game Lớp Học (Gamification):**
-   - Giáo viên tải lên tài liệu bài học (`.docx`, `.pdf`) lưu trữ trên **Firebase Cloud Storage**.
+   - Giáo viên tải lên tài liệu bài học (`.docx`, `.pdf`) lưu trữ trên **Supabase Storage**.
    - Gemini AI tự động bóc tách kiến thức và sinh bộ câu hỏi kiểm tra bài cũ 5-10 phút.
    - **Tự động chuyển đổi thành 4 Mini-Game tương tác chiếu lên bảng lớp:**
      - *1. Rung Chuông Vàng (Golden Bell):* Đếm ngược thời gian, trả lời câu hỏi trắc nghiệm kịch tính.
@@ -33,7 +33,7 @@
      - *3. Hộp Quà May Mắn (Mystery Boxes):* Trả lời đúng được chọn mở hộp quà chứa điểm thưởng/sticker.
      - *4. Chạm Nối Bảng Thông Minh (Smartboard Match):* Kéo thả nối khái niệm/hình ảnh trực tiếp bằng cảm ứng chạm.
 3. **Quản Lý Học Phí & Bảo Hiểm Y Tế (BHYT):**
-   - Quản lý trạng thái bằng 2 cờ Boolean trực tiếp trong CSDL:
+   - Quản lý trạng thái bằng 2 cờ Boolean trực tiếp trong DB:
      - `is_paid_tuition`: Đã nộp học phí.
      - `is_paid_insurance`: Đã nộp tiền BHYT học sinh.
    - Checklist 1-chạm cho GVCN và công cụ lọc nhanh danh sách chưa nộp để gửi tin nhắn nhắc nhở phụ huynh qua FCM.
@@ -52,23 +52,22 @@
 ## 4. Mục Lục Toàn Bộ Hệ Thống Tài Liệu (`docs/`)
 
 ### 4.1. Kiến Trúc & Thiết Kế Hệ Thống
-- 📄 **[system-overview.md](file:///e:/GiaoVienHay/docs/architecture/system-overview.md)**: Tổng quan hệ thống Cấp 1 & 2, Gamification và quyền hạn GVCN.
-- 📄 **[tech-stack.md](file:///e:/GiaoVienHay/docs/architecture/tech-stack.md)**: Đặc tả ngăn xếp công nghệ và sơ đồ kiến trúc tổng thể.
-- 📄 **[database-schema.md](file:///e:/GiaoVienHay/docs/architecture/database-schema.md)**: **Đặc tả chi tiết CSDL NoSQL Cloud Firestore (Collections, Subcollections, Composite Indexes, Security Rules)**.
-- 📄 **[actors_and_use_cases.md](file:///e:/GiaoVienHay/docs/architecture/actors_and_use_cases.md)**: Phân quyền chi tiết Admin, GVCN (kế thừa toàn bộ quyền giảng dạy), GVBM, Phụ huynh.
-- 📄 **[use_case_descriptions.md](file:///e:/GiaoVienHay/docs/architecture/use_case_descriptions.md)**: Đặc tả chi tiết Dò bài cũ, AI Quiz, 4 Mini-game lớp học và quản lý BHYT.
-- 📄 **[project-requirements.md](file:///e:/GiaoVienHay/docs/architecture/project-requirements.md)**: Yêu cầu chức năng FR và phi chức năng NFR.
-- 📄 **[api-response-codes.md](file:///e:/GiaoVienHay/docs/architecture/api-response-codes.md)**: Quy chuẩn mã phản hồi API và mã lỗi nghiệp vụ.
+- 📄 **[system-overview.md](docs/architecture/system-overview.md)**: Tổng quan hệ thống Cấp 1 & 2, Gamification và quyền hạn GVCN.
+- 📄 **[tech-stack.md](docs/architecture/tech-stack.md)**: Đặc tả ngăn xếp công nghệ và sơ đồ kiến trúc tổng thể.
+- 📄 **[database-schema.md](docs/architecture/database-schema.md)**: **Đặc tả chi tiết CSDL PostgreSQL Supabase (Tables, Relationships, Foreign Keys, RLS Security Rules)**.
+- 📄 **[actors_and_use_cases.md](docs/architecture/actors_and_use_cases.md)**: Phân quyền chi tiết Admin, GVCN (kế thừa toàn bộ quyền giảng dạy), GVBM, Phụ huynh.
+- 📄 **[use_case_descriptions.md](docs/architecture/use_case_descriptions.md)**: Đặc tả chi tiết Dò bài cũ, AI Quiz, 4 Mini-game lớp học và quản lý BHYT.
+- 📄 **[project-requirements.md](docs/architecture/project-requirements.md)**: Yêu cầu chức năng FR và phi chức năng NFR.
+- 📄 **[api-response-codes.md](docs/architecture/api-response-codes.md)**: Quy chuẩn mã phản hồi API và mã lỗi nghiệp vụ.
 
 ### 4.2. Bộ Sơ Đồ Thiết Kế UML Chuẩn PlantUML (`docs/diagrams/puml/`)
-- 📊 **[component_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/component_diagram.puml)**: **Sơ đồ Thành phần (Component Diagram) - Mô hình NestJS Modular Monolith, Next.js Web, React Native và Firebase**.
-- 📊 **[deployment_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/deployment_diagram.puml)**: **Sơ đồ Triển khai Hạ tầng (Deployment Diagram) - Nền tảng PaaS Vercel, Railway/Render, Firebase Cloud & Thiết bị lớp học**.
-- 📊 **[use_case_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/use_case_diagram.puml)**: Sơ đồ Use Case thể hiện quyền thừa kế của GVCN và Mini-game lớp học.
-- 📊 **[activity_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/activity_diagram.puml)**: Sơ đồ hoạt động toàn chu trình vận hành hệ thống.
-- 📊 **[sequence_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/sequence_diagram.puml)**: Sơ đồ tuần tự các giai đoạn nghiệp vụ từ Admin, Giáo viên đến Phụ huynh.
-- 📊 **[communication_diagram.puml](file:///e:/GiaoVienHay/docs/diagrams/puml/communication_diagram.puml)**: Sơ đồ giao tiếp giữa các đối tượng trong 4 nhóm tương tác.
+- 📊 **[component_diagram.puml](docs/diagrams/puml/component_diagram.puml)**: **Sơ đồ Thành phần (Component Diagram) - Mô hình NestJS Modular Monolith, Next.js Web, React Native và Supabase**.
+- 📊 **[deployment_diagram.puml](docs/diagrams/puml/deployment_diagram.puml)**: **Sơ đồ Triển khai Hạ tầng (Deployment Diagram) - Nền tảng PaaS Vercel, Railway/Render, Supabase Cloud & Thiết bị lớp học**.
+- 📊 **[use_case_diagram.puml](docs/diagrams/puml/use_case_diagram.puml)**: Sơ đồ Use Case thể hiện quyền thừa kế của GVCN và Mini-game lớp học.
+- 📊 **[activity_diagram.puml](docs/diagrams/puml/activity_diagram.puml)**: Sơ đồ hoạt động toàn chu trình vận hành hệ thống.
+- 📊 **[sequence_diagram.puml](docs/diagrams/puml/sequence_diagram.puml)**: Sơ đồ tuần tự các giai đoạn nghiệp vụ từ Admin, Giáo viên đến Phụ huynh.
+- 📊 **[communication_diagram.puml](docs/diagrams/puml/communication_diagram.puml)**: Sơ đồ giao tiếp giữa các đối tượng trong 4 nhóm tương tác.
 
 ### 4.3. Kiến Trúc Frontend (`docs/fe/`)
-- 🌐 **[fe-web-architecture.md](file:///e:/GiaoVienHay/docs/fe/web/fe-web-architecture.md)**: Kiến trúc Web Next.js có module UI 4 Mini-games (Golden Bell, Racing, Mystery Box, Smartboard Match).
-- 📱 **[fe-mobile-architecture.md](file:///e:/GiaoVienHay/docs/fe/mobile/fe-mobile-architecture.md)**: Kiến trúc Mobile App React Native.
-
+- 🌐 **[fe-web-architecture.md](docs/fe/web/fe-web-architecture.md)**: Kiến trúc Web Next.js có module UI 4 Mini-games (Golden Bell, Racing, Mystery Box, Smartboard Match).
+- 📱 **[fe-mobile-architecture.md](docs/fe/mobile/fe-mobile-architecture.md)**: Kiến trúc Mobile App React Native.

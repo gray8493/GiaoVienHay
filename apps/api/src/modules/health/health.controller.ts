@@ -5,7 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { FirebaseDataConnectService } from '../../common/firebase/data-connect.service';
+import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 
 @ApiTags('Health Check')
 @Controller('health')
@@ -14,28 +14,24 @@ export class HealthController {
 
   constructor(private readonly dataConnect: FirebaseDataConnectService) {}
 
-  @Get('debug-dataconnect')
-  async debugDataConnect() {
-    const query = `
-      query ListSchools {
-        schools(orderBy: [{ name: ASC }]) {
-          id code name address phone email createdAt
-        }
-      }
-    `;
-    const res = await this.dataConnect.execute(query);
-    const token = await (this.dataConnect as any).getAccessToken();
+  @Get('debug-supabase')
+  async debugSupabase() {
+    const client = (this.dataConnect as any).supabase;
+    if (!client) {
+      return { status: 'NO_SUPABASE_CLIENT' };
+    }
+    const { data, error } = await client
+      .from('schools')
+      .select('*')
+      .eq('is_deleted', false);
     return {
-      rawResponse: res,
-      endpoint: (this.dataConnect as any).endpoint,
-      hasToken: !!token,
-      tokenLength: token?.length || 0,
-      projectId: process.env.FIREBASE_PROJECT_ID || 'DEFAULT',
-      hasEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-      hasKey: !!process.env.FIREBASE_PRIVATE_KEY,
-      hasJson: !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
-      keyLength: (process.env.FIREBASE_PRIVATE_KEY || '').length,
-      jsonLength: (process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').length,
+      hasClient: !!client,
+      error,
+      dataCount: data?.length || 0,
+      data,
+      envUrl: !!process.env.SUPABASE_URL,
+      envKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      keyPrefix: (process.env.SUPABASE_SERVICE_ROLE_KEY || '').slice(0, 10),
     };
   }
 
