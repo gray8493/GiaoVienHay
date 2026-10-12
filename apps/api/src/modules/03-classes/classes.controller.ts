@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -11,7 +12,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ClassesService } from './classes.service';
-import { CreateClassDto, AddStudentToClassDto, JoinClassDto } from './dto/classes.dto';
+import {
+  CreateClassDto,
+  AddStudentToClassDto,
+  JoinClassDto,
+  UpdateSubjectTeachersDto,
+} from './dto/classes.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,6 +42,13 @@ export class ClassesController {
     return this.classesService.createClass(teacherId, teacherSchool, dto);
   }
 
+  @Get()
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Lấy danh sách các lớp học giáo viên đang phụ trách' })
+  async getClasses(@CurrentUser('sub') teacherId: string) {
+    return this.classesService.getMyClasses(teacherId);
+  }
+
   @Get('my-classes')
   @Roles('TEACHER_*', 'ADMIN')
   @ApiOperation({ summary: 'Lấy danh sách các lớp học giáo viên đang phụ trách' })
@@ -52,6 +65,16 @@ export class ClassesController {
     return this.classesService.getClassDetail(classId, userId);
   }
 
+  @Delete(':id')
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Xóa mềm lớp học' })
+  async deleteClass(
+    @Param('id') classId: string,
+    @CurrentUser('sub') teacherId: string,
+  ) {
+    return this.classesService.deleteClass(classId, teacherId);
+  }
+
   @Get(':id/my-subject')
   @Roles('TEACHER_*')
   @ApiOperation({ summary: 'Xem môn học mà giáo viên phụ trách trong lớp' })
@@ -62,8 +85,18 @@ export class ClassesController {
     return this.classesService.getMySubjectInClass(classId, teacherId);
   }
 
+  @Get(':id/invite')
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Lấy mã mời và đường dẫn tham gia lớp học' })
+  async getInviteCode(
+    @Param('id') classId: string,
+    @CurrentUser('sub') teacherId: string,
+  ) {
+    return this.classesService.getInviteCode(classId, teacherId);
+  }
+
   @Post(':id/invite')
-  @Roles('TEACHER_*')
+  @Roles('TEACHER_*', 'ADMIN')
   @ApiOperation({ summary: 'Tạo mã mời phụ huynh tham gia lớp học' })
   async generateInviteCode(
     @Param('id') classId: string,
@@ -92,6 +125,17 @@ export class ClassesController {
     return this.classesService.addStudent(classId, dto);
   }
 
+  @Put(':id/subject-teachers')
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Cập nhật phân công giáo viên bộ môn cho lớp học' })
+  async updateSubjectTeachers(
+    @Param('id') classId: string,
+    @CurrentUser('sub') teacherId: string,
+    @Body() dto: UpdateSubjectTeachersDto,
+  ) {
+    return this.classesService.updateSubjectTeachers(classId, teacherId, dto);
+  }
+
   @Delete(':id/students/:studentId')
   @Roles('TEACHER_*', 'ADMIN')
   @ApiOperation({ summary: 'Xóa học sinh ra khỏi lớp học' })
@@ -102,3 +146,4 @@ export class ClassesController {
     return this.classesService.removeStudent(classId, studentId);
   }
 }
+

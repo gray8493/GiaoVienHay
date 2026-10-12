@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   Query,
@@ -11,7 +12,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { GradesService } from './grades.service';
-import { BatchInputScoresDto, PublishScoresDto } from './dto/grades.dto';
+import {
+  BatchInputScoresDto,
+  PublishScoresDto,
+  UpdateScoreDto,
+  ParentLookupScoreDto,
+} from './dto/grades.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -28,11 +34,42 @@ export class GradesController {
   @Roles('TEACHER_*', 'ADMIN')
   @ApiOperation({ summary: 'Xem sổ điểm môn học theo lớp, môn, học kỳ' })
   async getClassGrades(
+    @CurrentUser('sub') teacherId: string,
     @Param('classId') classId: string,
     @Query('subject_code') subjectCode: string,
     @Query('semester') semester?: number,
   ) {
-    return this.gradesService.getClassGrades(classId, subjectCode, semester ? Number(semester) : 1);
+    return this.gradesService.getClassGrades(
+      classId,
+      subjectCode,
+      semester ? Number(semester) : 1,
+      teacherId,
+    );
+  }
+
+  @Get('parent/lookup')
+  @ApiOperation({ summary: 'Phụ huynh tra cứu bảng điểm học sinh' })
+  async parentLookup(
+    @CurrentUser('sub') parentId: string,
+    @Query() query: ParentLookupScoreDto,
+  ) {
+    return this.gradesService.parentLookup(parentId, {
+      student_id: query.student_id,
+      subject_code: query.subject_code,
+      semester: query.semester ? Number(query.semester) : 1,
+      score_type: query.score_type || 'FINAL',
+    });
+  }
+
+  @Put('scores/:scoreId')
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Cập nhật/đính chính bản ghi điểm của học sinh' })
+  async updateScore(
+    @CurrentUser('sub') teacherId: string,
+    @Param('scoreId') scoreId: string,
+    @Body() dto: UpdateScoreDto,
+  ) {
+    return this.gradesService.updateScore(teacherId, scoreId, dto);
   }
 
   @Post('batch')

@@ -414,4 +414,45 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
       expect(res).toEqual([]);
     });
   });
+
+  describe('UT06_Grades_TC36: Cập nhật đính chính bản ghi điểm của học sinh PUT /api/v1/grades/scores/:scoreId', () => {
+    it('cập nhật thành công bản ghi điểm', async () => {
+      const res = await service.updateScore('usr_teacher_01', 'scr_01', {
+        score_value: 9.0,
+        correction_reason: 'Đính chính chấm phúc khảo',
+      });
+      expect(res.success).toBe(true);
+      expect(res.data.score_value).toBe(9.0);
+    });
+
+    it('ném NotFoundException khi mã điểm không tồn tại', async () => {
+      await expect(
+        service.updateScore('usr_teacher_01', 'scr_nonexistent_999', { score_value: 9.0 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('UT06_Grades_TC37: Phụ huynh tra cứu bảng điểm học sinh GET /api/v1/grades/parent/lookup', () => {
+    it('ném BadRequestException khi điểm chưa công bố', async () => {
+      await expect(
+        service.parentLookup('usr_parent_01', {
+          student_id: 'stu_01',
+          subject_code: 'MATH',
+          semester: 1,
+          score_type: 'FINAL',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('trả về bảng điểm khi điểm đã công bố', async () => {
+      const res = await service.parentLookup('usr_parent_01', {
+        student_id: 'stu_01',
+        subject_code: 'MATH',
+        semester: 1,
+        score_type: 'ORAL_TEST',
+      });
+      expect(res.success).toBe(true);
+      expect(res.data.score_value).toBe(9.0);
+    });
+  });
 });

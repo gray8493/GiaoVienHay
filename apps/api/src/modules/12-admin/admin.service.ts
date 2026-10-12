@@ -1,4 +1,4 @@
-﻿import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 import {
@@ -9,6 +9,7 @@ import {
   QueryAdminUsersDto,
   UpdateSystemLimitsDto,
   AdminCreateClassDto,
+  QueryAdminClassesDto,
   QueryLogsDto,
   AdminCreateSchoolDto,
   AdminUpdateSchoolDto,
@@ -128,6 +129,7 @@ export class AdminService {
       throw new NotFoundException({
         error_code: ErrorCode.USER_NOT_FOUND,
         message: 'Không tìm thấy người dùng trong hệ thống',
+        details: null,
       });
     }
 
@@ -273,10 +275,13 @@ export class AdminService {
     };
   }
 
-  async getAllClassesMonitoring() {
+  async getAllClassesMonitoring(query?: QueryAdminClassesDto) {
     try {
-      const sqlClasses = await this.dataConnect.listClasses();
-      return (sqlClasses || []).map((c) => ({
+      const sqlClasses = await this.dataConnect.listClasses(
+        query?.school_name,
+        query?.academic_year,
+      );
+      let items = (sqlClasses || []).map((c) => ({
         class_id: c.id,
         name: c.name,
         grade_level: c.grade_level || c.gradeLevel,
@@ -285,6 +290,14 @@ export class AdminService {
         homeroom_teacher: c.homeroomTeacherId || c.homeroom_teacher || 'Chưa phân công',
         student_count: c.student_count || c.studentCount || 0,
       }));
+
+      if (query?.academic_year) {
+        items = items.filter(
+          (c) => (c.academic_year || '').trim() === query.academic_year?.trim(),
+        );
+      }
+
+      return items;
     } catch (e) {
       return [];
     }

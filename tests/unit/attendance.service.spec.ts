@@ -2,7 +2,7 @@ import { NotFoundException, ForbiddenException, BadRequestException, ConflictExc
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { AttendanceService } from '../../apps/api/src/modules/05-attendance/attendance.service';
-import { SubmitAttendanceDto, AttendanceRecordItemDto } from '../../apps/api/src/modules/05-attendance/dto/attendance.dto';
+import { SubmitAttendanceDto, AttendanceRecordItemDto, UpdateAttendanceDto } from '../../apps/api/src/modules/05-attendance/dto/attendance.dto';
 import { AttendanceStatus } from '@giaovienhay/shared-types';
 
 describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
@@ -14,9 +14,7 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
   beforeEach(() => {
     mockDataConnect = {
       recordAttendance: jest.fn().mockResolvedValue(true),
-      getAttendanceByClassDate: jest.fn().mockResolvedValue([
-        { id: 'att_01', student_id: 'stu_01', status: AttendanceStatus.PRESENT },
-      ]),
+      getAttendanceByClassDate: jest.fn().mockResolvedValue([]),
       createNotification: jest.fn().mockResolvedValue(true),
     };
 
@@ -59,13 +57,22 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
   });
 
   describe('UT05_Attendance_TC03: Từ chối điểm danh khi danh sách bản ghi rỗng (MISSING / EMPTY RECORDS)', () => {
-    it('báo lỗi hoặc từ chối khi records rỗng', async () => {
-      const res = await service.submitAttendance('usr_teacher_01', {
+    it('ném BadRequestException và báo lỗi validation khi records rỗng', async () => {
+      const dto = plainToInstance(SubmitAttendanceDto, {
         class_id: 'cls_1a_2026',
         attendance_date: '2026-09-23',
         records: [],
       });
-      expect(res.total_students).toBe(0);
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'records')).toBe(true);
+
+      await expect(
+        service.submitAttendance('usr_teacher_01', {
+          class_id: 'cls_1a_2026',
+          attendance_date: '2026-09-23',
+          records: [],
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -81,8 +88,16 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
   });
 
   describe('UT05_Attendance_TC05: Từ chối cập nhật điểm danh khi thiếu trạng thái mới (PATCH ATTENDANCE)', () => {
-    it('báo lỗi khi không truyền status hợp lệ', async () => {
-      await expect(service.updateAttendanceRecord('att_01', undefined as any)).resolves.toBeDefined();
+    it('báo lỗi validation khi thiếu status và ném BadRequestException', async () => {
+      const dto = plainToInstance(UpdateAttendanceDto, {
+        note: 'Chỉ cập nhật ghi chú',
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'status')).toBe(true);
+
+      await expect(service.updateAttendanceRecord('att_01', undefined as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -111,8 +126,16 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
   });
 
   describe('UT05_Attendance_TC08: Từ chối điểm danh khi ghi chú vượt quá giới hạn độ dài cho phép (MAX 255 KÝ TỰ)', () => {
-    it('ném BadRequestException khi note vượt quá 255 ký tự', async () => {
+    it('ném BadRequestException và báo lỗi validation khi note vượt quá 255 ký tự', async () => {
       const longNote = 'A'.repeat(300);
+      const item = plainToInstance(AttendanceRecordItemDto, {
+        student_id: 'stu_01',
+        status: AttendanceStatus.ABSENT_EXCUSED,
+        note: longNote,
+      });
+      const errors = await validate(item);
+      expect(errors.some((e) => e.property === 'note')).toBe(true);
+
       await expect(
         service.submitAttendance('usr_teacher_01', {
           class_id: 'cls_1a_2026',
@@ -125,10 +148,14 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
 
   describe('UT05_Attendance_TC09: Từ chối điểm danh trùng lặp khi buổi học đã được điểm danh trước đó (ATTEND_ALREADY_EXISTS)', () => {
     it('ném ConflictException khi tiết học đã được điểm danh', async () => {
+      mockDataConnect.getAttendanceByClassDate.mockResolvedValueOnce([
+        { id: 'att_01', student_id: 'stu_01', period: 1, status: AttendanceStatus.PRESENT },
+      ]);
       await expect(
         service.submitAttendance('usr_teacher_01', {
           class_id: 'cls_1a_2026',
-          attendance_date: '2026-09-23_DUPLICATE',
+          attendance_date: '2026-09-23',
+          period: 1,
           records: [{ student_id: 'stu_01', status: AttendanceStatus.PRESENT }],
         })
       ).rejects.toThrow(ConflictException);
@@ -224,6 +251,9 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
 
   describe('UT05_Attendance_TC17: Xem lịch sử chuyên cần của lớp theo ngày hoặc theo tháng thành công', () => {
     it('trả về danh sách chuyên cần theo ngày', async () => {
+      mockDataConnect.getAttendanceByClassDate.mockResolvedValueOnce([
+        { id: 'att_01', student_id: 'stu_01', status: AttendanceStatus.PRESENT },
+      ]);
       const list = await service.getClassAttendance('cls_1a_2026', '2026-09-23');
       expect(list.length).toBeGreaterThan(0);
     });
@@ -231,6 +261,9 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
 
   describe('UT05_Attendance_TC18: Trích xuất danh sách học sinh có mặt hôm nay phục vụ Vòng quay random thành công', () => {
     it('trả về danh sách học sinh có mặt hôm nay', async () => {
+      mockDataConnect.getAttendanceByClassDate.mockResolvedValueOnce([
+        { id: 'att_01', student_id: 'stu_01', status: AttendanceStatus.PRESENT },
+      ]);
       const res = await service.getTodayPresentStudents('cls_1a_2026');
       expect(res.class_id).toBe('cls_1a_2026');
       expect(res.present_students.length).toBeGreaterThan(0);

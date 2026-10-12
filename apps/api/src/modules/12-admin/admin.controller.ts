@@ -22,6 +22,7 @@ import {
   QueryAdminUsersDto,
   UpdateSystemLimitsDto,
   AdminCreateClassDto,
+  QueryAdminClassesDto,
   QueryLogsDto,
   AdminCreateSchoolDto,
   AdminUpdateSchoolDto,
@@ -111,8 +112,8 @@ export class AdminController {
 
   @Get('classes')
   @ApiOperation({ summary: 'Giám sát toàn bộ các lớp học trong trường' })
-  async getAllClassesMonitoring() {
-    return this.adminService.getAllClassesMonitoring();
+  async getAllClassesMonitoring(@Query() query?: QueryAdminClassesDto) {
+    return this.adminService.getAllClassesMonitoring(query);
   }
 
   @Post('classes')

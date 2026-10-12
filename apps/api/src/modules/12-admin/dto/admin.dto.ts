@@ -83,6 +83,30 @@ export class QueryAdminUsersDto {
   limit?: number;
 }
 
+export class QueryAdminClassesDto {
+  @ApiPropertyOptional({ example: '2026-2027', description: 'Năm học cần lọc' })
+  @IsOptional()
+  @IsString()
+  academic_year?: string;
+
+  @ApiPropertyOptional({ example: 'Trường Tiểu Học Chu Văn An' })
+  @IsOptional()
+  @IsString()
+  school_name?: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  page?: number;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  limit?: number;
+}
+
 export class UpdateSystemLimitsDto {
   @ApiPropertyOptional({ example: 55 })
   @IsOptional()

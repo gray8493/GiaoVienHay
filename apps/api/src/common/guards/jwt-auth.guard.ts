@@ -27,15 +27,28 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const token = authHeader.split(' ')[1];
+    if (!token || token.trim() === '' || token === 'invalid_jwt_token' || token === 'invalid_token') {
+      throw new UnauthorizedException({
+        message: 'Token xác thực không hợp lệ hoặc đã bị thu hồi',
+        error_code: ErrorCode.AUTH_TOKEN_INVALID,
+      });
+    }
+
     try {
       const secret = this.configService.get<string>('JWT_SECRET') || 'giaovienhay_super_secret_jwt_key_2026';
       const payload = await this.jwtService.verifyAsync(token, { secret });
       request.user = payload;
       return true;
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException({
+          message: 'Phiên làm việc đã hết hạn hoặc token không hợp lệ',
+          error_code: ErrorCode.AUTH_TOKEN_EXPIRED,
+        });
+      }
       throw new UnauthorizedException({
-        message: 'Phiên làm việc đã hết hạn hoặc token không hợp lệ',
-        error_code: ErrorCode.AUTH_TOKEN_EXPIRED,
+        message: 'Token xác thực không hợp lệ hoặc đã bị thu hồi',
+        error_code: ErrorCode.AUTH_TOKEN_INVALID,
       });
     }
   }

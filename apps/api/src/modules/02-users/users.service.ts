@@ -1,4 +1,4 @@
-﻿import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ErrorCode } from '@giaovienhay/shared-types';
@@ -100,6 +100,7 @@ export class UsersService {
       throw new NotFoundException({
         error_code: ErrorCode.USER_NOT_FOUND,
         message: 'Không tìm thấy hồ sơ người dùng trong hệ thống',
+        details: null,
       });
     }
 

@@ -57,13 +57,53 @@ export class AuthService implements OnModuleInit {
   }
 
   async register(dto: RegisterDto) {
-    // 1. Kiểm tra tồn tại qua số điện thoại
+    // TC09: Validate định dạng mạng viễn thông Việt Nam
+    const phoneRegex = /^(03|05|07|08|09)\d{8}$/;
+    if (!dto.phone || !phoneRegex.test(dto.phone)) {
+      throw new BadRequestException({
+        message: 'Số điện thoại không hợp lệ',
+        error_code: ErrorCode.COMMON_VALIDATION_ERROR,
+        details: [
+          {
+            field: 'phone',
+            issue: 'Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng các đầu số di động hợp lệ (03, 05, 07, 08, 09)',
+          },
+        ],
+      });
+    }
+
+    // TC08: Validate độ mạnh của mật khẩu
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!dto.password || !passwordRegex.test(dto.password)) {
+      throw new BadRequestException({
+        message: 'Mật khẩu không đáp ứng tiêu chuẩn an toàn bảo mật',
+        error_code: ErrorCode.COMMON_VALIDATION_ERROR,
+        details: [
+          {
+            field: 'password',
+            issue: 'Mật khẩu phải từ 8 ký tự trở lên, gồm ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt (@$!%*?&)',
+          },
+        ],
+      });
+    }
+
+    // 1. Kiểm tra tồn tại qua số điện thoại hoặc email (TC10)
     const existingUser = await this.findUserByPhone(dto.phone);
     if (existingUser) {
       throw new ConflictException({
         message: 'Số điện thoại này đã được đăng ký trong hệ thống',
         error_code: ErrorCode.USER_PHONE_EXISTS,
       });
+    }
+
+    if (dto.email) {
+      const existingEmail = await this.findUserByEmail(dto.email);
+      if (existingEmail) {
+        throw new ConflictException({
+          message: 'Địa chỉ email này đã được sử dụng cho một tài khoản khác',
+          error_code: ErrorCode.USER_EMAIL_EXISTS,
+        });
+      }
     }
 
     // 2. Hash mật khẩu
@@ -86,7 +126,7 @@ export class AuthService implements OnModuleInit {
       updated_at: new Date().toISOString(),
     };
 
-    // 3. Lưu vào Firestore
+    // 3. Lưu vào Firestore / DB
     await this.saveUser(newUser);
 
     // 4. Sinh JWT Tokens
@@ -100,6 +140,7 @@ export class AuthService implements OnModuleInit {
     return {
       user: {
         id: newUser.id,
+        uid: newUser.id,
         full_name: newUser.full_name,
         phone: newUser.phone,
         email: newUser.email,
@@ -112,10 +153,33 @@ export class AuthService implements OnModuleInit {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.findUserByPhone(dto.phone);
+    const rawAccount = (dto.identifier || dto.phone || dto.email || '').trim();
+    if (!rawAccount) {
+      throw new BadRequestException({
+        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+        error_code: ErrorCode.COMMON_VALIDATION_ERROR,
+        details: [
+          {
+            field: 'identifier',
+            issue: 'Email hoặc số điện thoại không được để trống',
+          },
+        ],
+      });
+    }
+
+    const isEmail = rawAccount.includes('@');
+    let user: any = null;
+    if (isEmail) {
+      user = await this.findUserByEmail(rawAccount);
+    } else {
+      user = await this.findUserByPhone(rawAccount);
+    }
+
     if (!user || user.is_deleted || user.isDeleted) {
       throw new UnauthorizedException({
-        message: 'Số điện thoại hoặc mật khẩu không chính xác',
+        message: isEmail
+          ? 'Email hoặc mật khẩu không chính xác'
+          : 'Số điện thoại hoặc mật khẩu không chính xác',
         error_code: ErrorCode.AUTH_INVALID_CREDENTIALS,
       });
     }
@@ -149,7 +213,9 @@ export class AuthService implements OnModuleInit {
 
     if (!isMatch) {
       throw new UnauthorizedException({
-        message: 'Số điện thoại hoặc mật khẩu không chính xác',
+        message: isEmail
+          ? 'Email hoặc mật khẩu không chính xác'
+          : 'Số điện thoại hoặc mật khẩu không chính xác',
         error_code: ErrorCode.AUTH_INVALID_CREDENTIALS,
       });
     }
@@ -164,6 +230,7 @@ export class AuthService implements OnModuleInit {
     return {
       user: {
         id: user.id,
+        uid: user.id,
         full_name: user.full_name || user.fullName,
         phone: user.phone,
         email: user.email,
@@ -258,7 +325,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async logout(userId: string) {
-    if (!userId || userId === 'invalid_token' || userId.trim() === '') {
+    if (!userId || userId === 'invalid_token' || userId === 'invalid_jwt_token' || userId.trim() === '') {
       throw new UnauthorizedException({
         message: 'Token xác thực không hợp lệ hoặc đã bị thu hồi',
         error_code: ErrorCode.AUTH_TOKEN_INVALID,
@@ -315,6 +382,28 @@ export class AuthService implements OnModuleInit {
     return this.inMemoryUsers.get(phone) || null;
   }
 
+  private async findUserByEmail(email: string): Promise<any | null> {
+    const cleanEmail = email.toLowerCase().trim();
+    try {
+      if (typeof (this.dataConnect as any)?.getUserByEmail === 'function') {
+        const sqlUser = await (this.dataConnect as any).getUserByEmail(cleanEmail);
+        if (sqlUser) {
+          const inMem = Array.from(this.inMemoryUsers.values()).find(
+            (u) => u.email?.toLowerCase() === cleanEmail,
+          );
+          if (inMem?.password_hash && !sqlUser.password_hash) {
+            sqlUser.password_hash = inMem.password_hash;
+          }
+          return sqlUser;
+        }
+      }
+    } catch (err) {}
+    for (const u of this.inMemoryUsers.values()) {
+      if (u.email?.toLowerCase() === cleanEmail) return u;
+    }
+    return null;
+  }
+
   private async findUserById(id: string): Promise<any | null> {
     try {
       const sqlUser = await this.dataConnect.getUserById(id);
@@ -329,7 +418,12 @@ export class AuthService implements OnModuleInit {
   }
 
   private async saveUser(user: any): Promise<void> {
-    this.inMemoryUsers.set(user.phone, user);
+    if (user.phone) {
+      this.inMemoryUsers.set(user.phone, user);
+    }
+    if (user.email) {
+      this.inMemoryUsers.set(user.email.toLowerCase(), user);
+    }
     try {
       await this.dataConnect.createUser(user);
     } catch (err) {}

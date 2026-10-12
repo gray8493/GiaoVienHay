@@ -2,7 +2,12 @@ import { NotFoundException, ForbiddenException, BadRequestException, ConflictExc
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { ClassesService } from '../../apps/api/src/modules/03-classes/classes.service';
-import { CreateClassDto, AddStudentToClassDto, JoinClassDto } from '../../apps/api/src/modules/03-classes/dto/classes.dto';
+import {
+  CreateClassDto,
+  AddStudentToClassDto,
+  JoinClassDto,
+  UpdateSubjectTeachersDto,
+} from '../../apps/api/src/modules/03-classes/dto/classes.dto';
 
 describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
   let service: ClassesService;
@@ -82,17 +87,43 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
     });
   });
 
-  describe('UT03_Classes_TC06: Từ chối thêm học sinh khi thiếu thông tin', () => {
+  describe('UT03_Classes_TC06: Từ chối thêm học sinh khi thiếu thông tin hoặc danh sách rỗng', () => {
     it('báo lỗi validation khi AddStudentToClassDto không có full_name', async () => {
       const dto = plainToInstance(AddStudentToClassDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
     });
+
+    it('báo lỗi validation khi danh sách mảng students rỗng', async () => {
+      const dto = plainToInstance(AddStudentToClassDto, { students: [] });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'students')).toBe(true);
+    });
+
+    it('service ném BadRequestException khi truyền mảng students rỗng', async () => {
+      await expect(service.addStudent('cls_1a_2026', { students: [] })).rejects.toThrow(BadRequestException);
+    });
   });
 
-  describe('UT03_Classes_TC07: Từ chối cập nhật khi thiếu mã giáo viên', () => {
+  describe('UT03_Classes_TC07: Từ chối cập nhật phân công GVBM khi thiếu thông tin', () => {
     it('từ chối khi teacherId rỗng', async () => {
       await expect(service.getMySubjectInClass('cls_01', '')).resolves.toBeDefined();
+    });
+
+    it('báo lỗi validation khi teacher_id trong subject_teachers rỗng', async () => {
+      const dto = plainToInstance(UpdateSubjectTeachersDto, {
+        subject_teachers: [{ teacher_id: '', subject_code: 'MATH' }],
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it('service ném BadRequestException khi teacher_id rỗng', async () => {
+      await expect(
+        service.updateSubjectTeachers('cls_1a_2026', 'usr_teacher_01', {
+          subject_teachers: [{ teacher_id: '', subject_code: 'MATH' }],
+        })
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -110,6 +141,16 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'grade_level')).toBe(true);
     });
+
+    it('service ném BadRequestException khi academic_year sai quy tắc kết thúc != bắt đầu + 1', async () => {
+      await expect(
+        service.createClass('usr_teacher_01', 'TH Chu Văn An', {
+          name: '1A',
+          grade_level: 1,
+          academic_year: '2026-2029',
+        })
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('UT03_Classes_TC10: Kiểm tra ngày sinh học sinh', () => {
@@ -117,6 +158,15 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
       const dto = plainToInstance(AddStudentToClassDto, { full_name: 'Trần Văn Nam', dob: '2019-05-15' });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
+    });
+
+    it('service ném BadRequestException khi ngày sinh 2018-02-30 không có thật trên lịch', async () => {
+      await expect(
+        service.addStudent('cls_1a_2026', {
+          full_name: 'Trần Bảo Nam',
+          dob: '2018-02-30',
+        })
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -162,6 +212,10 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
     it('ném ForbiddenException khi không phải GVCN của lớp', async () => {
       await expect(service.generateInviteCode('cls_1a_2026', 'usr_teacher_other')).rejects.toThrow(ForbiddenException);
     });
+
+    it('getInviteCode cũng ném ForbiddenException khi không phải GVCN của lớp', async () => {
+      await expect(service.getInviteCode('cls_1a_2026', 'usr_teacher_other')).rejects.toThrow(ForbiddenException);
+    });
   });
 
   describe('UT03_Classes_TC17: Chặn GVBM truy cập lớp khi chưa được phân công (ACAD_NOT_ASSIGNED_TEACHER)', () => {
@@ -180,15 +234,21 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
   });
 
   // PHẦN II: Các trường hợp thành công (TC19 - TC33)
-  describe('UT03_Classes_TC19: GVCN tạo lớp học tổng thành công', () => {
+  describe('UT03_Classes_TC19: GVCN tạo lớp học tổng kèm học sinh và GVBM thành công', () => {
     it('tạo lớp học thành công và lưu vào SQL Data Connect', async () => {
       const res = await service.createClass('usr_teacher_01', 'TH Chu Văn An', {
         name: '1A',
         grade_level: 1,
         academic_year: '2026-2027',
+        subject_teachers: [{ teacher_id: 'uid_gvbm_eng', subject_code: 'ENG' }],
+        students: [
+          { student_code: 'HS001', full_name: 'Trần Bảo Nam', gender: 'MALE', dob: '2020-05-15' },
+        ],
       });
       expect(res.name).toBe('1A');
       expect(res.invite_code).toMatch(/^INV-/);
+      expect(res.total_students).toBe(1);
+      expect(res.assigned_subjects).toContain('ENG');
       expect(mockDataConnect.createClass).toHaveBeenCalled();
     });
   });
@@ -229,8 +289,9 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
 
   describe('UT03_Classes_TC24: GVCN lấy mã mời và link mời tham gia lớp học thành công', () => {
     it('sinh mã mời invite_code hợp lệ', async () => {
-      const res = await service.generateInviteCode('cls_1a_2026', 'usr_teacher_01');
-      expect(res.invite_code).toMatch(/^INV-/);
+      const res = await service.getInviteCode('cls_1a_2026', 'usr_teacher_01');
+      expect(res.invite_code).toBeDefined();
+      expect(res.invite_link).toContain('https://giaovienhay.vn/join');
       expect(res.expires_in_hours).toBe(72);
     });
   });
@@ -244,13 +305,18 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
   });
 
   describe('UT03_Classes_TC26: GVCN thêm học sinh mới vào lớp học hiện tại thành công', () => {
-    it('thêm học sinh thành công và lưu vào Data Connect', async () => {
+    it('thêm học sinh thành công qua payload mảng students và lưu vào Data Connect', async () => {
       const res = await service.addStudent('cls_1a_2026', {
-        full_name: 'Vũ Hải Đăng',
-        dob: '2020-03-12',
-        gender: 'MALE',
+        students: [
+          {
+            student_code: 'HS036',
+            full_name: 'Vũ Hải Đăng',
+            dob: '2020-03-12',
+            gender: 'MALE',
+          },
+        ],
       });
-      expect(res.full_name).toBe('Vũ Hải Đăng');
+      expect(res.added_count).toBe(1);
       expect(mockDataConnect.createStudent).toHaveBeenCalled();
     });
   });
@@ -265,8 +331,11 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
 
   describe('UT03_Classes_TC28: GVCN cập nhật phân công GVBM thành công', () => {
     it('cập nhật giáo viên phụ trách thành công', async () => {
-      const res = await service.getMySubjectInClass('cls_1a_2026', 'usr_teacher_01');
-      expect(res.is_homeroom).toBe(true);
+      const res = await service.updateSubjectTeachers('cls_1a_2026', 'usr_teacher_01', {
+        subject_teachers: [{ teacher_id: 'usr_gvbm_eng_02', subject_code: 'ENG' }],
+      });
+      expect(res.updated_count).toBe(1);
+      expect(res.message).toContain('thành công');
     });
   });
 
@@ -313,3 +382,4 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
     });
   });
 });
+
