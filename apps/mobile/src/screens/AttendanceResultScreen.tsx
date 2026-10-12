@@ -20,8 +20,10 @@ import Svg, {
   LinearGradient as SvgLinearGradient,
   Stop,
 } from 'react-native-svg';
+import { AttendanceSavedData } from './AttendanceScreen';
 
 interface AttendanceResultScreenProps {
+  savedData?: AttendanceSavedData;
   totalCount?: number;
   presentCount?: number;
   absentCount?: number;
@@ -33,18 +35,47 @@ interface AttendanceResultScreenProps {
 }
 
 export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
-  totalCount = 38,
-  presentCount = 36,
-  absentCount = 2,
-  className = 'Lớp 6A1',
-  lessonName = 'Tiết 2',
-  lessonTime = '08:15',
+  savedData,
+  totalCount: propTotal,
+  presentCount: propPresent,
+  absentCount: propAbsent,
+  className: propClass,
+  lessonName: propLesson,
+  lessonTime: propTime,
   onGoHome,
   onEditAttendance,
 }) => {
+  const total = savedData?.totalCount ?? propTotal ?? 38;
+  const present = savedData?.presentCount ?? propPresent ?? 36;
+  const absent = savedData?.absentCount ?? propAbsent ?? 2;
+  const currentClassName = savedData?.className ?? propClass ?? 'Lớp 6A1';
+  const lesson = savedData?.lessonName ?? propLesson ?? 'Tiết 2';
+  const time = savedData?.lessonTime ?? propTime ?? '08:15';
+
+  const defaultAbsentStudents = [
+    {
+      id: 2,
+      name: 'Trần Gia Bảo',
+      code: 'HS240102',
+      initials: 'GB',
+      excused: true,
+      reason: 'Bị sốt, mẹ xin phép',
+    },
+    {
+      id: 4,
+      name: 'Phạm Hoàng Nam',
+      code: 'HS240104',
+      initials: 'HN',
+      excused: false,
+      reason: 'Chưa có phép',
+    },
+  ];
+
+  const absentStudents = savedData?.absentStudents ?? defaultAbsentStudents;
+
   return (
     <View style={styles.container}>
-      {/* Background Peach Linear Gradient */}
+      {/* Background Peach Linear Gradient matching TEA-02b */}
       <LinearGradient
         colors={['#FFCFA3', '#FFE3C8', '#FFF3E6']}
         locations={[0, 0.42, 1]}
@@ -76,28 +107,25 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
           </Svg>
         </View>
 
-        {/* Sparkle star 1 */}
+        {/* Sparkle stars */}
         <View style={styles.sparkle1}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="#FDE047">
             <Path d="M12 0L14.7 9.3L24 12L14.7 14.7L12 24L9.3 14.7L0 12L9.3 9.3L12 0Z" />
           </Svg>
         </View>
 
-        {/* Sparkle star 2 */}
         <View style={styles.sparkle2}>
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="#FBBF24">
             <Path d="M12 0L14.7 9.3L24 12L14.7 14.7L12 24L9.3 14.7L0 12L9.3 9.3L12 0Z" />
           </Svg>
         </View>
 
-        {/* Sparkle star 3 */}
         <View style={styles.sparkle3}>
           <Svg width={14} height={14} viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)">
             <Path d="M12 0L14.7 9.3L24 12L14.7 14.7L12 24L9.3 14.7L0 12L9.3 9.3L12 0Z" />
           </Svg>
         </View>
 
-        {/* Sparkle star 4 */}
         <View style={styles.sparkle4}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="#FDBA74">
             <Path d="M12 0L14.7 9.3L24 12L14.7 14.7L12 24L9.3 14.7L0 12L9.3 9.3L12 0Z" />
@@ -114,7 +142,6 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
           <View style={styles.heroSection}>
             {/* 3D Pastel Illustration: Golden Medal + Paper Plane */}
             <View style={styles.illustrationWrap}>
-              {/* Outer celebration glow aura */}
               <View style={styles.innerGlowBall} />
 
               <Svg width={180} height={160} viewBox="0 0 180 160" fill="none">
@@ -133,11 +160,11 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
                     <Stop offset="60%" stopColor="#F4F8FE" />
                     <Stop offset="100%" stopColor="#D7E6FD" />
                   </SvgLinearGradient>
-                  <SvgLinearGradient id="planeFold" x1="0" y1="0" x2="1" y2="1">
+                  <SvgLinearGradient id="planeFold" x1="0" x2="1" y1="0" y2="1">
                     <Stop offset="0%" stopColor="#CBDCF9" />
                     <Stop offset="100%" stopColor="#A5C4F7" />
                   </SvgLinearGradient>
-                  <SvgLinearGradient id="bellGrad" x1="0" y1="0" x2="1" y2="1">
+                  <SvgLinearGradient id="bellGrad" x1="0" x2="1" y1="0" y2="1">
                     <Stop offset="0%" stopColor="#FFDE6A" />
                     <Stop offset="100%" stopColor="#F59E0B" />
                   </SvgLinearGradient>
@@ -201,7 +228,7 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
             {/* Title & Subtitle */}
             <Text style={styles.successTitle}>Đã lưu điểm danh!</Text>
             <Text style={styles.sessionMeta}>
-              {className} • {lessonName} • {lessonTime}
+              {currentClassName} • {lesson} • {time}
             </Text>
           </View>
 
@@ -212,7 +239,7 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
               <View style={styles.statsCols}>
                 {/* Total */}
                 <View style={styles.statCol}>
-                  <Text style={styles.statTotalNum}>{totalCount}</Text>
+                  <Text style={styles.statTotalNum}>{total}</Text>
                   <Text style={styles.statTotalLabel}>Sĩ số</Text>
                 </View>
 
@@ -220,7 +247,7 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
 
                 {/* Present */}
                 <View style={styles.statCol}>
-                  <Text style={styles.statPresentNum}>{presentCount}</Text>
+                  <Text style={styles.statPresentNum}>{present}</Text>
                   <Text style={styles.statPresentLabel}>Có mặt</Text>
                 </View>
 
@@ -228,120 +255,100 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
 
                 {/* Absent */}
                 <View style={styles.statCol}>
-                  <Text style={styles.statAbsentNum}>{absentCount}</Text>
+                  <Text style={styles.statAbsentNum}>{absent}</Text>
                   <Text style={styles.statAbsentLabel}>Vắng</Text>
                 </View>
               </View>
             </View>
 
-            {/* Notification Sent Card */}
-            <View style={styles.notiCard}>
-              {/* Header */}
-              <View style={styles.notiCardHeader}>
-                <Text style={styles.notiCardTitle}>Thông báo đã gửi phụ huynh</Text>
-                <View style={styles.sentPillBadge}>
-                  <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
-                    <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                  <Text style={styles.sentPillBadgeText}>{absentCount} đã gửi</Text>
-                </View>
-              </View>
-
-              {/* Student Row 1: Trần Gia Bảo */}
-              <View style={styles.studentNotiRow}>
-                <View style={styles.studentInfoLeft}>
-                  <View style={[styles.avatarCircle, { backgroundColor: '#FFE8D6', borderColor: '#FED7AA' }]}>
-                    <Text style={[styles.avatarText, { color: '#B45309' }]}>GB</Text>
-                  </View>
-                  <View style={styles.studentTextWrap}>
-                    <View style={styles.nameBadgeRow}>
-                      <Text style={styles.studentName}>Trần Gia Bảo</Text>
-                      <View style={styles.excusedPill}>
-                        <Text style={styles.excusedPillText}>Có phép</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.studentSubtitle} numberOfLines={1}>
-                      HS240102 • Bị sốt, mẹ xin phép
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Sent Status Badge */}
-                <View style={styles.sentStatusBadge}>
-                  <Svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
-                    <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                  <Text style={styles.sentStatusText}>Đã gửi</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Student Row 2: Phạm Hoàng Nam */}
-              <View style={styles.studentNotiRow}>
-                <View style={styles.studentInfoLeft}>
-                  <View style={[styles.avatarCircle, { backgroundColor: '#EDE9FE', borderColor: '#DDD6FE' }]}>
-                    <Text style={[styles.avatarText, { color: '#5E5CE6' }]}>HN</Text>
-                  </View>
-                  <View style={styles.studentTextWrap}>
-                    <View style={styles.nameBadgeRow}>
-                      <Text style={styles.studentName}>Phạm Hoàng Nam</Text>
-                      <View style={styles.unexcusedPill}>
-                        <Text style={styles.unexcusedPillText}>Không phép</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.studentSubtitle} numberOfLines={1}>
-                      HS240104 • Chưa có phép
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Sent Status Badge */}
-                <View style={styles.sentStatusBadge}>
-                  <Svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
-                    <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                  <Text style={styles.sentStatusText}>Đã gửi</Text>
-                </View>
+            {/* Centered Notification Sent Pill matching TEA-02b HTML */}
+            <View style={styles.sentPillContainer}>
+              <View style={styles.sentPillBox}>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
+                  <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.sentPillText}>
+                  {absent > 0
+                    ? `Đã gửi thông báo đến ${absent} phụ huynh`
+                    : 'Cả lớp có mặt đầy đủ (100%)'}
+                </Text>
               </View>
             </View>
+
+            {/* Detail Absent Card if absent > 0 */}
+            {absent > 0 && absentStudents.length > 0 && (
+              <View style={styles.notiCard}>
+                <View style={styles.notiCardHeader}>
+                  <Text style={styles.notiCardTitle}>Thông báo đã gửi phụ huynh</Text>
+                  <View style={styles.sentPillBadge}>
+                    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
+                      <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                    <Text style={styles.sentPillBadgeText}>{absent} đã gửi</Text>
+                  </View>
+                </View>
+
+                {absentStudents.map((st, idx) => (
+                  <React.Fragment key={st.id || idx}>
+                    {idx > 0 && <View style={styles.rowDivider} />}
+                    <View style={styles.studentNotiRow}>
+                      <View style={styles.studentInfoLeft}>
+                        <View style={styles.avatarCircle}>
+                          <Text style={styles.avatarText}>{st.initials}</Text>
+                        </View>
+                        <View style={styles.studentTextWrap}>
+                          <View style={styles.nameBadgeRow}>
+                            <Text style={styles.studentName} numberOfLines={1}>{st.name}</Text>
+                            <View style={st.excused ? styles.excusedPill : styles.unexcusedPill}>
+                              <Text style={st.excused ? styles.excusedPillText : styles.unexcusedPillText}>
+                                {st.excused ? 'Có phép' : 'Không phép'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.studentSubtitle} numberOfLines={1}>
+                            {st.code} • {st.reason || (st.excused ? 'Có phép' : 'Chưa có phép')}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Sent Status Badge */}
+                      <View style={styles.sentStatusBadge}>
+                        <Svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
+                          <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                        <Text style={styles.sentStatusText}>Đã gửi</Text>
+                      </View>
+                    </View>
+                  </React.Fragment>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* ================= 3. BOTTOM ACTION BUTTONS ================= */}
           <View style={styles.bottomActions}>
-            {/* Primary Action Button: Return Home */}
             <TouchableOpacity
               style={styles.btnPrimaryHome}
               onPress={onGoHome}
               activeOpacity={0.88}
             >
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2}>
-                <Path
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2}>
+                <Path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
               <Text style={styles.btnPrimaryHomeText}>Về Trang Chủ</Text>
             </TouchableOpacity>
 
-            {/* Secondary Action Button: Edit Attendance */}
             <TouchableOpacity
               style={styles.btnSecondaryEdit}
               onPress={onEditAttendance}
               activeOpacity={0.85}
             >
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2.2}>
-                <Path
-                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <Path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
               <Text style={styles.btnSecondaryEditText}>Sửa Điểm Danh</Text>
             </TouchableOpacity>
 
-            {/* iOS Home Indicator Bar */}
             <View style={styles.homeIndicatorBar} />
           </View>
         </ScrollView>
@@ -359,18 +366,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 24,
-    justifyContent: 'space-between',
+    gap: 12,
   },
 
-  /* Glow Aura & Background Decorations */
+  /* Decorative Background Elements */
   glowAura: {
     position: 'absolute',
-    top: 64,
-    alignSelf: 'center',
+    top: 60,
+    left: '50%',
+    marginLeft: -140,
     width: 280,
     height: 280,
     borderRadius: 140,
@@ -378,40 +385,39 @@ const styles = StyleSheet.create({
   },
   curvedTrailContainer: {
     position: 'absolute',
-    top: 40,
+    top: 20,
     left: 0,
     right: 0,
-    alignItems: 'center',
   },
   sparkle1: {
     position: 'absolute',
-    top: 56,
-    left: 40,
+    top: 48,
+    left: 36,
   },
   sparkle2: {
     position: 'absolute',
-    top: 110,
-    right: 32,
+    top: 100,
+    right: 28,
   },
   sparkle3: {
     position: 'absolute',
-    top: 176,
-    left: 28,
+    top: 170,
+    left: 26,
   },
   sparkle4: {
     position: 'absolute',
     top: 256,
-    right: 48,
+    right: 44,
   },
 
   /* 1. Hero Celebration Section */
   heroSection: {
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
   illustrationWrap: {
     width: 180,
-    height: 160,
+    height: 155,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -425,34 +431,37 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     fontSize: 23,
+    lineHeight: 28,
     fontWeight: '800',
     color: '#1E1B2E',
     letterSpacing: -0.4,
-    marginTop: 4,
+    marginTop: 2,
+    textAlign: 'center',
   },
   sessionMeta: {
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: '500',
     color: '#6B6880',
     marginTop: 3,
+    textAlign: 'center',
   },
 
   /* 2. Content Cards */
   cardsArea: {
-    marginTop: 14,
-    gap: 14,
+    gap: 10,
   },
   statsCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    paddingVertical: 14,
+    paddingVertical: 13,
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: '#FFE3C8',
     shadowColor: '#F58F4C',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 24,
+    shadowRadius: 16,
     elevation: 3,
   },
   statsCols: {
@@ -466,69 +475,96 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    height: 34,
+    height: 32,
     backgroundColor: '#FFEDD5',
   },
   statTotalNum: {
     fontSize: 26,
+    lineHeight: 30,
     fontWeight: '800',
     color: '#1E1B2E',
-    lineHeight: 30,
   },
   statTotalLabel: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '500',
     color: '#6B6880',
     marginTop: 2,
   },
   statPresentNum: {
     fontSize: 26,
+    lineHeight: 30,
     fontWeight: '800',
     color: '#10B981',
-    lineHeight: 30,
   },
   statPresentLabel: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '700',
     color: '#10B981',
     marginTop: 2,
   },
   statAbsentNum: {
     fontSize: 26,
+    lineHeight: 30,
     fontWeight: '800',
     color: '#EF4444',
-    lineHeight: 30,
   },
   statAbsentLabel: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '700',
     color: '#EF4444',
     marginTop: 2,
+  },
+
+  /* Centered Notification Sent Pill */
+  sentPillContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
+  },
+  sentPillBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1,
+    borderColor: '#FFE3C8',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  sentPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E1B2E',
   },
 
   /* Notification Sent Card */
   notiCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#FFE3C8',
     shadowColor: '#F58F4C',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 24,
+    shadowRadius: 16,
     elevation: 3,
   },
   notiCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#FFF7ED',
   },
   notiCardTitle: {
     fontSize: 14,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#1E1B2E',
   },
@@ -537,12 +573,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#E6F9F0',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 2.5,
     borderRadius: 999,
   },
   sentPillBadgeText: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '700',
     color: '#10B981',
   },
@@ -555,20 +592,24 @@ const styles = StyleSheet.create({
   studentInfoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1,
+    marginRight: 8,
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
   avatarText: {
     fontSize: 12,
     fontWeight: '700',
+    color: '#6B6880',
   },
   studentTextWrap: {
     flex: 1,
@@ -580,33 +621,37 @@ const styles = StyleSheet.create({
   },
   studentName: {
     fontSize: 13.5,
+    lineHeight: 17,
     fontWeight: '700',
     color: '#1E1B2E',
   },
   excusedPill: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
     borderRadius: 999,
   },
   excusedPillText: {
     fontSize: 10,
+    lineHeight: 13,
     fontWeight: '700',
-    color: '#B45309',
+    color: '#F58F4C',
   },
   unexcusedPill: {
     backgroundColor: '#FEE2E2',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
     borderRadius: 999,
   },
   unexcusedPillText: {
     fontSize: 10,
+    lineHeight: 13,
     fontWeight: '700',
     color: '#EF4444',
   },
   studentSubtitle: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '500',
     color: '#6B6880',
     marginTop: 2,
@@ -614,14 +659,16 @@ const styles = StyleSheet.create({
   sentStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: '#E6F9F0',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
+    flexShrink: 0,
   },
   sentStatusText: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '600',
     color: '#10B981',
   },
@@ -633,8 +680,8 @@ const styles = StyleSheet.create({
 
   /* 3. Bottom Action Buttons */
   bottomActions: {
-    marginTop: 18,
-    gap: 10,
+    marginTop: 6,
+    gap: 9,
   },
   btnPrimaryHome: {
     width: '100%',
@@ -646,20 +693,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     shadowColor: '#F58F4C',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
-    shadowRadius: 20,
+    shadowRadius: 16,
     elevation: 4,
   },
   btnPrimaryHomeText: {
     fontSize: 15,
+    lineHeight: 19,
     fontWeight: '800',
     color: '#FFFFFF',
   },
   btnSecondaryEdit: {
     width: '100%',
     height: 46,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: '#F58F4C',
@@ -670,6 +718,7 @@ const styles = StyleSheet.create({
   },
   btnSecondaryEditText: {
     fontSize: 14,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#F58F4C',
   },
@@ -679,6 +728,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.15)',
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
 });

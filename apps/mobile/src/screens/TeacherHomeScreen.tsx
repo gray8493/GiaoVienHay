@@ -6,7 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  Dimensions,
+  Modal,
+  TouchableWithoutFeedback,
+  Image,
+  TextInput,
+  Alert,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, {
@@ -16,29 +21,391 @@ import Svg, {
   Rect,
   Line,
   G,
+  Polyline,
 } from 'react-native-svg';
+import { classService } from '../services/class.service';
+
+export interface ClassOption {
+  id: string;
+  name: string;
+  studentsCount: number;
+  room: string;
+  roleType: 'HOMEROOM' | 'SUBJECT';
+  subjectBadge: string;
+  nextLessonTitle: string;
+  nextLessonTime: string;
+  ctaText: string;
+}
+
+export const TEACHER_CLASSES: ClassOption[] = [
+  {
+    id: 'cls_6a1',
+    name: 'Lớp 6A1',
+    studentsCount: 38,
+    room: 'Phòng 204',
+    roleType: 'HOMEROOM',
+    subjectBadge: 'Chủ nhiệm',
+    nextLessonTitle: 'Tiết 2: Toán Hình – Lớp 6A1',
+    nextLessonTime: '08:15 – 09:00',
+    ctaText: 'Vào Lớp & Điểm Danh',
+  },
+  {
+    id: 'cls_6a2',
+    name: 'Lớp 6A2',
+    studentsCount: 40,
+    room: 'Phòng 205',
+    roleType: 'SUBJECT',
+    subjectBadge: 'Toán',
+    nextLessonTitle: 'Tiết 3: Toán Đại – Lớp 6A2',
+    nextLessonTime: '09:15 – 10:00',
+    ctaText: 'Vào Lớp & Dò Bài',
+  },
+  {
+    id: 'cls_6a3',
+    name: 'Lớp 6A3',
+    studentsCount: 39,
+    room: 'Phòng 301',
+    roleType: 'SUBJECT',
+    subjectBadge: 'Tin Học',
+    nextLessonTitle: 'Tiết 4: Tin Học – Lớp 6A3',
+    nextLessonTime: '10:15 – 11:00',
+    ctaText: 'Vào Lớp & Dò Bài',
+  },
+];
 
 interface TeacherHomeScreenProps {
+  currentClassId?: string;
+  hasNoClass?: boolean;
+  onSelectClass?: (classId: string) => void;
   onEnterClassroom?: () => void;
   onOpenAIQuiz?: () => void;
   onOpenWheel?: () => void;
+  onManageClass?: () => void;
   onOpenHealthInsurance?: () => void;
+  onOpenRemarksExam?: (initialTab?: 'REMARKS' | 'EXAMS') => void;
+  onOpenNotifications?: () => void;
   onTabChange?: (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => void;
 }
 
 export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
+  currentClassId = 'cls_6a1',
+  hasNoClass = false,
+  onSelectClass,
   onEnterClassroom,
   onOpenAIQuiz,
   onOpenWheel,
+  onManageClass,
   onOpenHealthInsurance,
+  onOpenRemarksExam,
+  onOpenNotifications,
   onTabChange,
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'attendance' | 'gradebook' | 'profile'>('schedule');
+  const [internalClassId, setInternalClassId] = useState<string>(currentClassId);
+  const [isClassSheetVisible, setIsClassSheetVisible] = useState<boolean>(false);
+
+  // Modal Tạo Lớp / Vào Lớp cho trạng thái TEA-01.empty
+  const [createClassModalVisible, setCreateClassModalVisible] = useState(false);
+  const [joinClassModalVisible, setJoinClassModalVisible] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassGrade, setNewClassGrade] = useState('6');
+  const [newClassYear, setNewClassYear] = useState('2026-2027');
+  const [joinInviteCode, setJoinInviteCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const selectedClassId = currentClassId || internalClassId;
+  const isNoClassState = hasNoClass || selectedClassId === 'cls_empty';
+  const currentClass =
+    TEACHER_CLASSES.find((c) => c.id === selectedClassId) || TEACHER_CLASSES[0];
+  const isHomeroom = currentClass.roleType === 'HOMEROOM';
 
   const handleTabPress = (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => {
     setActiveTab(tab);
     onTabChange?.(tab);
   };
+
+  const handleChooseClass = (classItem: ClassOption) => {
+    setInternalClassId(classItem.id);
+    onSelectClass?.(classItem.id);
+    setIsClassSheetVisible(false);
+  };
+
+  const handleHeroCta = () => {
+    if (isHomeroom) {
+      onEnterClassroom?.();
+    } else {
+      // GVBM: Vào lớp & dò bài cũ trực tiếp bằng Vòng quay gọi tên
+      onOpenWheel?.();
+    }
+  };
+
+  const handleCreateClassSubmit = async () => {
+    if (!newClassName.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên lớp học (ví dụ: 6A1)');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const created = await classService.createClass({
+        name: newClassName.trim(),
+        grade_level: parseInt(newClassGrade, 10) || 6,
+        academic_year: newClassYear,
+      });
+      setCreateClassModalVisible(false);
+      setNewClassName('');
+      Alert.alert('Thành công', `Đã tạo lớp ${created.name} thành công!`);
+      setInternalClassId('cls_6a1');
+      onSelectClass?.('cls_6a1');
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.message || 'Không thể tạo lớp');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleJoinClassSubmit = async () => {
+    if (!joinInviteCode.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mã mời tham gia lớp học');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await classService.joinClass(joinInviteCode.trim());
+      setJoinClassModalVisible(false);
+      setJoinInviteCode('');
+      Alert.alert('Thành công', res.message || 'Tham gia lớp học thành công!');
+      setInternalClassId('cls_6a1');
+      onSelectClass?.('cls_6a1');
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.message || 'Mã mời không hợp lệ hoặc đã hết hạn');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isNoClassState) {
+    return (
+      <View style={styles.container}>
+        {/* Background Peach Linear Gradient */}
+        <LinearGradient
+          colors={['#FFCFA3', '#FFE3C8', '#FFF3E6']}
+          locations={[0, 0.38, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
+
+        {/* Decorative Swirls */}
+        <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          <Svg width="100%" height="100%" viewBox="0 0 390 844" fill="none">
+            <Path d="M-40 180 C80 120, 260 220, 420 140" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" strokeDasharray="8 8" opacity={0.3} />
+            <Path d="M-20 620 C110 540, 280 660, 410 570" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" strokeDasharray="10 10" opacity={0.3} />
+          </Svg>
+        </View>
+
+        <SafeAreaView style={styles.safeArea}>
+          {/* Header Section (TEA-01 style: avatar + "Xin chào," + "Cô Nguyễn Thu Hà" + bell, no class pill) */}
+          <View style={[styles.header, { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 }]}>
+            <View style={styles.teacherInfoWrap}>
+              <View style={styles.avatarBorderRing}>
+                <View style={styles.avatarContainer}>
+                  <Svg width={44} height={44} viewBox="0 0 64 64" fill="none">
+                    <Circle cx="32" cy="32" r="32" fill="#FEEAD8" />
+                    <Path d="M32 35C24.8 35 19 40.8 19 48V56H45V48C45 40.8 39.2 35 32 35Z" fill="#5E5CE6" />
+                    <Circle cx="32" cy="24" r="10" fill="#FDBC87" />
+                    <Path
+                      d="M22 23C22 17 26 13 32 13C38 13 42 17 42 23C42 25 39 26 39 26C39 26 38 29 36 29C34 29 32 28 32 28C32 28 30 29 28 29C26 29 25 26 25 26C25 26 22 25 22 23Z"
+                      fill="#4B2C20"
+                    />
+                    <Circle cx="28.5" cy="24.5" r="1.5" fill="#333322" />
+                    <Circle cx="35.5" cy="24.5" r="1.5" fill="#333322" />
+                    <Path d="M30 28C30.8 29 33.2 29 34 28" stroke="#D97706" strokeWidth={1.2} strokeLinecap="round" />
+                    <Circle cx="28" cy="24" r="3.2" stroke="#4F46E5" strokeWidth={1.1} fill="none" />
+                    <Circle cx="36" cy="24" r="3.2" stroke="#4F46E5" strokeWidth={1.1} fill="none" />
+                    <Path d="M31.2 24H32.8" stroke="#4F46E5" strokeWidth={1.1} />
+                  </Svg>
+                </View>
+                <View style={styles.onlineBadge} />
+              </View>
+
+              <View style={styles.greetingTextContainer}>
+                <Text style={styles.greetingSubtitle}>Xin chào,</Text>
+                <Text style={styles.greetingTeacherName}>Cô Nguyễn Thu Hà</Text>
+              </View>
+            </View>
+
+            {/* Notification Bell */}
+            <TouchableOpacity
+              style={styles.notificationBtn}
+              activeOpacity={0.8}
+              onPress={onOpenNotifications}
+              accessibilityLabel="Thông báo"
+            >
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
+                <Path
+                  d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+              <View style={styles.notificationAlertDot} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Centered Empty State Main Content */}
+          <View style={styles.emptyMainContent}>
+            {/* 3D Pastel Claymation School Building */}
+            <View style={styles.emptyIllustrationWrap}>
+              <View style={styles.emptyIllustrationGlow} />
+              <Image
+                source={require('../../assets/empty_classroom_3d.jpg')}
+                style={styles.emptyIllustrationImage}
+                resizeMode="contain"
+              />
+            </View>
+
+            {/* Title: "Chưa Có Lớp" (20px bold, centered) */}
+            <Text style={styles.emptyTitle}>Chưa Có Lớp</Text>
+
+            {/* Action Buttons Container */}
+            <View style={styles.emptyButtonsContainer}>
+              {/* Full-width Orange Pill Primary Button: "Tạo Lớp" */}
+              <TouchableOpacity
+                style={styles.emptyPrimaryBtn}
+                onPress={() => setCreateClassModalVisible(true)}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.emptyPrimaryBtnText}>Tạo Lớp</Text>
+              </TouchableOpacity>
+
+              {/* Outlined Orange Pill Button: "Vào Lớp Bằng Mã" */}
+              <TouchableOpacity
+                style={styles.emptyOutlinedBtn}
+                onPress={() => setJoinClassModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.emptyOutlinedBtnText}>Vào Lớp Bằng Mã</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Floating Dark Dock Bar */}
+          <View style={styles.dockWrapper} pointerEvents="box-none">
+            <View style={styles.dockBar}>
+              <TouchableOpacity style={styles.dockTabItem} activeOpacity={0.8} onPress={() => handleTabPress('schedule')}>
+                <View style={styles.dockActiveIconWrap}>
+                  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2}>
+                    <Path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                </View>
+                <Text style={styles.dockTabTextActive}>Lịch dạy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.dockTabItem} activeOpacity={0.8} onPress={() => handleTabPress('attendance')}>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2}>
+                  <Path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.dockTabTextInactive}>Điểm danh</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.dockTabItem} activeOpacity={0.8} onPress={() => handleTabPress('gradebook')}>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2}>
+                  <Path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.dockTabTextInactive}>Sổ điểm</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.dockTabItem} activeOpacity={0.8} onPress={() => handleTabPress('profile')}>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2}>
+                  <Path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.dockTabTextInactive}>Cá nhân</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+
+        {/* Modal Tạo Lớp */}
+        <Modal
+          visible={createClassModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setCreateClassModalVisible(false)}
+        >
+          <View style={styles.sheetOverlay}>
+            <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setCreateClassModalVisible(false)} />
+            <View style={styles.dialogSheetBox}>
+              <View style={styles.dragHandle} />
+              <Text style={styles.dialogSheetTitle}>Tạo Lớp Học Mới</Text>
+              <View style={{ gap: 12, marginBottom: 16 }}>
+                <TextInput
+                  style={styles.dialogInput}
+                  placeholder="Tên lớp (ví dụ: 6A1, 7A2)"
+                  placeholderTextColor="#9D9AA8"
+                  value={newClassName}
+                  onChangeText={setNewClassName}
+                />
+                <TextInput
+                  style={styles.dialogInput}
+                  placeholder="Khối lớp (ví dụ: 6)"
+                  placeholderTextColor="#9D9AA8"
+                  keyboardType="numeric"
+                  value={newClassGrade}
+                  onChangeText={setNewClassGrade}
+                />
+                <TextInput
+                  style={styles.dialogInput}
+                  placeholder="Năm học (ví dụ: 2026-2027)"
+                  placeholderTextColor="#9D9AA8"
+                  value={newClassYear}
+                  onChangeText={setNewClassYear}
+                />
+              </View>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity style={styles.dialogCancelBtn} onPress={() => setCreateClassModalVisible(false)}>
+                  <Text style={styles.dialogCancelBtnText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dialogPrimaryBtn} onPress={handleCreateClassSubmit} disabled={isSubmitting}>
+                  <Text style={styles.dialogPrimaryBtnText}>{isSubmitting ? 'Đang tạo...' : 'Tạo Lớp'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal Vào Lớp Bằng Mã */}
+        <Modal
+          visible={joinClassModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setJoinClassModalVisible(false)}
+        >
+          <View style={styles.sheetOverlay}>
+            <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setJoinClassModalVisible(false)} />
+            <View style={styles.dialogSheetBox}>
+              <View style={styles.dragHandle} />
+              <Text style={styles.dialogSheetTitle}>Vào Lớp Bằng Mã</Text>
+              <Text style={styles.dialogSheetSubtitle}>Nhập mã mời được cung cấp bởi Giáo viên chủ nhiệm</Text>
+              <TextInput
+                style={[styles.dialogInput, { marginBottom: 16 }]}
+                placeholder="Mã mời (ví dụ: INV-6A1-9821 hoặc TCH-6A1-4417)"
+                placeholderTextColor="#9D9AA8"
+                autoCapitalize="characters"
+                value={joinInviteCode}
+                onChangeText={setJoinInviteCode}
+              />
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity style={styles.dialogCancelBtn} onPress={() => setJoinClassModalVisible(false)}>
+                  <Text style={styles.dialogCancelBtnText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dialogPrimaryBtn} onPress={handleJoinClassSubmit} disabled={isSubmitting}>
+                  <Text style={styles.dialogPrimaryBtnText}>{isSubmitting ? 'Đang vào...' : 'Vào Lớp'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -49,30 +416,26 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Decorative Sparkles & Doodles (Faint aesthetic accents) */}
+      {/* Decorative Sparkles & Doodles */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-        {/* Star 1 - Top Right */}
         <View style={styles.starTopRight}>
           <Svg width={28} height={28} viewBox="0 0 24 24" fill="#FDE68A" opacity={0.35}>
             <Path d="M12 0L14.5 8.5L23.5 11L14.5 13.5L12 22L9.5 13.5L0.5 11L9.5 8.5z" />
           </Svg>
         </View>
 
-        {/* Star 2 - Left */}
         <View style={styles.starMidLeft}>
           <Svg width={22} height={22} viewBox="0 0 24 24" fill="#FFFFFF" opacity={0.3}>
             <Path d="M12 0L14.5 8.5L23.5 11L14.5 13.5L12 22L9.5 13.5L0.5 11L9.5 8.5z" />
           </Svg>
         </View>
 
-        {/* Star 3 - Bottom Right */}
         <View style={styles.starBottomRight}>
           <Svg width={18} height={18} viewBox="0 0 24 24" fill="#FEF3C7" opacity={0.4}>
             <Path d="M12 0L14.5 8.5L23.5 11L14.5 13.5L12 22L9.5 13.5L0.5 11L9.5 8.5z" />
           </Svg>
         </View>
 
-        {/* Curved Doodle Line */}
         <View style={styles.curvedDoodle}>
           <Svg width={160} height={160} viewBox="0 0 100 100" fill="none">
             <Path
@@ -98,7 +461,6 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
             <View style={styles.teacherInfoWrap}>
               <View style={styles.avatarBorderRing}>
                 <View style={styles.avatarContainer}>
-                  {/* Female Teacher Vector SVG */}
                   <Svg width={44} height={44} viewBox="0 0 64 64" fill="none">
                     <Circle cx="32" cy="32" r="32" fill="#FEEAD8" />
                     <Path d="M32 35C24.8 35 19 40.8 19 48V56H45V48C45 40.8 39.2 35 32 35Z" fill="#5E5CE6" />
@@ -110,44 +472,52 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                     <Circle cx="28.5" cy="24.5" r="1.5" fill="#333322" />
                     <Circle cx="35.5" cy="24.5" r="1.5" fill="#333322" />
                     <Path d="M30 28C30.8 29 33.2 29 34 28" stroke="#D97706" strokeWidth={1.2} strokeLinecap="round" />
-                    {/* Spectacles / Glasses */}
                     <Circle cx="28" cy="24" r="3.2" stroke="#4F46E5" strokeWidth={1.1} fill="none" />
                     <Circle cx="36" cy="24" r="3.2" stroke="#4F46E5" strokeWidth={1.1} fill="none" />
                     <Path d="M31.2 24H32.8" stroke="#4F46E5" strokeWidth={1.1} />
                   </Svg>
                 </View>
-                {/* Active online green dot */}
                 <View style={styles.onlineBadge} />
               </View>
 
               <View style={styles.greetingTextContainer}>
                 <Text style={styles.greetingSubtitle}>Xin chào,</Text>
-                <Text style={styles.greetingTeacherName}>Cô Nguyễn Thu Hà</Text>
+                <Text style={styles.greetingTeacherName} numberOfLines={1} ellipsizeMode="tail">
+                  Cô Nguyễn Thu Hà
+                </Text>
               </View>
             </View>
 
             {/* Badges & Notification Bell */}
             <View style={styles.headerRightActions}>
-              {/* GVCN Badge */}
-              <View style={styles.gvcnBadge}>
-                <View style={styles.gvcnDot} />
-                <Text style={styles.gvcnBadgeText}>GVCN 6A1</Text>
-              </View>
+              {/* Class Switcher Dropdown Button */}
+              <TouchableOpacity
+                style={styles.gvcnBadge}
+                activeOpacity={0.8}
+                onPress={() => setIsClassSheetVisible(true)}
+              >
+                <Text style={styles.gvcnBadgeText} numberOfLines={1}>
+                  {isHomeroom ? 'GVCN 6A1' : `GVBM ${currentClass.name.replace('Lớp ', '')}`}
+                </Text>
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
+                  <Path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </TouchableOpacity>
 
               {/* Notification Button */}
               <TouchableOpacity
                 style={styles.notificationBtn}
                 activeOpacity={0.8}
+                onPress={onOpenNotifications}
                 accessibilityLabel="Thông báo"
               >
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
                   <Path
                     d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
                 </Svg>
-                {/* Red alert dot */}
                 <View style={styles.notificationAlertDot} />
               </TouchableOpacity>
             </View>
@@ -161,27 +531,22 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
 
             {/* 3D Cute School Theme Illustration placed top-right */}
             <View style={styles.heroIllustrationContainer} pointerEvents="none">
-              <Svg width={110} height={110} viewBox="0 0 120 120" fill="none">
+              <Svg width={85} height={85} viewBox="0 0 120 120" fill="none">
                 <G rotation="-6" origin="60, 60">
-                  {/* Cap top diamond */}
-                  <Polygon points="60,20 102,40 60,60 18,40" fill="#FFC947" />
-                  <Polygon points="60,24 96,40 60,56 24,40" fill="#FFE27A" />
-                  {/* Skull base */}
-                  <Path d="M35 48 C35 72 85 72 85 48 Z" fill="#E69500" />
-                  {/* Tassel cord & bead */}
-                  <Circle cx={60} cy={40} r={3.5} fill="#FFFFFF" />
+                  <Polygon points="60,20 102,40 60,60 18,40" fill="#F58F4C" />
+                  <Polygon points="60,24 96,40 60,56 24,40" fill="#FFCFA3" />
+                  <Path d="M35 48 C35 72 85 72 85 48 Z" fill="#D97706" />
+                  <Circle cx="60" cy="40" r={3.5} fill="#FFFFFF" />
                   <Path d="M60 40 Q84 48 88 66" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" />
                   <Polygon points="85,65 91,65 89,78 87,78" fill="#F58F4C" />
-                  {/* Math ruler */}
                   <G transform="translate(14, 52) rotate(35)">
                     <Rect x={0} y={0} width={46} height={14} rx={3} fill="#FFFFFF" fillOpacity={0.95} />
-                    <Line x1={8} y1={0} x2={8} y2={6} stroke="#5E5CE6" strokeWidth={1.5} />
-                    <Line x1={16} y1={0} x2={16} y2={4} stroke="#5E5CE6" strokeWidth={1.5} />
-                    <Line x1={24} y1={0} x2={24} y2={6} stroke="#5E5CE6" strokeWidth={1.5} />
-                    <Line x1={32} y1={0} x2={32} y2={4} stroke="#5E5CE6" strokeWidth={1.5} />
-                    <Line x1={40} y1={0} x2={40} y2={6} stroke="#5E5CE6" strokeWidth={1.5} />
+                    <Line x1={8} y1={0} x2={8} y2={6} stroke="#F58F4C" strokeWidth={1.5} />
+                    <Line x1={16} y1={0} x2={16} y2={4} stroke="#F58F4C" strokeWidth={1.5} />
+                    <Line x1={24} y1={0} x2={24} y2={6} stroke="#F58F4C" strokeWidth={1.5} />
+                    <Line x1={32} y1={0} x2={32} y2={4} stroke="#F58F4C" strokeWidth={1.5} />
+                    <Line x1={40} y1={0} x2={40} y2={6} stroke="#F58F4C" strokeWidth={1.5} />
                   </G>
-                  {/* Star sparkle */}
                   <Path d="M96 24L98 30L104 32L98 34L96 40L94 34L88 32L94 30Z" fill="#FFF3E6" />
                 </G>
               </Svg>
@@ -193,33 +558,35 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                 <Text style={styles.heroTagText}>TIẾT DẠY TIẾP THEO</Text>
               </View>
 
-              <Text style={styles.heroTitle}>Tiết 2: Toán Hình - Lớp 6A1</Text>
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {currentClass.nextLessonTitle}
+              </Text>
 
               <View style={styles.heroMetaRow}>
                 <View style={styles.heroMetaItem}>
                   <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={2}>
-                    <Circle cx="12" cy="12" r="10" />
+                    <Circle cx={12} cy={12} r={10} />
                     <Path d="M12 6v6l4 2" strokeLinecap="round" strokeLinejoin="round" />
                   </Svg>
-                  <Text style={styles.heroMetaText}>08:15 - 09:00</Text>
+                  <Text style={styles.heroMetaText}>{currentClass.nextLessonTime}</Text>
                 </View>
                 <Text style={styles.heroMetaSeparator}>•</Text>
                 <View style={styles.heroMetaItem}>
                   <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={2}>
                     <Path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeLinecap="round" strokeLinejoin="round" />
-                    <Circle cx="12" cy="11" r="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" />
                   </Svg>
-                  <Text style={styles.heroMetaText}>Phòng 204</Text>
+                  <Text style={styles.heroMetaText}>{currentClass.room}</Text>
                 </View>
               </View>
 
               {/* Quick Action CTA Button */}
               <TouchableOpacity
                 style={styles.heroCtaBtn}
-                onPress={onEnterClassroom}
-                activeOpacity={0.88}
+                onPress={handleHeroCta}
+                activeOpacity={0.85}
               >
-                <Text style={styles.heroCtaBtnText}>Vào Lớp & Điểm Danh</Text>
+                <Text style={styles.heroCtaBtnText}>{currentClass.ctaText}</Text>
                 <View style={styles.heroCtaArrowCircle}>
                   <Text style={styles.heroCtaArrowText}>→</Text>
                 </View>
@@ -228,172 +595,372 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
           </View>
 
           {/* ================= 3. QUICK STATS BENTO GRID ================= */}
+          {/* GVCN: 6 ô (gồm Sĩ số & BHYT) | GVBM: 4 ô 2x2 (Trợ giảng AI, Dò bài cũ, Nhận xét HS, Lịch kiểm tra) */}
           <View style={styles.bentoGrid}>
-            {/* Card 1: Sĩ số 6A1 */}
-            <TouchableOpacity
-              style={styles.bentoCard}
-              activeOpacity={0.85}
-              onPress={onEnterClassroom}
-            >
-              <View style={styles.bentoCardHeader}>
-                <View style={[styles.bentoIconBox, { backgroundColor: '#FFF7ED', borderColor: 'rgba(254, 215, 170, 0.5)' }]}>
-                  <Svg width={17} height={17} viewBox="0 0 20 20" fill="#F58F4C">
-                    <Path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                  </Svg>
-                </View>
-                <Text style={styles.bentoLabel}>Sĩ số 6A1</Text>
-              </View>
-              <View>
-                <Text style={styles.bentoPrimaryValue}>38/38</Text>
-                <View style={styles.bentoTagWrapper}>
-                  <View style={[styles.statusBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                    <View style={styles.pulsingGreenDot} />
-                    <Text style={[styles.statusBadgeText, { color: '#059669' }]}>Có mặt 100%</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
+            {isHomeroom ? (
+              <>
+                {/* Row 1: Sĩ số 6A1 & Trợ giảng AI */}
+                <View style={styles.bentoRow}>
+                  {/* Card 1: Sĩ số 6A1 */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={onManageClass || onEnterClassroom}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 20 20" fill="#F58F4C">
+                          <Path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Sĩ số 6A1</Text>
+                    </View>
 
-            {/* Card 2: Trợ giảng AI */}
-            <TouchableOpacity
-              style={styles.bentoCard}
-              activeOpacity={0.85}
-              onPress={onOpenAIQuiz}
-            >
-              <View style={styles.bentoCardHeader}>
-                <View style={[styles.bentoIconBox, { backgroundColor: '#EEF2FF', borderColor: 'rgba(199, 210, 254, 0.5)' }]}>
-                  <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="#5E5CE6" strokeWidth={2}>
-                    <Path
-                      d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </Svg>
-                </View>
-                <Text style={styles.bentoLabel}>Trợ giảng AI</Text>
-              </View>
-              <View>
-                <Text style={styles.bentoSubtitleText} numberOfLines={1}>Soạn đề bài mới</Text>
-                <View style={styles.bentoTagWrapper}>
-                  <View style={[styles.statusBadge, { backgroundColor: '#EEF2FF', borderColor: '#E0E7FF' }]}>
-                    <Text style={[styles.statusBadgeText, { color: '#5E5CE6' }]}>Tạo nhanh ✨</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
+                    <View>
+                      <Text style={styles.bentoPrimaryValue}>38/38</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#ECFDF5', borderColor: '#D1FAE5' }]}>
+                          <View style={styles.pulsingGreenDot} />
+                          <Text style={[styles.statusBadgeText, { color: '#059669' }]}>Có mặt 100%</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
 
-            {/* Card 3: Dò bài cũ */}
-            <TouchableOpacity
-              style={styles.bentoCard}
-              activeOpacity={0.85}
-              onPress={onOpenWheel}
-            >
-              <View style={styles.bentoCardHeader}>
-                <View style={[styles.bentoIconBox, { backgroundColor: '#FFFBEB', borderColor: 'rgba(254, 240, 138, 0.6)' }]}>
-                  <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth={2}>
-                    <Circle cx="12" cy="12" r="9" />
-                    <Path d="M12 3v9l6 3" strokeLinecap="round" strokeLinejoin="round" />
-                    <Path d="M9 12a3 3 0 116 0 3 3 0 01-6 0z" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                </View>
-                <Text style={styles.bentoLabel}>Dò bài cũ</Text>
-              </View>
-              <View>
-                <Text style={styles.bentoSubtitleText}>Vòng quay gọi tên</Text>
-                <View style={styles.bentoTagWrapper}>
-                  <View style={[styles.statusBadge, { backgroundColor: '#FFFBEB', borderColor: 'rgba(253, 230, 138, 0.6)' }]}>
-                    <Text style={[styles.statusBadgeText, { color: '#D97706' }]}>Ngẫu nhiên 🎲</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
+                  {/* Card 2: Trợ giảng AI */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={onOpenAIQuiz}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#EEF2FF', borderColor: '#E0E7FF' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#5E5CE6" strokeWidth={2}>
+                          <Path
+                            d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Trợ giảng AI</Text>
+                    </View>
 
-            {/* Card 4: BHYT Lớp CN */}
-            <TouchableOpacity
-              style={styles.bentoCard}
-              activeOpacity={0.85}
-              onPress={onOpenHealthInsurance}
-            >
-              <View style={styles.bentoCardHeader}>
-                <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1F2', borderColor: 'rgba(254, 205, 211, 0.6)' }]}>
-                  <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth={2}>
-                    <Path
-                      d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </Svg>
+                    <View>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Soạn đề bài mới</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#EEF2FF', borderColor: '#E0E7FF' }]}>
+                          <Text style={[styles.statusBadgeText, { color: '#5E5CE6' }]}>Tạo nhanh ✨</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.bentoLabel}>BHYT Lớp CN</Text>
-              </View>
-              <View>
-                <View style={styles.bhytValueRow}>
-                  <Text style={styles.bhytNumerator}>35/38</Text>
-                  <Text style={styles.bhytStatusLabel}>Đã nộp</Text>
+
+                {/* Row 2: Dò bài cũ & BHYT Lớp CN */}
+                <View style={styles.bentoRow}>
+                  {/* Card 3: Dò bài cũ */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={onOpenWheel}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                          <Circle cx={12} cy={12} r={9} />
+                          <Path d="M12 3v9l6 3" strokeLinecap="round" strokeLinejoin="round" />
+                          <Path d="M9 12a3 3 0 116 0 3 3 0 01-6 0z" strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Dò bài cũ</Text>
+                    </View>
+
+                    <View>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Vòng quay gọi tên</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>Ngẫu nhiên 🎲</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Card 4: BHYT Lớp CN */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={onOpenHealthInsurance}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                          <Path
+                            d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>BHYT Lớp CN</Text>
+                    </View>
+
+                    <View>
+                      <View style={styles.bhytValueRow}>
+                        <Text style={styles.bhytNumerator}>35/38</Text>
+                        <Text style={styles.bhytStatusLabel}>Đã nộp</Text>
+                      </View>
+                      <View style={styles.bhytProgressBarTrack}>
+                        <View style={[styles.bhytProgressBarFill, { width: '92%' }]} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
                 </View>
-                {/* Progress bar at 92% */}
-                <View style={styles.bhytProgressBarTrack}>
-                  <View style={[styles.bhytProgressBarFill, { width: '92%' }]} />
+
+                {/* Row 3: Nhận xét HS & Lịch kiểm tra */}
+                <View style={styles.bentoRow}>
+                  {/* Card 5: Nhận xét HS */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={() => onOpenRemarksExam?.('REMARKS')}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                          <Path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Nhận xét HS</Text>
+                    </View>
+
+                    <View>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Gửi phụ huynh</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>12 lời nhắn 💬</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Card 6: Lịch kiểm tra */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={() => onOpenRemarksExam?.('EXAMS')}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                          <Path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Lịch kiểm tra</Text>
+                    </View>
+
+                    <View>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Dặn dò ôn thi</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>1 sắp tới 📅</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
                 </View>
-              </View>
-            </TouchableOpacity>
+              </>
+            ) : (
+              /* GVBM Bento Grid: 2x2 đúng chuẩn HTML TEA-01.GVBM */
+              <>
+                {/* Row 1: Trợ giảng AI & Dò bài cũ */}
+                <View style={styles.bentoRow}>
+                  {/* Card 1: Trợ giảng AI */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={onOpenAIQuiz}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                          <Path
+                            d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Trợ giảng AI</Text>
+                    </View>
+
+                    <View>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Soạn đề bài mới</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>Tạo nhanh</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Card 2: Dò bài cũ */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={onOpenWheel}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                          <Circle cx={12} cy={12} r={9} />
+                          <Path d="M12 3v9l6 3" strokeLinecap="round" strokeLinejoin="round" />
+                          <Path d="M9 12a3 3 0 116 0 3 3 0 01-6 0z" strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Dò bài cũ</Text>
+                    </View>
+
+                    <View>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Vòng quay gọi tên</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>Ngẫu nhiên</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Row 2: Nhận xét HS & Lịch kiểm tra */}
+                <View style={styles.bentoRow}>
+                  {/* Card 3: Nhận xét HS */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={() => onOpenRemarksExam?.('REMARKS')}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                          <Path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Nhận xét HS</Text>
+                    </View>
+
+                    <View>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Gửi phụ huynh</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>12 lời nhắn</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Card 4: Lịch kiểm tra */}
+                  <TouchableOpacity
+                    style={styles.bentoCard}
+                    onPress={() => onOpenRemarksExam?.('EXAMS')}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.bentoCardHeader}>
+                      <View style={[styles.bentoIconBox, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                          <Path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                      </View>
+                      <Text style={styles.bentoLabel}>Lịch kiểm tra</Text>
+                    </View>
+
+                    <View>
+                      <Text style={styles.bentoSubtitleText} numberOfLines={1}>Dặn dò ôn thi</Text>
+                      <View style={styles.bentoTagWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>1 sắp tới</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
 
           {/* ================= 4. DAILY TIMELINE SECTION ================= */}
           <View style={styles.timelineSection}>
             <View style={styles.timelineHeader}>
-              <Text style={styles.timelineSectionTitle}>Lịch dạy còn lại hôm nay</Text>
+              <Text style={styles.timelineTitleText}>Lịch dạy còn lại hôm nay</Text>
               <View style={styles.timelineCountBadge}>
-                <Text style={styles.timelineCountText}>2 tiết</Text>
+                <Text style={styles.timelineCountBadgeText}>2 tiết</Text>
               </View>
             </View>
 
+            {/* Vertical Timeline Items matching Stitch AI */}
             <View style={styles.timelineList}>
-              {/* Vertical connector line */}
               <View style={styles.timelineVerticalLine} />
 
               {/* Timeline Item 1 */}
-              <View style={styles.timelineItemRow}>
-                {/* Purple Indicator Dot */}
-                <View style={[styles.timelineDotIndicator, { borderColor: '#5E5CE6' }]} />
+              <View style={styles.timelineItem}>
+                <View style={styles.indicatorDotUpcoming} />
                 <View style={styles.timelineCard}>
-                  <View style={styles.timelineCardLeft}>
-                    <Text style={styles.timelineClassTitle}>Tiết 3: Toán Đại - 6A2</Text>
+                  <View style={styles.timelineCardContent}>
+                    <Text style={styles.timelineLessonTitle}>
+                      {selectedClassId === 'cls_6a2'
+                        ? 'Tiết 4: Tin Học – 6A3'
+                        : selectedClassId === 'cls_6a3'
+                        ? 'Tiết 5: Toán Hình – 6A1'
+                        : 'Tiết 3: Toán Đại – 6A2'}
+                    </Text>
                     <View style={styles.timelineMetaRow}>
-                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
-                        <Circle cx="12" cy="12" r="10" />
+                      <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
+                        <Circle cx={12} cy={12} r={10} />
                         <Path d="M12 6v6l3 2" />
                       </Svg>
-                      <Text style={styles.timelineMetaText}>09:15 - 10:00</Text>
-                      <Text style={styles.timelineMetaText}>•</Text>
-                      <Text style={styles.timelineMetaText}>Phòng 205</Text>
+                      <Text style={styles.timelineMetaText}>
+                        {selectedClassId === 'cls_6a2' ? '10:15 – 11:00' : '09:15 – 10:00'}
+                      </Text>
+                      <Text style={styles.timelineMetaDot}>•</Text>
+                      <Text style={styles.timelineMetaText}>
+                        {selectedClassId === 'cls_6a2' ? 'Phòng 301' : 'Phòng 205'}
+                      </Text>
                     </View>
                   </View>
-                  <View style={styles.timelineStatusUpcoming}>
-                    <Text style={styles.timelineStatusUpcomingText}>Sắp tới</Text>
+                  <View style={styles.upcomingBadge}>
+                    <Text style={styles.upcomingBadgeText}>Sắp tới</Text>
                   </View>
                 </View>
               </View>
 
               {/* Timeline Item 2 */}
-              <View style={styles.timelineItemRow}>
-                {/* Orange Indicator Dot */}
-                <View style={[styles.timelineDotIndicator, { borderColor: '#F58F4C' }]} />
+              <View style={styles.timelineItem}>
+                <View style={styles.indicatorDotPending} />
                 <View style={styles.timelineCard}>
-                  <View style={styles.timelineCardLeft}>
-                    <Text style={styles.timelineClassTitle}>Tiết 4: Sinh hoạt lớp - 6A1</Text>
+                  <View style={styles.timelineCardContent}>
+                    <Text style={styles.timelineLessonTitle}>
+                      {selectedClassId === 'cls_6a2'
+                        ? 'Tiết 5: Toán Hình – 6A1'
+                        : selectedClassId === 'cls_6a3'
+                        ? 'Tiết 6: Ôn tập – 6A2'
+                        : 'Tiết 4: Tin Học – 6A3'}
+                    </Text>
                     <View style={styles.timelineMetaRow}>
-                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
-                        <Circle cx="12" cy="12" r="10" />
+                      <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
+                        <Circle cx={12} cy={12} r={10} />
                         <Path d="M12 6v6l3 2" />
                       </Svg>
-                      <Text style={styles.timelineMetaText}>10:15 - 11:00</Text>
-                      <Text style={styles.timelineMetaText}>•</Text>
-                      <Text style={styles.timelineMetaText}>Phòng 204</Text>
+                      <Text style={styles.timelineMetaText}>
+                        {selectedClassId === 'cls_6a2' ? '11:15 – 12:00' : '10:15 – 11:00'}
+                      </Text>
+                      <Text style={styles.timelineMetaDot}>•</Text>
+                      <Text style={styles.timelineMetaText}>
+                        {selectedClassId === 'cls_6a2' ? 'Phòng 204' : 'Phòng 301'}
+                      </Text>
                     </View>
                   </View>
-                  <View style={styles.timelineStatusNotYet}>
-                    <Text style={styles.timelineStatusNotYetText}>Chưa dạy</Text>
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>Chưa dạy</Text>
                   </View>
                 </View>
               </View>
@@ -402,16 +969,16 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
         </ScrollView>
 
         {/* ================= 5. FLOATING BOTTOM DOCK ================= */}
-        <View style={styles.dockOuterContainer} pointerEvents="box-none">
+        <View style={styles.dockWrapper} pointerEvents="box-none">
           <View style={styles.dockBar}>
-            {/* Tab 1: Lịch dạy */}
+            {/* Tab 1: Lịch dạy (Active) */}
             <TouchableOpacity
               style={styles.dockTabItem}
               onPress={() => handleTabPress('schedule')}
               activeOpacity={0.8}
             >
-              <View style={[styles.dockIconCircle, activeTab === 'schedule' && styles.dockIconCircleActive]}>
-                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={activeTab === 'schedule' ? '#FFFFFF' : '#94A3B8'} strokeWidth={2.2}>
+              <View style={styles.dockActiveIconWrap}>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2}>
                   <Path
                     d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
                     strokeLinecap="round"
@@ -419,24 +986,42 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                   />
                 </Svg>
               </View>
-              <Text style={[styles.dockTabText, activeTab === 'schedule' ? styles.dockTabTextActive : styles.dockTabTextInactive]}>
-                Lịch dạy
-              </Text>
+              <Text style={styles.dockTabTextActive}>Lịch dạy</Text>
             </TouchableOpacity>
 
-            {/* Tab 2: Điểm danh */}
-            <TouchableOpacity
-              style={styles.dockTabItem}
-              onPress={() => handleTabPress('attendance')}
-              activeOpacity={0.8}
-            >
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={activeTab === 'attendance' ? '#F58F4C' : '#94A3B8'} strokeWidth={2}>
-                <Path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
-              </Svg>
-              <Text style={[styles.dockTabText, activeTab === 'attendance' ? styles.dockTabTextActive : styles.dockTabTextInactive]}>
-                Điểm danh
-              </Text>
-            </TouchableOpacity>
+            {/* Tab 2: Điểm danh (GVCN) hoặc Dò bài (GVBM) */}
+            {isHomeroom ? (
+              <TouchableOpacity
+                style={styles.dockTabItem}
+                onPress={() => handleTabPress('attendance')}
+                activeOpacity={0.8}
+              >
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={activeTab === 'attendance' ? '#FFFFFF' : '#94A3B8'} strokeWidth={2}>
+                  <Path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={[styles.dockTabText, activeTab === 'attendance' ? styles.dockTabTextActive : styles.dockTabTextInactive]}>
+                  Điểm danh
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.dockTabItem}
+                onPress={() => (onOpenWheel ? onOpenWheel() : handleTabPress('attendance'))}
+                activeOpacity={0.8}
+              >
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2}>
+                  <Rect x={4} y={4} width={16} height={16} rx={2} stroke="#94A3B8" strokeWidth={2} />
+                  <Circle cx={8.5} cy={8.5} r={1.2} fill="#94A3B8" />
+                  <Circle cx={15.5} cy={8.5} r={1.2} fill="#94A3B8" />
+                  <Circle cx={12} cy={12} r={1.2} fill="#94A3B8" />
+                  <Circle cx={8.5} cy={15.5} r={1.2} fill="#94A3B8" />
+                  <Circle cx={15.5} cy={15.5} r={1.2} fill="#94A3B8" />
+                </Svg>
+                <Text style={[styles.dockTabText, styles.dockTabTextInactive]}>
+                  Dò bài
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Tab 3: Sổ điểm */}
             <TouchableOpacity
@@ -444,7 +1029,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
               onPress={() => handleTabPress('gradebook')}
               activeOpacity={0.8}
             >
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={activeTab === 'gradebook' ? '#F58F4C' : '#94A3B8'} strokeWidth={2}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={activeTab === 'gradebook' ? '#FFFFFF' : '#94A3B8'} strokeWidth={2}>
                 <Path
                   d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
                   strokeLinecap="round"
@@ -462,7 +1047,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
               onPress={() => handleTabPress('profile')}
               activeOpacity={0.8}
             >
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={activeTab === 'profile' ? '#F58F4C' : '#94A3B8'} strokeWidth={2}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={activeTab === 'profile' ? '#FFFFFF' : '#94A3B8'} strokeWidth={2}>
                 <Path
                   d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
                   strokeLinecap="round"
@@ -476,6 +1061,181 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
           </View>
         </View>
       </SafeAreaView>
+
+      {/* ================= 6. TEA-01.BS: BOTTOM SHEET CHỌN LỚP ================= */}
+      <Modal
+        visible={isClassSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsClassSheetVisible(false)}
+      >
+        <View style={styles.sheetOverlay}>
+          <TouchableWithoutFeedback onPress={() => setIsClassSheetVisible(false)}>
+            <View style={styles.sheetBackdrop} />
+          </TouchableWithoutFeedback>
+
+          <View style={styles.sheetContainer}>
+            {/* Drag Handle */}
+            <View style={styles.dragHandleWrap}>
+              <View style={styles.dragHandle} />
+            </View>
+
+            {/* Sheet Header: Title & Close Button */}
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Chọn Lớp</Text>
+              <TouchableOpacity
+                style={styles.sheetCloseBtn}
+                onPress={() => setIsClassSheetVisible(false)}
+                activeOpacity={0.8}
+                accessibilityLabel="Đóng"
+              >
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#6B6880" strokeWidth={2.4}>
+                  <Path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </TouchableOpacity>
+            </View>
+
+            {/* Classes Card with 3 rows divided */}
+            <View style={styles.classesCard}>
+              {TEACHER_CLASSES.map((item, index) => {
+                const isSelected = item.id === selectedClassId;
+                const isFirst = index === 0;
+                const isLast = index === TEACHER_CLASSES.length - 1;
+
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.classRow,
+                      isSelected && styles.classRowSelected,
+                      isFirst && styles.classRowFirst,
+                      isLast && styles.classRowLast,
+                      index > 0 && styles.classRowDivider,
+                    ]}
+                    onPress={() => handleChooseClass(item)}
+                    activeOpacity={0.85}
+                  >
+                    {/* Left: Icon Tile + Class Info */}
+                    <View style={styles.classRowLeft}>
+                      {/* Icon Tile */}
+                      <View
+                        style={[
+                          styles.classIconTile,
+                          isSelected ? styles.classIconTileSelected : styles.classIconTileNormal,
+                        ]}
+                      >
+                        {item.roleType === 'HOMEROOM' ? (
+                          /* Users Icon */
+                          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <Circle cx={9} cy={7} r={4} />
+                            <Path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                          </Svg>
+                        ) : item.id === 'cls_6a2' ? (
+                          /* Math Icon */
+                          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <Rect x={3} y={3} width={18} height={18} rx={2} ry={2} />
+                            <Line x1={9} y1={9} x2={15} y2={15} />
+                            <Line x1={15} y1={9} x2={9} y2={15} />
+                          </Svg>
+                        ) : (
+                          /* Computer / Monitor Icon */
+                          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <Rect x={2} y={3} width={20} height={14} rx={2} ry={2} />
+                            <Line x1={8} y1={21} x2={16} y2={21} />
+                            <Line x1={12} y1={17} x2={12} y2={21} />
+                          </Svg>
+                        )}
+                      </View>
+
+                      {/* Class name & metadata */}
+                      <View style={styles.classInfoTextWrap}>
+                        <Text style={styles.classNameText}>{item.name}</Text>
+                        <Text style={styles.classSubMetaText}>
+                          {item.studentsCount} học sinh • {item.room}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Right: Badge Pill + Check/Radio Circle */}
+                    <View style={styles.classRowRight}>
+                      {/* Pill Badge */}
+                      <View
+                        style={[
+                          styles.classPillBadge,
+                          isSelected ? styles.classPillBadgeSelected : styles.classPillBadgeNormal,
+                        ]}
+                      >
+                        <Text style={styles.classPillBadgeText}>{item.subjectBadge}</Text>
+                      </View>
+
+                      {/* Check Circle if selected, else hollow radio ring */}
+                      {isSelected ? (
+                        <View style={styles.selectedCheckCircle}>
+                          <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+                            <Polyline points="20 6 9 17 4 12" />
+                          </Svg>
+                        </View>
+                      ) : (
+                        <View style={styles.unselectedHollowCircle} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* Option to simulate Empty State TEA-01.empty */}
+              <TouchableOpacity
+                style={[
+                  styles.classRow,
+                  styles.classRowDivider,
+                  selectedClassId === 'cls_empty' && styles.classRowSelected,
+                ]}
+                onPress={() => {
+                  setInternalClassId('cls_empty');
+                  onSelectClass?.('cls_empty');
+                  setIsClassSheetVisible(false);
+                }}
+                activeOpacity={0.85}
+              >
+                <View style={styles.classRowLeft}>
+                  <View style={[styles.classIconTile, styles.classIconTileNormal, { backgroundColor: '#F1F5F9' }]}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth={2}>
+                      <Circle cx="12" cy="12" r="10" />
+                      <Line x1="12" y1="8" x2="12" y2="12" />
+                      <Line x1="12" y1="16" x2="12.01" y2="16" />
+                    </Svg>
+                  </View>
+                  <View style={styles.classInfoTextWrap}>
+                    <Text style={styles.classNameText}>Chưa Có Lớp</Text>
+                    <Text style={styles.classSubMetaText}>Mô phỏng giao diện TEA-01.empty</Text>
+                  </View>
+                </View>
+                <View style={styles.classRowRight}>
+                  <View style={[styles.classPillBadge, styles.classPillBadgeNormal]}>
+                    <Text style={styles.classPillBadgeText}>Empty</Text>
+                  </View>
+                  {selectedClassId === 'cls_empty' ? (
+                    <View style={styles.selectedCheckCircle}>
+                      <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+                        <Polyline points="20 6 9 17 4 12" />
+                      </Svg>
+                    </View>
+                  ) : (
+                    <View style={styles.unselectedHollowCircle} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Bottom Safe Area Bar (Home indicator) */}
+            <View style={styles.homeIndicatorWrap}>
+              <View style={styles.homeIndicator} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -489,10 +1249,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingTop: 14,
     paddingBottom: 110,
-    gap: 16,
+    gap: 14,
   },
 
   /* Decorative Sparkles */
@@ -528,12 +1288,14 @@ const styles = StyleSheet.create({
   teacherInfoWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
   },
   avatarBorderRing: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     padding: 2,
     backgroundColor: '#FFFFFF',
     shadowColor: '#F58F4C',
@@ -542,11 +1304,12 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     position: 'relative',
+    flexShrink: 0,
   },
   avatarContainer: {
     width: '100%',
     height: '100%',
-    borderRadius: 22,
+    borderRadius: 21,
     backgroundColor: '#FED7AA',
     overflow: 'hidden',
     alignItems: 'center',
@@ -567,15 +1330,19 @@ const styles = StyleSheet.create({
   },
   greetingTextContainer: {
     justifyContent: 'center',
+    flex: 1,
+    minWidth: 0,
   },
   greetingSubtitle: {
     fontSize: 13,
+    lineHeight: 16,
     fontWeight: '500',
     color: '#6B6880',
     marginBottom: 2,
   },
   greetingTeacherName: {
     fontSize: 16,
+    lineHeight: 20,
     fontWeight: '800',
     color: '#1E1B2E',
     letterSpacing: -0.3,
@@ -583,34 +1350,37 @@ const styles = StyleSheet.create({
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flexShrink: 0,
   },
   gvcnBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 12,
-    paddingVertical: 4.5,
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(252, 211, 77, 0.6)',
+    borderColor: '#FFE3C8',
     gap: 5,
+    flexShrink: 0,
   },
   gvcnDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#B45309',
+    backgroundColor: '#6B6880',
   },
   gvcnBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '700',
-    color: '#B45309',
+    color: '#1E1B2E',
   },
   notificationBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.8)',
@@ -625,8 +1395,8 @@ const styles = StyleSheet.create({
   },
   notificationAlertDot: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 7,
+    right: 7,
     width: 9,
     height: 9,
     borderRadius: 4.5,
@@ -638,83 +1408,85 @@ const styles = StyleSheet.create({
   /* 2. Hero Card */
   heroCard: {
     borderRadius: 24,
-    backgroundColor: '#5E5CE6',
+    backgroundColor: '#1E1B2E',
     padding: 20,
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#5E5CE6',
+    shadowColor: '#1E1B2E',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 6,
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   heroGlowBottomRight: {
     position: 'absolute',
     right: -32,
     bottom: -32,
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: 'rgba(129, 140, 248, 0.25)',
+    width: 176,
+    height: 176,
+    borderRadius: 88,
+    backgroundColor: 'rgba(245, 143, 76, 0.2)',
   },
   heroGlowTopLeft: {
     position: 'absolute',
     left: -24,
     top: -24,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   heroIllustrationContainer: {
     position: 'absolute',
-    right: 8,
-    top: 8,
-    width: 110,
-    height: 110,
+    right: 4,
+    top: 4,
+    width: 90,
+    height: 90,
   },
   heroContent: {
-    paddingRight: 64,
+    paddingRight: 76,
   },
   heroTagPill: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 10,
     paddingVertical: 2.5,
     borderRadius: 999,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   heroTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
   heroTitle: {
-    fontSize: 18.5,
+    fontSize: 19,
+    lineHeight: 25,
     fontWeight: '800',
     color: '#FFFFFF',
-    lineHeight: 24,
     marginBottom: 6,
   },
   heroMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+    gap: 7,
+    marginBottom: 14,
   },
   heroMetaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   heroMetaText: {
     color: 'rgba(255, 255, 255, 0.92)',
     fontSize: 12,
+    lineHeight: 16,
     fontWeight: '500',
   },
   heroMetaSeparator: {
@@ -732,82 +1504,86 @@ const styles = StyleSheet.create({
     gap: 8,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 3,
   },
   heroCtaBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#5E5CE6',
+    lineHeight: 16,
+    fontWeight: '800',
+    color: '#1E1B2E',
   },
   heroCtaArrowCircle: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#FFF1E6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroCtaArrowText: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '800',
-    color: '#5E5CE6',
+    color: '#F58F4C',
   },
 
   /* 3. Bento Grid */
   bentoGrid: {
+    gap: 10,
+  },
+  bentoRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   bentoCard: {
-    width: '48%',
-    flexGrow: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
     borderRadius: 20,
-    padding: 14,
+    padding: 13,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.85)',
     shadowColor: '#F58F4C',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 16,
+    shadowRadius: 12,
     elevation: 2,
     justifyContent: 'space-between',
-    minHeight: 115,
+    minHeight: 110,
   },
   bentoCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   bentoIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   bentoLabel: {
     fontSize: 11,
+    lineHeight: 15,
     fontWeight: '600',
     color: '#6B6880',
   },
   bentoPrimaryValue: {
     fontSize: 22,
+    lineHeight: 27,
     fontWeight: '800',
     color: '#1E1B2E',
     letterSpacing: -0.4,
-    lineHeight: 26,
   },
   bentoSubtitleText: {
     fontSize: 13.5,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#1E1B2E',
-    lineHeight: 18,
   },
   bentoTagWrapper: {
     marginTop: 5,
@@ -816,7 +1592,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 999,
     borderWidth: 1,
@@ -830,6 +1606,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 10,
+    lineHeight: 13,
     fontWeight: '700',
   },
   bhytValueRow: {
@@ -839,11 +1616,13 @@ const styles = StyleSheet.create({
   },
   bhytNumerator: {
     fontSize: 17,
+    lineHeight: 22,
     fontWeight: '800',
     color: '#1E1B2E',
   },
   bhytStatusLabel: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '600',
     color: '#6B6880',
   },
@@ -863,185 +1642,543 @@ const styles = StyleSheet.create({
 
   /* 4. Timeline Section */
   timelineSection: {
-    paddingTop: 4,
-    gap: 12,
+    paddingTop: 2,
   },
   timelineHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 2,
+    marginBottom: 10,
   },
-  timelineSectionTitle: {
+  timelineTitleText: {
     fontSize: 15.5,
-    fontWeight: '700',
+    lineHeight: 20,
+    fontWeight: '800',
     color: '#1E1B2E',
   },
   timelineCountBadge: {
-    backgroundColor: 'rgba(255, 237, 213, 0.85)',
-    paddingHorizontal: 10,
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+    paddingHorizontal: 9,
     paddingVertical: 2.5,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#FED7AA',
   },
-  timelineCountText: {
-    fontSize: 11.5,
+  timelineCountBadgeText: {
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '700',
-    color: '#F58F4C',
+    color: '#6B6880',
   },
   timelineList: {
     position: 'relative',
-    paddingLeft: 18,
-    gap: 10,
+    paddingLeft: 14,
+    gap: 9,
   },
   timelineVerticalLine: {
     position: 'absolute',
-    left: 7,
+    left: 6,
     top: 14,
     bottom: 14,
     width: 2,
-    backgroundColor: 'rgba(94, 92, 230, 0.35)',
+    backgroundColor: '#FED7AA',
   },
-  timelineItemRow: {
+  timelineItem: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
-    position: 'relative',
   },
-  timelineDotIndicator: {
+  indicatorDotUpcoming: {
     position: 'absolute',
-    left: -18,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    left: -14,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
     backgroundColor: '#FFFFFF',
     borderWidth: 3,
+    borderColor: '#F58F4C',
     zIndex: 10,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  },
+  indicatorDotPending: {
+    position: 'absolute',
+    left: -14,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#CBD5E1',
+    zIndex: 10,
   },
   timelineCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 18,
-    padding: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.85)',
+    shadowColor: '#F58F4C',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#1E1B2E',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
   },
-  timelineCardLeft: {
+  timelineCardContent: {
     flex: 1,
     paddingRight: 8,
   },
-  timelineClassTitle: {
+  timelineLessonTitle: {
     fontSize: 13.5,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#1E1B2E',
-    marginBottom: 4,
   },
   timelineMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    marginTop: 4,
   },
   timelineMetaText: {
     fontSize: 11.5,
+    lineHeight: 15,
     fontWeight: '500',
     color: '#6B6880',
   },
-  timelineStatusUpcoming: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  timelineStatusUpcomingText: {
+  timelineMetaDot: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
+    color: '#9CA3AF',
   },
-  timelineStatusNotYet: {
-    backgroundColor: '#FFF7ED',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+  upcomingBadge: {
+    backgroundColor: '#FFF1E6',
     borderWidth: 1,
     borderColor: '#FFEDD5',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 999,
   },
-  timelineStatusNotYetText: {
+  upcomingBadgeText: {
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '700',
-    color: '#F58F4C',
+    color: '#6B6880',
+  },
+  pendingBadge: {
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 999,
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    color: '#6B6880',
   },
 
-  /* 5. Bottom Dock */
-  dockOuterContainer: {
+  /* 5. Floating Bottom Dock */
+  dockWrapper: {
     position: 'absolute',
-    bottom: 12,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    alignItems: 'center',
+    bottom: 14,
+    left: 14,
+    right: 14,
+    zIndex: 50,
   },
   dockBar: {
-    width: '100%',
-    maxWidth: 360,
-    height: 64,
+    height: 60,
     backgroundColor: 'rgba(30, 27, 46, 0.95)',
-    borderRadius: 32,
+    borderRadius: 30,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     shadowColor: '#1E1B2E',
-    shadowOffset: { width: 0, height: 16 },
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.35,
-    shadowRadius: 36,
-    elevation: 10,
+    shadowRadius: 28,
+    elevation: 8,
   },
   dockTabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
     gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  dockIconCircle: {
+  dockActiveIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F58F4C',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  dockIconCircleActive: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F58F4C',
     shadowColor: '#F58F4C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 2,
   },
   dockTabText: {
     fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '500',
     letterSpacing: 0.2,
   },
   dockTabTextActive: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  dockTabTextInactive: {
+    color: '#94A3B8',
+  },
+
+  /* 6. TEA-01.BS Bottom Sheet Styles */
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'transparent',
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.52)',
+  },
+  sheetContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingTop: 10,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
+    elevation: 24,
+    zIndex: 100,
+  },
+  dragHandleWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    marginBottom: 4,
+  },
+  dragHandle: {
+    width: 44,
+    height: 5,
+    backgroundColor: '#DDD7D0',
+    borderRadius: 999,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    paddingTop: 4,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    letterSpacing: -0.3,
+  },
+  sheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  classesCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#EFE9E2',
+    overflow: 'hidden',
+    shadowColor: '#1E1B2E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  classRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    backgroundColor: '#FFFFFF',
+  },
+  classRowSelected: {
+    backgroundColor: '#FFF1E6',
+  },
+  classRowFirst: {
+    borderTopLeftRadius: 19,
+    borderTopRightRadius: 19,
+  },
+  classRowLast: {
+    borderBottomLeftRadius: 19,
+    borderBottomRightRadius: 19,
+  },
+  classRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#F2ECE6',
+  },
+  classRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  classIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  classIconTileSelected: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 143, 76, 0.3)',
+    shadowColor: '#1E1B2E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  classIconTileNormal: {
+    backgroundColor: '#FFF1E6',
+  },
+  classInfoTextWrap: {
+    flex: 1,
+  },
+  classNameText: {
+    fontSize: 14.5,
+    lineHeight: 19,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  classSubMetaText: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '500',
+    color: '#6B6880',
+    marginTop: 2,
+  },
+  classRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  classPillBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 999,
+  },
+  classPillBadgeSelected: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E9E2D8',
+  },
+  classPillBadgeNormal: {
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 143, 76, 0.15)',
+  },
+  classPillBadgeText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    color: '#6B6880',
+  },
+  selectedCheckCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F58F4C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  unselectedHollowCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#D5CED8',
+    backgroundColor: 'transparent',
+  },
+  homeIndicatorWrap: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 18,
+    paddingBottom: 4,
+  },
+  homeIndicator: {
+    width: 128,
+    height: 4.5,
+    backgroundColor: 'rgba(30, 27, 46, 0.2)',
+    borderRadius: 999,
+  },
+
+  /* TEA-01.empty Styles */
+  emptyMainContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    marginTop: -20,
+  },
+  emptyIllustrationWrap: {
+    width: 250,
+    height: 250,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 16,
+  },
+  emptyIllustrationGlow: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(255, 207, 163, 0.45)',
+    shadowColor: '#F58F4C',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 32,
+    elevation: 8,
+  },
+  emptyIllustrationImage: {
+    width: 240,
+    height: 240,
+    borderRadius: 36,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    textAlign: 'center',
+    marginBottom: 28,
+    letterSpacing: -0.3,
+  },
+  emptyButtonsContainer: {
+    width: '100%',
+    maxWidth: 342,
+    gap: 12,
+  },
+  emptyPrimaryBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F58F4C',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.38,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  emptyPrimaryBtnText: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  dockTabTextInactive: {
+  emptyOutlinedBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderWidth: 2,
+    borderColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F58F4C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  emptyOutlinedBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F58F4C',
+  },
+  dialogSheetBox: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    paddingBottom: 36,
+  },
+  dialogSheetTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  dialogSheetSubtitle: {
+    fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#6B6880',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  dialogInput: {
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+    paddingHorizontal: 16,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1E1B2E',
+  },
+  dialogCancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dialogCancelBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#F58F4C',
+  },
+  dialogPrimaryBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dialogPrimaryBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
