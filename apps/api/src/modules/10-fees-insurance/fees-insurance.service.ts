@@ -72,40 +72,21 @@ export class FeesInsuranceService {
       };
     }
 
-    const allRecords = [
-      {
-        record_id: 'fee_01',
-        student_id: 'stu_01',
-        student_name: 'Trần Bảo Nam',
-        tuition: { is_paid: true, paid_date: '2026-09-15' },
-        insurance: { is_paid: true, paid_date: '2026-09-18' },
-        note: 'Đã nộp đủ cả năm',
-      },
-      {
-        record_id: 'fee_02',
-        student_id: 'stu_02',
-        student_name: 'Lê Ngọc Mai',
-        tuition: { is_paid: true, paid_date: '2026-09-16' },
-        insurance: { is_paid: false, paid_date: null },
-        note: null,
-      },
-      {
-        record_id: 'fee_03',
-        student_id: 'stu_03',
-        student_name: 'Nguyễn Văn An',
-        tuition: { is_paid: false, paid_date: null },
-        insurance: { is_paid: true, paid_date: '2026-09-18' },
-        note: null,
-      },
-    ];
+    let allRecords: any[] = [];
+    try {
+      const sqlFees = await (this.dataConnect as any).getFeesByClass?.(classId);
+      if (sqlFees && sqlFees.length > 0) {
+        allRecords = sqlFees;
+      }
+    } catch (e) {}
 
     let filteredRecords = allRecords;
 
     if (query?.unpaid_only) {
       if (query.fee_type === 'INSURANCE') {
-        filteredRecords = allRecords.filter((r) => !r.insurance.is_paid);
+        filteredRecords = allRecords.filter((r) => !r.insurance?.is_paid);
       } else if (query.fee_type === 'TUITION') {
-        filteredRecords = allRecords.filter((r) => !r.tuition.is_paid);
+        filteredRecords = allRecords.filter((r) => !r.tuition?.is_paid);
       }
     }
 

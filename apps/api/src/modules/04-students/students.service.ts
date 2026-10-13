@@ -204,20 +204,27 @@ export class StudentsService {
   }
 
   async getExamReminders(studentId: string, parentUid?: string) {
-    await this.findStudent(studentId, parentUid);
+    const student = await this.findStudent(studentId, parentUid);
+    let list: any[] = [];
+    if ((student as any)?.class_id && this.dataConnect?.getExamRemindersByClass) {
+      try {
+        const sqlReminders = await this.dataConnect.getExamRemindersByClass((student as any).class_id);
+        if (sqlReminders && sqlReminders.length > 0) {
+          list = sqlReminders.map((r: any) => ({
+            id: r.id || r.reminder_id || 'exm_rem_001',
+            reminder_id: r.reminder_id || r.id || 'exm_rem_001',
+            subject_name: r.subject || r.subject_name || 'Toán học',
+            exam_type: r.exam_type || 'TEST_15P',
+            exam_date: r.exam_date || r.examDate || '2026-10-02',
+            instructions: r.instructions || '',
+            content_scope: r.content_scope || r.note || r.title || 'Phạm vi kiểm tra',
+            created_at: r.created_at || r.createdAt || new Date().toISOString(),
+          }));
+        }
+      } catch (e) {}
+    }
 
-    return [
-      {
-        id: 'exm_rem_001',
-        reminder_id: 'exm_rem_001',
-        subject_name: 'Toán học',
-        exam_type: 'TEST_15P',
-        exam_date: '2026-10-02',
-        instructions: 'Ôn tập kỹ bài 12 và 13: Phép cộng phân số cùng mẫu số và làm bài tập trang 45',
-        content_scope: 'Phép cộng trong phạm vi 10 (Bài 5 và Bài 6)',
-        created_at: '2026-09-28T07:00:00.000Z',
-      },
-    ];
+    return list;
   }
 
   private async findStudent(studentId: string, parentUid?: string) {

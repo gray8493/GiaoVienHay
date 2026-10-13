@@ -353,6 +353,19 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
 
   describe('UT06_Grades_TC29: Chặn tra cứu điểm chưa công bố', () => {
     it('xác định điểm chưa công bố qua trường is_published', async () => {
+      mockDataConnect.execute.mockResolvedValueOnce({
+        data: {
+          scores: [
+            {
+              student_id: 'stu_01',
+              student_name: 'Trần Bảo Nam',
+              scores: [
+                { type: 'MID_TERM', value: 9.5, comment: null, is_published: false },
+              ],
+            },
+          ],
+        },
+      });
       const grades = await service.getClassGrades('cls_1a_2026', 'MATH', 1);
       expect(grades[0].scores.some((s: any) => s.is_published === false)).toBe(true);
     });
@@ -360,6 +373,19 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
 
   describe('UT06_Grades_TC30: Lấy bảng điểm chi tiết môn học theo lớp thành công (200 OK)', () => {
     it('trả về danh sách học sinh và điểm các cột thành phần', async () => {
+      mockDataConnect.execute.mockResolvedValueOnce({
+        data: {
+          scores: [
+            {
+              student_id: 'stu_01',
+              student_name: 'Trần Bảo Nam',
+              scores: [
+                { type: 'ORAL_TEST', value: 9.5, comment: 'Tốt', is_published: true },
+              ],
+            },
+          ],
+        },
+      });
       const grades = await service.getClassGrades('cls_1a_2026', 'MATH', 1);
       expect(grades.length).toBeGreaterThan(0);
       expect(grades[0].student_name).toBe('Trần Bảo Nam');

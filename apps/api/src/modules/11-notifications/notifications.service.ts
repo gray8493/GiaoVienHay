@@ -86,54 +86,6 @@ export class NotificationsService {
       });
     }
 
-    if (defaultItems.length === 0) {
-      defaultItems = [
-        {
-          id: 'notif_01',
-          recipient_user_id: 'usr_parent_01',
-          title: 'Nhắc lịch kiểm tra môn Toán',
-          body: 'Thứ Sáu tới lớp có bài kiểm tra 15 phút Toán. Kính nhờ phụ huynh đôn đốc con ôn bài.',
-          type: NotificationType.EXAM_REMINDER,
-          is_read: false,
-          metadata: { student_id: 'stu_01', screen: 'EXAM_REMINDER_DETAIL' },
-          created_at: '2026-09-23T10:30:00.000Z',
-        },
-        {
-          id: 'notif_02',
-          recipient_user_id: 'usr_parent_01',
-          title: 'Bảng điểm học kỳ 1 môn Toán đã công bố',
-          body: 'Điểm số môn Toán đã được cập nhật',
-          type: NotificationType.GRADE_PUBLISHED,
-          is_read: false,
-          metadata: { student_id: 'stu_01', screen: 'GRADE_DETAIL' },
-          created_at: '2026-09-22T08:15:00.000Z',
-        },
-        {
-          id: 'notif_remark_01',
-          recipient_user_id: 'usr_parent_01',
-          title: 'Lời nhận xét mới từ GVCN',
-          body: 'Cô giáo đã gửi lời nhận xét tuần 4 cho học sinh Trần Bảo Nam.',
-          type: NotificationType.REMARK_NEW,
-          is_read: false,
-          metadata: { student_id: 'stu_01', screen: 'REMARK_DETAIL', ref_id: 'rem_001' },
-          created_at: '2026-09-24T09:00:00.000Z',
-        },
-      ];
-
-      // Thêm 12 items đã đọc để tổng là 15 items
-      for (let i = 3; i <= 14; i++) {
-        defaultItems.push({
-          id: `notif_${i}`,
-          recipient_user_id: 'usr_parent_01',
-          title: `Thông báo thứ ${i}`,
-          body: `Nội dung thông báo ${i}`,
-          type: NotificationType.SYSTEM,
-          is_read: true,
-          created_at: '2026-09-20T08:00:00.000Z',
-        });
-      }
-    }
-
     // Filter theo recipient nếu có
     let userItems = defaultItems.filter((n) => !n.recipient_user_id || n.recipient_user_id === userId);
     let items = userItems;

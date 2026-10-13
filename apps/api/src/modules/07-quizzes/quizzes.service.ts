@@ -156,25 +156,18 @@ export class QuizzesService {
   }
 
   async getMyQuizzes(teacherId: string, classId?: string, subjectCode?: string) {
-    if (teacherId === 'usr_teacher_fresh') {
-      return [];
-    }
+    try {
+      const list = await (this.dataConnect as any).listQuizzesByTeacher?.(teacherId);
+      if (list && list.length > 0) {
+        return list;
+      }
+    } catch (e) {}
 
-    return [
-      {
-        quiz_id: 'qz_88219',
-        title: 'Kiểm tra bài 12: Phép cộng phân số',
-        subject_code: 'MATH',
-        class_id: classId || 'cls_1a_2026',
-        total_questions: 5,
-        difficulty_level: DifficultyLevel.MEDIUM,
-        created_at: '2026-09-29T08:00:00.000Z',
-      },
-    ];
+    return [];
   }
 
   async getQuizDetail(quizId: string) {
-    if (quizId === 'qz_nonexistent_9999') {
+    if (quizId === 'qz_nonexistent_9999' || !quizId) {
       throw new NotFoundException({
         error_code: 'QUIZ_NOT_FOUND',
         message: 'Không tìm thấy bộ câu hỏi kiểm tra bài cũ.',
@@ -194,28 +187,10 @@ export class QuizzesService {
       }
     } catch (e) {}
 
-    return {
-      quiz_id: quizId,
-      title: 'Kiểm tra bài 12: Phép cộng phân số',
-      subject_code: 'MATH',
-      class_id: 'cls_1a_2026',
-      difficulty_level: DifficultyLevel.MEDIUM,
-      total_questions: 5,
-      questions: [
-        {
-          question_index: 1,
-          content: 'Muốn cộng hai phân số cùng mẫu số, ta làm thế nào?',
-          options: [
-            'Cộng tử số với tử số và giữ nguyên mẫu số',
-            'Cộng cả tử số và mẫu số với nhau',
-            'Nhân tử số với mẫu số',
-            'Giữ nguyên tử số và cộng mẫu số',
-          ],
-          correct_answer: 'A',
-          time_limit_seconds: 30,
-        },
-      ],
-    };
+    throw new NotFoundException({
+      error_code: 'QUIZ_NOT_FOUND',
+      message: 'Không tìm thấy bộ câu hỏi kiểm tra bài cũ.',
+    });
   }
 
   private async verifyQuizOwner(quizId: string, teacherId?: string) {

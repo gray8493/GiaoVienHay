@@ -15,7 +15,35 @@ describe('ExamRemindersService (Unit Tests UT09 - All 26 Cases)', () => {
   beforeEach(() => {
     mockDataConnect = {
       createExamReminder: jest.fn().mockResolvedValue(true),
-      getExamRemindersByClass: jest.fn().mockResolvedValue([]),
+      getExamRemindersByClass: jest.fn().mockImplementation(async (classId: string) => {
+        if (classId === 'cls_empty') return [];
+        return [
+          {
+            id: 'exm_4412',
+            class_id: classId,
+            teacher_id: 'usr_teacher_lan_01',
+            teacher_name: 'Nguyễn Thị Lan',
+            subject_code: 'MATH',
+            subject_name: 'Toán học',
+            exam_type: 'TEST_15P',
+            exam_date: '2026-09-30',
+            message: 'Thứ Sáu tới lớp sẽ có bài kiểm tra 15 phút môn Toán.',
+            created_at: '2026-09-27T10:30:00.000Z',
+          },
+          {
+            id: 'exm_4413',
+            class_id: classId,
+            teacher_id: 'usr_teacher_eng_02',
+            teacher_name: 'Trần Thị Mai',
+            subject_code: 'ENG',
+            subject_name: 'Tiếng Anh',
+            exam_type: 'TEST_1P',
+            exam_date: '2026-10-05',
+            message: 'Lớp sẽ có bài kiểm tra 1 tiết môn Tiếng Anh.',
+            created_at: '2026-09-27T10:35:00.000Z',
+          },
+        ];
+      }),
       createNotification: jest.fn().mockResolvedValue(true),
     };
 

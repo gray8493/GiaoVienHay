@@ -14,7 +14,38 @@ describe('QuizzesService (Unit Tests UT07 - All 28 Cases)', () => {
   beforeEach(() => {
     mockDataConnect = {
       createQuiz: jest.fn().mockResolvedValue(true),
-      getQuizById: jest.fn().mockResolvedValue(null),
+      getQuizById: jest.fn().mockImplementation(async (id: string) => {
+        if (!id || id === 'qz_nonexistent_9999') return null;
+        return {
+          id: 'qz_88219',
+          title: 'Kiểm tra bài 12: Phép cộng phân số',
+          subject: 'MATH',
+          classId: 'cls_1a_2026',
+          questionsJson: JSON.stringify([
+            {
+              question_index: 1,
+              content: 'Muốn cộng hai phân số cùng mẫu số, ta làm thế nào?',
+              options: ['A', 'B', 'C', 'D'],
+              correct_answer: 'A',
+              time_limit_seconds: 30,
+            },
+          ]),
+        };
+      }),
+      listQuizzesByTeacher: jest.fn().mockImplementation(async (teacherId: string) => {
+        if (teacherId === 'usr_teacher_fresh') return [];
+        return [
+          {
+            quiz_id: 'qz_88219',
+            title: 'Kiểm tra bài 12: Phép cộng phân số',
+            subject_code: 'MATH',
+            class_id: 'cls_1a_2026',
+            total_questions: 5,
+            difficulty_level: DifficultyLevel.MEDIUM,
+            created_at: '2026-09-29T08:00:00.000Z',
+          },
+        ];
+      }),
       recordScore: jest.fn().mockResolvedValue(true),
       getStudentById: jest.fn().mockImplementation(async (id: string) => {
         if (!id || id === 'stu_not_exist_9999') return null;

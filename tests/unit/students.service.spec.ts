@@ -56,6 +56,15 @@ describe('StudentsService (Unit Tests UT04 - All 15 Cases)', () => {
           },
         ];
       }),
+      getExamRemindersByClass: jest.fn().mockResolvedValue([
+        {
+          id: 'exm_rem_001',
+          subject: 'Toán học',
+          exam_type: 'TEST_15P',
+          exam_date: '2026-10-02',
+          content_scope: 'Phép cộng trong phạm vi 10',
+        },
+      ]),
     };
 
     service = new StudentsService(mockDataConnect);

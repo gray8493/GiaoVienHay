@@ -16,6 +16,35 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
     mockDataConnect = {
       updateFeeStatus: jest.fn().mockResolvedValue(true),
       createNotification: jest.fn().mockResolvedValue(true),
+      getFeesByClass: jest.fn().mockImplementation(async (classId: string) => {
+        if (classId === 'cls_new_2026') return [];
+        return [
+          {
+            record_id: 'fee_01',
+            student_id: 'stu_01',
+            student_name: 'Trần Bảo Nam',
+            tuition: { is_paid: true, paid_date: '2026-09-15' },
+            insurance: { is_paid: true, paid_date: '2026-09-18' },
+            note: 'Đã nộp đủ cả năm',
+          },
+          {
+            record_id: 'fee_02',
+            student_id: 'stu_02',
+            student_name: 'Lê Ngọc Mai',
+            tuition: { is_paid: true, paid_date: '2026-09-16' },
+            insurance: { is_paid: false, paid_date: null },
+            note: null,
+          },
+          {
+            record_id: 'fee_03',
+            student_id: 'stu_03',
+            student_name: 'Nguyễn Văn An',
+            tuition: { is_paid: false, paid_date: null },
+            insurance: { is_paid: true, paid_date: '2026-09-18' },
+            note: null,
+          },
+        ];
+      }),
     };
 
     service = new FeesInsuranceService(mockDataConnect);

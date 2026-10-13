@@ -45,29 +45,7 @@ export class GradesService {
       }
     } catch (e) {}
 
-    if (classId !== 'cls_1a_2026') {
-      return [];
-    }
-
-    return [
-      {
-        student_id: 'stu_01',
-        student_name: 'Trần Bảo Nam',
-        scores: [
-          { type: 'ORAL_TEST', value: 9.5, comment: 'Thuộc bảng cửu chương', is_published: true },
-          { type: 'TEST_15P', value: 8.5, comment: null, is_published: true },
-          { type: 'MID_TERM', value: 9.5, comment: null, is_published: false },
-        ],
-      },
-      {
-        student_id: 'stu_02',
-        student_name: 'Lê Ngọc Mai',
-        scores: [
-          { type: 'ORAL_TEST', value: 8.0, comment: 'Cần tính nhanh hơn', is_published: true },
-          { type: 'TEST_15P', value: 9.0, comment: null, is_published: true },
-        ],
-      },
-    ];
+    return [];
   }
 
   async batchInputScores(

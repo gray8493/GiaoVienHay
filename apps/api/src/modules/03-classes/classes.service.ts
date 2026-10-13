@@ -221,24 +221,6 @@ export class ClassesService {
       }
     } catch (e) {}
 
-    if (classes.length === 0) {
-      classes = [
-        {
-          id: 'cls_1a_2026',
-          class_id: 'cls_1a_2026',
-          name: '1A',
-          grade_level: 1,
-          academic_year: '2026-2027',
-          school_name: 'Trường Tiểu Học Chu Văn An',
-          homeroom_teacher_id: teacherId,
-          role_in_class: 'HOMEROOM',
-          student_count: 35,
-          total_students: 35,
-          invite_code: 'INV-1A-2026',
-        },
-      ];
-    }
-
     // Cache kết quả trong 10 phút (600,000 ms)
     await this.cacheManager.set(cacheKey, classes, 600000);
 
@@ -259,33 +241,10 @@ export class ClassesService {
     } catch (e) {}
 
     if (!cls) {
-      if (classId === 'cls_new_empty') {
-        return {
-          id: 'cls_new_empty',
-          class_id: 'cls_new_empty',
-          name: 'Lớp 6A3',
-          grade_level: 6,
-          academic_year: '2026-2027',
-          homeroom_teacher_name: 'Cô Hoàng Lan',
-          invite_code: 'CL6A39',
-          total_students: 0,
-          student_count: 0,
-          students: [],
-          subject_teachers: [],
-        };
-      }
-      cls = {
-        id: classId,
-        class_id: classId,
-        name: '1A',
-        grade_level: 1,
-        academic_year: '2026-2027',
-        school_name: 'Trường Tiểu Học Chu Văn An',
-        homeroom_teacher_id: userId,
-        student_count: 35,
-        total_students: 35,
-        invite_code: 'INV-1A-2026',
-      };
+      throw new NotFoundException({
+        error_code: 'CLASS_NOT_FOUND',
+        message: 'Không tìm thấy lớp học',
+      });
     }
 
     const students = await this.getClassStudents(classId);
@@ -614,11 +573,7 @@ export class ClassesService {
       }
     } catch (e) {}
 
-    return [
-      { id: 'stu_01', full_name: 'Trần Bảo Nam', student_code: 'HS001', gender: 'MALE', dob: '2019-05-15', is_deleted: false },
-      { id: 'stu_02', full_name: 'Lê Ngọc Mai', student_code: 'HS002', gender: 'FEMALE', dob: '2019-08-20', is_deleted: false },
-      { id: 'stu_03', full_name: 'Hoàng Minh Khôi', student_code: 'HS003', gender: 'MALE', dob: '2019-11-10', is_deleted: false },
-    ];
+    return [];
   }
 
   private async getClassStudentsCount(classId: string): Promise<number> {

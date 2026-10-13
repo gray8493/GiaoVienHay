@@ -246,26 +246,7 @@ export class AttendanceService {
       }
     } catch (e) {}
 
-    return [
-      {
-        id: 'att_01',
-        class_id: classId,
-        student_id: 'stu_01',
-        student_name: 'Trần Bảo Nam',
-        attendance_date: targetDate,
-        status: AttendanceStatus.PRESENT,
-        note: null,
-      },
-      {
-        id: 'att_02',
-        class_id: classId,
-        student_id: 'stu_02',
-        student_name: 'Lê Ngọc Mai',
-        attendance_date: targetDate,
-        status: AttendanceStatus.ABSENT_EXCUSED,
-        note: 'Phụ huynh xin nghỉ ốm',
-      },
-    ];
+    return [];
   }
 
   async getTodayPresentStudents(classId: string): Promise<TodayPresentStudentsResponse> {
@@ -288,19 +269,16 @@ export class AttendanceService {
       };
     }
 
-    let presentStudents = [
-      { id: 'stu_01', full_name: 'Trần Bảo Nam', student_code: 'HS001' },
-      { id: 'stu_03', full_name: 'Hoàng Minh Khôi', student_code: 'HS003' },
-    ];
+    let presentStudents: any[] = [];
 
     try {
       const sqlList = await this.dataConnect.getAttendanceByClassDate(classId, today);
-      const presents = sqlList.filter((a) => a.status === AttendanceStatus.PRESENT);
+      const presents = (sqlList || []).filter((a) => a.status === AttendanceStatus.PRESENT);
       if (presents.length > 0) {
         presentStudents = presents.map((p) => ({
           id: p.studentId || p.student_id,
-          full_name: 'Học sinh',
-          student_code: 'HS',
+          full_name: p.full_name || p.student_name || 'Học sinh',
+          student_code: p.student_code || p.studentCode || 'HS',
         }));
       }
     } catch (e) {}
@@ -308,6 +286,8 @@ export class AttendanceService {
     const result = {
       class_id: classId,
       today,
+      is_attended_today: presentStudents.length > 0,
+      total_present: presentStudents.length,
       present_students: presentStudents,
     };
 

@@ -263,32 +263,14 @@ export class ExamRemindersService {
       return this.getClassReminders(query.classId, query.subjectCode, undefined, userId);
     }
 
-    return [
-      {
-        id: 'exm_4412',
-        class_id: 'cls_1a_2026',
-        teacher_id: 'usr_teacher_lan_01',
-        teacher_name: 'Nguyễn Thị Lan',
-        subject_code: 'MATH',
-        subject_name: 'Toán học',
-        exam_type: 'TEST_15P',
-        exam_date: '2026-09-30',
-        message: 'Thứ Sáu tới lớp sẽ có bài kiểm tra 15 phút môn Toán về phép cộng trong phạm vi 10.',
-        created_at: '2026-09-27T10:30:00.000Z',
-      },
-      {
-        id: 'exm_4413',
-        class_id: 'cls_1a_2026',
-        teacher_id: 'usr_teacher_eng_02',
-        teacher_name: 'Trần Thị Mai',
-        subject_code: 'ENG',
-        subject_name: 'Tiếng Anh',
-        exam_type: 'TEST_1P',
-        exam_date: '2026-10-05',
-        message: 'Lớp sẽ có bài kiểm tra 1 tiết môn Tiếng Anh vào ngày 05/10.',
-        created_at: '2026-09-27T10:35:00.000Z',
-      },
-    ];
+    try {
+      const sqlReminders = await (this.dataConnect as any).listExamRemindersByUser?.(userId);
+      if (sqlReminders && sqlReminders.length > 0) {
+        return sqlReminders;
+      }
+    } catch (e) {}
+
+    return this.getClassReminders('cls_1a_2026', query?.subjectCode, undefined, userId);
   }
 
   async getClassReminders(
@@ -328,49 +310,17 @@ export class ExamRemindersService {
       };
     }
 
-    if (subjectCode === 'MATH') {
-      return [
-        {
-          id: 'exm_4412',
-          class_id: classId,
-          teacher_id: 'usr_teacher_lan_01',
-          teacher_name: 'Nguyễn Thị Lan',
-          subject_code: 'MATH',
-          subject_name: 'Toán học',
-          exam_type: 'TEST_15P',
-          exam_date: '2026-09-30',
-          message: 'Thứ Sáu tới lớp sẽ có bài kiểm tra 15 phút môn Toán về phép cộng trong phạm vi 10.',
-          created_at: '2026-09-27T10:30:00.000Z',
-        },
-      ];
-    }
+    try {
+      const sqlReminders = await (this.dataConnect as any).getExamRemindersByClass?.(classId);
+      if (sqlReminders && sqlReminders.length > 0) {
+        if (subjectCode) {
+          return sqlReminders.filter((r: any) => (r.subject_code || r.subject) === subjectCode);
+        }
+        return sqlReminders;
+      }
+    } catch (e) {}
 
-    return [
-      {
-        id: 'exm_4412',
-        class_id: classId,
-        teacher_id: 'usr_teacher_lan_01',
-        teacher_name: 'Nguyễn Thị Lan',
-        subject_code: 'MATH',
-        subject_name: 'Toán học',
-        exam_type: 'TEST_15P',
-        exam_date: '2026-09-30',
-        message: 'Thứ Sáu tới lớp sẽ có bài kiểm tra 15 phút môn Toán về phép cộng trong phạm vi 10.',
-        created_at: '2026-09-27T10:30:00.000Z',
-      },
-      {
-        id: 'exm_4413',
-        class_id: classId,
-        teacher_id: 'usr_teacher_eng_02',
-        teacher_name: 'Trần Thị Mai',
-        subject_code: 'ENG',
-        subject_name: 'Tiếng Anh',
-        exam_type: 'TEST_1P',
-        exam_date: '2026-10-05',
-        message: 'Lớp sẽ có bài kiểm tra 1 tiết môn Tiếng Anh vào ngày 05/10.',
-        created_at: '2026-09-27T10:35:00.000Z',
-      },
-    ];
+    return [];
   }
 
   private async triggerExamReminderFCM(classId: string, subjectCode: string, date: string, msg: string) {
