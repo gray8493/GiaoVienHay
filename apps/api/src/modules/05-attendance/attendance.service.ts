@@ -275,7 +275,7 @@ export class AttendanceService {
       const sqlList = await this.dataConnect.getAttendanceByClassDate(classId, today);
       const presents = (sqlList || []).filter((a) => a.status === AttendanceStatus.PRESENT);
       if (presents.length > 0) {
-        presentStudents = presents.map((p) => ({
+        presentStudents = presents.map((p: any) => ({
           id: p.studentId || p.student_id,
           full_name: p.full_name || p.student_name || 'Học sinh',
           student_code: p.student_code || p.studentCode || 'HS',
