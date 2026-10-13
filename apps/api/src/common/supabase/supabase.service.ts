@@ -536,6 +536,29 @@ export class SupabaseService implements OnModuleInit {
     return mem ? this.mapUser(mem) : null;
   }
 
+  async getUserByEmail(email: string) {
+    const cleanEmail = email.toLowerCase().trim();
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('users')
+          .select('*')
+          .ilike('email', cleanEmail)
+          .eq('is_deleted', false)
+          .maybeSingle();
+        if (!error && data) {
+          return this.mapUser(data);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] Fallback getUserByEmail: ${err?.message}`);
+      }
+    }
+    const mem = Array.from(this.memoryStore.users.values()).find(
+      (u) => u.email && u.email.toLowerCase().trim() === cleanEmail && !(u.is_deleted ?? u.isDeleted)
+    );
+    return mem ? this.mapUser(mem) : null;
+  }
+
   async createUser(user: any) {
     const record = {
       id: user.id,
@@ -763,11 +786,12 @@ export class SupabaseService implements OnModuleInit {
     };
   }
 
-  async listClasses(schoolName?: string) {
+  async listClasses(schoolName?: string, academicYear?: string) {
     if (this.supabase) {
       try {
         let q = this.supabase.from('classes').select('*').eq('is_deleted', false);
         if (schoolName) q = q.eq('school_name', schoolName);
+        if (academicYear) q = q.eq('academic_year', academicYear);
         q = q.order('grade_level', { ascending: true });
         const { data, error } = await q;
         if (!error && data && data.length > 0) {
@@ -780,6 +804,7 @@ export class SupabaseService implements OnModuleInit {
 
     let list = Array.from(this.memoryStore.classes.values()).filter((c) => !c.is_deleted && !c.isDeleted);
     if (schoolName) list = list.filter((c) => (c.school_name || c.schoolName) === schoolName);
+    if (academicYear) list = list.filter((c) => (c.academic_year || c.academicYear) === academicYear);
     return list.map((c) => this.mapClass(c));
   }
 

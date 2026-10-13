@@ -1,4 +1,4 @@
-﻿jest.mock('firebase-admin/app', () => ({
+jest.mock('firebase-admin/app', () => ({
   initializeApp: jest.fn(),
   getApps: jest.fn(() => []),
   cert: jest.fn(),
@@ -37,6 +37,7 @@ describe('AuthService (Unit Tests UT01 - All 27 Cases)', () => {
     };
     mockDataConnect = {
       getUserByPhone: jest.fn(),
+      getUserByEmail: jest.fn(),
       getUserById: jest.fn(),
       createUser: jest.fn(),
       updateUserPassword: jest.fn(),
@@ -125,15 +126,33 @@ describe('AuthService (Unit Tests UT01 - All 27 Cases)', () => {
     });
   });
 
-  describe('UT01_Auth_TC08: Mật khẩu không đủ độ dài tối thiểu', () => {
-    it('báo lỗi validation khi mật khẩu dưới 6 ký tự', async () => {
-      const dto = plainToInstance(RegisterDto, { full_name: 'Nguyễn Văn An', phone: '0912345678', password: '123', role: UserRole.PARENT });
+  describe('UT01_Auth_TC08: Mật khẩu không đủ độ mạnh theo tiêu chuẩn bảo mật', () => {
+    it('báo lỗi validation khi mật khẩu yếu (chỉ gồm chữ thường và số, dưới 8 ký tự)', async () => {
+      const dto = plainToInstance(RegisterDto, { full_name: 'Trần Văn Bình', phone: '0987654321', password: 'pass123', role: UserRole.PARENT });
       const errors = await validate(dto);
       expect(errors.some(e => e.property === 'password')).toBe(true);
     });
+
+    it('AuthService.register ném BadRequestException khi mật khẩu không đủ độ mạnh', async () => {
+      await expect(
+        service.register({ full_name: 'Trần Văn Bình', phone: '0987654321', password: 'pass123', role: UserRole.PARENT })
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
-  describe('UT01_Auth_TC09: Vai trò người dùng không hợp lệ', () => {
+  describe('UT01_Auth_TC09: Số điện thoại sai định dạng mạng viễn thông Việt Nam', () => {
+    it('báo lỗi validation khi số điện thoại không hợp lệ (ví dụ: 0123456789)', async () => {
+      const dto = plainToInstance(RegisterDto, { full_name: 'Trần Văn Bình', phone: '0123456789', password: 'Password123@', role: UserRole.PARENT });
+      const errors = await validate(dto);
+      expect(errors.some(e => e.property === 'phone')).toBe(true);
+    });
+
+    it('AuthService.register ném BadRequestException khi số điện thoại sai định dạng VN', async () => {
+      await expect(
+        service.register({ full_name: 'Trần Văn Bình', phone: '0123456789', password: 'Password123@', role: UserRole.PARENT })
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('báo lỗi validation khi role không thuộc enum UserRole', async () => {
       const dto = plainToInstance(RegisterDto, { full_name: 'Nguyễn Văn An', phone: '0912345678', password: 'Password123@', role: 'INVALID_ROLE' as any });
       const errors = await validate(dto);
@@ -178,10 +197,11 @@ describe('AuthService (Unit Tests UT01 - All 27 Cases)', () => {
     });
   });
 
-  describe('UT01_Auth_TC15: Đăng xuất từ chối khi access token không hợp lệ', () => {
-    it('ném UnauthorizedException khi token không hợp lệ', async () => {
-      mockJwtService.verifyAsync.mockRejectedValue(new Error('Invalid'));
+  describe('UT01_Auth_TC15: Đăng xuất từ chối khi access token không hợp lệ (AUTH_TOKEN_INVALID)', () => {
+    it('ném UnauthorizedException khi token không hợp lệ hoặc giả mạo', async () => {
+      mockJwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
       await expect(service.logout('invalid_token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.logout('invalid_jwt_token')).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -212,8 +232,25 @@ describe('AuthService (Unit Tests UT01 - All 27 Cases)', () => {
     });
   });
 
-  describe('UT01_Auth_TC19: Đăng nhập Giáo viên chủ nhiệm thành công', () => {
-    it('đăng nhập giáo viên thành công và trả về access token cùng thông tin', async () => {
+  describe('UT01_Auth_TC19: Đăng nhập bằng Email và mật khẩu chính xác thành công', () => {
+    it('đăng nhập bằng Email và mật khẩu chính xác thành công (200 OK)', async () => {
+      const hash = await bcrypt.hash('Password123@', 10);
+      mockDataConnect.getUserByEmail.mockResolvedValue({
+        id: 'usr_teacher_lan_01',
+        email: 'teacher.lan@school.edu.vn',
+        phone: '0912345678',
+        password_hash: hash,
+        is_active: true,
+        is_deleted: false,
+        role: UserRole.TEACHER_HOMEROOM,
+      });
+      const res = await service.login({ identifier: 'teacher.lan@school.edu.vn', password: 'Password123@' });
+      expect(res.access_token).toBe('mock_jwt_access_token');
+      expect(res.user.email).toBe('teacher.lan@school.edu.vn');
+      expect(res.user.role).toBe(UserRole.TEACHER_HOMEROOM);
+    });
+
+    it('đăng nhập giáo viên qua phone thành công và trả về access token cùng thông tin', async () => {
       const hash = await bcrypt.hash('CorrectPass@123', 10);
       mockDataConnect.getUserByPhone.mockResolvedValue({ id: 'usr_01', phone: '0988776655', password_hash: hash, is_active: true, is_deleted: false, role: UserRole.TEACHER_HOMEROOM });
       const res = await service.login({ phone: '0988776655', password: 'CorrectPass@123' });
@@ -265,9 +302,11 @@ describe('AuthService (Unit Tests UT01 - All 27 Cases)', () => {
     });
   });
 
-  describe('UT01_Auth_TC25: Đăng nhập khi tài khoản không tồn tại', () => {
-    it('ném UnauthorizedException 401 khi tài khoản hoàn toàn không có trong DB', async () => {
+  describe('UT01_Auth_TC25: Đăng nhập khi tài khoản không tồn tại trong CSDL', () => {
+    it('từ chối đăng nhập khi tài khoản hoàn toàn không tồn tại trong CSDL (AUTH_INVALID_CREDENTIALS - 401)', async () => {
+      mockDataConnect.getUserByEmail.mockResolvedValue(null);
       mockDataConnect.getUserByPhone.mockResolvedValue(null);
+      await expect(service.login({ identifier: 'notfound.user@school.edu.vn', password: 'Password123@' })).rejects.toThrow(UnauthorizedException);
       await expect(service.login({ phone: '0999999999', password: 'Password123@' })).rejects.toThrow(UnauthorizedException);
     });
   });

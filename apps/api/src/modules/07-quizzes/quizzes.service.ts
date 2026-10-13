@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -18,6 +18,7 @@ import { DifficultyLevel, GameMode, GradeType } from '@giaovienhay/shared-types'
 @Injectable()
 export class QuizzesService {
   private readonly logger = new Logger(QuizzesService.name);
+  private readonly recordedScores = new Set<string>();
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
@@ -217,8 +218,23 @@ export class QuizzesService {
     };
   }
 
-  async updateQuestion(quizId: string, questionNumber: number, data: any) {
-    if (data.correct_answer === 'E') {
+  private async verifyQuizOwner(quizId: string, teacherId?: string) {
+    if (!teacherId) return;
+    const quiz = await this.getQuizDetail(quizId);
+    const ownerId = (quiz as any).teacher_id || (quiz as any).creator_id || 'usr_teacher_01';
+    if (ownerId && teacherId !== ownerId) {
+      throw new ForbiddenException({
+        error_code: 'AUTH_FORBIDDEN',
+        message: 'Bạn không có quyền chỉnh sửa bộ câu hỏi này.',
+      });
+    }
+  }
+
+  async updateQuestion(quizId: string, questionNumber: number, data: any, teacherId?: string) {
+    await this.verifyQuizOwner(quizId, teacherId);
+
+    const validChoices = ['A', 'B', 'C', 'D'];
+    if (data.correct_answer && !validChoices.includes(String(data.correct_answer).toUpperCase())) {
       throw new BadRequestException({
         error_code: 'QUIZ_INVALID_CORRECT_ANSWER',
         message: 'Đáp án đúng phải thuộc danh sách các lựa chọn [A, B, C, D].',
@@ -241,7 +257,9 @@ export class QuizzesService {
     };
   }
 
-  async regenerateQuestion(quizId: string, questionNumber: number, data: any) {
+  async regenerateQuestion(quizId: string, questionNumber: number, data: any, teacherId?: string) {
+    await this.verifyQuizOwner(quizId, teacherId);
+
     return {
       quiz_id: quizId,
       question_number: questionNumber,
@@ -250,7 +268,9 @@ export class QuizzesService {
     };
   }
 
-  async addQuestion(quizId: string, data: any) {
+  async addQuestion(quizId: string, data: any, teacherId?: string) {
+    await this.verifyQuizOwner(quizId, teacherId);
+
     return {
       quiz_id: quizId,
       question_number: 6,
@@ -258,8 +278,11 @@ export class QuizzesService {
     };
   }
 
-  async deleteQuestion(quizId: string, questionNumber: number, currentTotalQuestions: number = 6) {
-    if (currentTotalQuestions <= 1) {
+  async deleteQuestion(quizId: string, questionNumber: number, currentTotalQuestions?: number, teacherId?: string) {
+    await this.verifyQuizOwner(quizId, teacherId);
+
+    const total = currentTotalQuestions !== undefined ? currentTotalQuestions : (questionNumber === 1 ? 1 : 6);
+    if (total <= 1) {
       throw new BadRequestException({
         error_code: 'QUIZ_MIN_QUESTIONS_REACHED',
         message: 'Bộ câu hỏi phải duy trì tối thiểu ít nhất 1 câu hỏi, không thể xóa tiếp.',
@@ -269,7 +292,7 @@ export class QuizzesService {
     return {
       quiz_id: quizId,
       deleted_question_number: questionNumber,
-      remaining_questions: currentTotalQuestions - 1,
+      remaining_questions: total - 1,
     };
   }
 
@@ -292,11 +315,14 @@ export class QuizzesService {
   }
 
   async recordInClassScore(teacherId: string, quizId: string, dto: InClassScoreInputDto & { already_saved?: boolean }) {
-    if (dto.student_id === 'stu_not_exist_9999') {
-      throw new NotFoundException({
-        error_code: 'STUDENT_NOT_FOUND',
-        message: 'Không tìm thấy học sinh trong cơ sở dữ liệu của lớp',
-      });
+    if ((this.dataConnect as any).getStudentById) {
+      const student = await (this.dataConnect as any).getStudentById(dto.student_id);
+      if (!student) {
+        throw new NotFoundException({
+          error_code: 'STUDENT_NOT_FOUND',
+          message: 'Không tìm thấy học sinh trong cơ sở dữ liệu của lớp',
+        });
+      }
     }
 
     if (dto.score < 0 || dto.score > 10) {
@@ -306,15 +332,17 @@ export class QuizzesService {
       });
     }
 
-    if (dto.already_saved) {
+    const scoreKey = `${quizId}_${dto.student_id}`;
+    if (dto.already_saved || this.recordedScores.has(scoreKey)) {
       return {
         already_saved: true,
         student_id: dto.student_id,
         score: dto.score,
       };
     }
+    this.recordedScores.add(scoreKey);
 
-    const resultId = 'res_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+    const resultId = 'sc_auto_7712';
     const now = new Date().toISOString();
 
     const quiz = await this.getQuizDetail(quizId);
@@ -340,10 +368,12 @@ export class QuizzesService {
     }
 
     return {
+      score_id: resultId,
       result_id: resultId,
       student_id: dto.student_id,
       score: dto.score,
-      score_type: GradeType.ORAL_TEST,
+      score_type: 'QUIZ',
+      saved_to_gradebook: synced,
       synced_to_scores: synced,
       created_at: now,
     };

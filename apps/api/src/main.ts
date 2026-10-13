@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
@@ -23,6 +23,37 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: (errors) => {
+        const formatErrors = (errs: any[]): { field: string; issue: string }[] => {
+          const details: { field: string; issue: string }[] = [];
+          for (const err of errs) {
+            if (err.constraints) {
+              const issues = Object.values(err.constraints) as string[];
+              details.push({
+                field: err.property,
+                issue: issues[0] || 'Dữ liệu không hợp lệ',
+              });
+            }
+            if (err.children && err.children.length > 0) {
+              const childDetails = formatErrors(err.children);
+              for (const cd of childDetails) {
+                details.push({
+                  field: `${err.property}.${cd.field}`,
+                  issue: cd.issue,
+                });
+              }
+            }
+          }
+          return details;
+        };
+
+        const details = formatErrors(errors);
+        return new BadRequestException({
+          message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+          error_code: 'COMMON_VALIDATION_ERROR',
+          details,
+        });
+      },
     }),
   );
 

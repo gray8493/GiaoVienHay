@@ -8,9 +8,10 @@ Phân hệ **Admin** được phát triển **chỉ dành riêng cho Quản tr�
 
 | Method | Endpoint | Quyền truy cập (RBAC) | Mô tả chức năng |
 | :---: | :--- | :---: | :--- |
-| `GET` | `/api/v1/admin/dashboard/stats` | `ADMIN` | Thống kê số lượng GV, PH, Lớp học, Học sinh & Lượt gọi AI hôm nay |
+| `GET` | `/api/v1/admin/dashboard/stats` | `ADMIN` | Thống kê số lượng GV, PH, Lớp học, Học sinh & Lượt gọi AI hôm nay (Alias: `/admin/dashboard-stats`) |
 | `GET` | `/api/v1/admin/users` | `ADMIN` | Phân trang danh sách người dùng (lọc theo role, status) |
 | `GET` | `/api/v1/admin/users/:id` | `ADMIN` | Xem chi tiết thông tin và hồ sơ người dùng |
+| `PATCH` | `/api/v1/admin/users/:id/status` | `ADMIN` | Khóa hoặc kích hoạt lại tài khoản người dùng (Chuẩn hóa gộp ban/unban) |
 | `PATCH` | `/api/v1/admin/users/:id/ban` | `ADMIN` | **Khóa tài khoản** người dùng vi phạm chính sách |
 | `PATCH` | `/api/v1/admin/users/:id/unban` | `ADMIN` | **Mở khóa tài khoản** khôi phục quyền truy cập |
 | `GET` | `/api/v1/admin/classes` | `ADMIN` | Giám sát danh sách toàn bộ lớp học trên nền tảng |

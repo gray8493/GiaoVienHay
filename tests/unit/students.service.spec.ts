@@ -7,35 +7,55 @@ describe('StudentsService (Unit Tests UT04 - All 15 Cases)', () => {
 
   beforeEach(() => {
     mockDataConnect = {
-      getStudentById: jest.fn().mockResolvedValue({
-        id: 'stu_01',
-        full_name: 'Trần Bảo Nam',
-        student_code: 'HS2026_001',
-        class_id: 'cls_1a_2026',
-        class_name: '1A',
-        dob: '2020-05-15',
-        gender: 'MALE',
-        parent_uids: ['usr_parent_01'],
+      getStudentById: jest.fn().mockImplementation(async (id: string) => {
+        if (!id || id === 'stu_nonexistent_9999') return null;
+        return {
+          id,
+          full_name: id === 'stu_02_empty' ? 'Lê Ngọc Mai' : 'Trần Bảo Nam',
+          student_code: 'HS2026_001',
+          class_id: 'cls_1a_2026',
+          class_name: '1A',
+          dob: '2020-05-15',
+          gender: 'MALE',
+          parent_uids: ['usr_parent_01'],
+        };
       }),
-      getScoresByStudent: jest.fn().mockResolvedValue([
-        { subject: 'MATH', scoreType: 'ORAL_TEST', scoreValue: 9.0 },
-        { subject: 'MATH', scoreType: 'TEST_15P', scoreValue: 8.5 },
-        { subject: 'MATH', scoreType: 'MID_TERM', scoreValue: 9.5 },
+      getScoresByStudent: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'stu_02_empty') return [];
+        return [
+          { subject: 'MATH', scoreType: 'ORAL_TEST', scoreValue: 9.0 },
+          { subject: 'MATH', scoreType: 'TEST_15P', scoreValue: 8.5 },
+          { subject: 'MATH', scoreType: 'MID_TERM', scoreValue: 9.5 },
+        ];
+      }),
+      getAttendanceByStudent: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'stu_full_attendance') {
+          return [
+            { date: '2026-09-01', status: 'PRESENT' },
+            { date: '2026-09-02', status: 'PRESENT' },
+          ];
+        }
+        return [
+          { date: '2026-09-23', status: 'PRESENT' },
+        ];
+      }),
+      getFeesByStudent: jest.fn().mockResolvedValue([
+        { fee_type: 'TUITION', amount: 1200000, is_paid: false, due_date: '2026-10-05' },
+        { fee_type: 'INSURANCE', amount: 880000, is_paid: true, deadline: '2026-10-15', paid_at: '2026-09-10T08:30:00.000Z' },
       ]),
-      getAttendanceByStudent: jest.fn().mockResolvedValue([
-        { date: '2026-09-23', status: 'PRESENT' },
-      ]),
-      getFeesByStudent: jest.fn().mockResolvedValue([]),
-      getRemarksByStudent: jest.fn().mockResolvedValue([
-        {
-          remark_id: 'rmk_9912',
-          teacher_name: 'Nguyễn Thị Lan',
-          subject: 'Toán học',
-          content: 'Em Nam tiếp thu bài rất nhanh...',
-          parent_acknowledged: true,
-          created_at: '2026-09-23T10:15:00.000Z',
-        },
-      ]),
+      getRemarksByStudent: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'stu_02_empty_remarks' || id === 'stu_02') return [];
+        return [
+          {
+            remark_id: 'rmk_9912',
+            teacher_name: 'Nguyễn Thị Lan',
+            subject: 'Toán học',
+            content: 'Em Nam tiếp thu bài rất nhanh...',
+            parent_acknowledged: true,
+            created_at: '2026-09-23T10:15:00.000Z',
+          },
+        ];
+      }),
     };
 
     service = new StudentsService(mockDataConnect);

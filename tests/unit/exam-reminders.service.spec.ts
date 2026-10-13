@@ -353,4 +353,16 @@ describe('ExamRemindersService (Unit Tests UT09 - All 26 Cases)', () => {
       expect(res.reminders).toEqual([]);
     });
   });
+
+  describe('UT09_ExamReminders_TC27: Tra cứu và lọc danh sách lời nhắc thi GET /api/v1/exam-reminders', () => {
+    it('trả về danh sách lời nhắc thi khi truyền userId', async () => {
+      const res = await service.getReminders('usr_teacher_lan_01');
+      expect(Array.isArray(res)).toBe(true);
+      expect((res as any[]).length).toBe(2);
+    });
+
+    it('ném UnauthorizedException khi userId rỗng', async () => {
+      await expect(service.getReminders('')).rejects.toThrow(UnauthorizedException);
+    });
+  });
 });

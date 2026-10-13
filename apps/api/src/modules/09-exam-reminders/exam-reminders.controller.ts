@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -38,12 +39,35 @@ export class ExamRemindersController {
     return this.examRemindersService.createReminder(teacherId, dto);
   }
 
+  @Get()
+  @ApiOperation({ summary: 'Tra cứu và lọc danh sách lịch kiểm tra' })
+  async getReminders(
+    @CurrentUser('sub') userId: string,
+    @Query('class_id') classId?: string,
+    @Query('subject_code') subjectCode?: string,
+    @Query('academic_year') academicYear?: string,
+    @Query('term') term?: number,
+  ) {
+    return this.examRemindersService.getReminders(userId, { classId, subjectCode, academicYear, term });
+  }
+
   @Get('class/:classId')
   @ApiOperation({ summary: 'Lấy danh sách các lịch kiểm tra sắp tới của lớp học' })
   async getClassReminders(
+    @CurrentUser('sub') userId: string,
     @Param('classId') classId: string,
     @Query('subject_code') subjectCode?: string,
   ) {
-    return this.examRemindersService.getClassReminders(classId, subjectCode);
+    return this.examRemindersService.getClassReminders(classId, subjectCode, undefined, userId);
+  }
+
+  @Delete(':reminderId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xóa hoặc hủy bỏ lời nhắc kiểm tra' })
+  async deleteReminder(
+    @CurrentUser('sub') teacherId: string,
+    @Param('reminderId') reminderId: string,
+  ) {
+    return this.examRemindersService.deleteReminder(reminderId, teacherId);
   }
 }

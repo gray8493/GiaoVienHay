@@ -1,4 +1,4 @@
-﻿import { NotFoundException, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { AdminService } from '../../apps/api/src/modules/12-admin/admin.service';
@@ -207,9 +207,17 @@ describe('AdminService (Unit Tests UT12 - All 22 Cases)', () => {
     it('ném NotFoundException USER_NOT_FOUND khi mở khóa user không tồn tại', async () => {
       mockDataConnect.getUserById!.mockResolvedValue(null);
 
-      await expect(
-        service.updateUserStatus('usr_non_existent', { is_active: true }),
-      ).rejects.toThrow(NotFoundException);
+      try {
+        await service.updateUserStatus('usr_non_existent', { is_active: true });
+        fail('Dự kiến ném NotFoundException nhưng không có lỗi xảy ra');
+      } catch (error: any) {
+        expect(error).toBeInstanceOf(NotFoundException);
+        expect(error.getStatus()).toBe(404);
+        const res = error.getResponse();
+        expect(res.error_code).toBe(ErrorCode.USER_NOT_FOUND);
+        expect(res.message).toBe('Không tìm thấy người dùng trong hệ thống');
+        expect(res.details).toBeNull();
+      }
     });
   });
 
@@ -334,11 +342,24 @@ describe('AdminService (Unit Tests UT12 - All 22 Cases)', () => {
   });
 
   describe('UT12_Admin_TC21: Xử lý trạng thái rỗng an toàn khi hệ thống chưa có dữ liệu lớp học trên nền tảng', () => {
-    it('trả về mảng rỗng an toàn khi chưa có lớp học nào', async () => {
+    it('trả về mảng rỗng an toàn khi chưa có lớp học nào hoặc lọc academic_year không khớp', async () => {
       mockDataConnect.listClasses!.mockResolvedValue([]);
 
       const result = await service.getAllClassesMonitoring();
       expect(result).toEqual([]);
+
+      // Kiểm tra bộ lọc academic_year không có lớp học nào khớp
+      mockDataConnect.listClasses!.mockResolvedValue([
+        {
+          id: 'cls_1a_2026',
+          name: 'Lớp 1A',
+          academicYear: '2026-2027',
+        },
+      ]);
+      const filtered = await service.getAllClassesMonitoring({
+        academic_year: '2035-2036',
+      });
+      expect(filtered).toEqual([]);
     });
   });
 
@@ -346,7 +367,16 @@ describe('AdminService (Unit Tests UT12 - All 22 Cases)', () => {
     it('ném NotFoundException USER_NOT_FOUND khi xóa user không tồn tại', async () => {
       mockDataConnect.getUserById!.mockResolvedValue(null);
 
-      await expect(service.deleteUser('usr_not_exist_99999')).rejects.toThrow(NotFoundException);
+      try {
+        await service.deleteUser('usr_not_exist_99999');
+        fail('Dự kiến ném NotFoundException nhưng không có lỗi xảy ra');
+      } catch (error: any) {
+        expect(error).toBeInstanceOf(NotFoundException);
+        expect(error.getStatus()).toBe(404);
+        const res = error.getResponse();
+        expect(res.error_code).toBe(ErrorCode.USER_NOT_FOUND);
+        expect(res.details).toBeNull();
+      }
     });
   });
 });

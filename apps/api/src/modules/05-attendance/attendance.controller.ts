@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Query,
@@ -11,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AttendanceService } from './attendance.service';
-import { SubmitAttendanceDto } from './dto/attendance.dto';
+import { SubmitAttendanceDto, UpdateAttendanceDto } from './dto/attendance.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,6 +37,19 @@ export class AttendanceController {
     @Body() dto: SubmitAttendanceDto,
   ) {
     return this.attendanceService.submitAttendance(teacherId, dto);
+  }
+
+  @Patch(':id')
+  @Roles('TEACHER_HOMEROOM', 'TEACHER_*', 'ADMIN')
+  @ApiOperation({
+    summary: 'Cập nhật bản ghi điểm danh (GVCN)',
+    description: 'Cập nhật trạng thái của học sinh khi đến muộn hoặc xin phép sau giờ điểm danh.',
+  })
+  async updateAttendance(
+    @Param('id') recordId: string,
+    @Body() dto: UpdateAttendanceDto,
+  ) {
+    return this.attendanceService.updateAttendanceRecord(recordId, dto.status, dto.note);
   }
 
   @Get('class/:classId')

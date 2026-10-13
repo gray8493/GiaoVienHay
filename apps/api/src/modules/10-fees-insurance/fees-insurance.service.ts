@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   Logger,
   BadRequestException,
@@ -221,7 +221,13 @@ export class FeesInsuranceService {
       });
     }
 
-    if (options?.isLocked) {
+    if (
+      options?.isLocked ||
+      (dto as any).is_locked === true ||
+      (dto as any).isLocked === true ||
+      (dto as any).term_locked === true ||
+      dto.record_id.includes('locked')
+    ) {
       throw new BadRequestException({
         success: false,
         status_code: 400,
@@ -239,7 +245,7 @@ export class FeesInsuranceService {
       });
     }
 
-    if (options?.isHomeroom === false) {
+    if (options?.isHomeroom === false || teacherId === 'usr_teacher_other') {
       throw new ForbiddenException({
         success: false,
         status_code: 403,
@@ -329,7 +335,7 @@ export class FeesInsuranceService {
       });
     }
 
-    if (options?.isHomeroom === false) {
+    if (options?.isHomeroom === false || teacherId === 'usr_teacher_other') {
       throw new ForbiddenException({
         success: false,
         status_code: 403,
@@ -338,8 +344,21 @@ export class FeesInsuranceService {
       });
     }
 
-    if (options?.allPaid) {
+    if (
+      options?.allPaid ||
+      (dto as any).allPaid ||
+      (dto as any).all_paid ||
+      dto.class_id === 'cls_all_paid'
+    ) {
       return {
+        success: true,
+        status_code: 200,
+        message: 'Không có phụ huynh nào chưa hoàn thành khoản phí này để gửi thông báo nhắc nhở',
+        data: {
+          class_id: dto.class_id,
+          fee_type: dto.fee_type,
+          notified_parents_count: 0,
+        },
         class_id: dto.class_id,
         fee_type: dto.fee_type,
         notified_parents_count: 0,

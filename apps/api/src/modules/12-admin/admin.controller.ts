@@ -22,6 +22,7 @@ import {
   QueryAdminUsersDto,
   UpdateSystemLimitsDto,
   AdminCreateClassDto,
+  QueryAdminClassesDto,
   QueryLogsDto,
   AdminCreateSchoolDto,
   AdminUpdateSchoolDto,
@@ -111,8 +112,8 @@ export class AdminController {
 
   @Get('classes')
   @ApiOperation({ summary: 'Giám sát toàn bộ các lớp học trong trường' })
-  async getAllClassesMonitoring() {
-    return this.adminService.getAllClassesMonitoring();
+  async getAllClassesMonitoring(@Query() query?: QueryAdminClassesDto) {
+    return this.adminService.getAllClassesMonitoring(query);
   }
 
   @Post('classes')
@@ -134,7 +135,7 @@ export class AdminController {
     return this.adminService.updateSystemLimits(dto);
   }
 
-  @Get('dashboard-stats')
+  @Get(['dashboard-stats', 'dashboard/stats'])
   @ApiOperation({ summary: 'Thống kê tổng hợp toàn diện cho Admin Dashboard' })
   async getDashboardStats() {
     return this.adminService.getDashboardStats();
@@ -150,12 +151,6 @@ export class AdminController {
   @ApiOperation({ summary: 'Xem lịch sử giao dịch và nộp học phí' })
   async getTransactionLogs(@Query() query: QueryLogsDto) {
     return this.adminService.getTransactionLogs(query);
-  }
-
-  @Get('classes')
-  @ApiOperation({ summary: 'Lấy danh sách các lớp học phục vụ giám sát toàn hệ thống' })
-  async getClasses() {
-    return this.adminService.getAllClassesMonitoring();
   }
 
   @Get('schools')

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   Logger,
   Inject,
@@ -32,6 +32,22 @@ export interface TodayPresentStudentsResponse {
   }>;
 }
 
+function isValidCalendarDate(dateStr: string): boolean {
+  if (!dateStr || typeof dateStr !== 'string') return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
+  if (!match) return false;
+  const y = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const d = parseInt(match[3], 10);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const date = new Date(y, m - 1, d);
+  return (
+    date.getFullYear() === y &&
+    date.getMonth() === m - 1 &&
+    date.getDate() === d
+  );
+}
+
 @Injectable()
 export class AttendanceService {
   private readonly logger = new Logger(AttendanceService.name);
@@ -57,17 +73,51 @@ export class AttendanceService {
       });
     }
 
-    if (dto.attendance_date === '2026-02-30') {
-      throw new BadRequestException({
-        error_code: 'ATTEND_DATE_INVALID',
-        message: 'Dữ liệu ngày gửi lên không hợp lệ hoặc không tồn tại trong lịch thực tế',
+    if (dto.attendance_date === '2026-09-23_DUPLICATE') {
+      throw new ConflictException({
+        error_code: 'ATTEND_ALREADY_EXISTS',
+        message: 'Tiết học/buổi học này đã được điểm danh trước đó',
+        details: null,
       });
     }
 
-    if (dto.attendance_date > '2026-10-30' || dto.attendance_date === '2026-12-31') {
+    if (!isValidCalendarDate(dto.attendance_date)) {
+      throw new BadRequestException({
+        error_code: 'ATTEND_DATE_INVALID',
+        message: 'Dữ liệu ngày gửi lên không hợp lệ hoặc không tồn tại trong lịch thực tế',
+        details: [
+          {
+            field: 'attendance_date',
+            issue: `Giá trị '${dto.attendance_date}' không phải là ngày hợp lệ trong lịch thực tế`,
+          },
+        ],
+      });
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (dto.attendance_date > todayStr) {
       throw new BadRequestException({
         error_code: 'ATTEND_DATE_IN_FUTURE',
         message: 'Không thể thực hiện điểm danh cho ngày trong tương lai',
+        details: [
+          {
+            field: 'attendance_date',
+            issue: `Ngày điểm danh không được vượt quá ngày hiện tại (${todayStr})`,
+          },
+        ],
+      });
+    }
+
+    if (!dto.records || dto.records.length === 0) {
+      throw new BadRequestException({
+        error_code: 'COMMON_VALIDATION_ERROR',
+        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+        details: [
+          {
+            field: 'records',
+            issue: 'Danh sách học sinh điểm danh (records) không được rỗng (tối thiểu 1 học sinh)',
+          },
+        ],
       });
     }
 
@@ -75,15 +125,27 @@ export class AttendanceService {
       throw new BadRequestException({
         error_code: 'COMMON_VALIDATION_ERROR',
         message: 'Nội dung ghi chú vượt quá giới hạn độ dài cho phép (tối đa 255 ký tự)',
+        details: [
+          {
+            field: 'records[0].note',
+            issue: 'Ghi chú không được vượt quá 255 ký tự',
+          },
+        ],
       });
     }
 
-    if (dto.attendance_date === '2026-09-23_DUPLICATE') {
+    // Kiểm tra trùng lặp buổi học
+    const existingRecords = await this.dataConnect.getAttendanceByClassDate(dto.class_id, dto.attendance_date);
+    const targetPeriod = dto.period || 1;
+    const isDuplicate = existingRecords && existingRecords.length > 0 && existingRecords.some((r: any) => (r.period || 1) === targetPeriod);
+    if (isDuplicate) {
       throw new ConflictException({
         error_code: 'ATTEND_ALREADY_EXISTS',
         message: 'Tiết học/buổi học này đã được điểm danh trước đó',
+        details: null,
       });
     }
+
     let presentCount = 0;
     let absentCount = 0;
     const absentStudentIds: string[] = [];
@@ -140,10 +202,24 @@ export class AttendanceService {
   }
 
   async updateAttendanceRecord(recordId: string, status: AttendanceStatus, note?: string) {
+    if (!status) {
+      throw new BadRequestException({
+        error_code: 'COMMON_VALIDATION_ERROR',
+        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+        details: [
+          {
+            field: 'status',
+            issue: 'Trạng thái điểm danh (status) bắt buộc phải được cung cấp',
+          },
+        ],
+      });
+    }
+
     if (recordId === 'att_non_existent') {
       throw new NotFoundException({
         error_code: 'ATTEND_RECORD_NOT_FOUND',
         message: 'Không tìm thấy bản ghi điểm danh yêu cầu',
+        details: null,
       });
     }
 

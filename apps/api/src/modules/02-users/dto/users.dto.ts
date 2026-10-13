@@ -30,10 +30,17 @@ export class UpdateProfileDto {
 }
 
 export class RegisterDeviceTokenDto {
-  @ApiProperty({ example: 'fcm_device_token_xyz123', description: 'FCM Device Token của thiết bị' })
+  @ApiPropertyOptional({ example: 'fcm_device_token_xyz123', description: 'FCM Device Token của thiết bị' })
+  @IsOptional()
   @IsString()
   @IsNotEmpty({ message: 'fcm_device_token không được để trống' })
-  device_token: string;
+  device_token?: string;
+
+  @ApiPropertyOptional({ example: 'fcm_tok_abc123xyz789', description: 'FCM Device Token của thiết bị' })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'fcm_device_token không được để trống' })
+  fcm_device_token?: string;
 
   @ApiPropertyOptional({ example: 'ANDROID', enum: ['IOS', 'ANDROID', 'WEB'] })
   @IsOptional()

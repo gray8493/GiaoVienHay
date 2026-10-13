@@ -33,10 +33,21 @@ export class RemarksController {
     description: 'Sử dụng đoạn văn bản ngắn thuần túy (không dùng tags phức tạp) và tự động kích hoạt thông báo FCM tới phụ huynh.',
   })
   async createRemark(
-    @CurrentUser('sub') teacherId: string,
+    @CurrentUser() user: any,
     @Body() dto: CreateRemarkDto,
   ) {
-    return this.remarksService.createRemark(teacherId, dto);
+    return this.remarksService.createRemark(user?.sub, dto, {
+      role: user?.role,
+      assignedSubjects: user?.teaching_subjects || user?.assignedSubjects,
+    });
+  }
+
+  @Get('student/:studentId')
+  @ApiOperation({ summary: 'Xem lịch sử nhận xét của học sinh' })
+  async getStudentRemarks(
+    @Param('studentId') studentId: string,
+  ) {
+    return this.remarksService.getStudentRemarks(studentId);
   }
 
   @Get('class/:classId')

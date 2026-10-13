@@ -1,12 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, ValidateNested, IsInt } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  ArrayNotEmpty,
+  ValidateNested,
+  IsInt,
+  MaxLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { AttendanceStatus } from '@giaovienhay/shared-types';
 
 export class AttendanceRecordItemDto {
   @ApiProperty({ example: 'stu_01', description: 'Mã học sinh' })
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Mã học sinh không được để trống' })
   student_id: string;
 
   @ApiProperty({
@@ -14,12 +24,13 @@ export class AttendanceRecordItemDto {
     example: AttendanceStatus.PRESENT,
     description: 'Trạng thái điểm danh',
   })
-  @IsEnum(AttendanceStatus)
+  @IsEnum(AttendanceStatus, { message: 'Trạng thái điểm danh không hợp lệ' })
   status: AttendanceStatus;
 
   @ApiPropertyOptional({ example: 'Phụ huynh xin nghỉ ốm', description: 'Ghi chú lý do vắng' })
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'Ghi chú phải là chuỗi ký tự' })
+  @MaxLength(255, { message: 'Nội dung ghi chú vượt quá giới hạn độ dài cho phép (tối đa 255 ký tự)' })
   note?: string;
 }
 
@@ -40,8 +51,26 @@ export class SubmitAttendanceDto {
   period?: number;
 
   @ApiProperty({ type: [AttendanceRecordItemDto], description: 'Danh sách bản ghi điểm danh học sinh' })
-  @IsArray()
+  @IsArray({ message: 'Danh sách bản ghi điểm danh phải là một mảng' })
+  @ArrayNotEmpty({ message: 'Danh sách học sinh điểm danh (records) không được rỗng (tối thiểu 1 học sinh)' })
   @ValidateNested({ each: true })
   @Type(() => AttendanceRecordItemDto)
   records: AttendanceRecordItemDto[];
+}
+
+export class UpdateAttendanceDto {
+  @ApiProperty({
+    enum: AttendanceStatus,
+    example: AttendanceStatus.PRESENT,
+    description: 'Trạng thái điểm danh mới',
+  })
+  @IsNotEmpty({ message: 'Trạng thái điểm danh (status) bắt buộc phải được cung cấp' })
+  @IsEnum(AttendanceStatus, { message: 'Trạng thái điểm danh không hợp lệ' })
+  status: AttendanceStatus;
+
+  @ApiPropertyOptional({ example: 'Đến muộn 15p do mưa lớn', description: 'Ghi chú cập nhật' })
+  @IsOptional()
+  @IsString({ message: 'Ghi chú phải là chuỗi ký tự' })
+  @MaxLength(255, { message: 'Ghi chú không được vượt quá 255 ký tự' })
+  note?: string;
 }

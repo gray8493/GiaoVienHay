@@ -61,6 +61,19 @@ export class BatchInputScoresDto {
   @ValidateNested({ each: true })
   @Type(() => ScoreItemDto)
   scores: ScoreItemDto[];
+
+  @ApiPropertyOptional({ example: 'OPEN', description: 'Trạng thái học kỳ (OPEN hoặc LOCKED)' })
+  @IsOptional()
+  @IsString()
+  semester_status?: string;
+
+  @ApiPropertyOptional({ example: false, description: 'Cờ đính chính điểm đã công bố' })
+  @IsOptional()
+  is_correction?: boolean;
+
+  @ApiPropertyOptional({ example: false, description: 'Cờ cột điểm đã công bố' })
+  @IsOptional()
+  is_published?: boolean;
 }
 
 export class PublishScoresDto {
@@ -82,4 +95,35 @@ export class PublishScoresDto {
   @IsOptional()
   @IsInt()
   semester?: number;
+}
+
+export class UpdateScoreDto {
+  @ApiProperty({ example: 9.0, description: 'Điểm số đính chính' })
+  @IsNumber()
+  score_value: number;
+
+  @ApiPropertyOptional({ example: 'Đính chính do chấm phúc khảo', description: 'Lý do đính chính' })
+  @IsOptional()
+  @IsString()
+  correction_reason?: string;
+}
+
+export class ParentLookupScoreDto {
+  @ApiProperty({ example: 'stu_01', description: 'Mã học sinh' })
+  @IsString()
+  @IsNotEmpty()
+  student_id: string;
+
+  @ApiProperty({ example: 'MATH', description: 'Mã môn học' })
+  @IsString()
+  @IsNotEmpty()
+  subject_code: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'Học kỳ' })
+  @IsOptional()
+  semester?: number;
+
+  @ApiPropertyOptional({ enum: GradeType, example: GradeType.FINAL, description: 'Loại điểm' })
+  @IsOptional()
+  score_type?: string;
 }

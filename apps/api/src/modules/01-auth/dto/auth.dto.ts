@@ -7,6 +7,7 @@ import {
   IsArray,
   MinLength,
   ValidateIf,
+  Matches,
 } from 'class-validator';
 import { UserRole, Subject } from '@giaovienhay/shared-types';
 
@@ -17,18 +18,24 @@ export class RegisterDto {
   full_name: string;
 
   @ApiProperty({ example: '0912345678', description: 'Số điện thoại đăng ký' })
-  @IsString()
+  @IsString({ message: 'Số điện thoại phải là chuỗi ký tự' })
   @IsNotEmpty({ message: 'Số điện thoại bắt buộc và không được để trống' })
+  @Matches(/^(03|05|07|08|09)\d{8}$/, {
+    message: 'Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng các đầu số di động hợp lệ (03, 05, 07, 08, 09)',
+  })
   phone: string;
 
   @ApiPropertyOptional({ example: 'teacher.lan@school.edu.vn', description: 'Địa chỉ Email' })
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'Email phải là chuỗi ký tự' })
   email?: string;
 
   @ApiProperty({ example: 'MatKhau123@', description: 'Mật khẩu đăng nhập' })
-  @IsString()
-  @MinLength(6, { message: 'Mật khẩu phải chứa ít nhất 6 ký tự' })
+  @IsString({ message: 'Mật khẩu phải là chuỗi ký tự' })
+  @IsNotEmpty({ message: 'Mật khẩu bắt buộc và không được để trống' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, {
+    message: 'Mật khẩu phải từ 8 ký tự trở lên, gồm ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt (@$!%*?&)',
+  })
   password: string;
 
   @ApiProperty({
@@ -61,13 +68,24 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ example: '0912345678', description: 'Số điện thoại đăng nhập' })
-  @IsString()
-  @IsNotEmpty({ message: 'Số điện thoại đăng nhập không được để trống' })
-  phone: string;
+  @ApiPropertyOptional({ example: 'teacher.lan@school.edu.vn hoặc 0912345678', description: 'Tài khoản đăng nhập (Email hoặc SĐT)' })
+  @IsOptional()
+  @IsString({ message: 'Tài khoản đăng nhập phải là chuỗi ký tự' })
+  identifier?: string;
+
+  @ApiPropertyOptional({ example: '0912345678', description: 'Số điện thoại đăng nhập' })
+  @ValidateIf((o) => !o.identifier && !o.email)
+  @IsNotEmpty({ message: 'Số điện thoại hoặc email đăng nhập không được để trống' })
+  @IsString({ message: 'Số điện thoại phải là chuỗi ký tự' })
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'teacher.lan@school.edu.vn', description: 'Email đăng nhập' })
+  @IsOptional()
+  @IsString({ message: 'Email phải là chuỗi ký tự' })
+  email?: string;
 
   @ApiProperty({ example: 'MatKhau123@', description: 'Mật khẩu' })
-  @IsString()
+  @IsString({ message: 'Mật khẩu phải là chuỗi ký tự' })
   @IsNotEmpty({ message: 'Mật khẩu không được để trống' })
   password: string;
 }

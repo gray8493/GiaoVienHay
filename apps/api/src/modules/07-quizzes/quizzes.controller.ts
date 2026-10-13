@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -14,7 +16,13 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { QuizzesService } from './quizzes.service';
-import { GenerateQuizAiDto, InClassScoreInputDto } from './dto/quizzes.dto';
+import {
+  GenerateQuizAiDto,
+  InClassScoreInputDto,
+  UpdateQuizQuestionDto,
+  RegenerateQuizQuestionDto,
+  CreateQuizQuestionDto,
+} from './dto/quizzes.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -70,6 +78,53 @@ export class QuizzesController {
   })
   async getWheelCandidates(@Param('id') quizId: string) {
     return this.quizzesService.getWheelCandidates(quizId);
+  }
+
+  @Put(':id/questions/:questionNumber')
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Chỉnh sửa nội dung và đáp án câu hỏi trong bộ đề' })
+  async updateQuestion(
+    @CurrentUser('sub') teacherId: string,
+    @Param('id') quizId: string,
+    @Param('questionNumber') questionNumber: string,
+    @Body() dto: UpdateQuizQuestionDto,
+  ) {
+    return this.quizzesService.updateQuestion(quizId, Number(questionNumber), dto, teacherId);
+  }
+
+  @Post(':id/questions/:questionNumber/regenerate')
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Yêu cầu AI đổi và sinh lại riêng 1 câu hỏi' })
+  async regenerateQuestion(
+    @CurrentUser('sub') teacherId: string,
+    @Param('id') quizId: string,
+    @Param('questionNumber') questionNumber: string,
+    @Body() dto: RegenerateQuizQuestionDto,
+  ) {
+    return this.quizzesService.regenerateQuestion(quizId, Number(questionNumber), dto, teacherId);
+  }
+
+  @Post(':id/questions')
+  @Roles('TEACHER_*', 'ADMIN')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Thêm câu hỏi trắc nghiệm thủ công vào bộ đề' })
+  async addQuestion(
+    @CurrentUser('sub') teacherId: string,
+    @Param('id') quizId: string,
+    @Body() dto: CreateQuizQuestionDto,
+  ) {
+    return this.quizzesService.addQuestion(quizId, dto, teacherId);
+  }
+
+  @Delete(':id/questions/:questionNumber')
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Xóa bớt câu hỏi khỏi bộ đề' })
+  async deleteQuestion(
+    @CurrentUser('sub') teacherId: string,
+    @Param('id') quizId: string,
+    @Param('questionNumber') questionNumber: string,
+  ) {
+    return this.quizzesService.deleteQuestion(quizId, Number(questionNumber), undefined, teacherId);
   }
 
   @Post(':id/in-class-scores')

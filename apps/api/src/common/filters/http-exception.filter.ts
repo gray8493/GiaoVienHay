@@ -20,7 +20,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Đã có lỗi xảy ra trên máy chủ, vui lòng thử lại sau';
     let errorCode: string = ErrorCode.SYS_INTERNAL_ERROR;
-    let details: any = undefined;
+    let details: any = null;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -32,7 +32,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         const resObj = res as any;
         message = resObj.message || message;
         errorCode = resObj.error_code || this.mapStatusToErrorCode(status);
-        details = resObj.details || (Array.isArray(resObj.message) ? resObj.message : undefined);
+        details = resObj.details !== undefined ? resObj.details : (resObj.errors !== undefined ? resObj.errors : (Array.isArray(resObj.message) ? resObj.message : null));
 
         if (Array.isArray(resObj.message)) {
           message = 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng';
@@ -49,7 +49,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       status_code: status,
       message: typeof message === 'string' ? message : JSON.stringify(message),
       error_code: errorCode,
-      details,
+      ...(details !== null && details !== undefined ? { details } : {}),
       timestamp: new Date().toISOString(),
     };
 
