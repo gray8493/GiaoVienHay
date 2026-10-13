@@ -160,7 +160,8 @@ const DEFAULT_EXAMS: ExamReminderItem[] = [
 ];
 
 export const remarksService = {
-  async getClassRemarks(classId: string = 'cls_1a_2026'): Promise<StudentRemarkItem[]> {
+  async getClassRemarks(classId: string = ''): Promise<StudentRemarkItem[]> {
+    if (!classId || classId === 'cls_empty') return [];
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/remarks/class/${classId}`, {
@@ -168,15 +169,15 @@ export const remarksService = {
       });
       if (response.ok) {
         const resJson = await response.json();
-        const data = resJson.data || resJson;
-        if (Array.isArray(data) && data.length > 0) {
+        const data = resJson.data !== undefined ? resJson.data : resJson;
+        if (Array.isArray(data)) {
           return data;
         }
       }
     } catch (e) {
-      console.warn('Backend remarks not reachable, fallback mock:', e);
+      console.warn('Backend remarks not reachable:', e);
     }
-    return DEFAULT_REMARKS;
+    return [];
   },
 
   async createRemark(payload: CreateRemarkPayload): Promise<boolean> {
@@ -187,7 +188,7 @@ export const remarksService = {
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({
           student_id: payload.student_id,
-          class_id: payload.class_id || 'cls_1a_2026',
+          class_id: payload.class_id,
           subject_code: payload.subject_code || 'MATH',
           content: payload.content,
         }),
@@ -201,7 +202,8 @@ export const remarksService = {
     return true;
   },
 
-  async getClassExamReminders(classId: string = 'cls_1a_2026'): Promise<ExamReminderItem[]> {
+  async getClassExamReminders(classId: string = ''): Promise<ExamReminderItem[]> {
+    if (!classId || classId === 'cls_empty') return [];
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/exam-reminders/class/${classId}`, {
@@ -209,15 +211,15 @@ export const remarksService = {
       });
       if (response.ok) {
         const resJson = await response.json();
-        const data = resJson.data || resJson;
-        if (Array.isArray(data) && data.length > 0) {
+        const data = resJson.data !== undefined ? resJson.data : resJson;
+        if (Array.isArray(data)) {
           return data;
         }
       }
     } catch (e) {
-      console.warn('Backend exam-reminders not reachable, fallback mock:', e);
+      console.warn('Backend exam-reminders not reachable:', e);
     }
-    return DEFAULT_EXAMS;
+    return [];
   },
 
   async createExamReminder(payload: CreateExamReminderPayload): Promise<boolean> {

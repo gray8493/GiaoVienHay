@@ -667,7 +667,10 @@ export default function App() {
             <View style={styles.phoneNotch} />
             <TeacherHomeScreen
               currentClassId={currentClassId}
-              onSelectClass={(clsId) => setCurrentClassId(clsId)}
+              onSelectClass={(clsId, clsName) => {
+                setCurrentClassId(clsId);
+                if (clsName) setCurrentClassName(clsName);
+              }}
               onEnterClassroom={() => setCurrentScreen('attendance')}
               onOpenAIQuiz={() => setCurrentScreen('quiz_gen')}
               onOpenWheel={() => setCurrentScreen('wheel')}
@@ -709,6 +712,7 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <RemarksExamScreen
+              classId={currentClassId}
               initialTab={remarksInitialTab}
               onBack={() => setCurrentScreen('teacher_home')}
             />
@@ -718,6 +722,7 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <FeesInsuranceScreen
+              classId={currentClassId}
               onBack={() => setCurrentScreen('teacher_home')}
             />
           </View>
@@ -747,6 +752,8 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <WheelScreen
+              currentClassId={currentClassId}
+              className={currentClassName}
               onBack={() => setCurrentScreen('game_select')}
               onGoHome={() => setCurrentScreen('teacher_home')}
             />
@@ -756,6 +763,8 @@ export default function App() {
           <View style={styles.phoneFrame}>
             <View style={styles.phoneNotch} />
             <QuizGenScreen
+              classId={currentClassId}
+              className={currentClassName}
               onBack={() => setCurrentScreen('teacher_home')}
               onSaveAndPlay={() => setCurrentScreen('game_select')}
             />

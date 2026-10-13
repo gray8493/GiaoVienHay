@@ -28,6 +28,8 @@ import { quizService, QuizQuestion, DifficultyLevel } from '../services/quiz.ser
 interface QuizGenScreenProps {
   onBack?: () => void;
   onSaveAndPlay?: (quizId?: string) => void;
+  classId?: string;
+  className?: string;
 }
 
 const INITIAL_QUESTIONS: QuizQuestion[] = [
@@ -62,10 +64,12 @@ const INITIAL_QUESTIONS: QuizQuestion[] = [
 export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
   onBack,
   onSaveAndPlay,
+  classId,
+  className = 'Lớp học',
 }) => {
   // Bộ lọc scope
-  const [selectedClass, setSelectedClass] = useState('Lớp 6A1');
-  const [selectedSubject, setSelectedSubject] = useState('Toán Hình');
+  const [selectedClass, setSelectedClass] = useState(className);
+  const [selectedSubject, setSelectedSubject] = useState('Toán học');
 
   // File giáo án
   const [hasFile, setHasFile] = useState(true);
@@ -153,8 +157,8 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
 
     try {
       const res = await quizService.generateQuizFromAi({
-        subject_code: selectedSubject === 'Toán Hình' ? 'MATH' : 'MATH',
-        class_id: selectedClass === 'Lớp 6A1' ? 'cls_6a1_2026' : 'cls_1a_2026',
+        subject_code: 'MATH',
+        class_id: classId || undefined,
         title: `Kiểm tra ${selectedSubject} - ${selectedClass}`,
         num_questions: questionCount,
         difficulty_level: difficulty,

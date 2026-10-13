@@ -23,7 +23,7 @@ type FilterMode = 'ALL' | 'UNPAID_INSURANCE' | 'UNPAID_TUITION';
 
 export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   onBack,
-  classId = 'cls_6a1',
+  classId = '',
 }) => {
   const [feesSummary, setFeesSummary] = useState<ClassFeesSummary | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>('ALL');
@@ -47,6 +47,10 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   }, [classId]);
 
   const loadFeesData = async () => {
+    if (!classId || classId === 'cls_empty') {
+      setFeesSummary(null);
+      return;
+    }
     const data = await feesService.getClassFeesList(classId);
     setFeesSummary(data);
   };

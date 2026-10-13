@@ -19,7 +19,7 @@ export interface QuizQuestion {
 
 export interface GenerateQuizPayload {
   subject_code: string;
-  class_id: string;
+  class_id?: string;
   title: string;
   num_questions: number;
   difficulty_level: DifficultyLevel;
@@ -118,7 +118,7 @@ export const quizService = {
         quiz_id: 'qz_' + Date.now().toString(36),
         title: payload.title,
         subject_code: payload.subject_code,
-        class_id: payload.class_id,
+        class_id: payload.class_id || '',
         difficulty_level: payload.difficulty_level,
         total_questions: count,
         questions: DEFAULT_SAMPLE_QUESTIONS.slice(0, count),

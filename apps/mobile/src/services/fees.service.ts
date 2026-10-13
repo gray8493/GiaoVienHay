@@ -100,7 +100,23 @@ const DEFAULT_RECORDS: StudentFeeRecord[] = [
 ];
 
 export const feesService = {
-  async getClassFeesList(classId: string = 'cls_1a_2026'): Promise<ClassFeesSummary> {
+  async getClassFeesList(classId: string = ''): Promise<ClassFeesSummary> {
+    const emptySummary: ClassFeesSummary = {
+      class_id: classId,
+      class_name: '',
+      term_name: 'HK1',
+      total_students: 0,
+      insurance_paid_count: 0,
+      insurance_unpaid_count: 0,
+      insurance_percent: 0,
+      tuition_paid_count: 0,
+      tuition_unpaid_count: 0,
+      tuition_percent: 0,
+      records: [],
+    };
+
+    if (!classId || classId === 'cls_empty') return emptySummary;
+
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/fees-insurance/class/${classId}`, {
@@ -110,7 +126,7 @@ export const feesService = {
       if (response.ok) {
         const resJson = await response.json();
         const data = resJson.data || resJson;
-        if (data && data.records) {
+        if (data && Array.isArray(data.records)) {
           const records: StudentFeeRecord[] = data.records.map((r: any, idx: number) => ({
             record_id: r.record_id || `fee_0${idx + 1}`,
             student_id: r.student_id || `stu_0${idx + 1}`,
@@ -123,40 +139,28 @@ export const feesService = {
 
           const insurancePaid = records.filter(r => r.insurance.is_paid).length;
           const tuitionPaid = records.filter(r => r.tuition.is_paid).length;
-          const total = records.length || 38;
+          const total = records.length;
 
           return {
             class_id: classId,
-            class_name: 'Lớp 1A',
-            term_name: 'HK1',
+            class_name: data.class_name || 'Lớp học',
+            term_name: data.term_name || 'HK1',
             total_students: total,
             insurance_paid_count: insurancePaid,
             insurance_unpaid_count: Math.max(0, total - insurancePaid),
-            insurance_percent: Math.round((insurancePaid / total) * 100),
+            insurance_percent: total > 0 ? Math.round((insurancePaid / total) * 100) : 0,
             tuition_paid_count: tuitionPaid,
             tuition_unpaid_count: Math.max(0, total - tuitionPaid),
-            tuition_percent: Math.round((tuitionPaid / total) * 100),
+            tuition_percent: total > 0 ? Math.round((tuitionPaid / total) * 100) : 0,
             records,
           };
         }
       }
     } catch (e) {
-      console.warn('Backend not reachable, fallback mock fees summary:', e);
+      console.warn('Backend not reachable:', e);
     }
 
-    return {
-      class_id: classId,
-      class_name: 'Lớp 1A',
-      term_name: 'HK1',
-      total_students: 38,
-      insurance_paid_count: 35,
-      insurance_unpaid_count: 3,
-      insurance_percent: 92,
-      tuition_paid_count: 33,
-      tuition_unpaid_count: 5,
-      tuition_percent: 87,
-      records: DEFAULT_RECORDS,
-    };
+    return emptySummary;
   },
 
   async toggleFeeStatus(payload: ToggleFeePayload): Promise<boolean> {

@@ -153,7 +153,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
   const getSubjectDisplayName = () => {
     if (selectedSubject === 'LIT') return 'Ngữ Văn';
     if (selectedSubject === 'CS') return 'Tin Học';
-    return currentClassId === 'cls_6a2' ? 'Toán Đại' : 'Toán Hình';
+    return 'Toán Học';
   };
 
   // Mở modal nhập điểm cho học sinh (chỉ cho phép khi không ở chế độ Read-only)

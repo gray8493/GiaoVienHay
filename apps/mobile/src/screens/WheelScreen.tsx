@@ -64,9 +64,9 @@ const CANDIDATES: StudentCandidate[] = [
 ];
 
 export const WheelScreen: React.FC<WheelScreenProps> = ({
-  currentClassId = 'cls_6a1',
-  className = 'Lớp 6A1',
-  subjectName = 'Toán Hình',
+  currentClassId = '',
+  className = 'Lớp học',
+  subjectName = '',
   onBack,
   onGoHome,
 }) => {

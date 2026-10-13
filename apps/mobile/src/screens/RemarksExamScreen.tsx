@@ -28,7 +28,7 @@ type RemarkFilter = 'ALL' | 'SENT' | 'UNSENT';
 
 export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   onBack,
-  classId = 'cls_6a1',
+  classId = '',
   initialTab = 'REMARKS',
 }) => {
   const [activeTab, setActiveTab] = useState<'REMARKS' | 'EXAMS'>(initialTab);
@@ -58,6 +58,11 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   }, [classId]);
 
   const loadData = async () => {
+    if (!classId || classId === 'cls_empty') {
+      setRemarksList([]);
+      setExamsList([]);
+      return;
+    }
     const remarks = await remarksService.getClassRemarks(classId);
     const exams = await remarksService.getClassExamReminders(classId);
     setRemarksList(remarks);

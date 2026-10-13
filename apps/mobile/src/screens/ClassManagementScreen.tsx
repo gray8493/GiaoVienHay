@@ -23,7 +23,7 @@ interface ClassManagementScreenProps {
 
 export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
   onBack,
-  classId = 'cls_6a1',
+  classId = '',
 }) => {
   const [classData, setClassData] = useState<ClassDetailData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,9 +36,9 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
   const [studentToDelete, setStudentToDelete] = useState<StudentItem | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteRole, setInviteRole] = useState<'PARENT' | 'TEACHER'>('TEACHER');
-  const [teacherInviteCode, setTeacherInviteCode] = useState('TCH-6A1-4417');
-  const [parentInviteCode, setParentInviteCode] = useState('PAR-6A1-8821');
-  const [currentInviteCode, setCurrentInviteCode] = useState('TCH-6A1-4417');
+  const [teacherInviteCode, setTeacherInviteCode] = useState('TCH-4417');
+  const [parentInviteCode, setParentInviteCode] = useState('PAR-8821');
+  const [currentInviteCode, setCurrentInviteCode] = useState('TCH-4417');
   const [copiedToast, setCopiedToast] = useState(false);
 
   // Form State Thêm học sinh
@@ -52,9 +52,13 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
   }, [classId]);
 
   const loadClassData = async () => {
+    if (!classId || classId === 'cls_empty') {
+      setClassData(null);
+      return;
+    }
     const data = await classService.getClassDetail(classId);
     setClassData(data);
-    const cleanName = (data.name || '6A1').toUpperCase().replace(/\s+/g, '');
+    const cleanName = (data.name || 'LOP').toUpperCase().replace(/\s+/g, '');
     if (data.invite_code) {
       setParentInviteCode(data.invite_code.startsWith('INV-') ? data.invite_code.replace('INV-', 'PAR-') : data.invite_code);
       setTeacherInviteCode(`TCH-${cleanName}-4417`);

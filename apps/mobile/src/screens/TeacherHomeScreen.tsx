@@ -41,41 +41,7 @@ export interface ClassOption {
   ctaText: string;
 }
 
-export const TEACHER_CLASSES: ClassOption[] = [
-  {
-    id: 'cls_6a1',
-    name: 'Lớp 6A1',
-    studentsCount: 38,
-    room: 'Phòng 204',
-    roleType: 'HOMEROOM',
-    subjectBadge: 'Chủ nhiệm',
-    nextLessonTitle: 'Tiết 2: Toán Hình – Lớp 6A1',
-    nextLessonTime: '08:15 – 09:00',
-    ctaText: 'Vào Lớp & Điểm Danh',
-  },
-  {
-    id: 'cls_6a2',
-    name: 'Lớp 6A2',
-    studentsCount: 40,
-    room: 'Phòng 205',
-    roleType: 'SUBJECT',
-    subjectBadge: 'Toán',
-    nextLessonTitle: 'Tiết 3: Toán Đại – Lớp 6A2',
-    nextLessonTime: '09:15 – 10:00',
-    ctaText: 'Vào Lớp & Dò Bài',
-  },
-  {
-    id: 'cls_6a3',
-    name: 'Lớp 6A3',
-    studentsCount: 39,
-    room: 'Phòng 301',
-    roleType: 'SUBJECT',
-    subjectBadge: 'Tin Học',
-    nextLessonTitle: 'Tiết 4: Tin Học – Lớp 6A3',
-    nextLessonTime: '10:15 – 11:00',
-    ctaText: 'Vào Lớp & Dò Bài',
-  },
-];
+export const TEACHER_CLASSES: ClassOption[] = [];
 
 interface TeacherHomeScreenProps {
   currentClassId?: string;
@@ -92,7 +58,7 @@ interface TeacherHomeScreenProps {
 }
 
 export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
-  currentClassId = 'cls_6a1',
+  currentClassId = '',
   hasNoClass = false,
   onSelectClass,
   onEnterClassroom,
@@ -125,8 +91,8 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   const [joinInviteCode, setJoinInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedClassId = currentClassId || internalClassId;
-  const isNoClassState = hasNoClass || selectedClassId === 'cls_empty' || classesList.length === 0;
+  const selectedClassId = internalClassId || currentClassId;
+  const isNoClassState = hasNoClass || selectedClassId === 'cls_empty' || (!selectedClassId && classesList.length === 0) || classesList.length === 0;
   const currentClass =
     classesList.find((c) => c.id === selectedClassId) ||
     classesList[0] || {
@@ -141,6 +107,12 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       ctaText: 'Tạo Lớp',
     };
   const isHomeroom = currentClass.roleType === 'HOMEROOM';
+
+  useEffect(() => {
+    if (currentClassId && currentClassId !== 'cls_empty') {
+      setInternalClassId(currentClassId);
+    }
+  }, [currentClassId]);
 
   useEffect(() => {
     loadClasses();
@@ -166,20 +138,21 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
             id: c.id,
             name: c.name.startsWith('Lớp ') ? c.name : `Lớp ${c.name}`,
             studentsCount: typeof c.student_count === 'number' ? c.student_count : 0,
-            room: idx === 1 ? 'Phòng 205' : idx === 2 ? 'Phòng 301' : 'Phòng 204',
+            room: c.school_name ? c.school_name : (c.grade_level ? `Khối ${c.grade_level}` : ''),
             roleType: c.role_type || (idx === 0 ? 'HOMEROOM' : 'SUBJECT'),
-            subjectBadge: c.subject_name || (idx === 0 ? 'Toán Hình' : idx === 1 ? 'Toán Đại' : 'Tin Học'),
-            nextLessonTitle: idx === 0 ? `${c.name} - Tiết 1` : `${c.name} - Tiết ${idx + 1}`,
-            nextLessonTime: idx === 1 ? '09:15 – 10:00' : idx === 2 ? '10:15 – 11:00' : '08:45 – 09:30',
-            ctaText: idx === 0 ? 'Vào Lớp' : 'Dò Bài',
+            subjectBadge: c.subject_name || (c.role_type === 'HOMEROOM' ? 'Chủ nhiệm' : 'Bộ môn'),
+            nextLessonTitle: `${c.name} - Tiết ${idx + 1}`,
+            nextLessonTime: '08:00 – 08:45',
+            ctaText: c.role_type === 'HOMEROOM' ? 'Vào Lớp' : 'Dò Bài',
           }));
           setClassesList(mapped);
-          if (mapped[0] && (!currentClassId || currentClassId === 'cls_empty')) {
+          if (mapped[0] && (!currentClassId || currentClassId === 'cls_empty' || currentClassId === 'cls_6a1' || !mapped.some(m => m.id === currentClassId))) {
             setInternalClassId(mapped[0].id);
             onSelectClass?.(mapped[0].id, mapped[0].name);
           }
         } else {
           setClassesList([]);
+          setInternalClassId('cls_empty');
         }
       }
     } catch (e) {
@@ -1257,12 +1230,12 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Classes Card with 3 rows divided */}
+            {/* Classes Card with dynamic classes list */}
             <View style={styles.classesCard}>
-              {TEACHER_CLASSES.map((item, index) => {
+              {classesList.map((item, index) => {
                 const isSelected = item.id === selectedClassId;
                 const isFirst = index === 0;
-                const isLast = index === TEACHER_CLASSES.length - 1;
+                const isLast = index === classesList.length - 1;
 
                 return (
                   <TouchableOpacity
@@ -1294,15 +1267,8 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                             <Path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                             <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
                           </Svg>
-                        ) : item.id === 'cls_6a2' ? (
-                          /* Math Icon */
-                          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                            <Rect x={3} y={3} width={18} height={18} rx={2} ry={2} />
-                            <Line x1={9} y1={9} x2={15} y2={15} />
-                            <Line x1={15} y1={9} x2={9} y2={15} />
-                          </Svg>
                         ) : (
-                          /* Computer / Monitor Icon */
+                          /* Subject / Monitor Icon */
                           <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                             <Rect x={2} y={3} width={20} height={14} rx={2} ry={2} />
                             <Line x1={8} y1={21} x2={16} y2={21} />
@@ -1315,7 +1281,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <View style={styles.classInfoTextWrap}>
                         <Text style={styles.classNameText}>{item.name}</Text>
                         <Text style={styles.classSubMetaText}>
-                          {item.studentsCount} học sinh • {item.room}
+                          {item.studentsCount} học sinh{item.room ? ` • ${item.room}` : ''}
                         </Text>
                       </View>
                     </View>
@@ -1347,48 +1313,13 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                 );
               })}
 
-              {/* Option to simulate Empty State TEA-01.empty */}
-              <TouchableOpacity
-                style={[
-                  styles.classRow,
-                  styles.classRowDivider,
-                  selectedClassId === 'cls_empty' && styles.classRowSelected,
-                ]}
-                onPress={() => {
-                  setInternalClassId('cls_empty');
-                  onSelectClass?.('cls_empty');
-                  setIsClassSheetVisible(false);
-                }}
-                activeOpacity={0.85}
-              >
-                <View style={styles.classRowLeft}>
-                  <View style={[styles.classIconTile, styles.classIconTileNormal, { backgroundColor: '#F1F5F9' }]}>
-                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth={2}>
-                      <Circle cx="12" cy="12" r="10" />
-                      <Line x1="12" y1="8" x2="12" y2="12" />
-                      <Line x1="12" y1="16" x2="12.01" y2="16" />
-                    </Svg>
-                  </View>
-                  <View style={styles.classInfoTextWrap}>
-                    <Text style={styles.classNameText}>Chưa Có Lớp</Text>
-                    <Text style={styles.classSubMetaText}>Mô phỏng giao diện TEA-01.empty</Text>
-                  </View>
+              {classesList.length === 0 && (
+                <View style={{ paddingVertical: 24, paddingHorizontal: 16, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 14, color: '#6B6880', textAlign: 'center' }}>
+                    Bạn chưa có lớp học nào. Vui lòng tạo lớp mới.
+                  </Text>
                 </View>
-                <View style={styles.classRowRight}>
-                  <View style={[styles.classPillBadge, styles.classPillBadgeNormal]}>
-                    <Text style={styles.classPillBadgeText}>Empty</Text>
-                  </View>
-                  {selectedClassId === 'cls_empty' ? (
-                    <View style={styles.selectedCheckCircle}>
-                      <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
-                        <Polyline points="20 6 9 17 4 12" />
-                      </Svg>
-                    </View>
-                  ) : (
-                    <View style={styles.unselectedHollowCircle} />
-                  )}
-                </View>
-              </TouchableOpacity>
+              )}
             </View>
 
             {/* Bottom Safe Area Bar (Home indicator) */}
