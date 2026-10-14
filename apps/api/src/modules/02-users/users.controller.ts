@@ -10,7 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto, RegisterDeviceTokenDto } from './dto/users.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -31,6 +31,7 @@ export class UsersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Tra cứu thông tin hồ sơ người dùng theo ID' })
+  @ApiParam({ name: 'id', example: 'usr_admin_root', description: 'Mã định danh người dùng (ví dụ: usr_admin_root, usr_01, usr_gv_01)' })
   async getUserById(@Param('id') userId: string) {
     return this.usersService.getUserProfileById(userId);
   }
@@ -46,6 +47,7 @@ export class UsersController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Xóa mềm tài khoản người dùng theo ID' })
+  @ApiParam({ name: 'id', example: 'usr_01', description: 'Mã định danh người dùng cần xóa' })
   async deleteUser(@Param('id') userId: string) {
     return this.usersService.deleteUser(userId);
   }

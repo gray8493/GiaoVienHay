@@ -5,7 +5,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { StudentsService } from './students.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -19,6 +19,7 @@ export class StudentsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Lấy thông tin hồ sơ lý lịch học sinh' })
+  @ApiParam({ name: 'id', example: 'stu_mv6p272a_s2ab', description: 'Mã học sinh (ID) để tra cứu hồ sơ' })
   async getStudentProfile(
     @Param('id') studentId: string,
     @CurrentUser() user: any,
@@ -29,6 +30,7 @@ export class StudentsController {
 
   @Get(':id/academic')
   @ApiOperation({ summary: 'Tra cứu Bảng điểm đa môn học (Cổng phụ huynh)' })
+  @ApiParam({ name: 'id', example: 'stu_mv6p272a_s2ab', description: 'Mã học sinh' })
   async getAcademicRecord(
     @Param('id') studentId: string,
     @Query('semester') semester?: any,
@@ -44,6 +46,7 @@ export class StudentsController {
 
   @Get(':id/attendance')
   @ApiOperation({ summary: 'Tra cứu Lịch sử chuyên cần & vắng học' })
+  @ApiParam({ name: 'id', example: 'stu_mv6p272a_s2ab', description: 'Mã học sinh' })
   async getAttendanceHistory(
     @Param('id') studentId: string,
     @Query('month') month?: string,
@@ -55,6 +58,7 @@ export class StudentsController {
 
   @Get(':id/fees-insurance')
   @ApiOperation({ summary: 'Xem tình trạng nộp Học phí & Bảo hiểm y tế (kèm ngày nộp)' })
+  @ApiParam({ name: 'id', example: 'stu_mv6p272a_s2ab', description: 'Mã học sinh' })
   async getFeesInsuranceStatus(
     @Param('id') studentId: string,
     @CurrentUser() user?: any,
@@ -65,6 +69,7 @@ export class StudentsController {
 
   @Get(':id/remarks')
   @ApiOperation({ summary: 'Xem Sổ liên lạc nhận xét từ thầy cô' })
+  @ApiParam({ name: 'id', example: 'stu_mv6p272a_s2ab', description: 'Mã học sinh' })
   async getRemarks(
     @Param('id') studentId: string,
     @Query('semester') semester?: any,
@@ -81,6 +86,7 @@ export class StudentsController {
 
   @Get(':id/exam-reminders')
   @ApiOperation({ summary: 'Xem Lời nhắc Lịch kiểm tra sắp tới' })
+  @ApiParam({ name: 'id', example: 'stu_mv6p272a_s2ab', description: 'Mã học sinh' })
   async getExamReminders(
     @Param('id') studentId: string,
     @CurrentUser() user?: any,
