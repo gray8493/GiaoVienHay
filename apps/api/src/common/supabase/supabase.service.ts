@@ -283,6 +283,29 @@ export class SupabaseService implements OnModuleInit {
     this.memoryStore.classes.set(cls1.id, cls1);
     this.memoryStore.classes.set(cls2.id, cls2);
 
+    const stu01 = {
+      id: 'stu_01',
+      class_id: 'cls_1a_01',
+      student_code: 'HS001',
+      full_name: 'Trần Bảo Nam',
+      dob: '2020-05-15',
+      gender: 'MALE',
+      parent_phone: '0987654321',
+      is_deleted: false,
+    };
+    const std01 = {
+      id: 'std_01',
+      class_id: 'cls_1a_01',
+      student_code: 'HS002',
+      full_name: 'Nguyễn Minh Anh',
+      dob: '2020-08-20',
+      gender: 'FEMALE',
+      parent_phone: '0987654322',
+      is_deleted: false,
+    };
+    this.memoryStore.students.set(stu01.id, stu01);
+    this.memoryStore.students.set(std01.id, std01);
+
     const adminUser = {
       id: 'usr_admin_01',
       code: 'ADM-1001',
