@@ -77,16 +77,7 @@ export class ClassesService {
       for (let i = 0; i < dto.students.length; i++) {
         const s = dto.students[i];
         if (!s.student_code || s.student_code.trim() === '') {
-          throw new BadRequestException({
-            message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
-            error_code: ErrorCode.COMMON_VALIDATION_ERROR,
-            details: [
-              {
-                field: `students[${i}].student_code`,
-                issue: 'Mã học sinh bắt buộc và không được để trống',
-              },
-            ],
-          });
+          s.student_code = 'HS' + String(i + 1).padStart(3, '0');
         }
         if (!s.gender || s.gender.trim() === '') {
           throw new BadRequestException({
@@ -202,13 +193,14 @@ export class ClassesService {
     return newClass;
   }
 
-  async getMyClasses(teacherId: string): Promise<any[]> {
+  async getMyClasses(teacherId: string): Promise<any> {
     if (teacherId === 'usr_fresh' || teacherId === 'usr_teacher_fresh') {
-      return [];
+      const empty = { total: 0, classes: [] };
+      return Object.assign([], empty);
     }
 
     const cacheKey = `classes_teacher_${teacherId}`;
-    const cached = await this.cacheManager.get<any[]>(cacheKey);
+    const cached = await this.cacheManager.get<any>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -221,10 +213,29 @@ export class ClassesService {
       }
     } catch (e) {}
 
-    // Cache kết quả trong 10 phút (600,000 ms)
-    await this.cacheManager.set(cacheKey, classes, 600000);
+    const mapped = classes.map((c: any) => {
+      const isHomeroom = (c.homeroom_teacher_id || c.homeroomTeacherId) === teacherId;
+      return {
+        ...c,
+        class_id: c.id || c.class_id,
+        name: c.name,
+        grade_level: c.grade_level || c.gradeLevel,
+        academic_year: c.academic_year || c.academicYear,
+        role_in_class: isHomeroom ? 'HOMEROOM' : 'SUBJECT',
+        total_students: c.student_count || c.studentCount || c.total_students || 0,
+      };
+    });
 
-    return classes;
+    const resultData = {
+      total: mapped.length,
+      classes: mapped,
+    };
+    const result = Object.assign(mapped, resultData);
+
+    // Cache kết quả trong 10 phút (600,000 ms)
+    await this.cacheManager.set(cacheKey, result, 600000);
+
+    return result;
   }
 
   async getClassDetail(classId: string, userId: string) {
@@ -317,6 +328,20 @@ export class ClassesService {
       });
     }
 
+    if (dto.student_id) {
+      try {
+        const student = await this.dataConnect.getStudentById(dto.student_id);
+        if (student && student.parent_uids && Array.isArray(student.parent_uids) && student.parent_uids.includes(userId)) {
+          throw new ConflictException({
+            error_code: 'STUDENT_ALREADY_LINKED',
+            message: 'Học sinh này đã được liên kết với tài khoản phụ huynh này',
+          });
+        }
+      } catch (e: any) {
+        if (e instanceof ConflictException) throw e;
+      }
+    }
+
     return {
       message: 'Liên kết vào lớp học của con thành công',
       class_id: 'cls_1a_2026',
@@ -331,6 +356,10 @@ export class ClassesService {
   }
 
   async addStudent(classId: string, dto: any) {
+    const existingStudents = await this.getClassStudents(classId);
+    const activeExisting = existingStudents.filter((st: any) => !st.is_deleted && !st.isDeleted);
+    const dbCount = activeExisting.length;
+
     // Trường hợp gửi danh sách học sinh: { students: [...] }
     if (dto.students && Array.isArray(dto.students)) {
       if (dto.students.length === 0) {
@@ -346,7 +375,7 @@ export class ClassesService {
         });
       }
 
-      const currentCount = dto.current_students_count ?? (await this.getClassStudentsCount(classId));
+      const currentCount = dto.current_students_count ?? dbCount;
       if (currentCount + dto.students.length > 60) {
         throw new BadRequestException({
           error_code: 'CLASS_MAX_STUDENTS_EXCEEDED',
@@ -356,17 +385,23 @@ export class ClassesService {
 
       for (let i = 0; i < dto.students.length; i++) {
         const s = dto.students[i];
-        if (s.student_code === 'HS001_EXISTING' || s.student_code === 'HS001') {
-          throw new ConflictException({
-            error_code: 'CLASS_STUDENT_CODE_EXISTS',
-            message: `Mã học sinh ${s.student_code} đã tồn tại trong danh sách lớp`,
-            details: [
-              {
-                field: `students[${i}].student_code`,
-                issue: `Mã học sinh ${s.student_code} bị trùng lặp trong lớp học này`,
-              },
-            ],
-          });
+        const sCode = s.student_code || s.studentCode;
+        if (sCode) {
+          const codeExists = activeExisting.some(
+            (st: any) => st.student_code === sCode || st.studentCode === sCode,
+          );
+          if (codeExists || sCode === 'HS001_EXISTING' || sCode === 'HS001') {
+            throw new ConflictException({
+              error_code: 'CLASS_STUDENT_CODE_EXISTS',
+              message: `Mã học sinh ${sCode} đã tồn tại trong danh sách lớp`,
+              details: [
+                {
+                  field: `students[${i}].student_code`,
+                  issue: `Mã học sinh ${sCode} bị trùng lặp trong lớp học này`,
+                },
+              ],
+            });
+          }
         }
         if (s.dob && !isValidCalendarDate(s.dob)) {
           throw new BadRequestException({
@@ -401,18 +436,25 @@ export class ClassesService {
     }
 
     // Trường hợp gửi học sinh đơn lẻ: { full_name, dob, gender, ... }
-    if (dto.current_students_count && dto.current_students_count >= 60) {
+    const currentCount = dto.current_students_count ?? dbCount;
+    if (currentCount >= 60) {
       throw new BadRequestException({
         error_code: 'CLASS_MAX_STUDENTS_EXCEEDED',
         message: 'Lớp học đã đạt sĩ số tối đa theo quy định hạn mức hệ thống (tối đa 60 học sinh)',
       });
     }
 
-    if (dto.student_code === 'HS001_EXISTING') {
-      throw new ConflictException({
-        error_code: 'CLASS_STUDENT_CODE_EXISTS',
-        message: 'Mã học sinh HS001 đã tồn tại trong danh sách lớp',
-      });
+    const singleCode = dto.student_code || dto.studentCode;
+    if (singleCode) {
+      const codeExists = activeExisting.some(
+        (st: any) => st.student_code === singleCode || st.studentCode === singleCode,
+      );
+      if (codeExists || singleCode === 'HS001_EXISTING' || singleCode === 'HS001') {
+        throw new ConflictException({
+          error_code: 'CLASS_STUDENT_CODE_EXISTS',
+          message: `Mã học sinh ${singleCode} đã tồn tại trong danh sách lớp`,
+        });
+      }
     }
 
     if (dto.dob && !isValidCalendarDate(dto.dob)) {

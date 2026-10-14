@@ -26,7 +26,7 @@ export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
   @Post('submit')
-  @Roles('TEACHER_HOMEROOM', 'TEACHER_*', 'ADMIN')
+  @Roles('TEACHER_HOMEROOM', 'ADMIN')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Điểm danh chuyên cần đầu giờ (GVCN)',
@@ -40,7 +40,7 @@ export class AttendanceController {
   }
 
   @Patch(':id')
-  @Roles('TEACHER_HOMEROOM', 'TEACHER_*', 'ADMIN')
+  @Roles('TEACHER_HOMEROOM', 'ADMIN')
   @ApiOperation({
     summary: 'Cập nhật bản ghi điểm danh (GVCN)',
     description: 'Cập nhật trạng thái của học sinh khi đến muộn hoặc xin phép sau giờ điểm danh.',
@@ -52,7 +52,7 @@ export class AttendanceController {
     return this.attendanceService.updateAttendanceRecord(recordId, dto.status, dto.note);
   }
 
-  @Get('class/:classId')
+  @Get(['class/:classId', 'history/:classId'])
   @Roles('TEACHER_*', 'ADMIN')
   @ApiOperation({ summary: 'Xem lịch sử điểm danh của lớp theo ngày/tháng' })
   async getClassAttendance(
@@ -60,7 +60,15 @@ export class AttendanceController {
     @Query('date') date?: string,
     @Query('month') month?: string,
   ) {
-    return this.attendanceService.getClassAttendance(classId, date, month);
+    const records: any = await this.attendanceService.getClassAttendance(classId, date, month);
+    const list = Array.isArray(records) ? records : (records?.records || []);
+    return {
+      class_id: classId,
+      ...(month ? { month } : {}),
+      ...(date ? { date } : {}),
+      total_records: list.length,
+      records: list,
+    };
   }
 
   @Get('today/:classId')

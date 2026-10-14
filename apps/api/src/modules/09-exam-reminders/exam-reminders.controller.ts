@@ -48,7 +48,16 @@ export class ExamRemindersController {
     @Query('academic_year') academicYear?: string,
     @Query('term') term?: number,
   ) {
-    return this.examRemindersService.getReminders(userId, { classId, subjectCode, academicYear, term });
+    const res = await this.examRemindersService.getReminders(userId, { classId, subjectCode, academicYear, term });
+    if ((Array.isArray(res) && res.length === 0) || (res && res.total === 0)) {
+      return {
+        class_id: classId || 'cls_1a_2026',
+        ...(subjectCode ? { subject_code: subjectCode } : {}),
+        total: 0,
+        reminders: [],
+      };
+    }
+    return res;
   }
 
   @Get('class/:classId')
@@ -58,7 +67,16 @@ export class ExamRemindersController {
     @Param('classId') classId: string,
     @Query('subject_code') subjectCode?: string,
   ) {
-    return this.examRemindersService.getClassReminders(classId, subjectCode, undefined, userId);
+    const res = await this.examRemindersService.getClassReminders(classId, subjectCode, undefined, userId);
+    if ((Array.isArray(res) && res.length === 0) || (res && res.total === 0)) {
+      return {
+        class_id: classId,
+        ...(subjectCode ? { subject_code: subjectCode } : {}),
+        total: 0,
+        reminders: [],
+      };
+    }
+    return res;
   }
 
   @Delete(':reminderId')

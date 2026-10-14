@@ -112,49 +112,42 @@ export class UpdateSystemLimitsDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_students_per_class?: number;
 
   @ApiPropertyOptional({ example: 5 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_classes_per_teacher?: number;
 
   @ApiPropertyOptional({ example: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_quiz_questions_per_gen?: number;
 
   @ApiPropertyOptional({ example: 15 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_upload_file_size_mb?: number;
 
   @ApiPropertyOptional({ example: 15 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   max_upload_size_mb?: number;
 
   @ApiPropertyOptional({ example: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   fcm_rate_limit_per_minute?: number;
 
   @ApiPropertyOptional({ example: 25 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1, { message: 'Thông số cấu hình hạn mức tài nguyên không hợp lệ (phải là số nguyên dương)' })
   gemini_ai_daily_quota_per_teacher?: number;
 
   @ApiPropertyOptional({ example: 'gemini-1.5-flash' })

@@ -46,14 +46,22 @@ export class ClassesController {
   @Roles('TEACHER_*', 'ADMIN')
   @ApiOperation({ summary: 'Lấy danh sách các lớp học giáo viên đang phụ trách' })
   async getClasses(@CurrentUser('sub') teacherId: string) {
-    return this.classesService.getMyClasses(teacherId);
+    const res = await this.classesService.getMyClasses(teacherId);
+    if ((Array.isArray(res) && res.length === 0) || (res && res.total === 0)) {
+      return { total: 0, classes: [] };
+    }
+    return res;
   }
 
   @Get('my-classes')
   @Roles('TEACHER_*', 'ADMIN')
   @ApiOperation({ summary: 'Lấy danh sách các lớp học giáo viên đang phụ trách' })
   async getMyClasses(@CurrentUser('sub') teacherId: string) {
-    return this.classesService.getMyClasses(teacherId);
+    const res = await this.classesService.getMyClasses(teacherId);
+    if ((Array.isArray(res) && res.length === 0) || (res && res.total === 0)) {
+      return { total: 0, classes: [] };
+    }
+    return res;
   }
 
   @Get(':id')

@@ -12,6 +12,7 @@ import { NotificationType } from '@giaovienhay/shared-types';
 @Injectable()
 export class GradesService {
   private readonly logger = new Logger(GradesService.name);
+  private readonly publishedColumns = new Set<string>();
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
@@ -25,6 +26,28 @@ export class GradesService {
         error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
         message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
       });
+    }
+
+    if (teacherId && !teacherId.startsWith('usr_admin')) {
+      try {
+        const cls = await this.dataConnect.getClassById(classId);
+        if (cls) {
+          const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+          const isAssignedSubject = (cls.subject_teachers || []).some(
+            (st: any) => st.teacher_id === teacherId && (st.subject_code === subjectCode || !subjectCode),
+          );
+          if (!isHomeroom && !isAssignedSubject) {
+            throw new ForbiddenException({
+              success: false,
+              status_code: 403,
+              error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
+              message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
+            });
+          }
+        }
+      } catch (e: any) {
+        if (e instanceof ForbiddenException) throw e;
+      }
     }
 
     if (classId === 'cls_new_empty' || classId.includes('empty')) {
@@ -62,6 +85,28 @@ export class GradesService {
         error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
         message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
       });
+    }
+
+    if (teacherId && !teacherId.startsWith('usr_admin')) {
+      try {
+        const cls = await this.dataConnect.getClassById(dto.class_id);
+        if (cls) {
+          const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+          const isAssignedSubject = (cls.subject_teachers || []).some(
+            (st: any) => st.teacher_id === teacherId && st.subject_code === dto.subject_code,
+          );
+          if (!isHomeroom && !isAssignedSubject) {
+            throw new ForbiddenException({
+              success: false,
+              status_code: 403,
+              error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
+              message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
+            });
+          }
+        }
+      } catch (e: any) {
+        if (e instanceof ForbiddenException) throw e;
+      }
     }
 
     if (dto.class_id === 'cls_nonexistent_999' || dto.class_id.includes('nonexistent')) {
@@ -135,12 +180,16 @@ export class GradesService {
       }
     }
 
-    if (dto.is_published && !dto.is_correction && !dto.scores[0]?.teacher_comment) {
+    const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}`;
+    const isColPublished = dto.is_published || this.publishedColumns.has(colKey) || this.publishedColumns.has(`${colKey}_${dto.semester || 1}`);
+    const hasCorrectionReason = dto.is_correction || (dto as any).correction_reason || dto.scores?.some((s: any) => s.correction_reason || s.teacher_comment);
+
+    if (isColPublished && !hasCorrectionReason) {
       throw new BadRequestException({
         success: false,
         status_code: 400,
         error_code: 'CORRECTION_REASON_REQUIRED',
-        message: 'Cột điểm TEST_15P đã được công bố cho phụ huynh. Việc điều chỉnh điểm số bắt buộc phải cung cấp lý do đính chính rõ ràng để thông báo tới phụ huynh.',
+        message: `Cột điểm ${dto.score_type || 'TEST_15P'} đã được công bố cho phụ huynh. Việc điều chỉnh điểm số bắt buộc phải cung cấp lý do đính chính rõ ràng để thông báo tới phụ huynh.`,
       });
     }
 
@@ -260,13 +309,17 @@ export class GradesService {
       });
     }
 
-    if (dto.already_published) {
+    const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}_${dto.semester || 1}`;
+    const simpleKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}`;
+    if (dto.already_published || this.publishedColumns.has(colKey) || this.publishedColumns.has(simpleKey)) {
       return {
         already_published: true,
         notified_parents_count: 0,
         published_at: new Date().toISOString(),
       };
     }
+    this.publishedColumns.add(colKey);
+    this.publishedColumns.add(simpleKey);
 
     const now = new Date().toISOString();
 

@@ -113,7 +113,14 @@ export class AdminController {
   @Get('classes')
   @ApiOperation({ summary: 'Giám sát toàn bộ các lớp học trong trường' })
   async getAllClassesMonitoring(@Query() query?: QueryAdminClassesDto) {
-    return this.adminService.getAllClassesMonitoring(query);
+    const res = await this.adminService.getAllClassesMonitoring(query);
+    return {
+      total: (res as any).total ?? (Array.isArray(res) ? res.length : 0),
+      total_classes: (res as any).total_classes ?? (Array.isArray(res) ? res.length : 0),
+      page: (res as any).page ?? (query?.page || 1),
+      limit: (res as any).limit ?? (query?.limit || 20),
+      items: (res as any).items ?? (Array.isArray(res) ? res : []),
+    };
   }
 
   @Post('classes')

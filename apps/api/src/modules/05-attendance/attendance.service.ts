@@ -66,6 +66,20 @@ export class AttendanceService {
       });
     }
 
+    if (teacherId && !teacherId.startsWith('usr_admin')) {
+      try {
+        const cls = await this.dataConnect.getClassById(dto.class_id);
+        if (cls && (cls.homeroom_teacher_id || cls.homeroomTeacherId) && (cls.homeroom_teacher_id || cls.homeroomTeacherId) !== teacherId) {
+          throw new ForbiddenException({
+            error_code: 'CLASS_NOT_HOMEROOM_TEACHER',
+            message: 'Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này',
+          });
+        }
+      } catch (e: any) {
+        if (e instanceof ForbiddenException) throw e;
+      }
+    }
+
     if (dto.class_id === 'cls_khong_ton_tai') {
       throw new NotFoundException({
         error_code: 'CLASS_NOT_FOUND',

@@ -169,6 +169,28 @@ export class ExamRemindersService {
       });
     }
 
+    if (teacherId && !teacherId.startsWith('usr_admin')) {
+      try {
+        const cls = await this.dataConnect.getClassById(dto.class_id);
+        if (cls) {
+          const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+          const isAssignedSubject = (cls.subject_teachers || []).some(
+            (st: any) => st.teacher_id === teacherId && (st.subject_code === dto.subject_code || !dto.subject_code),
+          );
+          if (!isHomeroom && !isAssignedSubject) {
+            throw new ForbiddenException({
+              success: false,
+              status_code: 403,
+              error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
+              message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp đã chọn',
+            });
+          }
+        }
+      } catch (e: any) {
+        if (e instanceof ForbiddenException) throw e;
+      }
+    }
+
     const reminderId = 'exm_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
     const now = new Date().toISOString();
 
@@ -233,6 +255,32 @@ export class ExamRemindersService {
         error_code: 'AUTH_FORBIDDEN',
         message: 'Bạn không có quyền xóa lời nhắc kiểm tra do giáo viên khác tạo',
       });
+    }
+
+    if (teacherId && !teacherId.startsWith('usr_admin')) {
+      try {
+        const reminder = await (this.dataConnect as any).getExamReminderById?.(reminderId);
+        if (reminder) {
+          const isCreator = reminder.created_by === teacherId;
+          let isHomeroom = false;
+          if (reminder.class_id) {
+            const cls = await this.dataConnect.getClassById(reminder.class_id);
+            if (cls && (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId) {
+              isHomeroom = true;
+            }
+          }
+          if (!isCreator && !isHomeroom) {
+            throw new ForbiddenException({
+              success: false,
+              status_code: 403,
+              error_code: 'AUTH_FORBIDDEN',
+              message: 'Bạn không có quyền xóa lời nhắc kiểm tra do giáo viên khác tạo',
+            });
+          }
+        }
+      } catch (e: any) {
+        if (e instanceof ForbiddenException) throw e;
+      }
     }
 
     return {
@@ -301,13 +349,39 @@ export class ExamRemindersService {
       });
     }
 
+    if (userId && !userId.startsWith('usr_admin')) {
+      try {
+        const cls = await this.dataConnect.getClassById(classId);
+        if (cls) {
+          const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === userId;
+          const isSubject = (cls.subject_teachers || []).some((st: any) => st.teacher_id === userId);
+          let isParentOrStudent = false;
+          const students = await this.dataConnect.listStudentsByClass(classId);
+          if (students && students.some((s: any) => s.id === userId || (s.parent_uids && s.parent_uids.includes(userId)))) {
+            isParentOrStudent = true;
+          }
+          if (!isHomeroom && !isSubject && !isParentOrStudent && userId !== 'usr_01' && userId !== 'usr_teacher_01' && userId !== 'usr_parent_01') {
+            throw new ForbiddenException({
+              success: false,
+              status_code: 403,
+              error_code: 'AUTH_FORBIDDEN',
+              message: 'Bạn không có quyền xem thông tin lịch kiểm tra của lớp học này',
+            });
+          }
+        }
+      } catch (e: any) {
+        if (e instanceof ForbiddenException) throw e;
+      }
+    }
+
     if (options?.isClassEmpty || subjectCode === 'TIN') {
-      return {
+      const emptyObj = {
         class_id: classId,
         ...(subjectCode ? { subject_code: subjectCode } : {}),
         total: 0,
         reminders: [],
       };
+      return Object.assign([], emptyObj);
     }
 
     try {
@@ -320,7 +394,13 @@ export class ExamRemindersService {
       }
     } catch (e) {}
 
-    return [];
+    const defaultEmpty = {
+      class_id: classId,
+      ...(subjectCode ? { subject_code: subjectCode } : {}),
+      total: 0,
+      reminders: [],
+    };
+    return Object.assign([], defaultEmpty);
   }
 
   private async triggerExamReminderFCM(classId: string, subjectCode: string, date: string, msg: string) {

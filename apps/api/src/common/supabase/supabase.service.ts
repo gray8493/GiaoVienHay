@@ -44,6 +44,7 @@ export interface DataConnectClassRecord {
   homeroomTeacherId?: string | null;
   homeroom_teacher?: string | null;
   homeroom_teacher_id?: string | null;
+  subject_teachers?: any[];
   inviteCode: string;
   invite_code?: string;
   studentCount: number;
@@ -68,6 +69,7 @@ export interface DataConnectStudentRecord {
   gender: string;
   parentPhone?: string | null;
   parent_phone?: string | null;
+  parent_uids?: string[];
   isDeleted: boolean;
   is_deleted?: boolean;
   createdAt: string;
@@ -356,7 +358,26 @@ export class SupabaseService implements OnModuleInit {
       ai_used_today: 1,
       ai_model_tier: 'FREE',
     };
-    [adminUser, adminRoot, gv1, gv2, ph1].forEach((u) => {
+    const usr01 = {
+      id: 'usr_01',
+      code: 'GV-0001',
+      full_name: 'Nguyễn Văn An',
+      fullName: 'Nguyễn Văn An',
+      phone: '0988776655',
+      email: 'an.nguyen@school.edu.vn',
+      role: 'TEACHER_HOMEROOM',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      schoolName: 'Trường Tiểu Học Chu Văn An',
+      assigned_info: 'Chủ nhiệm Lớp 1A',
+      is_active: true,
+      isActive: true,
+      is_deleted: false,
+      isDeleted: false,
+      ai_daily_quota: 30,
+      ai_used_today: 0,
+      ai_model_tier: 'AUTO',
+    };
+    [adminUser, adminRoot, gv1, gv2, ph1, usr01].forEach((u) => {
       this.memoryStore.users.set(u.id, u);
     });
   }
@@ -814,7 +835,7 @@ export class SupabaseService implements OnModuleInit {
         const { data, error } = await this.supabase
           .from('classes')
           .select('*')
-          .eq('homeroom_teacher_id', teacherId)
+          .or(`homeroom_teacher_id.eq.${teacherId},subject_teacher_ids.cs.{${teacherId}}`)
           .eq('is_deleted', false)
           .order('grade_level', { ascending: true });
         if (!error && data && data.length > 0) {
@@ -826,7 +847,12 @@ export class SupabaseService implements OnModuleInit {
     }
 
     return Array.from(this.memoryStore.classes.values())
-      .filter((c) => (c.homeroom_teacher_id || c.homeroomTeacherId) === teacherId && !c.is_deleted && !c.isDeleted)
+      .filter((c) => {
+        const isHomeroom = (c.homeroom_teacher_id || c.homeroomTeacherId) === teacherId;
+        const isSubject = (c.subject_teacher_ids && c.subject_teacher_ids.includes(teacherId)) ||
+          (c.subject_teachers && Array.isArray(c.subject_teachers) && c.subject_teachers.some((st: any) => st.teacher_id === teacherId));
+        return (isHomeroom || isSubject) && !c.is_deleted && !c.isDeleted;
+      })
       .map((c) => this.mapClass(c));
   }
 
@@ -1297,10 +1323,11 @@ export class SupabaseService implements OnModuleInit {
     const record = {
       id: reminder.id,
       class_id: reminder.class_id || reminder.classId,
-      subject: reminder.subject,
+      subject: reminder.subject || reminder.subject_code,
       exam_date: reminder.exam_date || reminder.examDate,
       title: reminder.title,
-      note: reminder.note || null,
+      note: reminder.note || reminder.message || null,
+      created_by: reminder.created_by || reminder.createdBy,
       is_deleted: false,
     };
 
@@ -1313,7 +1340,27 @@ export class SupabaseService implements OnModuleInit {
     }
 
     this.memoryStore.examReminders.set(reminder.id, record);
-    return this.mapExamReminder(record);
+    return { ...this.mapExamReminder(record), created_by: record.created_by };
+  }
+
+  async getExamReminderById(id: string) {
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('exam_reminders')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (!error && data) {
+          return { ...this.mapExamReminder(data), created_by: data.created_by, class_id: data.class_id };
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getExamReminderById error: ${err?.message}`);
+      }
+    }
+
+    const mem = this.memoryStore.examReminders.get(id);
+    return mem ? { ...this.mapExamReminder(mem), created_by: mem.created_by, class_id: mem.class_id } : null;
   }
 
   // =========================================================================
@@ -1376,6 +1423,21 @@ export class SupabaseService implements OnModuleInit {
 
     this.memoryStore.fees.set(fee.id, record);
     return this.mapFee(record);
+  }
+
+  async getFeeById(id: string) {
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase.from('fees').select('*').eq('id', id).maybeSingle();
+        if (!error && data) {
+          return { ...this.mapFee(data), is_locked: data.is_locked, isLocked: data.is_locked };
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getFeeById error: ${err?.message}`);
+      }
+    }
+    const mem = this.memoryStore.fees.get(id);
+    return mem ? { ...this.mapFee(mem), is_locked: mem.is_locked, isLocked: mem.is_locked } : null;
   }
 
   async updateFeeStatus(id: string, status: string) {

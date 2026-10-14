@@ -57,6 +57,7 @@ export class NotificationsService {
 
     if (userId === 'usr_parent_new' || query?.noWorkerNotifs) {
       return {
+        message: 'Lấy danh sách thông báo thành công',
         unread_count: 0,
         total: 0,
         items: [],
@@ -65,6 +66,7 @@ export class NotificationsService {
 
     if (query?.allRead && (query?.is_read === false || query?.is_read === 'false')) {
       return {
+        message: 'Lấy danh sách thông báo thành công',
         unread_count: 0,
         total: 0,
         items: [],
@@ -100,6 +102,7 @@ export class NotificationsService {
     const paginatedItems = items.slice(startIndex, startIndex + limit);
 
     return {
+      message: 'Lấy danh sách thông báo thành công',
       unread_count: unreadCount,
       total: items.length,
       items: paginatedItems,

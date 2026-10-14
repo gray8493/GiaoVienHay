@@ -202,12 +202,21 @@ export class FeesInsuranceService {
       });
     }
 
+    let existingFeeRecord: any = null;
+    try {
+      existingFeeRecord = await (this.dataConnect as any).getFeeById?.(dto.record_id);
+    } catch (e) {}
+
     if (
       options?.isLocked ||
       (dto as any).is_locked === true ||
       (dto as any).isLocked === true ||
       (dto as any).term_locked === true ||
-      dto.record_id.includes('locked')
+      dto.record_id.includes('locked') ||
+      existingFeeRecord?.is_locked === true ||
+      existingFeeRecord?.isLocked === true ||
+      existingFeeRecord?.term_locked === true ||
+      existingFeeRecord?.status === 'LOCKED'
     ) {
       throw new BadRequestException({
         success: false,
@@ -325,11 +334,31 @@ export class FeesInsuranceService {
       });
     }
 
+    let allRecords: any[] = [];
+    try {
+      const sqlFees = await (this.dataConnect as any).getFeesByClass?.(dto.class_id);
+      if (sqlFees && sqlFees.length > 0) {
+        allRecords = sqlFees;
+      }
+    } catch (e) {}
+
+    let unpaidRecords: any[] = [];
+    if (allRecords.length > 0) {
+      if (dto.fee_type === 'INSURANCE') {
+        unpaidRecords = allRecords.filter((r) => !r.insurance?.is_paid);
+      } else if (dto.fee_type === 'TUITION') {
+        unpaidRecords = allRecords.filter((r) => !r.tuition?.is_paid);
+      } else {
+        unpaidRecords = allRecords.filter((r) => !r.insurance?.is_paid || !r.tuition?.is_paid);
+      }
+    }
+
     if (
       options?.allPaid ||
       (dto as any).allPaid ||
       (dto as any).all_paid ||
-      dto.class_id === 'cls_all_paid'
+      dto.class_id === 'cls_all_paid' ||
+      (allRecords.length > 0 && unpaidRecords.length === 0 && dto.class_id !== 'cls_1a_2026')
     ) {
       return {
         success: true,
@@ -369,7 +398,10 @@ export class FeesInsuranceService {
       });
     }
 
-    const count = dto.fee_type === 'BOTH' ? 18 : 12;
+    let count = dto.fee_type === 'BOTH' ? 18 : 12;
+    if (dto.class_id !== 'cls_1a_2026' && unpaidRecords.length > 0) {
+      count = unpaidRecords.length;
+    }
 
     return {
       class_id: dto.class_id,

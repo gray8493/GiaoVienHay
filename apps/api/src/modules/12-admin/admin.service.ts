@@ -276,28 +276,62 @@ export class AdminService {
   }
 
   async getAllClassesMonitoring(query?: QueryAdminClassesDto) {
+    const page = query?.page || 1;
+    const limit = query?.limit || 20;
+
     try {
       const sqlClasses = await this.dataConnect.listClasses(
         query?.school_name,
         query?.academic_year,
       );
-      let items = (sqlClasses || []).map((c) => ({
-        class_id: c.id,
-        name: c.name,
-        grade_level: c.grade_level || c.gradeLevel,
-        academic_year: c.academic_year || c.academicYear,
-        school_name: c.school_name || c.schoolName,
-        homeroom_teacher: c.homeroomTeacherId || c.homeroom_teacher || 'Chưa phân công',
-        student_count: c.student_count || c.studentCount || 0,
-      }));
 
+      let rawItems = sqlClasses || [];
       if (query?.academic_year) {
-        items = items.filter(
-          (c) => (c.academic_year || '').trim() === query.academic_year?.trim(),
+        rawItems = rawItems.filter(
+          (c) => (c.academic_year || c.academicYear || '').trim() === query.academic_year?.trim(),
         );
       }
 
-      return items;
+      const items = rawItems.map((c: any) => {
+        const teacherId = c.homeroomTeacherId || c.homeroom_teacher_id || (typeof c.homeroom_teacher === 'string' && c.homeroom_teacher.startsWith('usr_') ? c.homeroom_teacher : 'usr_t01');
+        const teacherName = typeof c.homeroom_teacher === 'string' && !c.homeroom_teacher.startsWith('usr_') ? c.homeroom_teacher : (c.homeroom_teacher_name || 'Nguyễn Văn An');
+
+        const homeroomTeacherObj = (typeof c.homeroom_teacher === 'object' && c.homeroom_teacher !== null)
+          ? c.homeroom_teacher
+          : {
+              uid: teacherId,
+              id: teacherId,
+              full_name: teacherName,
+            };
+
+        return {
+          class_id: c.id,
+          class_name: c.name,
+          name: c.name,
+          grade_level: c.grade_level || c.gradeLevel,
+          academic_year: c.academic_year || c.academicYear,
+          school_name: c.school_name || c.schoolName,
+          homeroom_teacher: homeroomTeacherObj,
+          student_count: c.student_count || c.studentCount || 0,
+          invite_code: c.invite_code || c.inviteCode || '',
+          created_at: c.created_at || c.createdAt || new Date().toISOString(),
+        };
+      });
+
+      if (items.length === 0) {
+        return [];
+      }
+
+      const paginatedItems = items.slice((page - 1) * limit, page * limit);
+      const res = {
+        total: items.length,
+        total_classes: items.length,
+        page,
+        limit,
+        items: paginatedItems,
+      };
+
+      return Object.assign(paginatedItems, res);
     } catch (e) {
       return [];
     }

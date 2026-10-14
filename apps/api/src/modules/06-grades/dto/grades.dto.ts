@@ -22,8 +22,6 @@ export class ScoreItemDto {
 
   @ApiProperty({ example: 9.5, description: 'Điểm số thành phần (thang điểm 10)' })
   @IsNumber()
-  @Min(0)
-  @Max(10)
   score_value: number;
 
   @ApiPropertyOptional({ example: 'Thuộc bảng cửu chương', description: 'Nhận xét của giáo viên' })
