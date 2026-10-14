@@ -235,7 +235,8 @@ export class StudentsService {
       });
     }
 
-    const student = await this.dataConnect.getStudentById(studentId);
+    const cleanId = studentId.trim();
+    const student = await this.dataConnect.getStudentById(cleanId);
     if (!student) {
       throw new NotFoundException({
         error_code: 'STUDENT_NOT_FOUND',

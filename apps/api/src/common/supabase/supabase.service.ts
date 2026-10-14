@@ -981,9 +981,10 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async getStudentById(id: string) {
+    const cleanId = (id || '').trim();
     if (this.supabase) {
       try {
-        const { data, error } = await this.supabase.from('students').select('*').eq('id', id).maybeSingle();
+        const { data, error } = await this.supabase.from('students').select('*').eq('id', cleanId).maybeSingle();
         if (!error && data) {
           return this.mapStudent(data);
         }
@@ -991,7 +992,7 @@ export class SupabaseService implements OnModuleInit {
         this.logger.debug(`[Supabase] getStudentById fallback: ${err?.message}`);
       }
     }
-    const mem = this.memoryStore.students.get(id);
+    const mem = this.memoryStore.students.get(cleanId);
     return mem ? this.mapStudent(mem) : null;
   }
 
