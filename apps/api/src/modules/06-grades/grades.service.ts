@@ -19,39 +19,24 @@ export class GradesService {
   ) {}
 
   async getClassGrades(classId: string, subjectCode: string, semester: number = 1, teacherId?: string) {
-    if (teacherId === 'usr_teacher_other') {
-      throw new ForbiddenException({
-        success: false,
-        status_code: 403,
-        error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
-        message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
-      });
-    }
-
-    if (teacherId && !teacherId.startsWith('usr_admin')) {
-      try {
-        const cls = await this.dataConnect.getClassById(classId);
-        if (cls) {
-          const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
-          const isAssignedSubject = (cls.subject_teachers || []).some(
-            (st: any) => st.teacher_id === teacherId && (st.subject_code === subjectCode || !subjectCode),
-          );
-          if (!isHomeroom && !isAssignedSubject) {
-            throw new ForbiddenException({
-              success: false,
-              status_code: 403,
-              error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
-              message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
-            });
-          }
+    if (typeof this.dataConnect.getClassById === 'function') {
+      const cls = await this.dataConnect.getClassById(classId);
+      if (cls && teacherId && !teacherId.startsWith('usr_admin')) {
+        const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+        const isAssignedSubject = (cls.subject_teachers || []).some(
+          (st: any) =>
+            (st.teacher_id === teacherId || st.teacherId === teacherId) &&
+            (st.subject_code === subjectCode || st.subjectCode === subjectCode || !subjectCode),
+        );
+        if (!isHomeroom && !isAssignedSubject) {
+          throw new ForbiddenException({
+            success: false,
+            status_code: 403,
+            error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
+            message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
+          });
         }
-      } catch (e: any) {
-        if (e instanceof ForbiddenException) throw e;
       }
-    }
-
-    if (classId === 'cls_new_empty' || classId.includes('empty')) {
-      return [];
     }
 
     try {
@@ -75,47 +60,33 @@ export class GradesService {
     teacherId: string,
     dto: BatchInputScoresDto & { semester_status?: string; is_correction?: boolean; is_published?: boolean },
   ) {
-    if (
-      teacherId === 'usr_teacher_other' ||
-      (teacherId === 'usr_teacher_literature' && dto.subject_code === 'MATH')
-    ) {
-      throw new ForbiddenException({
-        success: false,
-        status_code: 403,
-        error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
-        message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
-      });
-    }
-
-    if (teacherId && !teacherId.startsWith('usr_admin')) {
-      try {
-        const cls = await this.dataConnect.getClassById(dto.class_id);
-        if (cls) {
-          const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
-          const isAssignedSubject = (cls.subject_teachers || []).some(
-            (st: any) => st.teacher_id === teacherId && st.subject_code === dto.subject_code,
-          );
-          if (!isHomeroom && !isAssignedSubject) {
-            throw new ForbiddenException({
-              success: false,
-              status_code: 403,
-              error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
-              message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
-            });
-          }
-        }
-      } catch (e: any) {
-        if (e instanceof ForbiddenException) throw e;
+    if (typeof this.dataConnect.getClassById === 'function') {
+      const cls = await this.dataConnect.getClassById(dto.class_id);
+      if (!cls) {
+        throw new NotFoundException({
+          success: false,
+          status_code: 404,
+          error_code: 'CLASS_NOT_FOUND',
+          message: 'Lớp học không tồn tại trong hệ thống.',
+        });
       }
-    }
 
-    if (dto.class_id === 'cls_nonexistent_999' || dto.class_id.includes('nonexistent')) {
-      throw new NotFoundException({
-        success: false,
-        status_code: 404,
-        error_code: 'CLASS_NOT_FOUND',
-        message: 'Lớp học không tồn tại trong hệ thống.',
-      });
+      if (teacherId && !teacherId.startsWith('usr_admin')) {
+        const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+        const isAssignedSubject = (cls.subject_teachers || []).some(
+          (st: any) =>
+            (st.teacher_id === teacherId || st.teacherId === teacherId) &&
+            (st.subject_code === dto.subject_code || st.subjectCode === dto.subject_code),
+        );
+        if (!isHomeroom && !isAssignedSubject) {
+          throw new ForbiddenException({
+            success: false,
+            status_code: 403,
+            error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
+            message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp.',
+          });
+        }
+      }
     }
 
     if (
@@ -133,13 +104,16 @@ export class GradesService {
 
     for (let i = 0; i < dto.scores.length; i++) {
       const item = dto.scores[i];
-      if (item.student_id === 'stu_unknown_888' || item.student_id.includes('unknown')) {
-        throw new NotFoundException({
-          success: false,
-          status_code: 404,
-          error_code: 'STUDENT_NOT_FOUND',
-          message: 'Học sinh không tồn tại hoặc không thuộc danh sách lớp đã chọn.',
-        });
+      if (typeof this.dataConnect.getStudentById === 'function') {
+        const student = await this.dataConnect.getStudentById(item.student_id);
+        if (!student) {
+          throw new NotFoundException({
+            success: false,
+            status_code: 404,
+            error_code: 'STUDENT_NOT_FOUND',
+            message: 'Học sinh không tồn tại hoặc không thuộc danh sách lớp đã chọn.',
+          });
+        }
       }
 
       if (typeof item.score_value !== 'number' || isNaN(item.score_value)) {
@@ -251,13 +225,16 @@ export class GradesService {
   }
 
   async updateScore(teacherId: string, scoreId: string, body: any) {
-    if (scoreId === 'scr_nonexistent_999' || scoreId.includes('nonexistent')) {
-      throw new NotFoundException({
-        success: false,
-        status_code: 404,
-        error_code: 'GRADE_RECORD_NOT_FOUND',
-        message: 'Không tìm thấy bản ghi điểm số của học sinh.',
-      });
+    if (typeof this.dataConnect.getScoreById === 'function') {
+      const score = await this.dataConnect.getScoreById(scoreId);
+      if (!score) {
+        throw new NotFoundException({
+          success: false,
+          status_code: 404,
+          error_code: 'GRADE_RECORD_NOT_FOUND',
+          message: 'Không tìm thấy bản ghi điểm số của học sinh.',
+        });
+      }
     }
 
     return {
@@ -300,13 +277,27 @@ export class GradesService {
   }
 
   async publishScores(teacherId: string, dto: PublishScoresDto & { no_scores?: boolean; already_published?: boolean }) {
-    if (dto.no_scores || (dto.score_type === 'FINAL' && dto.class_id === 'cls_1a_no_scores')) {
+    if (dto.no_scores) {
       throw new BadRequestException({
         success: false,
         status_code: 400,
         error_code: 'NO_SCORES_TO_PUBLISH',
         message: 'Không thể công bố do chưa có dữ liệu điểm nào được nhập cho cột điểm FINAL',
       });
+    }
+
+    try {
+      const currentScores = await this.getClassGrades(dto.class_id, dto.subject_code, dto.semester || 1, teacherId);
+      if (currentScores && currentScores.length === 0) {
+        throw new BadRequestException({
+          success: false,
+          status_code: 400,
+          error_code: 'NO_SCORES_TO_PUBLISH',
+          message: `Không thể công bố do chưa có dữ liệu điểm nào được nhập cho cột điểm ${dto.score_type || 'FINAL'}`,
+        });
+      }
+    } catch (e: any) {
+      if (e instanceof BadRequestException) throw e;
     }
 
     const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}_${dto.semester || 1}`;
@@ -348,7 +339,8 @@ export class GradesService {
   }
 
   async getLeaderboard(classId: string, subjectCode: string, semester: number = 1, limit: number = 5) {
-    if (classId === 'cls_empty_leaderboard' || classId.includes('empty')) {
+    const scores = await this.getClassGrades(classId, subjectCode, semester);
+    if (!scores || scores.length === 0) {
       return {
         class_id: classId,
         subject_code: subjectCode,

@@ -13,7 +13,45 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
     mockDataConnect = {
       recordScore: jest.fn().mockResolvedValue(true),
       createNotification: jest.fn().mockResolvedValue(true),
-      execute: jest.fn().mockResolvedValue({ data: { scores: [] } }),
+      execute: jest.fn().mockImplementation((query: string, vars: any) => {
+        if (vars?.classId?.includes('empty') || vars?.classId === 'cls_new_empty' || vars?.classId === 'cls_1a_no_scores') {
+          return Promise.resolve({ data: { scores: [] } });
+        }
+        return Promise.resolve({
+          data: {
+            scores: [
+              { id: 'sc_01', studentId: 'stu_01', scoreType: 'TEST_15P', scoreValue: 9.0 },
+              { id: 'sc_02', studentId: 'stu_01', scoreType: 'FINAL', scoreValue: 10.0 },
+              { id: 'sc_03', studentId: 'stu_02', scoreType: 'FINAL', scoreValue: 10.0 },
+              { id: 'sc_04', studentId: 'stu_03', scoreType: 'FINAL', scoreValue: 9.5 },
+            ],
+          },
+        });
+      }),
+      getClassById: jest.fn().mockImplementation((id: string) => {
+        if (id === 'cls_nonexistent_999' || id?.includes('nonexistent')) {
+          return Promise.resolve(null);
+        }
+        return Promise.resolve({
+          id,
+          name: 'Lớp 1A',
+          homeroom_teacher_id: 'usr_teacher_lan_01',
+          homeroomTeacherId: 'usr_teacher_lan_01',
+          subject_teachers: [
+            { teacher_id: 'usr_teacher_01', subject_code: 'MATH' },
+            { teacher_id: 'usr_teacher_toan', subject_code: 'MATH' },
+            { teacher_id: 'usr_teacher_literature', subject_code: 'LITERATURE' },
+          ],
+        });
+      }),
+      getStudentById: jest.fn().mockImplementation(async (id: string) => {
+        if (!id || id === 'stu_unknown_888' || id.includes('unknown')) return null;
+        return { id, full_name: 'Học sinh' };
+      }),
+      getScoreById: jest.fn().mockImplementation(async (id: string) => {
+        if (!id || id === 'scr_nonexistent_999' || id.includes('nonexistent')) return null;
+        return { id, score_value: 9.0, student_id: 'stu_01' };
+      }),
     };
 
     service = new GradesService(mockDataConnect);

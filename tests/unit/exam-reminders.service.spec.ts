@@ -44,7 +44,40 @@ describe('ExamRemindersService (Unit Tests UT09 - All 26 Cases)', () => {
           },
         ];
       }),
+      getClassById: jest.fn().mockImplementation(async (classId: string) => {
+        if (classId === 'cls_khong_ton_tai' || classId?.includes('nonexistent')) return null;
+        return {
+          id: 'cls_1a_2026',
+          name: '1A',
+          homeroom_teacher_id: 'usr_teacher_lan_01',
+          subject_teachers: [
+            { teacher_id: 'usr_teacher_01', subject_code: 'MATH' },
+            { teacher_id: 'usr_teacher_lan_01', subject_code: 'MATH' },
+            { teacher_id: 'usr_teacher_toan', subject_code: 'MATH' },
+            { teacher_id: 'usr_gvbm_eng', subject_code: 'ENG' },
+            { teacher_id: 'usr_teacher_eng_02', subject_code: 'ENG' },
+            { teacher_id: 'usr_gvbm_lit', subject_code: 'LIT' },
+          ],
+        };
+      }),
+      listStudentsByClass: jest.fn().mockResolvedValue([
+        { id: 'stu_01', parent_uids: ['usr_parent_01'] },
+      ]),
       createNotification: jest.fn().mockResolvedValue(true),
+      getExamReminderById: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'exm_khong_ton_tai' || id?.includes('khong_ton_tai')) return null;
+        return {
+          id,
+          class_id: 'cls_1a_2026',
+          created_by: 'usr_teacher_lan_01',
+        };
+      }),
+      listExamRemindersByUser: jest.fn().mockImplementation(async (userId: string) => {
+        return [
+          { id: 'exm_4412', title: 'Kiểm tra 15p' },
+          { id: 'exm_4413', title: 'Kiểm tra 1 tiết' },
+        ];
+      }),
     };
 
     service = new ExamRemindersService(mockDataConnect);

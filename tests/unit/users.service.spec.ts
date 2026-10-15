@@ -1,4 +1,4 @@
-﻿jest.mock('@nestjs/cache-manager', () => ({
+jest.mock('@nestjs/cache-manager', () => ({
   CACHE_MANAGER: 'CACHE_MANAGER',
 }));
 
@@ -114,6 +114,22 @@ describe('UsersService (Unit Tests UT02 - All 15 Cases)', () => {
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
       expect(errors.some((e) => e.property === 'device_token')).toBe(true);
+
+      await expect(
+        service.registerDeviceToken('usr_01', {
+          device_token: '',
+          device_type: 'IOS',
+        })
+      ).rejects.toThrow(BadRequestException);
+
+      try {
+        await service.registerDeviceToken('usr_01', {
+          device_token: '',
+          device_type: 'IOS',
+        });
+      } catch (e: any) {
+        expect(e.response.error_code).toBe('EMPTY_DEVICE_TOKEN');
+      }
     });
   });
 

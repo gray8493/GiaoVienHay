@@ -34,13 +34,28 @@ export class FeesInsuranceService {
       });
     }
 
-    if (classId.includes('khong_ton_tai') || classId === 'cls_khong_ton_tai') {
-      throw new NotFoundException({
-        success: false,
-        status_code: 404,
-        error_code: 'CLASS_NOT_FOUND',
-        message: 'Không tìm thấy lớp học',
-      });
+    if (typeof this.dataConnect.getClassById === 'function') {
+      const cls = await this.dataConnect.getClassById(classId);
+      if (!cls) {
+        throw new NotFoundException({
+          success: false,
+          status_code: 404,
+          error_code: 'CLASS_NOT_FOUND',
+          message: 'Không tìm thấy lớp học',
+        });
+      }
+
+      if (teacherId && !teacherId.startsWith('usr_admin')) {
+        const homeroomId = cls.homeroom_teacher_id || cls.homeroomTeacherId;
+        if (homeroomId && homeroomId !== teacherId) {
+          throw new ForbiddenException({
+            success: false,
+            status_code: 403,
+            error_code: 'AUTH_FORBIDDEN',
+            message: 'Chỉ giáo viên chủ nhiệm mới có quyền quản lý và thu nộp học phí, BHYT của lớp này',
+          });
+        }
+      }
     }
 
     if (options?.isHomeroom === false) {
@@ -50,16 +65,6 @@ export class FeesInsuranceService {
         error_code: 'AUTH_FORBIDDEN',
         message: 'Chỉ giáo viên chủ nhiệm mới có quyền quản lý và thu nộp học phí, BHYT của lớp này',
       });
-    }
-
-    if (classId === 'cls_new_2026') {
-      return {
-        class_id: classId,
-        total_students: 0,
-        unpaid_tuition_count: 0,
-        unpaid_insurance_count: 0,
-        records: [],
-      };
     }
 
     if (query?.status === 'UNPAID' && (query?.fee_type === 'TUITION' || query?.allPaid)) {
@@ -79,6 +84,16 @@ export class FeesInsuranceService {
         allRecords = sqlFees;
       }
     } catch (e) {}
+
+    if (allRecords.length === 0) {
+      return {
+        class_id: classId,
+        total_students: 0,
+        unpaid_tuition_count: 0,
+        unpaid_insurance_count: 0,
+        records: [],
+      };
+    }
 
     let filteredRecords = allRecords;
 
@@ -226,16 +241,18 @@ export class FeesInsuranceService {
       });
     }
 
-    if (dto.record_id.includes('non_existent') || dto.record_id === 'fee_non_existent') {
-      throw new NotFoundException({
-        success: false,
-        status_code: 404,
-        error_code: 'FEE_RECORD_NOT_FOUND',
-        message: 'Không tìm thấy hồ sơ theo dõi học phí này',
-      });
+    if (typeof (this.dataConnect as any).getFeeById === 'function') {
+      if (!existingFeeRecord) {
+        throw new NotFoundException({
+          success: false,
+          status_code: 404,
+          error_code: 'FEE_RECORD_NOT_FOUND',
+          message: 'Không tìm thấy hồ sơ theo dõi học phí này',
+        });
+      }
     }
 
-    if (options?.isHomeroom === false || teacherId === 'usr_teacher_other') {
+    if (options?.isHomeroom === false) {
       throw new ForbiddenException({
         success: false,
         status_code: 403,
@@ -316,16 +333,31 @@ export class FeesInsuranceService {
       });
     }
 
-    if (dto.class_id.includes('khong_ton_tai') || dto.class_id === 'cls_khong_ton_tai') {
-      throw new NotFoundException({
-        success: false,
-        status_code: 404,
-        error_code: 'CLASS_NOT_FOUND',
-        message: 'Không tìm thấy lớp học',
-      });
+    if (typeof this.dataConnect.getClassById === 'function') {
+      const cls = await this.dataConnect.getClassById(dto.class_id);
+      if (!cls) {
+        throw new NotFoundException({
+          success: false,
+          status_code: 404,
+          error_code: 'CLASS_NOT_FOUND',
+          message: 'Không tìm thấy lớp học',
+        });
+      }
+
+      if (teacherId && !teacherId.startsWith('usr_admin')) {
+        const homeroomId = cls.homeroom_teacher_id || cls.homeroomTeacherId;
+        if (homeroomId && homeroomId !== teacherId) {
+          throw new ForbiddenException({
+            success: false,
+            status_code: 403,
+            error_code: 'AUTH_FORBIDDEN',
+            message: 'Chỉ giáo viên chủ nhiệm mới có quyền quản lý và thu nộp học phí, BHYT của lớp này',
+          });
+        }
+      }
     }
 
-    if (options?.isHomeroom === false || teacherId === 'usr_teacher_other') {
+    if (options?.isHomeroom === false) {
       throw new ForbiddenException({
         success: false,
         status_code: 403,
@@ -357,8 +389,7 @@ export class FeesInsuranceService {
       options?.allPaid ||
       (dto as any).allPaid ||
       (dto as any).all_paid ||
-      dto.class_id === 'cls_all_paid' ||
-      (allRecords.length > 0 && unpaidRecords.length === 0 && dto.class_id !== 'cls_1a_2026')
+      (allRecords.length > 0 && unpaidRecords.length === 0)
     ) {
       return {
         success: true,
@@ -398,10 +429,7 @@ export class FeesInsuranceService {
       });
     }
 
-    let count = dto.fee_type === 'BOTH' ? 18 : 12;
-    if (dto.class_id !== 'cls_1a_2026' && unpaidRecords.length > 0) {
-      count = unpaidRecords.length;
-    }
+    const count = unpaidRecords.length;
 
     return {
       class_id: dto.class_id,

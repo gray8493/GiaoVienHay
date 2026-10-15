@@ -293,8 +293,8 @@ export class AdminService {
       }
 
       const items = rawItems.map((c: any) => {
-        const teacherId = c.homeroomTeacherId || c.homeroom_teacher_id || (typeof c.homeroom_teacher === 'string' && c.homeroom_teacher.startsWith('usr_') ? c.homeroom_teacher : 'usr_t01');
-        const teacherName = typeof c.homeroom_teacher === 'string' && !c.homeroom_teacher.startsWith('usr_') ? c.homeroom_teacher : (c.homeroom_teacher_name || 'Nguyễn Văn An');
+        const teacherId = c.homeroomTeacherId || c.homeroom_teacher_id || (typeof c.homeroom_teacher === 'string' && c.homeroom_teacher.startsWith('usr_') ? c.homeroom_teacher : '');
+        const teacherName = typeof c.homeroom_teacher === 'string' && !c.homeroom_teacher.startsWith('usr_') ? c.homeroom_teacher : (c.homeroom_teacher_name || '');
 
         const homeroomTeacherObj = (typeof c.homeroom_teacher === 'object' && c.homeroom_teacher !== null)
           ? c.homeroom_teacher
@@ -322,16 +322,14 @@ export class AdminService {
         return [];
       }
 
-      const paginatedItems = items.slice((page - 1) * limit, page * limit);
-      const res = {
-        total: items.length,
-        total_classes: items.length,
-        page,
-        limit,
-        items: paginatedItems,
-      };
+      const paginatedItems: any = items.slice((page - 1) * limit, page * limit);
+      paginatedItems.total = items.length;
+      paginatedItems.total_classes = items.length;
+      paginatedItems.page = page;
+      paginatedItems.limit = limit;
+      paginatedItems.items = [...paginatedItems];
 
-      return Object.assign(paginatedItems, res);
+      return paginatedItems;
     } catch (e) {
       return [];
     }

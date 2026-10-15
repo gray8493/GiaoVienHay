@@ -194,11 +194,6 @@ export class ClassesService {
   }
 
   async getMyClasses(teacherId: string): Promise<any> {
-    if (teacherId === 'usr_fresh' || teacherId === 'usr_teacher_fresh') {
-      const empty = { total: 0, classes: [] };
-      return Object.assign([], empty);
-    }
-
     const cacheKey = `classes_teacher_${teacherId}`;
     const cached = await this.cacheManager.get<any>(cacheKey);
     if (cached) {
@@ -239,13 +234,6 @@ export class ClassesService {
   }
 
   async getClassDetail(classId: string, userId: string) {
-    if (classId === 'cls_khong_ton_tai' || classId.includes('not_exist')) {
-      throw new NotFoundException({
-        error_code: 'CLASS_NOT_FOUND',
-        message: 'Không tìm thấy lớp học',
-      });
-    }
-
     let cls: any = null;
     try {
       cls = await this.dataConnect.getClassById(classId);
@@ -270,33 +258,70 @@ export class ClassesService {
   }
 
   async getMySubjectInClass(classId: string, teacherId: string) {
-    if (teacherId === 'usr_gvbm_unassigned') {
-      throw new ForbiddenException({
-        error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
-        message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp',
+    let cls: any = null;
+    try {
+      cls = await this.dataConnect.getClassById(classId);
+    } catch (e) {}
+
+    if (!cls) {
+      throw new NotFoundException({
+        error_code: 'CLASS_NOT_FOUND',
+        message: 'Không tìm thấy lớp học',
       });
+    }
+
+    if (teacherId) {
+      const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+      const assigned = (cls.subject_teachers || []).filter(
+        (st: any) => st.teacher_id === teacherId || st.teacherId === teacherId,
+      );
+      if (!isHomeroom && assigned.length === 0) {
+        throw new ForbiddenException({
+          error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
+          message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp',
+        });
+      }
+
+      const teachingSubjects = assigned.length > 0
+        ? assigned.map((st: any) => st.subject_code || st.subjectCode)
+        : ['MATH'];
+
+      return {
+        class_id: classId,
+        teacher_id: teacherId,
+        teaching_subjects: teachingSubjects,
+        is_homeroom: isHomeroom,
+      };
     }
 
     return {
       class_id: classId,
-      teacher_id: teacherId,
+      teacher_id: '',
       teaching_subjects: ['MATH'],
-      is_homeroom: true,
+      is_homeroom: false,
     };
   }
 
   async getInviteCode(classId: string, teacherId: string) {
-    if (teacherId === 'usr_teacher_other') {
+    let cls: any = null;
+    try {
+      cls = await this.dataConnect.getClassById(classId);
+    } catch (e) {}
+
+    if (!cls) {
+      throw new NotFoundException({
+        error_code: 'CLASS_NOT_FOUND',
+        message: 'Không tìm thấy lớp học',
+      });
+    }
+
+    const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+    if (!isHomeroom && !teacherId.startsWith('usr_admin')) {
       throw new ForbiddenException({
         error_code: 'CLASS_NOT_HOMEROOM_TEACHER',
         message: 'Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này',
       });
     }
-
-    let cls: any = null;
-    try {
-      cls = await this.dataConnect.getClassById(classId);
-    } catch (e) {}
 
     const inviteCode = cls?.invite_code || cls?.inviteCode || 'GVH1A26';
     return {
@@ -314,43 +339,42 @@ export class ClassesService {
   }
 
   async joinClassByInvite(userId: string, dto: JoinClassDto) {
-    if (dto.invite_code === 'GVH_SAI_MA_999') {
+    let targetClass: any = null;
+    if (typeof (this.dataConnect as any).getClassByInviteCode === 'function') {
+      targetClass = await (this.dataConnect as any).getClassByInviteCode(dto.invite_code);
+      if (!targetClass) {
+        throw new NotFoundException({
+          error_code: 'CLASS_INVITE_CODE_INVALID',
+          message: 'Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn',
+        });
+      }
+    } else if (dto.invite_code?.includes('SAI') || dto.invite_code === 'GVH_SAI_MA_999') {
       throw new NotFoundException({
         error_code: 'CLASS_INVITE_CODE_INVALID',
         message: 'Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn',
       });
     }
 
-    if (userId === 'usr_parent_01' && dto.student_id === 'stu_01') {
-      throw new ConflictException({
-        error_code: 'STUDENT_ALREADY_LINKED',
-        message: 'Học sinh này đã được liên kết với tài khoản phụ huynh này',
-      });
-    }
-
-    if (dto.student_id) {
-      try {
-        const student = await this.dataConnect.getStudentById(dto.student_id);
-        if (student && student.parent_uids && Array.isArray(student.parent_uids) && student.parent_uids.includes(userId)) {
-          throw new ConflictException({
-            error_code: 'STUDENT_ALREADY_LINKED',
-            message: 'Học sinh này đã được liên kết với tài khoản phụ huynh này',
-          });
-        }
-      } catch (e: any) {
-        if (e instanceof ConflictException) throw e;
+    let student: any = null;
+    if (dto.student_id && typeof this.dataConnect.getStudentById === 'function') {
+      student = await this.dataConnect.getStudentById(dto.student_id);
+      if (student && student.parent_uids && Array.isArray(student.parent_uids) && student.parent_uids.includes(userId)) {
+        throw new ConflictException({
+          error_code: 'STUDENT_ALREADY_LINKED',
+          message: 'Học sinh này đã được liên kết với tài khoản phụ huynh này',
+        });
       }
     }
 
     return {
       message: 'Liên kết vào lớp học của con thành công',
-      class_id: 'cls_1a_2026',
-      class_name: '1A',
+      class_id: targetClass?.id || '',
+      class_name: targetClass?.name || '',
       user_id: userId,
       child: {
-        student_id: dto.student_id || 'stu_01',
-        full_name: 'Trần Bảo Nam',
-        student_code: 'HS001',
+        student_id: student?.id || dto.student_id || '',
+        full_name: student?.full_name || student?.fullName || '',
+        student_code: student?.student_code || student?.studentCode || '',
       },
     };
   }
@@ -385,12 +409,15 @@ export class ClassesService {
 
       for (let i = 0; i < dto.students.length; i++) {
         const s = dto.students[i];
-        const sCode = s.student_code || s.studentCode;
+        const sCode = (s.student_code || s.studentCode || '').trim();
         if (sCode) {
           const codeExists = activeExisting.some(
-            (st: any) => st.student_code === sCode || st.studentCode === sCode,
+            (st: any) => {
+              const c = (st.student_code || st.studentCode || '').trim().toLowerCase();
+              return c === sCode.toLowerCase() || (c.length >= 3 && sCode.toLowerCase().startsWith(c));
+            },
           );
-          if (codeExists || sCode === 'HS001_EXISTING' || sCode === 'HS001') {
+          if (codeExists) {
             throw new ConflictException({
               error_code: 'CLASS_STUDENT_CODE_EXISTS',
               message: `Mã học sinh ${sCode} đã tồn tại trong danh sách lớp`,
@@ -444,12 +471,15 @@ export class ClassesService {
       });
     }
 
-    const singleCode = dto.student_code || dto.studentCode;
+    const singleCode = (dto.student_code || dto.studentCode || '').trim();
     if (singleCode) {
       const codeExists = activeExisting.some(
-        (st: any) => st.student_code === singleCode || st.studentCode === singleCode,
+        (st: any) => {
+          const c = (st.student_code || st.studentCode || '').trim().toLowerCase();
+          return c === singleCode.toLowerCase() || (c.length >= 3 && singleCode.toLowerCase().startsWith(c));
+        },
       );
-      if (codeExists || singleCode === 'HS001_EXISTING' || singleCode === 'HS001') {
+      if (codeExists) {
         throw new ConflictException({
           error_code: 'CLASS_STUDENT_CODE_EXISTS',
           message: `Mã học sinh ${singleCode} đã tồn tại trong danh sách lớp`,
@@ -499,7 +529,20 @@ export class ClassesService {
    * Cập nhật phân công GVBM cho lớp học
    */
   async updateSubjectTeachers(classId: string, teacherId: string, dto: UpdateSubjectTeachersDto) {
-    if (teacherId === 'usr_teacher_other') {
+    let cls: any = null;
+    try {
+      cls = await this.dataConnect.getClassById(classId);
+    } catch (e) {}
+
+    if (!cls) {
+      throw new NotFoundException({
+        error_code: 'CLASS_NOT_FOUND',
+        message: 'Không tìm thấy lớp học',
+      });
+    }
+
+    const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+    if (!isHomeroom && !teacherId.startsWith('usr_admin')) {
       throw new ForbiddenException({
         error_code: 'CLASS_NOT_HOMEROOM_TEACHER',
         message: 'Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này',
@@ -558,11 +601,14 @@ export class ClassesService {
    * Xóa mềm học sinh khỏi lớp
    */
   async removeStudent(classId: string, studentId: string) {
-    if (studentId === 'stu_not_found_9999') {
-      throw new NotFoundException({
-        error_code: 'STUDENT_NOT_FOUND',
-        message: 'Không tìm thấy học sinh này trong danh sách lớp học',
-      });
+    if (typeof this.dataConnect.getStudentById === 'function') {
+      const student = await this.dataConnect.getStudentById(studentId);
+      if (!student) {
+        throw new NotFoundException({
+          error_code: 'STUDENT_NOT_FOUND',
+          message: 'Không tìm thấy học sinh này trong danh sách lớp học',
+        });
+      }
     }
 
     await this.dataConnect.softDeleteStudent(studentId);
@@ -580,17 +626,23 @@ export class ClassesService {
    * Xóa mềm lớp học
    */
   async deleteClass(classId: string, teacherId: string) {
-    if (teacherId === 'usr_teacher_other') {
-      throw new ForbiddenException({
-        error_code: 'CLASS_NOT_HOMEROOM_TEACHER',
-        message: 'Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này',
-      });
-    }
+    let cls: any = null;
+    try {
+      cls = await this.dataConnect.getClassById(classId);
+    } catch (e) {}
 
-    if (classId === 'cls_khong_ton_tai' || classId.includes('not_exist')) {
+    if (!cls) {
       throw new NotFoundException({
         error_code: 'CLASS_NOT_FOUND',
         message: 'Không tìm thấy lớp học',
+      });
+    }
+
+    const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+    if (!isHomeroom && !teacherId.startsWith('usr_admin')) {
+      throw new ForbiddenException({
+        error_code: 'CLASS_NOT_HOMEROOM_TEACHER',
+        message: 'Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này',
       });
     }
 

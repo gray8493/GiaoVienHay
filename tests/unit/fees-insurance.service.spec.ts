@@ -16,6 +16,23 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
     mockDataConnect = {
       updateFeeStatus: jest.fn().mockResolvedValue(true),
       createNotification: jest.fn().mockResolvedValue(true),
+      getClassById: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'cls_khong_ton_tai') return null;
+        return {
+          id,
+          name: 'Lớp 1A',
+          homeroom_teacher_id: 'usr_gvcn_01',
+          homeroomTeacherId: 'usr_gvcn_01',
+        };
+      }),
+      getFeeById: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'fee_non_existent') return null;
+        return {
+          id,
+          is_paid: false,
+          status: id === 'fee_locked' ? 'LOCKED' : 'ACTIVE',
+        };
+      }),
       getFeesByClass: jest.fn().mockImplementation(async (classId: string) => {
         if (classId === 'cls_new_2026') return [];
         return [
@@ -387,6 +404,12 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
 
   describe('UT10_FeesInsurance_TC27: GVCN gửi thông báo FCM đôn đốc phụ huynh chưa nộp BHYT thành công', () => {
     it('gửi thông báo cho 12 phụ huynh chưa nộp BHYT', async () => {
+      mockDataConnect.getFeesByClass.mockResolvedValueOnce(
+        Array.from({ length: 12 }, (_, i) => ({
+          record_id: `fee_${i + 1}`,
+          insurance: { is_paid: false, paid_date: null },
+        }))
+      );
       const res = await service.sendFeeReminder('usr_gvcn_01', {
         class_id: 'cls_1a_2026',
         fee_type: FeeType.INSURANCE,
@@ -400,6 +423,13 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
 
   describe('UT10_FeesInsurance_TC28: GVCN gửi thông báo FCM nhắc phụ huynh chưa nộp cả 2 nghĩa vụ (BOTH) thành công', () => {
     it('gửi thông báo cho 18 phụ huynh chưa nộp BOTH', async () => {
+      mockDataConnect.getFeesByClass.mockResolvedValueOnce(
+        Array.from({ length: 18 }, (_, i) => ({
+          record_id: `fee_${i + 1}`,
+          insurance: { is_paid: false, paid_date: null },
+          tuition: { is_paid: false, paid_date: null },
+        }))
+      );
       const res = await service.sendFeeReminder('usr_gvcn_01', {
         class_id: 'cls_1a_2026',
         fee_type: 'BOTH' as any,

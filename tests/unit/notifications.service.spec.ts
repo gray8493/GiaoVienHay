@@ -58,6 +58,10 @@ describe('NotificationsService (Unit Tests UT11 - All 20 Cases)', () => {
         if (userId === 'usr_parent_01') return [...mockNotifications];
         return [];
       }),
+      getNotificationById: jest.fn().mockImplementation(async (id: string) => {
+        if (!id || id === 'notif_nonexistent_999' || id.includes('nonexistent')) return null;
+        return mockNotifications.find((n) => n.id === id) || { id, recipient_user_id: 'usr_parent_01' };
+      }),
       markNotificationRead: jest.fn().mockResolvedValue(true),
     };
 

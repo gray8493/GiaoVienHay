@@ -59,40 +59,31 @@ export class AttendanceService {
   ) {}
 
   async submitAttendance(teacherId: string, dto: SubmitAttendanceDto) {
-    if (teacherId === 'usr_teacher_other') {
-      throw new ForbiddenException({
-        error_code: 'CLASS_NOT_HOMEROOM_TEACHER',
-        message: 'Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này',
+    if (!dto.class_id) {
+      throw new BadRequestException({
+        error_code: 'COMMON_VALIDATION_ERROR',
+        message: 'Mã lớp học không được để trống',
       });
     }
 
-    if (teacherId && !teacherId.startsWith('usr_admin')) {
-      try {
-        const cls = await this.dataConnect.getClassById(dto.class_id);
-        if (cls && (cls.homeroom_teacher_id || cls.homeroomTeacherId) && (cls.homeroom_teacher_id || cls.homeroomTeacherId) !== teacherId) {
+    if (typeof this.dataConnect.getClassById === 'function') {
+      const cls = await this.dataConnect.getClassById(dto.class_id);
+      if (!cls) {
+        throw new NotFoundException({
+          error_code: 'CLASS_NOT_FOUND',
+          message: 'Không tìm thấy lớp học',
+        });
+      }
+
+      if (teacherId && !teacherId.startsWith('usr_admin')) {
+        const homeroomId = cls.homeroom_teacher_id || cls.homeroomTeacherId;
+        if (homeroomId && homeroomId !== teacherId) {
           throw new ForbiddenException({
             error_code: 'CLASS_NOT_HOMEROOM_TEACHER',
             message: 'Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này',
           });
         }
-      } catch (e: any) {
-        if (e instanceof ForbiddenException) throw e;
       }
-    }
-
-    if (dto.class_id === 'cls_khong_ton_tai') {
-      throw new NotFoundException({
-        error_code: 'CLASS_NOT_FOUND',
-        message: 'Không tìm thấy lớp học',
-      });
-    }
-
-    if (dto.attendance_date === '2026-09-23_DUPLICATE') {
-      throw new ConflictException({
-        error_code: 'ATTEND_ALREADY_EXISTS',
-        message: 'Tiết học/buổi học này đã được điểm danh trước đó',
-        details: null,
-      });
     }
 
     if (!isValidCalendarDate(dto.attendance_date)) {
@@ -229,12 +220,15 @@ export class AttendanceService {
       });
     }
 
-    if (recordId === 'att_non_existent') {
-      throw new NotFoundException({
-        error_code: 'ATTEND_RECORD_NOT_FOUND',
-        message: 'Không tìm thấy bản ghi điểm danh yêu cầu',
-        details: null,
-      });
+    if (typeof this.dataConnect.getAttendanceById === 'function') {
+      const record = await this.dataConnect.getAttendanceById(recordId);
+      if (!record) {
+        throw new NotFoundException({
+          error_code: 'ATTEND_RECORD_NOT_FOUND',
+          message: 'Không tìm thấy bản ghi điểm danh yêu cầu',
+          details: null,
+        });
+      }
     }
 
     return {
@@ -247,16 +241,18 @@ export class AttendanceService {
   }
 
   async getClassAttendance(classId: string, date?: string, month?: string) {
-    if (classId === 'cls_new_2026') {
-      return [];
-    }
-
-    const targetDate = date || '2026-09-29';
-
     try {
-      const sqlRecords = await this.dataConnect.getAttendanceByClassDate(classId, targetDate);
-      if (sqlRecords && sqlRecords.length > 0) {
-        return sqlRecords;
+      if (date && typeof this.dataConnect.getAttendanceByClassDate === 'function') {
+        const sqlRecords = await this.dataConnect.getAttendanceByClassDate(classId, date);
+        if (sqlRecords && sqlRecords.length > 0) {
+          return sqlRecords;
+        }
+      }
+      if (typeof this.dataConnect.getAttendanceByClass === 'function') {
+        const sqlRecords = await this.dataConnect.getAttendanceByClass(classId, { date, month });
+        if (sqlRecords && sqlRecords.length > 0) {
+          return sqlRecords;
+        }
       }
     } catch (e) {}
 
@@ -273,21 +269,11 @@ export class AttendanceService {
       return cached;
     }
 
-    if (classId === 'cls_not_attended_today') {
-      return {
-        class_id: classId,
-        today,
-        is_attended_today: false,
-        total_present: 0,
-        present_students: [],
-      };
-    }
-
     let presentStudents: any[] = [];
 
     try {
       const sqlList = await this.dataConnect.getAttendanceByClassDate(classId, today);
-      const presents = (sqlList || []).filter((a) => a.status === AttendanceStatus.PRESENT);
+      const presents = (sqlList || []).filter((a: any) => a.status === AttendanceStatus.PRESENT);
       if (presents.length > 0) {
         presentStudents = presents.map((p: any) => ({
           id: p.studentId || p.student_id,

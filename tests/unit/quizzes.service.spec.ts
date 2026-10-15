@@ -51,6 +51,14 @@ describe('QuizzesService (Unit Tests UT07 - All 28 Cases)', () => {
         if (!id || id === 'stu_not_exist_9999') return null;
         return { id, full_name: 'Học sinh' };
       }),
+      getUserById: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'usr_parent_01') return { id, role: 'PARENT' };
+        return { id, role: 'TEACHER' };
+      }),
+      checkDailyAiQuota: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'usr_daily_quota_exceeded') return false;
+        return true;
+      }),
     };
 
     mockGeminiService = {

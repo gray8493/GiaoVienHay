@@ -48,6 +48,18 @@ async function bootstrap() {
         };
 
         const details = formatErrors(errors);
+
+        const isDeviceTokenError = errors.some(
+          (err) => err.property === 'fcm_device_token' || err.property === 'device_token',
+        );
+        if (isDeviceTokenError) {
+          return new BadRequestException({
+            message: 'fcm_device_token không được để trống',
+            error_code: 'EMPTY_DEVICE_TOKEN',
+            details,
+          });
+        }
+
         return new BadRequestException({
           message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
           error_code: 'COMMON_VALIDATION_ERROR',

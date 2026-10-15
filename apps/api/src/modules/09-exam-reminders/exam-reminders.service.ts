@@ -147,7 +147,8 @@ export class ExamRemindersService {
       });
     }
 
-    if (dto.class_id.includes('nonexistent') || dto.class_id === 'cls_nonexistent_999') {
+    const cls = await this.dataConnect.getClassById(dto.class_id);
+    if (!cls) {
       throw new NotFoundException({
         success: false,
         status_code: 404,
@@ -158,8 +159,8 @@ export class ExamRemindersService {
 
     // Role & Phân công
     if (
-      teacherId === 'usr_teacher_other' ||
-      (options?.assignedSubjects && !options.assignedSubjects.includes(dto.subject_code))
+      options?.assignedSubjects &&
+      !options.assignedSubjects.includes(dto.subject_code)
     ) {
       throw new ForbiddenException({
         success: false,
@@ -170,24 +171,29 @@ export class ExamRemindersService {
     }
 
     if (teacherId && !teacherId.startsWith('usr_admin')) {
-      try {
-        const cls = await this.dataConnect.getClassById(dto.class_id);
-        if (cls) {
-          const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
-          const isAssignedSubject = (cls.subject_teachers || []).some(
-            (st: any) => st.teacher_id === teacherId && (st.subject_code === dto.subject_code || !dto.subject_code),
-          );
-          if (!isHomeroom && !isAssignedSubject) {
-            throw new ForbiddenException({
-              success: false,
-              status_code: 403,
-              error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
-              message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp đã chọn',
-            });
-          }
+      const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
+      const isAssignedSubject = (cls.subject_teachers || []).some(
+        (st: any) =>
+          (st.teacher_id === teacherId || st.teacherId === teacherId) &&
+          (st.subject_code === dto.subject_code || st.subjectCode === dto.subject_code),
+      );
+
+      const isSubjectAssignedToOther = (cls.subject_teachers || []).some(
+        (st: any) =>
+          (st.subject_code === dto.subject_code || st.subjectCode === dto.subject_code) &&
+          st.teacher_id !== teacherId &&
+          st.teacherId !== teacherId,
+      );
+
+      if (!isAssignedSubject) {
+        if (!isHomeroom || isSubjectAssignedToOther) {
+          throw new ForbiddenException({
+            success: false,
+            status_code: 403,
+            error_code: 'ACAD_NOT_ASSIGNED_TEACHER',
+            message: 'Giáo viên chưa được phân công giảng dạy môn học này tại lớp đã chọn',
+          });
         }
-      } catch (e: any) {
-        if (e instanceof ForbiddenException) throw e;
       }
     }
 
@@ -235,52 +241,44 @@ export class ExamRemindersService {
   }
 
   async deleteReminder(reminderId: string, teacherId?: string, isCreatorOrHomeroom: boolean = true) {
-    if (reminderId.includes('khong_ton_tai') || reminderId === 'exm_khong_ton_tai') {
-      throw new NotFoundException({
-        success: false,
-        status_code: 404,
-        error_code: 'EXAM_REMINDER_NOT_FOUND',
-        message: 'Không tìm thấy thông tin lịch nhắc kiểm tra này',
-      });
+    if (typeof (this.dataConnect as any).getExamReminderById === 'function') {
+      const reminder = await (this.dataConnect as any).getExamReminderById(reminderId);
+      if (!reminder) {
+        throw new NotFoundException({
+          success: false,
+          status_code: 404,
+          error_code: 'EXAM_REMINDER_NOT_FOUND',
+          message: 'Không tìm thấy thông tin lịch nhắc kiểm tra này',
+        });
+      }
+
+      if (teacherId && !teacherId.startsWith('usr_admin')) {
+        const isCreator = reminder.created_by === teacherId;
+        let isHomeroom = false;
+        if (reminder.class_id && typeof this.dataConnect.getClassById === 'function') {
+          const cls = await this.dataConnect.getClassById(reminder.class_id);
+          if (cls && (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId) {
+            isHomeroom = true;
+          }
+        }
+        if (!isCreator && !isHomeroom) {
+          throw new ForbiddenException({
+            success: false,
+            status_code: 403,
+            error_code: 'AUTH_FORBIDDEN',
+            message: 'Bạn không có quyền xóa lời nhắc kiểm tra do giáo viên khác tạo',
+          });
+        }
+      }
     }
 
-    if (
-      teacherId === 'usr_teacher_other' ||
-      teacherId === 'usr_giao_vien_khong_phai_tac_gia' ||
-      !isCreatorOrHomeroom
-    ) {
+    if (!isCreatorOrHomeroom) {
       throw new ForbiddenException({
         success: false,
         status_code: 403,
         error_code: 'AUTH_FORBIDDEN',
         message: 'Bạn không có quyền xóa lời nhắc kiểm tra do giáo viên khác tạo',
       });
-    }
-
-    if (teacherId && !teacherId.startsWith('usr_admin')) {
-      try {
-        const reminder = await (this.dataConnect as any).getExamReminderById?.(reminderId);
-        if (reminder) {
-          const isCreator = reminder.created_by === teacherId;
-          let isHomeroom = false;
-          if (reminder.class_id) {
-            const cls = await this.dataConnect.getClassById(reminder.class_id);
-            if (cls && (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId) {
-              isHomeroom = true;
-            }
-          }
-          if (!isCreator && !isHomeroom) {
-            throw new ForbiddenException({
-              success: false,
-              status_code: 403,
-              error_code: 'AUTH_FORBIDDEN',
-              message: 'Bạn không có quyền xóa lời nhắc kiểm tra do giáo viên khác tạo',
-            });
-          }
-        }
-      } catch (e: any) {
-        if (e instanceof ForbiddenException) throw e;
-      }
     }
 
     return {
@@ -318,7 +316,7 @@ export class ExamRemindersService {
       }
     } catch (e) {}
 
-    return this.getClassReminders('cls_1a_2026', query?.subjectCode, undefined, userId);
+    return [];
   }
 
   async getClassReminders(
@@ -327,7 +325,8 @@ export class ExamRemindersService {
     options?: { isMember?: boolean; isClassEmpty?: boolean },
     userId?: string,
   ) {
-    if (classId.includes('khong_ton_tai') || classId === 'cls_khong_ton_tai') {
+    const cls = await this.dataConnect.getClassById(classId);
+    if (!cls) {
       throw new NotFoundException({
         success: false,
         status_code: 404,
@@ -336,11 +335,7 @@ export class ExamRemindersService {
       });
     }
 
-    if (
-      userId === 'usr_teacher_other' ||
-      userId === 'usr_nguoi_dung_lop_khac' ||
-      options?.isMember === false
-    ) {
+    if (options?.isMember === false) {
       throw new ForbiddenException({
         success: false,
         status_code: 403,
@@ -350,27 +345,30 @@ export class ExamRemindersService {
     }
 
     if (userId && !userId.startsWith('usr_admin')) {
+      const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === userId;
+      const isSubject = (cls.subject_teachers || []).some(
+        (st: any) => st.teacher_id === userId || st.teacherId === userId,
+      );
+      let isParentOrStudent = false;
       try {
-        const cls = await this.dataConnect.getClassById(classId);
-        if (cls) {
-          const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === userId;
-          const isSubject = (cls.subject_teachers || []).some((st: any) => st.teacher_id === userId);
-          let isParentOrStudent = false;
-          const students = await this.dataConnect.listStudentsByClass(classId);
-          if (students && students.some((s: any) => s.id === userId || (s.parent_uids && s.parent_uids.includes(userId)))) {
-            isParentOrStudent = true;
-          }
-          if (!isHomeroom && !isSubject && !isParentOrStudent && userId !== 'usr_01' && userId !== 'usr_teacher_01' && userId !== 'usr_parent_01') {
-            throw new ForbiddenException({
-              success: false,
-              status_code: 403,
-              error_code: 'AUTH_FORBIDDEN',
-              message: 'Bạn không có quyền xem thông tin lịch kiểm tra của lớp học này',
-            });
-          }
+        const students = await this.dataConnect.listStudentsByClass(classId);
+        if (
+          students &&
+          students.some(
+            (s: any) => s.id === userId || (s.parent_uids && s.parent_uids.includes(userId)),
+          )
+        ) {
+          isParentOrStudent = true;
         }
-      } catch (e: any) {
-        if (e instanceof ForbiddenException) throw e;
+      } catch (e) {}
+
+      if (!isHomeroom && !isSubject && !isParentOrStudent) {
+        throw new ForbiddenException({
+          success: false,
+          status_code: 403,
+          error_code: 'AUTH_FORBIDDEN',
+          message: 'Bạn không có quyền xem thông tin lịch kiểm tra của lớp học này',
+        });
       }
     }
 

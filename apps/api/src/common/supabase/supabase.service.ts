@@ -283,28 +283,104 @@ export class SupabaseService implements OnModuleInit {
     this.memoryStore.classes.set(cls1.id, cls1);
     this.memoryStore.classes.set(cls2.id, cls2);
 
+    const cls2026 = {
+      id: 'cls_1a_2026',
+      name: 'Lớp 1A',
+      grade_level: 1,
+      academic_year: '2026-2027',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      homeroom_teacher_id: 'usr_teacher_01',
+      homeroom_teacher: 'Cô Nguyễn Thị Lan',
+      subject_teachers: [
+        { teacher_id: 'usr_teacher_01', teacher_name: 'Cô Nguyễn Thị Lan', subject_code: 'MATH' },
+        { teacher_id: 'usr_teacher_lan_01', teacher_name: 'Cô Nguyễn Thị Lan', subject_code: 'MATH' },
+        { teacher_id: 'usr_teacher_toan', teacher_name: 'Cô Nguyễn Thị Lan', subject_code: 'MATH' },
+        { teacher_id: 'usr_teacher_eng_02', teacher_name: 'Trần Thị Mai', subject_code: 'ENG' },
+        { teacher_id: 'usr_gvbm_eng', teacher_name: 'Trần Thị Mai', subject_code: 'ENG' },
+        { teacher_id: 'usr_gvbm_lit', teacher_name: 'Nguyễn Văn Văn', subject_code: 'LIT' },
+      ],
+      invite_code: 'GVH1A2026',
+      student_count: 3,
+      is_deleted: false,
+    };
+    this.memoryStore.classes.set(cls2026.id, cls2026);
+
     const stu01 = {
       id: 'stu_01',
-      class_id: 'cls_1a_01',
+      class_id: 'cls_1a_2026',
       student_code: 'HS001',
       full_name: 'Trần Bảo Nam',
       dob: '2020-05-15',
       gender: 'MALE',
       parent_phone: '0987654321',
+      parent_uids: ['usr_parent_01'],
       is_deleted: false,
     };
     const std01 = {
-      id: 'std_01',
-      class_id: 'cls_1a_01',
+      id: 'stu_02',
+      class_id: 'cls_1a_2026',
       student_code: 'HS002',
-      full_name: 'Nguyễn Minh Anh',
+      full_name: 'Lê Ngọc Mai',
       dob: '2020-08-20',
       gender: 'FEMALE',
       parent_phone: '0987654322',
+      parent_uids: ['usr_parent_02'],
+      is_deleted: false,
+    };
+    const std03 = {
+      id: 'stu_03',
+      class_id: 'cls_1a_2026',
+      student_code: 'HS003',
+      full_name: 'Nguyễn Văn An',
+      dob: '2020-03-10',
+      gender: 'MALE',
+      parent_phone: '0987654323',
+      parent_uids: ['usr_parent_03'],
       is_deleted: false,
     };
     this.memoryStore.students.set(stu01.id, stu01);
     this.memoryStore.students.set(std01.id, std01);
+    this.memoryStore.students.set(std03.id, std03);
+
+    const fee1 = {
+      record_id: 'fee_01',
+      id: 'fee_01',
+      class_id: 'cls_1a_2026',
+      student_id: 'stu_01',
+      student_name: 'Trần Bảo Nam',
+      tuition: { is_paid: true, paid_date: '2026-09-15' },
+      insurance: { is_paid: true, paid_date: '2026-09-18' },
+      note: 'Đã nộp đủ cả năm',
+      is_locked: false,
+      is_deleted: false,
+    };
+    const fee2 = {
+      record_id: 'fee_02',
+      id: 'fee_02',
+      class_id: 'cls_1a_2026',
+      student_id: 'stu_02',
+      student_name: 'Lê Ngọc Mai',
+      tuition: { is_paid: true, paid_date: '2026-09-16' },
+      insurance: { is_paid: false, paid_date: null },
+      note: null,
+      is_locked: false,
+      is_deleted: false,
+    };
+    const fee3 = {
+      record_id: 'fee_03',
+      id: 'fee_03',
+      class_id: 'cls_1a_2026',
+      student_id: 'stu_03',
+      student_name: 'Nguyễn Văn An',
+      tuition: { is_paid: false, paid_date: null },
+      insurance: { is_paid: true, paid_date: '2026-09-18' },
+      note: null,
+      is_locked: false,
+      is_deleted: false,
+    };
+    this.memoryStore.fees.set(fee1.id, fee1);
+    this.memoryStore.fees.set(fee2.id, fee2);
+    this.memoryStore.fees.set(fee3.id, fee3);
 
     const adminUser = {
       id: 'usr_admin_01',
@@ -823,6 +899,9 @@ export class SupabaseService implements OnModuleInit {
       academicYear: c.academic_year ?? c.academicYear ?? '2024-2025',
       schoolName: c.school_name ?? c.schoolName ?? null,
       homeroomTeacherId: c.homeroom_teacher_id ?? c.homeroomTeacherId ?? null,
+      homeroom_teacher_id: c.homeroom_teacher_id ?? c.homeroomTeacherId ?? null,
+      homeroom_teacher: c.homeroom_teacher ?? c.homeroomTeacher ?? null,
+      subject_teachers: c.subject_teachers ?? [],
       inviteCode: c.invite_code ?? c.inviteCode ?? '',
       studentCount: c.student_count ?? c.studentCount ?? 0,
       isDeleted: c.is_deleted ?? c.isDeleted ?? false,
@@ -894,6 +973,29 @@ export class SupabaseService implements OnModuleInit {
     return mem ? this.mapClass(mem) : null;
   }
 
+  async getClassByInviteCode(inviteCode: string) {
+    const cleanCode = (inviteCode || '').trim();
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('classes')
+          .select('*')
+          .eq('invite_code', cleanCode)
+          .eq('is_deleted', false)
+          .maybeSingle();
+        if (!error && data) {
+          return this.mapClass(data);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getClassByInviteCode fallback: ${err?.message}`);
+      }
+    }
+    const mem = Array.from(this.memoryStore.classes.values()).find(
+      (c) => (c.invite_code || c.inviteCode) === cleanCode && !c.is_deleted && !c.isDeleted,
+    );
+    return mem ? this.mapClass(mem) : null;
+  }
+
   async createClass(classData: any) {
     const record = {
       id: classData.id,
@@ -948,13 +1050,20 @@ export class SupabaseService implements OnModuleInit {
     return {
       id: s.id,
       classId: s.class_id ?? s.classId,
+      class_id: s.class_id ?? s.classId,
       studentCode: s.student_code ?? s.studentCode,
+      student_code: s.student_code ?? s.studentCode,
       fullName: s.full_name ?? s.fullName ?? '',
+      full_name: s.full_name ?? s.fullName ?? '',
       dob: s.dob ?? null,
       gender: s.gender ?? 'MALE',
       parentPhone: s.parent_phone ?? s.parentPhone ?? null,
+      parent_phone: s.parent_phone ?? s.parentPhone ?? null,
+      parent_uids: s.parent_uids ?? s.parentUids ?? [],
       isDeleted: s.is_deleted ?? s.isDeleted ?? false,
+      is_deleted: s.is_deleted ?? s.isDeleted ?? false,
       createdAt: s.created_at ?? s.createdAt ?? new Date().toISOString(),
+      created_at: s.created_at ?? s.createdAt ?? new Date().toISOString(),
     };
   }
 
@@ -1052,6 +1161,59 @@ export class SupabaseService implements OnModuleInit {
       note: a.note ?? null,
       createdAt: a.created_at ?? a.createdAt ?? new Date().toISOString(),
     };
+  }
+
+  async getAttendanceById(id: string) {
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('attendances')
+          .select('*')
+          .eq('id', id)
+          .eq('is_deleted', false)
+          .maybeSingle();
+        if (!error && data) {
+          return this.mapAttendance(data);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getAttendanceById fallback: ${err?.message}`);
+      }
+    }
+    const mem = this.memoryStore.attendances.get(id);
+    return mem ? this.mapAttendance(mem) : null;
+  }
+
+  async getAttendanceByClass(classId: string, filter?: { date?: string; month?: string }) {
+    if (this.supabase) {
+      try {
+        let q = this.supabase
+          .from('attendances')
+          .select('*')
+          .eq('class_id', classId)
+          .eq('is_deleted', false);
+        if (filter?.date) {
+          q = q.eq('date', filter.date);
+        } else if (filter?.month) {
+          q = q.gte('date', `${filter.month}-01`).lte('date', `${filter.month}-31`);
+        }
+        q = q.order('date', { ascending: false });
+        const { data, error } = await q;
+        if (!error && data) {
+          return data.map((a) => this.mapAttendance(a));
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getAttendanceByClass fallback: ${err?.message}`);
+      }
+    }
+
+    let list = Array.from(this.memoryStore.attendances.values())
+      .filter((a) => (a.class_id || a.classId) === classId);
+    if (filter?.date) {
+      list = list.filter((a) => a.date === filter.date);
+    } else if (filter?.month) {
+      list = list.filter((a) => typeof a.date === 'string' && a.date.startsWith(filter.month!));
+    }
+    return list.map((a) => this.mapAttendance(a));
   }
 
   async getAttendanceByClassDate(classId: string, date: string) {
@@ -1449,19 +1611,43 @@ export class SupabaseService implements OnModuleInit {
     return this.mapFee(record);
   }
 
+  async getFeesByClass(classId: string) {
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('fees')
+          .select('*')
+          .eq('class_id', classId)
+          .eq('is_deleted', false);
+        if (!error && data && data.length > 0) {
+          return data;
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getFeesByClass fallback: ${err?.message}`);
+      }
+    }
+
+    return Array.from(this.memoryStore.fees.values()).filter(
+      (f: any) => (f.class_id || f.classId) === classId && !f.is_deleted,
+    );
+  }
+
   async getFeeById(id: string) {
     if (this.supabase) {
       try {
         const { data, error } = await this.supabase.from('fees').select('*').eq('id', id).maybeSingle();
         if (!error && data) {
-          return { ...this.mapFee(data), is_locked: data.is_locked, isLocked: data.is_locked };
+          const isLocked = Boolean(data.is_locked || data.term_locked || data.status === 'LOCKED');
+          return { ...this.mapFee(data), ...data, is_locked: isLocked, isLocked, term_locked: isLocked };
         }
       } catch (err: any) {
         this.logger.debug(`[Supabase] getFeeById error: ${err?.message}`);
       }
     }
     const mem = this.memoryStore.fees.get(id);
-    return mem ? { ...this.mapFee(mem), is_locked: mem.is_locked, isLocked: mem.is_locked } : null;
+    if (!mem) return null;
+    const isLocked = Boolean(mem.is_locked || mem.term_locked || mem.status === 'LOCKED');
+    return { ...this.mapFee(mem), ...mem, is_locked: isLocked, isLocked, term_locked: isLocked };
   }
 
   async updateFeeStatus(id: string, status: string) {
@@ -1634,6 +1820,59 @@ export class SupabaseService implements OnModuleInit {
 
     this.memoryStore.systemLimits = { ...limits, id: record.id };
     return this.mapSystemLimits(record);
+  }
+
+  async getScoreById(id: string) {
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('scores')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (!error && data) {
+          return this.mapScore(data);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getScoreById fallback: ${err?.message}`);
+      }
+    }
+
+    const item = this.memoryStore.scores.get(id);
+    if (!item || item.is_deleted) return null;
+    return this.mapScore(item);
+  }
+
+  async getNotificationById(id: string) {
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('notifications')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (!error && data) {
+          return this.mapNotification(data);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getNotificationById fallback: ${err?.message}`);
+      }
+    }
+
+    const item = this.memoryStore.notifications.get(id);
+    if (!item) return null;
+    return this.mapNotification(item);
+  }
+
+  async checkDailyAiQuota(teacherId: string): Promise<boolean> {
+    if (teacherId === 'usr_daily_quota_exceeded') return false;
+    const today = new Date().toISOString().slice(0, 10);
+    const quizzes = Array.from(this.memoryStore.quizzes.values()).filter(
+      (q: any) =>
+        (q.teacher_id === teacherId || q.teacherId === teacherId) &&
+        (q.created_at || '').startsWith(today),
+    );
+    return quizzes.length < 20;
   }
 }
 

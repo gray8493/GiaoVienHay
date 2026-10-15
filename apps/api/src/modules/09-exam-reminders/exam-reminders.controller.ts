@@ -51,7 +51,7 @@ export class ExamRemindersController {
     const res = await this.examRemindersService.getReminders(userId, { classId, subjectCode, academicYear, term });
     if ((Array.isArray(res) && res.length === 0) || (res && res.total === 0)) {
       return {
-        class_id: classId || 'cls_1a_2026',
+        class_id: classId || '',
         ...(subjectCode ? { subject_code: subjectCode } : {}),
         total: 0,
         reminders: [],

@@ -32,21 +32,27 @@ export class QuizzesService {
     file: Express.Multer.File | undefined,
     dto: GenerateQuizAiDto & { file_name?: string; file_size_bytes?: number },
   ) {
-    if (teacherId === 'usr_parent_01') {
-      throw new ForbiddenException({
-        error_code: 'AUTH_FORBIDDEN',
-        message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho giáo viên.',
-      });
+    if (typeof (this.dataConnect as any).getUserById === 'function') {
+      const user = await (this.dataConnect as any).getUserById(teacherId);
+      if (user && user.role && user.role !== 'TEACHER' && user.role !== 'ADMIN') {
+        throw new ForbiddenException({
+          error_code: 'AUTH_FORBIDDEN',
+          message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho giáo viên.',
+        });
+      }
     }
 
-    if (teacherId === 'usr_daily_quota_exceeded') {
-      throw new HttpException(
-        {
-          error_code: 'QUIZ_DAILY_QUOTA_EXCEEDED',
-          message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI Gemini miễn phí trong ngày (tối đa 20 lần/ngày). Vui lòng quay lại vào ngày mai.',
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+    if (typeof (this.dataConnect as any).checkDailyAiQuota === 'function') {
+      const withinQuota = await (this.dataConnect as any).checkDailyAiQuota(teacherId);
+      if (!withinQuota) {
+        throw new HttpException(
+          {
+            error_code: 'QUIZ_DAILY_QUOTA_EXCEEDED',
+            message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI Gemini miễn phí trong ngày (tối đa 20 lần/ngày). Vui lòng quay lại vào ngày mai.',
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
     }
 
     if (dto.file_size_bytes && dto.file_size_bytes > 15 * 1024 * 1024) {
@@ -167,7 +173,7 @@ export class QuizzesService {
   }
 
   async getQuizDetail(quizId: string) {
-    if (quizId === 'qz_nonexistent_9999' || !quizId) {
+    if (!quizId) {
       throw new NotFoundException({
         error_code: 'QUIZ_NOT_FOUND',
         message: 'Không tìm thấy bộ câu hỏi kiểm tra bài cũ.',
@@ -196,7 +202,7 @@ export class QuizzesService {
   private async verifyQuizOwner(quizId: string, teacherId?: string) {
     if (!teacherId) return;
     const quiz = await this.getQuizDetail(quizId);
-    const ownerId = (quiz as any).teacher_id || (quiz as any).creator_id || 'usr_teacher_01';
+    const ownerId = (quiz as any).teacher_id || (quiz as any).creator_id;
     if (ownerId && teacherId !== ownerId) {
       throw new ForbiddenException({
         error_code: 'AUTH_FORBIDDEN',
@@ -273,7 +279,7 @@ export class QuizzesService {
 
   async getWheelCandidates(quizId: string) {
     const quiz = await this.getQuizDetail(quizId);
-    const classId = (quiz as any).class_id || 'cls_1a_2026';
+    const classId = (quiz as any).class_id || '';
     const todayAttendance = await this.attendanceService.getTodayPresentStudents(classId);
 
     return {
@@ -321,7 +327,7 @@ export class QuizzesService {
     const now = new Date().toISOString();
 
     const quiz = await this.getQuizDetail(quizId);
-    const classId = (quiz as any).class_id || 'cls_1a_2026';
+    const classId = (quiz as any).class_id || '';
     const subjectCode = (quiz as any).subject_code || 'MATH';
 
     let synced = false;

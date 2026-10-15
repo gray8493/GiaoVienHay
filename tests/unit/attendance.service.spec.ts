@@ -15,7 +15,23 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
     mockDataConnect = {
       recordAttendance: jest.fn().mockResolvedValue(true),
       getAttendanceByClassDate: jest.fn().mockResolvedValue([]),
+      getAttendanceByClass: jest.fn().mockResolvedValue([]),
+      getAttendanceById: jest.fn().mockImplementation((id: string) => {
+        if (id === 'att_non_existent') return Promise.resolve(null);
+        return Promise.resolve({ id, status: AttendanceStatus.PRESENT });
+      }),
       createNotification: jest.fn().mockResolvedValue(true),
+      getClassById: jest.fn().mockImplementation((id: string) => {
+        if (id === 'cls_1a_2026') {
+          return Promise.resolve({
+            id: 'cls_1a_2026',
+            name: 'Lớp 1A',
+            homeroom_teacher_id: 'usr_teacher_01',
+            homeroomTeacherId: 'usr_teacher_01',
+          });
+        }
+        return Promise.resolve(null);
+      }),
     };
 
     mockCacheManager = {

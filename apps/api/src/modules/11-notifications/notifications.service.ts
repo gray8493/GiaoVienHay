@@ -55,7 +55,7 @@ export class NotificationsService {
     const page = Number(query?.page) || 1;
     const limit = Number(query?.limit) || 20;
 
-    if (userId === 'usr_parent_new' || query?.noWorkerNotifs) {
+    if (query?.noWorkerNotifs) {
       return {
         message: 'Lấy danh sách thông báo thành công',
         unread_count: 0,
@@ -110,13 +110,16 @@ export class NotificationsService {
   }
 
   async markAsRead(userId: string, notifId: string) {
-    if (notifId.includes('nonexistent') || notifId === 'notif_nonexistent_999') {
-      throw new NotFoundException({
-        success: false,
-        status_code: 404,
-        error_code: 'NOTI_NOT_FOUND',
-        message: 'Không tìm thấy bản ghi thông báo trong hộp thư.',
-      });
+    if (typeof this.dataConnect.getNotificationById === 'function') {
+      const notif = await this.dataConnect.getNotificationById(notifId);
+      if (!notif) {
+        throw new NotFoundException({
+          success: false,
+          status_code: 404,
+          error_code: 'NOTI_NOT_FOUND',
+          message: 'Không tìm thấy bản ghi thông báo trong hộp thư.',
+        });
+      }
     }
 
     try {
@@ -137,13 +140,11 @@ export class NotificationsService {
         const notifs = await this.dataConnect.getNotificationsByRecipient(userId);
         if (notifs && notifs.length > 0) {
           unreadCount = notifs.filter((n: any) => !n.is_read).length;
-        } else if (userId === 'usr_parent_01') {
-          unreadCount = 5;
         } else {
           unreadCount = 0;
         }
       } catch {
-        unreadCount = userId === 'usr_parent_01' ? 5 : 0;
+        unreadCount = 0;
       }
     }
 

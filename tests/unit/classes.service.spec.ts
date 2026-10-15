@@ -20,21 +20,49 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
       listClassesByTeacher: jest.fn().mockResolvedValue([
         { id: 'cls_1a_2026', name: '1A', gradeLevel: 1, academicYear: '2026-2027', homeroomTeacherId: 'usr_teacher_01' },
       ]),
-      getClassById: jest.fn().mockResolvedValue({
-        id: 'cls_1a_2026',
-        name: '1A',
-        grade_level: 1,
-        academic_year: '2026-2027',
-        school_name: 'TH Chu Văn An',
-        homeroom_teacher_id: 'usr_teacher_01',
+      getClassById: jest.fn().mockImplementation(async (id: string) => {
+        if (id === 'cls_khong_ton_tai' || id?.includes('not_exist')) return null;
+        return {
+          id: 'cls_1a_2026',
+          name: '1A',
+          grade_level: 1,
+          academic_year: '2026-2027',
+          school_name: 'TH Chu Văn An',
+          homeroom_teacher_id: 'usr_teacher_01',
+          subject_teachers: [
+            { teacher_id: 'usr_teacher_01', subject_code: 'MATH' },
+          ],
+        };
       }),
-      listStudentsByClass: jest.fn().mockResolvedValue([
-        { id: 'stu_01', student_code: 'HS001', full_name: 'Trần Bảo Nam', is_deleted: false },
-        { id: 'stu_02', student_code: 'HS002', full_name: 'Lê Ngọc Mai', is_deleted: false },
-      ]),
+      listStudentsByClass: jest.fn().mockImplementation(async (classId: string) => {
+        if (classId === 'cls_new_empty') return [];
+        return [
+          { id: 'stu_01', student_code: 'HS001', studentCode: 'HS001', full_name: 'Trần Bảo Nam', is_deleted: false },
+          { id: 'stu_02', student_code: 'HS002', studentCode: 'HS002', full_name: 'Lê Ngọc Mai', is_deleted: false },
+        ];
+      }),
       createStudent: jest.fn().mockResolvedValue(true),
       softDeleteStudent: jest.fn().mockResolvedValue(true),
       softDeleteClass: jest.fn().mockResolvedValue(true),
+      getClassByInviteCode: jest.fn().mockImplementation(async (code: string) => {
+        if (code === 'GVH_SAI_MA_999' || code?.includes('SAI')) return null;
+        return {
+          id: 'cls_1a_2026',
+          name: '1A',
+          invite_code: 'GVH1A26',
+        };
+      }),
+      getStudentById: jest.fn().mockImplementation(async (id: string) => {
+        if (!id || id === 'stu_not_found_9999' || id.includes('not_found')) {
+          return null;
+        }
+        return {
+          id,
+          student_code: id === 'stu_02' ? 'HS002' : 'HS001',
+          full_name: id === 'stu_02' ? 'Lê Ngọc Mai' : 'Trần Bảo Nam',
+          parent_uids: id === 'stu_01' ? ['usr_parent_01'] : [],
+        };
+      }),
     };
 
     mockCacheManager = {

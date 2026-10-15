@@ -12,12 +12,12 @@ export class StudentsService {
     return {
       student_id: (student as any).id || (student as any).student_id || studentId,
       full_name: (student as any).full_name || (student as any).fullName,
-      student_code: (student as any).student_code || (student as any).studentCode || 'HS2026_001',
-      class_id: (student as any).class_id || (student as any).classId || 'cls_1a_2026',
-      class_name: (student as any).class_name || (student as any).className || '1A',
-      dob: (student as any).dob || '2020-05-15',
-      gender: (student as any).gender || 'MALE',
-      avatar_url: (student as any).avatar_url || (student as any).avatarUrl || 'https://storage.googleapis.com/.../avatar_nam.jpg',
+      student_code: (student as any).student_code || (student as any).studentCode || '',
+      class_id: (student as any).class_id || (student as any).classId || '',
+      class_name: (student as any).class_name || (student as any).className || '',
+      dob: (student as any).dob || '',
+      gender: (student as any).gender || '',
+      avatar_url: (student as any).avatar_url || (student as any).avatarUrl || '',
       id: (student as any).id || studentId,
     };
   }
