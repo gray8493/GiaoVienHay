@@ -1,18 +1,19 @@
+// Learn more https://docs.expo.io/guides/customizing-metro
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
 const projectRoot = __dirname;
-const monorepoRoot = path.resolve(projectRoot, '../..');
+const workspaceRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-// 1. Cho Metro quan sát toàn bộ monorepo (root node_modules và shared packages)
-config.watchFolders = [monorepoRoot];
+// 1. Watch all files within the monorepo
+config.watchFolders = [workspaceRoot];
 
-// 2. Cho Metro giải quyết module từ mobile trước, sau đó fallback về monorepo root
+// 2. Let Metro know where to resolve packages and in what order
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
-  path.resolve(monorepoRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
 ];
 
 module.exports = config;
