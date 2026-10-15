@@ -10,7 +10,7 @@ module.exports = {
     node: true,
     es2022: true,
   },
-  ignorePatterns: ['.eslintrc.js', 'node_modules', '.expo'],
+  ignorePatterns: ['.eslintrc.js', 'metro.config.js', 'node_modules', '.expo'],
   rules: {
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],

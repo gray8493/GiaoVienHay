@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "App Di động GiaoVienHay cho Giáo viên & Phụ huynh (React Native / Expo)",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
