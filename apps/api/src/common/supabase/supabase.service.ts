@@ -394,7 +394,7 @@ export class SupabaseService implements OnModuleInit {
       is_active: true,
       is_deleted: false,
       ai_daily_quota: 100,
-      ai_used_today: 5,
+      ai_used_today: 0,
       ai_model_tier: 'PRO',
     };
     const adminRoot = {
@@ -424,7 +424,7 @@ export class SupabaseService implements OnModuleInit {
       is_active: true,
       is_deleted: false,
       ai_daily_quota: 40,
-      ai_used_today: 12,
+      ai_used_today: 0,
       ai_model_tier: 'AUTO',
     };
     const gv2 = {
@@ -439,7 +439,7 @@ export class SupabaseService implements OnModuleInit {
       is_active: true,
       is_deleted: false,
       ai_daily_quota: 30,
-      ai_used_today: 8,
+      ai_used_today: 0,
       ai_model_tier: 'AUTO',
     };
     const ph1 = {
@@ -454,7 +454,7 @@ export class SupabaseService implements OnModuleInit {
       is_active: true,
       is_deleted: false,
       ai_daily_quota: 10,
-      ai_used_today: 1,
+      ai_used_today: 0,
       ai_model_tier: 'FREE',
     };
     const usr01 = {
