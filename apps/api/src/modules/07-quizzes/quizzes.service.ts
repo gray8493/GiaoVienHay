@@ -9,7 +9,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
-import { GeminiService } from '../../common/gemini/gemini.service';
+import { NvidiaService } from '../../common/nvidia/nvidia.service';
 import { AttendanceService } from '../05-attendance/attendance.service';
 import { AdminService } from '../12-admin/admin.service';
 import { GenerateQuizAiDto, InClassScoreInputDto } from './dto/quizzes.dto';
@@ -22,7 +22,7 @@ export class QuizzesService {
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
-    private readonly geminiService: GeminiService,
+    private readonly nvidiaService: NvidiaService,
     private readonly attendanceService: AttendanceService,
     @Optional() private readonly adminService?: AdminService,
   ) {}
@@ -48,7 +48,7 @@ export class QuizzesService {
         throw new HttpException(
           {
             error_code: 'QUIZ_DAILY_QUOTA_EXCEEDED',
-            message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI Gemini miễn phí trong ngày (tối đa 20 lần/ngày). Vui lòng quay lại vào ngày mai.',
+            message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI miễn phí trong ngày (tối đa 20 lần/ngày). Vui lòng quay lại vào ngày mai.',
           },
           HttpStatus.TOO_MANY_REQUESTS,
         );
@@ -85,7 +85,7 @@ export class QuizzesService {
 
     let questions;
     try {
-      questions = await this.geminiService.generateQuestionsFromLesson(
+      questions = await this.nvidiaService.generateQuestionsFromLesson(
         lessonContent,
         dto.subject_code,
         numQuestions,
@@ -94,11 +94,11 @@ export class QuizzesService {
     } catch (error) {
       await this.adminService?.recordActivity({
         category: 'AI_QUIZ',
-        categoryLabel: 'Gemini AI',
-        action: 'Tạo câu hỏi bằng Gemini AI',
-        target: dto.title,
-        details: `Lớp ${dto.class_id} · Môn ${dto.subject_code}`,
-        status: 'WARNING',
+          categoryLabel: 'NVIDIA AI',
+          action: 'Tạo câu hỏi bằng NVIDIA AI',
+          target: dto.title,
+          details: `Lớp ${dto.class_id} · Môn ${dto.subject_code}`,
+          status: 'WARNING',
         statusLabel: 'Thất bại',
         metadata: { teacher_id: teacherId, class_id: dto.class_id },
       });
@@ -107,8 +107,8 @@ export class QuizzesService {
 
     await this.adminService?.recordActivity({
       category: 'AI_QUIZ',
-      categoryLabel: 'Gemini AI',
-      action: 'Tạo câu hỏi bằng Gemini AI',
+        categoryLabel: 'NVIDIA AI',
+        action: 'Tạo câu hỏi bằng NVIDIA AI',
       target: dto.title,
       details: `${questions.length} câu hỏi · Lớp ${dto.class_id} · Môn ${dto.subject_code}`,
       status: 'SUCCESS',

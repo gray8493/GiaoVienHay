@@ -454,7 +454,7 @@ async function runSeed() {
       max_upload_size_mb: 20,
       max_students_per_class: 55,
       max_classes_per_teacher: 5,
-      ai_model: 'gemini-1.5-flash',
+      ai_model: 'z-ai/glm-5.3-flash',
       allow_subject_teacher_create_class: true,
       enable_fallback_cache: true,
       updated_at: now,

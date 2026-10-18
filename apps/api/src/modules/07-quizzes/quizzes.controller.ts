@@ -41,7 +41,7 @@ export class QuizzesController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Upload giáo án, chọn số câu, độ khó -> Gemini AI sinh câu hỏi trắc nghiệm',
+    summary: 'Upload giáo án, chọn số câu, độ khó -> NVIDIA AI sinh câu hỏi trắc nghiệm',
     description: 'Giáo viên chủ động chọn số lượng câu hỏi và độ khó (EASY, MEDIUM, HARD, MIXED). AI phân tích và trả về bộ câu hỏi chỉ trong vài giây.',
   })
   async generateQuizFromAi(

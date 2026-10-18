@@ -44,7 +44,7 @@ export class UpdateUserStatusDto {
 }
 
 export class UpdateTeacherAiQuotaDto {
-  @ApiProperty({ example: 35, description: 'Hạn mức lượt gọi Gemini AI hàng ngày của giáo viên' })
+  @ApiProperty({ example: 35, description: 'Hạn mức lượt gọi AI hàng ngày của giáo viên' })
   @IsInt()
   ai_daily_quota: number;
 
@@ -150,7 +150,7 @@ export class UpdateSystemLimitsDto {
   @IsInt()
   gemini_ai_daily_quota_per_teacher?: number;
 
-  @ApiPropertyOptional({ example: 'gemini-1.5-flash' })
+  @ApiPropertyOptional({ example: 'z-ai/glm-5.3-flash' })
   @IsOptional()
   @IsString()
   ai_model?: string;

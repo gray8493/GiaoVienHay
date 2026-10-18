@@ -6,7 +6,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { SupabaseModule } from './common/supabase/supabase.module';
-import { GeminiModule } from './common/gemini/gemini.module';
+import { NvidiaModule } from './common/nvidia/nvidia.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { TimingInterceptor } from './common/interceptors/timing.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -58,7 +58,7 @@ import { AdminModule } from './modules/12-admin/admin.module';
     ]),
 
     SupabaseModule,
-    GeminiModule,
+    NvidiaModule,
 
     // Core & Business Modules
     HealthModule,
