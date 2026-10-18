@@ -1,5 +1,5 @@
 /**
- * Admin System Limits & Gemini AI Quota Service
+ * Admin System Limits & AI Quota Service
  * Communicates with NestJS Backend Module 12-admin (/api/v1/admin/system-limits)
  */
 
@@ -11,7 +11,7 @@ export interface SystemLimits {
   max_upload_size_mb: number;
   max_students_per_class: number;
   max_classes_per_teacher: number;
-  ai_model: 'gemini-1.5-flash' | 'gemini-1.5-pro';
+  ai_model: string;
   allow_subject_teacher_create_class: boolean;
   enable_fallback_cache: boolean;
   fcm_rate_limit_per_minute?: number;
@@ -23,7 +23,7 @@ export const DEFAULT_SYSTEM_LIMITS: SystemLimits = {
   max_upload_size_mb: 15,
   max_students_per_class: 55,
   max_classes_per_teacher: 5,
-  ai_model: 'gemini-1.5-flash',
+  ai_model: 'openai/gpt-oss-20b',
   allow_subject_teacher_create_class: true,
   enable_fallback_cache: true,
   fcm_rate_limit_per_minute: 100,
@@ -51,7 +51,7 @@ export async function getSystemLimitsApi(): Promise<{
         max_classes_per_teacher:
           res.data.max_classes_per_teacher ?? DEFAULT_SYSTEM_LIMITS.max_classes_per_teacher,
         ai_model:
-          res.data.ai_model === 'gemini-1.5-pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash',
+          res.data.ai_model ?? DEFAULT_SYSTEM_LIMITS.ai_model,
         allow_subject_teacher_create_class:
           res.data.allow_subject_teacher_create_class ?? DEFAULT_SYSTEM_LIMITS.allow_subject_teacher_create_class,
         enable_fallback_cache:

@@ -87,7 +87,7 @@ export const FALLBACK_DASHBOARD_STATS: DashboardStatsData = {
       daily_quota: 5000,
       used_percent: 0,
       growth_rate: '0%',
-      model: 'gemini-1.5-flash',
+      model: 'openai/gpt-oss-20b',
       comparison_period: 'Giáo án & trích xuất đề thi',
     },
     tuition_revenue: {

@@ -621,9 +621,9 @@ export default function TeachersPage() {
                           <div className="flex items-center justify-between text-[10px] text-slate-400">
                             <span>
                               {teacher.ai_model_tier === 'PRO'
-                                ? 'Gemini Pro'
+                                ? 'Nâng cao (Pro)'
                                 : teacher.ai_model_tier === 'FLASH'
-                                ? 'Gemini Flash'
+                                ? 'Chuẩn (Flash)'
                                 : 'Chuẩn (Auto)'}
                             </span>
                             <span className="underline opacity-0 group-hover/quota:opacity-100 text-[#696cff] font-medium">
@@ -855,8 +855,8 @@ export default function TeachersPage() {
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   {[
                     { id: 'AUTO', label: 'Tự động (Khuyên dùng)' },
-                    { id: 'FLASH', label: 'Gemini 1.5 Flash' },
-                    { id: 'PRO', label: 'Gemini 1.5 Pro' },
+                    { id: 'FLASH', label: 'Chuẩn (Flash)' },
+                    { id: 'PRO', label: 'Nâng cao (Pro)' },
                   ].map((m) => (
                     <button
                       key={m.id}
