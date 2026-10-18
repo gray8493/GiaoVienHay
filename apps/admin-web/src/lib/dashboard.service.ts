@@ -84,7 +84,7 @@ export const FALLBACK_DASHBOARD_STATS: DashboardStatsData = {
     },
     gemini_ai_calls: {
       value: 0,
-      daily_quota: 5000,
+      daily_quota: 25,
       used_percent: 0,
       growth_rate: '0%',
       model: 'openai/gpt-oss-20b',

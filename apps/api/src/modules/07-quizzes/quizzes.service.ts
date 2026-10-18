@@ -48,7 +48,7 @@ export class QuizzesService {
         throw new HttpException(
           {
             error_code: 'QUIZ_DAILY_QUOTA_EXCEEDED',
-            message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI miễn phí trong ngày (tối đa 20 lần/ngày). Vui lòng quay lại vào ngày mai.',
+            message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI trong ngày. Vui lòng quay lại vào ngày mai hoặc liên hệ quản trị viên để nâng hạn mức.',
           },
           HttpStatus.TOO_MANY_REQUESTS,
         );
@@ -145,6 +145,10 @@ export class QuizzesService {
 
     // Lưu vào SQL Data Connect
     await this.dataConnect.createQuiz(quizData);
+
+    if (typeof (this.dataConnect as any).syncAiUsageToday === 'function') {
+      await (this.dataConnect as any).syncAiUsageToday(teacherId);
+    }
 
     return quizData;
   }
