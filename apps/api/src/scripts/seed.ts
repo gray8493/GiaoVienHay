@@ -71,7 +71,7 @@ async function runSeed() {
         is_active: true,
         is_deleted: false,
         ai_daily_quota: 100,
-        ai_used_today: 5,
+        ai_used_today: 0,
         ai_model_tier: 'PRO',
       },
       {
@@ -86,7 +86,7 @@ async function runSeed() {
         is_active: true,
         is_deleted: false,
         ai_daily_quota: 40,
-        ai_used_today: 12,
+        ai_used_today: 0,
         ai_model_tier: 'AUTO',
       },
       {
@@ -101,7 +101,7 @@ async function runSeed() {
         is_active: true,
         is_deleted: false,
         ai_daily_quota: 30,
-        ai_used_today: 8,
+        ai_used_today: 0,
         ai_model_tier: 'AUTO',
       },
       {
@@ -116,7 +116,7 @@ async function runSeed() {
         is_active: true,
         is_deleted: false,
         ai_daily_quota: 15,
-        ai_used_today: 1,
+        ai_used_today: 0,
         ai_model_tier: 'FLASH',
       },
     ];
