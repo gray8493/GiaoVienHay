@@ -241,16 +241,16 @@ export default function AdminDashboardPage() {
                 </div>
               </Link>
 
-              {/* THẺ 4: Hạn Mức Gemini AI */}
+              {/* THẺ 4: Hạn Mức AI */}
               <Link
                 href="/limits"
                 className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-medium">Trợ giảng Gemini AI</span>
+                    <span className="text-xs text-slate-500 font-medium">Trợ giảng AI</span>
                     <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[11px] font-semibold">
-                      {stats.kpi.gemini_ai_calls.model || 'gemini-1.5-flash'}
+                      {stats.kpi.gemini_ai_calls.model || 'openai/gpt-oss-20b'}
                     </span>
                   </div>
                   <div className="mt-2 flex items-baseline gap-1.5">
@@ -379,7 +379,7 @@ export default function AdminDashboardPage() {
                     {/* AI Quota */}
                     <div>
                       <div className="flex justify-between items-center text-xs mb-1">
-                        <span className="text-slate-600 font-medium">Hạn mức Gemini AI</span>
+                        <span className="text-slate-600 font-medium">Hạn mức AI</span>
                         <span className="font-bold text-slate-900">
                           {stats.kpi.gemini_ai_calls.used_percent}% ({formatNumber(stats.kpi.gemini_ai_calls.value)}/{formatNumber(stats.kpi.gemini_ai_calls.daily_quota)})
                         </span>

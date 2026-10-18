@@ -7,6 +7,14 @@ import { apiFetch } from '../../lib/api-client';
 import { getActivityLogsApi, type ActivityLogItem } from '../../lib/logs.service';
 import type { DashboardStatsData } from '../../lib/dashboard.service';
 
+const DEFAULT_AI_MODEL = 'openai/gpt-oss-20b';
+const AI_MODEL_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B (Nhanh, khuyến nghị)' },
+  { value: 'z-ai/glm-5.3-flash', label: 'GLM 5.3 Flash (Suy luận sâu, chậm hơn)' },
+  { value: 'deepseek-ai/deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash (Suy luận, chậm)' },
+  { value: 'meta/llama-3.2-11b-vision-instruct', label: 'Llama 3.2 11B Vision' },
+];
+
 function SettingSkeleton() {
   return (
     <div className="animate-pulse space-y-6">
@@ -34,7 +42,7 @@ function SettingSkeleton() {
 
 export default function LimitsAndAiPage() {
   const [defaultDailyQuota, setDefaultDailyQuota] = useState<number>(25);
-  const [defaultModelTier, setDefaultModelTier] = useState<'FLASH' | 'PRO' | 'AUTO'>('AUTO');
+  const [defaultModel, setDefaultModel] = useState<string>(DEFAULT_AI_MODEL);
   const [enableFallbackCache, setEnableFallbackCache] = useState<boolean>(true);
   const [aiActivity, setAiActivity] = useState<ActivityLogItem[]>([]);
   const [isActivityAvailable, setIsActivityAvailable] = useState(false);
@@ -61,10 +69,7 @@ export default function LimitsAndAiPage() {
 
       if (limitsResult.status === 'fulfilled' && limitsResult.value.data) {
         setDefaultDailyQuota(limitsResult.value.data.gemini_ai_daily_quota_per_teacher || 25);
-        const modelStr = limitsResult.value.data.ai_model || 'AUTO';
-        setDefaultModelTier(
-          modelStr.includes('pro') ? 'PRO' : modelStr.includes('flash') ? 'FLASH' : 'AUTO'
-        );
+        setDefaultModel(limitsResult.value.data.ai_model || DEFAULT_AI_MODEL);
         setEnableFallbackCache(limitsResult.value.data.enable_fallback_cache ?? true);
       }
       if (activityResult.status === 'fulfilled') {
@@ -139,7 +144,7 @@ export default function LimitsAndAiPage() {
         method: 'PUT',
         body: JSON.stringify({
           gemini_ai_daily_quota_per_teacher: defaultDailyQuota,
-          ai_model: defaultModelTier === 'PRO' ? 'gemini-1.5-pro' : 'gemini-1.5-flash',
+          ai_model: defaultModel,
           enable_fallback_cache: enableFallbackCache,
         }),
       });
@@ -171,11 +176,11 @@ export default function LimitsAndAiPage() {
               Trang chủ
             </Link>
             <span>/</span>
-            <span className="text-slate-900 font-semibold">Hạn ngạch Gemini AI</span>
+            <span className="text-slate-900 font-semibold">Hạn ngạch AI</span>
           </nav>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Quản trị Hạn ngạch Gemini AI
+            Quản trị Hạn ngạch AI
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Cấu hình hạn mức và mô hình AI mặc định cho toàn trường.
@@ -194,7 +199,7 @@ export default function LimitsAndAiPage() {
         </div>
       </section>
 
-      {/* Thống kê mức sử dụng Gemini AI */}
+      {/* Thống kê mức sử dụng AI */}
       <section className="space-y-5">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -344,16 +349,18 @@ export default function LimitsAndAiPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Cấp độ Mô hình AI mặc định
+                  Mô hình AI mặc định
                 </label>
                 <select
-                  value={defaultModelTier}
-                  onChange={(e) => setDefaultModelTier(e.target.value as any)}
+                  value={defaultModel}
+                  onChange={(e) => setDefaultModel(e.target.value)}
                   className="w-full h-10 px-3 text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-slate-900 cursor-pointer"
                 >
-                  <option value="AUTO">Tự động (Khuyên dùng - Cân bằng tốc độ &amp; chất lượng)</option>
-                  <option value="FLASH">Gemini 1.5 Flash (Tốc độ cao, tiết kiệm quota)</option>
-                  <option value="PRO">Gemini 1.5 Pro (Suy luận sâu, đề thi khó)</option>
+                  {AI_MODEL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
