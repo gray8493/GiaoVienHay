@@ -34,7 +34,8 @@ export class QuizzesService {
   ) {
     if (typeof (this.dataConnect as any).getUserById === 'function') {
       const user = await (this.dataConnect as any).getUserById(teacherId);
-      if (user && user.role && user.role !== 'TEACHER' && user.role !== 'ADMIN') {
+      const role = user?.role || '';
+      if (user && role && !role.includes('TEACHER') && role !== 'ADMIN') {
         throw new ForbiddenException({
           error_code: 'AUTH_FORBIDDEN',
           message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho giáo viên.',
