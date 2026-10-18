@@ -24,7 +24,7 @@ export class NvidiaService {
     this.baseUrl = (
       this.configService.get<string>('NVIDIA_BASE_URL') || 'https://integrate.api.nvidia.com/v1'
     ).replace(/\/+$/, '');
-    this.model = this.configService.get<string>('NVIDIA_MODEL') || 'z-ai/glm-5.3-flash';
+    this.model = this.configService.get<string>('NVIDIA_MODEL') || 'openai/gpt-oss-20b';
     this.timeoutMs = Number(this.configService.get<string>('NVIDIA_TIMEOUT_MS')) || 120000;
 
     if (this.apiKey) {
@@ -87,7 +87,7 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
           messages: [{ role: 'user', content: prompt }],
           temperature: 1,
           top_p: 0.95,
-          max_tokens: 4096,
+          max_tokens: 8192,
         }),
         signal: controller.signal,
       });

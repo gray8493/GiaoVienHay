@@ -150,7 +150,7 @@ export class UpdateSystemLimitsDto {
   @IsInt()
   gemini_ai_daily_quota_per_teacher?: number;
 
-  @ApiPropertyOptional({ example: 'z-ai/glm-5.3-flash' })
+  @ApiPropertyOptional({ example: 'openai/gpt-oss-20b' })
   @IsOptional()
   @IsString()
   ai_model?: string;
