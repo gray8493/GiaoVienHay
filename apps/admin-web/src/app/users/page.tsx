@@ -193,9 +193,15 @@ export default function UsersInteractiveExplorerPage() {
         throw new Error(schoolsRes.error || classesRes.error || usersRes.error || 'Không thể tải dữ liệu người dùng.');
       }
 
-      setSchools(schoolsRes.data || []);
-      setClasses(classesRes.data || []);
-      setUsers((usersRes.data?.items || []).map(normalizeUserData));
+      const schoolsPayload: any = schoolsRes.data;
+      const classesPayload: any = classesRes.data;
+      const usersPayload: any = usersRes.data;
+
+      setSchools(Array.isArray(schoolsPayload) ? schoolsPayload : schoolsPayload?.items || []);
+      setClasses(Array.isArray(classesPayload) ? classesPayload : classesPayload?.items || []);
+      setUsers(
+        (Array.isArray(usersPayload) ? usersPayload : usersPayload?.items || []).map(normalizeUserData),
+      );
     } catch (err) {
       console.warn('Lỗi khi tải dữ liệu từ Backend:', err);
       showToast(err instanceof Error ? err.message : 'Không thể tải dữ liệu từ máy chủ.', 'error');
