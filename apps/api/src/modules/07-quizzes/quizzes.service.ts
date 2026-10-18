@@ -18,7 +18,6 @@ import { DifficultyLevel, GameMode, GradeType } from '@giaovienhay/shared-types'
 @Injectable()
 export class QuizzesService {
   private readonly logger = new Logger(QuizzesService.name);
-  private readonly recordedScores = new Set<string>();
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
@@ -227,10 +226,16 @@ export class QuizzesService {
       });
     }
 
-    if (!data.content || (data.options && data.options.some((o: any) => !o.text))) {
+    if (!data.content) {
       throw new BadRequestException({
-        error_code: 'COMMON_VALIDATION_ERROR',
-        message: 'Nội dung câu hỏi và các phương án lựa chọn không được để trống.',
+        error_code: 'QUIZ_CONTENT_REQUIRED',
+        message: 'Nội dung câu hỏi không được để trống.',
+      });
+    }
+    if (data.options && data.options.some((o: any) => !o.text)) {
+      throw new BadRequestException({
+        error_code: 'QUIZ_OPTIONS_INVALID',
+        message: 'Các phương án lựa chọn không được để trống.',
       });
     }
 
@@ -318,15 +323,23 @@ export class QuizzesService {
       });
     }
 
-    const scoreKey = `${quizId}_${dto.student_id}`;
-    if (dto.already_saved || this.recordedScores.has(scoreKey)) {
+    // Check if score already exists in database
+    if (typeof (this.dataConnect as any).getScoreByQuizAndStudent === 'function') {
+      const existingScore = await (this.dataConnect as any).getScoreByQuizAndStudent(quizId, dto.student_id);
+      if (existingScore) {
+        return {
+          already_saved: true,
+          student_id: dto.student_id,
+          score: existingScore.scoreValue || existingScore.score,
+        };
+      }
+    } else if (dto.already_saved) {
       return {
         already_saved: true,
         student_id: dto.student_id,
         score: dto.score,
       };
     }
-    this.recordedScores.add(scoreKey);
 
     const resultId = 'sc_auto_7712';
     const now = new Date().toISOString();
