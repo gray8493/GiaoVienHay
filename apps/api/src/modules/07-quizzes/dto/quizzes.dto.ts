@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsString,
   IsNotEmpty,
@@ -35,6 +36,7 @@ export class GenerateQuizAiDto {
 
   @ApiPropertyOptional({ example: 5, description: 'Số lượng câu hỏi cần sinh (mặc định 5)' })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(20)
