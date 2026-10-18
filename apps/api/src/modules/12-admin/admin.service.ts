@@ -514,6 +514,8 @@ export class AdminService {
           used_percent: aiQuotaTotal > 0 ? Math.round((aiUsedTotal / aiQuotaTotal) * 100) : 0,
           growth_rate: '0%',
           model: limits.ai_model,
+          rate_limit_per_minute: Number(process.env.NVIDIA_RPM) || 40,
+          shared_api_key: true,
           comparison_period: `${teacherAccounts.length} giáo viên · hạn mức/ngày`,
         },
         tuition_revenue: {

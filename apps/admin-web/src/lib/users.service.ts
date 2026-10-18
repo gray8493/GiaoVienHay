@@ -6,11 +6,7 @@
 
 import { apiFetch } from './api-client';
 import { UserRole } from '@giaovienhay/shared-types';
-import {
-  TeacherUser,
-  ParentUser,
-  INITIAL_TEACHERS,
-} from './users-data';
+import { TeacherUser, ParentUser } from './users-data';
 
 export interface QueryUsersParams {
   role?: UserRole | string;
@@ -104,40 +100,11 @@ export async function getTeachersList(params?: {
     console.warn('[UsersService] Không kết nối được Backend /admin/users:', err);
   }
 
-  // Fallback: Sử dụng danh sách giáo viên mẫu từ INITIAL_TEACHERS / LocalStorage
-  let localTeachers = INITIAL_TEACHERS;
-  if (typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem('gvh_teachers_list');
-      if (stored) {
-        localTeachers = JSON.parse(stored);
-      } else {
-        localStorage.setItem('gvh_teachers_list', JSON.stringify(INITIAL_TEACHERS));
-      }
-    } catch {
-      localTeachers = INITIAL_TEACHERS;
-    }
-  }
-
-  let filtered = [...localTeachers];
-  if (params?.keyword) {
-    const q = params.keyword.toLowerCase();
-    filtered = filtered.filter(
-      (t) =>
-        t.full_name.toLowerCase().includes(q) ||
-        t.phone.includes(q) ||
-        t.email.toLowerCase().includes(q) ||
-        t.code.toLowerCase().includes(q)
-    );
-  }
-  if (params?.role && params.role !== 'ALL') {
-    filtered = filtered.filter((t) => t.role === params.role);
-  }
-
+  // Không có dữ liệu thật từ Backend → trả về rỗng (không dùng dữ liệu mẫu).
   return {
-    teachers: filtered,
-    total: filtered.length,
-    isMock: true,
+    teachers: [],
+    total: 0,
+    isMock: false,
   };
 }
 
@@ -226,20 +193,7 @@ export async function createAdminUser(payload: {
     }
     return { success: false, error: res.error || 'Không thể tạo tài khoản trên hệ thống' };
   } catch (err: any) {
-    // Giả lập lưu thành công khi offline
-    return {
-      success: true,
-      data: {
-        id: 'usr_' + Date.now(),
-        full_name: payload.full_name,
-        phone: cleanPhone,
-        role: payload.role,
-        is_active: true,
-        ai_daily_quota: payload.ai_daily_quota || 25,
-        ai_used_today: 0,
-        created_at: new Date().toISOString(),
-      },
-    };
+    return { success: false, error: err?.message || 'Không thể kết nối máy chủ để tạo tài khoản.' };
   }
 }
 
@@ -268,11 +222,7 @@ export async function updateUserStatus(
     }
     return { success: false, error: res.error || 'Cập nhật trạng thái thất bại' };
   } catch (err: any) {
-    // Offline simulation
-    return {
-      success: true,
-      message: isActive ? 'Đã mở khóa tài khoản (Mock)' : 'Đã khóa tài khoản (Mock)',
-    };
+    return { success: false, error: err?.message || 'Không thể kết nối máy chủ.' };
   }
 }
 
@@ -299,29 +249,9 @@ export async function updateTeacherAiQuota(
         message: 'Cập nhật hạn mức AI giáo viên thành công',
       };
     }
-  } catch (err) {
+    return { success: false, error: res.error || 'Cập nhật hạn mức AI thất bại' };
+  } catch (err: any) {
     console.warn('[UsersService] Không kết nối được endpoint AI Quota:', err);
+    return { success: false, error: err?.message || 'Không thể kết nối máy chủ.' };
   }
-
-  // Cập nhật LocalStorage đồng bộ
-  if (typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem('gvh_teachers_list');
-      if (stored) {
-        const list: TeacherUser[] = JSON.parse(stored);
-        const idx = list.findIndex((t) => t.id === teacherId);
-        if (idx !== -1) {
-          list[idx].ai_daily_quota = payload.ai_daily_quota;
-          if (payload.ai_model_tier) list[idx].ai_model_tier = payload.ai_model_tier;
-          if (payload.reset_used) list[idx].ai_used_today = 0;
-          localStorage.setItem('gvh_teachers_list', JSON.stringify(list));
-        }
-      }
-    } catch (e) {}
-  }
-
-  return {
-    success: true,
-    message: 'Đã cập nhật hạn mức AI của giáo viên thành công',
-  };
 }

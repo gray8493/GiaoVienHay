@@ -504,7 +504,7 @@ export default function UserCrudModal({
                         <span className="material-symbols-outlined text-[15px] text-[#696cff]">smart_toy</span>
                         <span>Hạn mức sử dụng AI (Lượt/ngày)</span>
                       </span>
-                      <span className="text-[10px] text-slate-400 font-normal">Mặc định: 25 lượt/ngày</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Theo cấu hình mặc định của trường</span>
                     </label>
                     <input
                       type="number"
