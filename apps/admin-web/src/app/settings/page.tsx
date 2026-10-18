@@ -83,9 +83,13 @@ export default function SystemSettingsPage() {
         saveAuthSession(accessToken, refreshToken, updatedUser);
       }
 
-      showToast(res.success ? 'Đã cập nhật thông tin hồ sơ Quản trị viên thành công' : 'Đã cập nhật hồ sơ');
-    } catch {
-      showToast('Đã lưu thông tin hồ sơ Quản trị viên');
+      if (res.success) {
+        showToast('Đã cập nhật thông tin hồ sơ Quản trị viên thành công');
+      } else {
+        showToast(res.error || 'Không thể cập nhật hồ sơ Quản trị viên.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Không thể kết nối máy chủ.', 'error');
     } finally {
       setIsSavingProfile(false);
     }

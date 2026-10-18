@@ -27,6 +27,8 @@ export interface DashboardKPI {
     used_percent: number;
     growth_rate: string;
     model: string;
+    rate_limit_per_minute?: number;
+    shared_api_key?: boolean;
     comparison_period: string;
   };
   tuition_revenue: {
@@ -88,6 +90,8 @@ export const FALLBACK_DASHBOARD_STATS: DashboardStatsData = {
       used_percent: 0,
       growth_rate: '0%',
       model: 'openai/gpt-oss-20b',
+      rate_limit_per_minute: 40,
+      shared_api_key: true,
       comparison_period: 'Giáo án & trích xuất đề thi',
     },
     tuition_revenue: {

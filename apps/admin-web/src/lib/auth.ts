@@ -201,22 +201,10 @@ export async function loginWithBackend(
       error: 'Phản hồi từ máy chủ không hợp lệ.',
     };
   } catch (err: any) {
-    const isNetworkError =
-      err.message?.includes('Failed to fetch') ||
-      err.message?.includes('NetworkError') ||
-      err.message?.includes('fetch failed');
-
-    // Nếu Backend chưa bật, tự động kích hoạt Mock Adapter thông minh
-    if (isNetworkError) {
-      console.warn(
-        `[AuthService] Không thể kết nối Backend (${API_BASE_URL}). Tự động chuyển sang Mock Adapter.`
-      );
-      return handleMockLogin(cleanIdentifier, password, rememberMe);
-    }
-
+    console.warn(`[AuthService] Không thể kết nối Backend (${API_BASE_URL}):`, err?.message);
     return {
       success: false,
-      error: err.message || 'Lỗi kết nối máy chủ xác thực.',
+      error: 'Không thể kết nối máy chủ xác thực. Vui lòng kiểm tra kết nối và thử lại.',
     };
   }
 }

@@ -260,6 +260,9 @@ export default function AdminDashboardPage() {
                     <span className="text-xs text-slate-500">/ {formatNumber(stats.kpi.gemini_ai_calls.daily_quota)} lượt</span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1">Tổng hạn mức AI của giáo viên trong ngày</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Key dùng chung · tối đa {stats.kpi.gemini_ai_calls.rate_limit_per_minute ?? 40} request/phút
+                  </p>
                 </div>
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold">
                   <span>Cấu hình hạn mức</span>
