@@ -277,9 +277,10 @@ export const SEED_STUDENTS_BY_CLASS: Record<string, StudentEntity[]> = {
  */
 export async function getAdminClassesMonitoring(): Promise<ClassMonitoringItem[]> {
   try {
-    const data = await apiRequest<any[]>('/admin/classes');
-    if (Array.isArray(data)) {
-      return data.map((item: any) => {
+    const data: any = await apiRequest<any>('/admin/classes');
+    const list: any[] = Array.isArray(data) ? data : data?.items || [];
+    if (Array.isArray(list)) {
+      return list.map((item: any) => {
         return {
           class_id: item.class_id || item.id,
           name: item.name,
