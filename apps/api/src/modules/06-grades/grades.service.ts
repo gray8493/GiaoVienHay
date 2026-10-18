@@ -277,6 +277,22 @@ export class GradesService {
   }
 
   async publishScores(teacherId: string, dto: PublishScoresDto & { no_scores?: boolean; already_published?: boolean }) {
+    const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}_${dto.semester || 1}`;
+    const simpleKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}`;
+
+    if (dto.already_published || this.publishedColumns.has(colKey) || this.publishedColumns.has(simpleKey)) {
+      const duplicateGuard = {
+        already_published: true,
+        notified_parents_count: 0,
+        published_at: new Date().toISOString(),
+      };
+      return {
+        message: 'Cột điểm này đã được công bố từ trước. Không có thông báo mới nào cần gửi thêm.',
+        ...duplicateGuard,
+        data: duplicateGuard,
+      };
+    }
+
     if (dto.no_scores) {
       throw new BadRequestException({
         success: false,
@@ -300,15 +316,6 @@ export class GradesService {
       if (e instanceof BadRequestException) throw e;
     }
 
-    const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}_${dto.semester || 1}`;
-    const simpleKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}`;
-    if (dto.already_published || this.publishedColumns.has(colKey) || this.publishedColumns.has(simpleKey)) {
-      return {
-        already_published: true,
-        notified_parents_count: 0,
-        published_at: new Date().toISOString(),
-      };
-    }
     this.publishedColumns.add(colKey);
     this.publishedColumns.add(simpleKey);
 

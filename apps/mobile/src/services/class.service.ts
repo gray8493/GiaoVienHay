@@ -272,6 +272,10 @@ export const classService = {
           ? resJson
           : Array.isArray(resJson?.data)
           ? resJson.data
+          : Array.isArray(resJson?.data?.classes)
+          ? resJson.data.classes
+          : Array.isArray(resJson?.classes)
+          ? resJson.classes
           : [];
 
         // Lọc bỏ lớp mẫu fallback 'cls_1a_2026' do backend tự sinh khi tài khoản mới chưa có lớp trong DB

@@ -47,10 +47,7 @@ export class ClassesController {
   @ApiOperation({ summary: 'Lấy danh sách các lớp học giáo viên đang phụ trách' })
   async getClasses(@CurrentUser('sub') teacherId: string) {
     const res = await this.classesService.getMyClasses(teacherId);
-    if ((Array.isArray(res) && res.length === 0) || (res && res.total === 0)) {
-      return { total: 0, classes: [] };
-    }
-    return res;
+    return this.normalizeClassesResult(res);
   }
 
   @Get('my-classes')
@@ -58,10 +55,21 @@ export class ClassesController {
   @ApiOperation({ summary: 'Lấy danh sách các lớp học giáo viên đang phụ trách' })
   async getMyClasses(@CurrentUser('sub') teacherId: string) {
     const res = await this.classesService.getMyClasses(teacherId);
-    if ((Array.isArray(res) && res.length === 0) || (res && res.total === 0)) {
-      return { total: 0, classes: [] };
-    }
-    return res;
+    return this.normalizeClassesResult(res);
+  }
+
+  private normalizeClassesResult(res: any) {
+    const classes = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.classes)
+        ? res.classes
+        : [];
+    const total =
+      res && typeof res.total === 'number' ? res.total : classes.length;
+    return {
+      message: 'Lấy danh sách lớp học thành công',
+      data: { total, classes },
+    };
   }
 
   @Get(':id')
