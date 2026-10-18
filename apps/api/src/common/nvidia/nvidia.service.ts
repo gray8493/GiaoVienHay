@@ -18,6 +18,9 @@ export class NvidiaService {
   private readonly baseUrl: string;
   private readonly model: string;
   private readonly timeoutMs: number;
+  private readonly rpm: number;
+  private requestTimes: number[] = [];
+  private slotLock: Promise<void> = Promise.resolve();
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('NVIDIA_API_KEY');
@@ -26,11 +29,44 @@ export class NvidiaService {
     ).replace(/\/+$/, '');
     this.model = this.configService.get<string>('NVIDIA_MODEL') || 'openai/gpt-oss-20b';
     this.timeoutMs = Number(this.configService.get<string>('NVIDIA_TIMEOUT_MS')) || 120000;
+    this.rpm = Number(this.configService.get<string>('NVIDIA_RPM')) || 40;
 
     if (this.apiKey) {
-      this.logger.log(`NVIDIA AI Service initialized successfully. Model: ${this.model}`);
+      this.logger.log(
+        `NVIDIA AI Service initialized. Model: ${this.model} · Shared-key limit: ${this.rpm} req/phút`,
+      );
     } else {
       this.logger.warn('NVIDIA_API_KEY not configured. Falling back to intelligent mock generator.');
+    }
+  }
+
+  /**
+   * Toàn bộ giáo viên dùng chung một API key, nên phải tự giới hạn tần suất
+   * để không vượt ngưỡng RPM của NVIDIA (mặc định 40 req/phút). Caller nào
+   * vượt ngưỡng sẽ chờ tới khi có "slot" trống rồi mới gửi request.
+   */
+  private async acquireSlot(): Promise<void> {
+    const previous = this.slotLock;
+    let release!: () => void;
+    this.slotLock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      const windowMs = 60_000;
+      let now = Date.now();
+      this.requestTimes = this.requestTimes.filter((t) => now - t < windowMs);
+      while (this.requestTimes.length >= this.rpm) {
+        const waitMs = windowMs - (now - this.requestTimes[0]) + 50;
+        if (waitMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+        }
+        now = Date.now();
+        this.requestTimes = this.requestTimes.filter((t) => now - t < windowMs);
+      }
+      this.requestTimes.push(Date.now());
+    } finally {
+      release();
     }
   }
 
@@ -76,6 +112,7 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
+      await this.acquireSlot();
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {

@@ -1864,15 +1864,52 @@ export class SupabaseService implements OnModuleInit {
     return this.mapNotification(item);
   }
 
-  async checkDailyAiQuota(teacherId: string): Promise<boolean> {
-    if (teacherId === 'usr_daily_quota_exceeded') return false;
+  private async resolveEffectiveAiQuota(teacherId: string): Promise<number> {
+    const user = this.memoryStore.users.get(teacherId);
+    const raw = user?.ai_daily_quota ?? user?.aiDailyQuota;
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+      return raw;
+    }
+    const limits = await this.getSystemLimits();
+    return limits.geminiQuotaPerTeacher ?? 25;
+  }
+
+  private countAiUsageToday(teacherId: string): number {
     const today = new Date().toISOString().slice(0, 10);
-    const quizzes = Array.from(this.memoryStore.quizzes.values()).filter(
+    return Array.from(this.memoryStore.quizzes.values()).filter(
       (q: any) =>
         (q.teacher_id === teacherId || q.teacherId === teacherId) &&
         (q.created_at || '').startsWith(today),
-    );
-    return quizzes.length < 20;
+    ).length;
+  }
+
+  async checkDailyAiQuota(teacherId: string): Promise<boolean> {
+    if (teacherId === 'usr_daily_quota_exceeded') return false;
+    const quota = await this.resolveEffectiveAiQuota(teacherId);
+    if (quota <= 0) return false;
+    return this.countAiUsageToday(teacherId) < quota;
+  }
+
+  /**
+   * Đồng bộ số lượt AI đã dùng trong ngày của giáo viên về `ai_used_today`
+   * để admin theo dõi đúng thực tế (reset tự nhiên theo ngày).
+   */
+  async syncAiUsageToday(teacherId: string): Promise<number> {
+    const used = this.countAiUsageToday(teacherId);
+    const existing = this.memoryStore.users.get(teacherId);
+    if (existing) {
+      existing.ai_used_today = used;
+      existing.aiUsedToday = used;
+      this.memoryStore.users.set(teacherId, existing);
+    }
+    if (this.supabase) {
+      try {
+        await this.supabase.from('users').update({ ai_used_today: used }).eq('id', teacherId);
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] syncAiUsageToday error: ${err?.message}`);
+      }
+    }
+    return used;
   }
 }
 

@@ -460,14 +460,15 @@ export class AdminService {
     let totalTeachers = 0;
     let totalParents = 0;
     let activeUsers = 0;
+    let usersList: any[] = [];
 
     try {
-      const users = await this.dataConnect.listUsers();
-      totalUsers = users.length;
-      users.forEach((u) => {
+      usersList = await this.dataConnect.listUsers();
+      totalUsers = usersList.length;
+      usersList.forEach((u) => {
         if (u.is_active !== false && u.isActive !== false) activeUsers++;
         const role = u.role || '';
-        if (role.includes('TEACHER') || role === 'ADMIN') totalTeachers++;
+        if (role.includes('TEACHER')) totalTeachers++;
         if (role === 'PARENT') totalParents++;
       });
     } catch (e) {}
@@ -479,8 +480,16 @@ export class AdminService {
     const totalStudents = monitoringClasses.reduce((sum, c) => sum + (c.student_count || 0), 0);
 
     const limits = await this.getSystemLimits();
-    const activityLogs = await this.getActivityLogs({ limit: 100 });
-    const aiCallsCount = activityLogs.filter((a) => a.category === 'AI_QUIZ').length;
+    const perTeacherDefault = limits.gemini_ai_daily_quota_per_teacher;
+    const teacherAccounts = usersList.filter((u) => (u.role || '').includes('TEACHER'));
+    const aiQuotaTotal = teacherAccounts.reduce((sum, u) => {
+      const quota = u.ai_daily_quota ?? u.aiDailyQuota;
+      return sum + (typeof quota === 'number' && Number.isFinite(quota) ? quota : perTeacherDefault);
+    }, 0);
+    const aiUsedTotal = teacherAccounts.reduce(
+      (sum, u) => sum + (u.ai_used_today ?? u.aiUsedToday ?? 0),
+      0,
+    );
 
     return {
       kpi: {
@@ -500,12 +509,12 @@ export class AdminService {
           comparison_period: totalSchools > 0 ? `Thuộc ${totalSchools} trường liên kết` : 'Chưa có trường liên kết',
         },
         gemini_ai_calls: {
-          value: aiCallsCount,
-          daily_quota: totalTeachers > 0 ? totalTeachers * limits.gemini_ai_daily_quota_per_teacher : 5000,
-          used_percent: totalTeachers > 0 ? Math.round((aiCallsCount / (totalTeachers * limits.gemini_ai_daily_quota_per_teacher)) * 100) : 0,
+          value: aiUsedTotal,
+          daily_quota: aiQuotaTotal > 0 ? aiQuotaTotal : perTeacherDefault,
+          used_percent: aiQuotaTotal > 0 ? Math.round((aiUsedTotal / aiQuotaTotal) * 100) : 0,
           growth_rate: '0%',
           model: limits.ai_model,
-          comparison_period: 'Giáo án & trích xuất đề thi',
+          comparison_period: `${teacherAccounts.length} giáo viên · hạn mức/ngày`,
         },
         tuition_revenue: {
           collected_vnd: 0,
