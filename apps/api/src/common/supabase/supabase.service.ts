@@ -1379,6 +1379,7 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async createQuiz(quiz: any) {
+    const createdAt = quiz.created_at || quiz.createdAt || new Date().toISOString();
     const record = {
       id: quiz.id,
       teacher_id: quiz.teacher_id || quiz.teacherId,
@@ -1392,6 +1393,8 @@ export class SupabaseService implements OnModuleInit {
           ? quiz.questionsJson
           : JSON.stringify(quiz.questions || []),
       is_deleted: false,
+      created_at: createdAt,
+      createdAt,
     };
 
     if (this.supabase) {
