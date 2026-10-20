@@ -676,7 +676,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
             <View style={styles.linkInputBox}>
               <TextInput
                 style={styles.linkTextInput}
-                placeholder="Ví dụ: HS240105 hoặc INV-6A1-9821"
+                placeholder="Nhập mã học sinh hoặc mã mời"
                 placeholderTextColor="#A09DAE"
                 value={studentCodeInput}
                 onChangeText={setStudentCodeInput}

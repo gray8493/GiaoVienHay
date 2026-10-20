@@ -13,6 +13,27 @@ import { NotificationType } from '@giaovienhay/shared-types';
 
 const ALLOWED_EXAM_TYPES = ['ORAL_TEST', 'QUIZ', 'TEST_15P', 'TEST_1P', 'MID_TERM', 'FINAL'];
 
+const SUBJECT_LABELS: Record<string, string> = {
+  MATH: 'Toán',
+  LIT: 'Ngữ văn',
+  LITERATURE: 'Ngữ văn',
+  ENG: 'Tiếng Anh',
+  ENGLISH: 'Tiếng Anh',
+  CS: 'Tin học',
+  INFORMATICS: 'Tin học',
+  SCIENCE: 'Khoa học',
+  ETHICS: 'Đạo đức',
+};
+
+const EXAM_TYPE_LABELS: Record<string, string> = {
+  ORAL_TEST: 'Kiểm tra miệng',
+  QUIZ: 'Kiểm tra',
+  TEST_15P: 'Kiểm tra 15 phút',
+  TEST_1P: 'Kiểm tra 1 tiết',
+  MID_TERM: 'Thi Giữa kỳ',
+  FINAL: 'Thi Cuối kỳ',
+};
+
 @Injectable()
 export class ExamRemindersService {
   private readonly logger = new Logger(ExamRemindersService.name);
@@ -209,7 +230,7 @@ export class ExamRemindersService {
       exam_type: dto.exam_type,
       exam_date: dto.exam_date,
       examDate: dto.exam_date,
-      title: `Nhắc lịch kiểm tra môn ${dto.subject_code}`,
+      title: `${EXAM_TYPE_LABELS[dto.exam_type] || dto.exam_type} - Môn ${SUBJECT_LABELS[dto.subject_code] || dto.subject_code}`,
       note: dto.message,
       message: dto.message,
       created_by: teacherId,
@@ -406,7 +427,7 @@ export class ExamRemindersService {
     const notifData = {
       id: notifId,
       recipientId: 'class_' + classId,
-      title: `Nhắc lịch kiểm tra môn ${subjectCode}`,
+      title: `Nhắc lịch kiểm tra môn ${SUBJECT_LABELS[subjectCode] || subjectCode}`,
       body: msg,
       type: NotificationType.EXAM_REMINDER,
     };

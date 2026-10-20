@@ -45,33 +45,14 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
   onGoHome,
   onEditAttendance,
 }) => {
-  const total = savedData?.totalCount ?? propTotal ?? 38;
-  const present = savedData?.presentCount ?? propPresent ?? 36;
-  const absent = savedData?.absentCount ?? propAbsent ?? 2;
-  const currentClassName = savedData?.className ?? propClass ?? 'Lớp 6A1';
-  const lesson = savedData?.lessonName ?? propLesson ?? 'Tiết 2';
-  const time = savedData?.lessonTime ?? propTime ?? '08:15';
+  const total = savedData?.totalCount ?? propTotal ?? 0;
+  const present = savedData?.presentCount ?? propPresent ?? 0;
+  const absent = savedData?.absentCount ?? propAbsent ?? 0;
+  const currentClassName = savedData?.className ?? propClass ?? 'Lớp học';
+  const lesson = savedData?.lessonName ?? propLesson ?? 'Điểm danh đầu ngày';
+  const time = savedData?.lessonTime ?? propTime ?? '--:--';
 
-  const defaultAbsentStudents = [
-    {
-      id: 2,
-      name: 'Trần Bảo Nam',
-      code: 'HS240102',
-      initials: 'BN',
-      excused: true,
-      reason: 'Bị sốt, mẹ xin phép',
-    },
-    {
-      id: 4,
-      name: 'Phạm Hoàng Nam',
-      code: 'HS240104',
-      initials: 'HN',
-      excused: false,
-      reason: 'Chưa có phép',
-    },
-  ];
-
-  const absentStudents = savedData?.absentStudents ?? defaultAbsentStudents;
+  const absentStudents = savedData?.absentStudents ?? [];
 
   return (
     <View style={styles.container}>

@@ -25,8 +25,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   onNavigateToSignup,
 }) => {
-  const [phone, setPhone] = useState('0912345678');
-  const [password, setPassword] = useState('MatKhau123@');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');

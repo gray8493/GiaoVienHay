@@ -1,10 +1,5 @@
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
 
 export interface ChildItem {
   id: string;
@@ -68,48 +63,7 @@ export const parentService = {
       return savedChildren;
     }
 
-    // 2. Nếu là tài khoản phụ huynh demo seed trong DB (0977112233)
-    if (user?.phone === '0977112233') {
-      try {
-        const authHeader = await authService.getAuthHeaderAsync();
-        const res = await fetch(`${API_BASE_URL}/students/std_01`, {
-          headers: { 'Content-Type': 'application/json', ...authHeader },
-        }).catch(() => null);
-
-        if (res && res.ok) {
-          const resJson = await res.json();
-          const student = resJson.data || resJson;
-          if (student && student.id) {
-            const initials = (student.full_name || 'BN')
-              .split(' ')
-              .filter(Boolean)
-              .map((w: string) => w[0])
-              .slice(-2)
-              .join('')
-              .toUpperCase();
-
-            const classNameStr = student.class_name
-              ? (student.class_name.startsWith('Lớp') ? student.class_name : `Lớp ${student.class_name}`)
-              : 'Lớp 1A';
-
-            const child: ChildItem = {
-              id: student.id,
-              student_code: student.student_code || student.code || 'HS-1A-01',
-              full_name: student.full_name,
-              avatar_letters: initials || 'BN',
-              class_name: classNameStr,
-              school_name: student.school_name || 'Trường Tiểu Học Chu Văn An',
-              attendance_status: 'Có mặt',
-              attendance_note: 'Đúng giờ',
-            };
-
-            return [child];
-          }
-        }
-      } catch (e) {}
-    }
-
-    // Với tài khoản phụ huynh mới chưa liên kết: trả về mảng rỗng để hiển thị PAR-01.empty
+    // Với tài khoản phụ huynh chưa liên kết con: hiển thị PAR-01.empty
     return [];
   },
 
@@ -462,7 +416,7 @@ export const parentService = {
     return { exams: [], remarks: [] };
   },
 
-  async getAttendanceDetails(studentId: string, month: string = '2026-10') {
+  async getAttendanceDetails(studentId: string, month?: string) {
     if (!studentId) {
       return {
         summary: null,
@@ -470,9 +424,14 @@ export const parentService = {
       };
     }
 
+    const monthParam = month || (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    })();
+
     try {
       const authHeader = await authService.getAuthHeaderAsync();
-      const res = await fetch(`${API_BASE_URL}/students/${studentId}/attendance?month=${month}`, {
+      const res = await fetch(`${API_BASE_URL}/students/${studentId}/attendance?month=${monthParam}`, {
         headers: { 'Content-Type': 'application/json', ...authHeader },
       }).catch(() => null);
 
@@ -500,7 +459,7 @@ export const parentService = {
             present_count: presentCount,
             absent_count: absentCount,
             rate_week: `${rate}%`,
-            note: absentCount === 0 ? 'Chuyên cần đầy đủ' : 'Có phép nghỉ ốm',
+            note: absentCount === 0 ? 'Chuyên cần đầy đủ' : 'Có phép nghỉ học',
           },
           logs,
         };
@@ -540,7 +499,7 @@ export const parentService = {
           student_id: studentId,
           completed_ratio: `${paidCount}/2`,
           remaining_count: remCount === 0 ? 'Đã hoàn tất' : `Còn ${remCount} khoản`,
-          term_label: data.term_name || 'Học kỳ 1 • 2026–2027',
+          term_label: data.term_name || 'Học kỳ 1',
           insurance: {
             type: 'BHYT',
             status: insPaid ? 'PAID' : 'UNPAID',

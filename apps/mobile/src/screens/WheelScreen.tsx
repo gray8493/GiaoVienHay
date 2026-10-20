@@ -28,7 +28,7 @@ import Svg, {
   G,
   ClipPath,
 } from 'react-native-svg';
-import { quizService } from '../services/quiz.service';
+import { quizService, ORAL_SCORE_QUIZ_ID } from '../services/quiz.service';
 import { attendanceService } from '../services/attendance.service';
 
 interface WheelScreenProps {
@@ -48,21 +48,6 @@ interface StudentCandidate {
   order: number;
 }
 
-const CANDIDATES: StudentCandidate[] = [
-  { id: 'stu_18', code: 'HS240105', name: 'Khánh Linh', fullName: 'Võ Khánh Linh', gender: 'Nữ', order: 18 },
-  { id: 'stu_02', code: 'HS240102', name: 'Quốc Huy', fullName: 'Đặng Quốc Huy', gender: 'Nam', order: 2 },
-  { id: 'stu_01', code: 'HS240101', name: 'Bảo Ngọc', fullName: 'Nguyễn Bảo Ngọc', gender: 'Nữ', order: 1 },
-  { id: 'stu_04', code: 'HS240104', name: 'Thu Hà', fullName: 'Trần Thu Hà', gender: 'Nữ', order: 4 },
-  { id: 'stu_05', code: 'HS240105', name: 'Đức Anh', fullName: 'Lê Đức Anh', gender: 'Nam', order: 5 },
-  { id: 'stu_06', code: 'HS240106', name: 'Gia Hân', fullName: 'Phạm Gia Hân', gender: 'Nữ', order: 6 },
-  { id: 'stu_07', code: 'HS240107', name: 'Tuấn Kiệt', fullName: 'Hoàng Tuấn Kiệt', gender: 'Nam', order: 7 },
-  { id: 'stu_08', code: 'HS240108', name: 'Mai Chi', fullName: 'Vũ Mai Chi', gender: 'Nữ', order: 8 },
-  { id: 'stu_09', code: 'HS240109', name: 'Hải Đăng', fullName: 'Bùi Hải Đăng', gender: 'Nam', order: 9 },
-  { id: 'stu_10', code: 'HS240110', name: 'Phương Vy', fullName: 'Ngô Phương Vy', gender: 'Nữ', order: 10 },
-  { id: 'stu_11', code: 'HS240111', name: 'Minh Anh', fullName: 'Đỗ Minh Anh', gender: 'Nữ', order: 11 },
-  { id: 'stu_12', code: 'HS240112', name: 'Cẩm Tú', fullName: 'Lý Cẩm Tú', gender: 'Nữ', order: 12 },
-];
-
 export const WheelScreen: React.FC<WheelScreenProps> = ({
   currentClassId = '',
   className = 'Lớp học',
@@ -70,10 +55,10 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   onBack,
   onGoHome,
 }) => {
-  const [students, setStudents] = useState<StudentCandidate[]>(CANDIDATES);
-  const [selectedStudent, setSelectedStudent] = useState<StudentCandidate>(CANDIDATES[0]);
+  const [students, setStudents] = useState<StudentCandidate[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<StudentCandidate | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [presentCount, setPresentCount] = useState<number>(36);
+  const [presentCount, setPresentCount] = useState<number>(0);
 
   useEffect(() => {
     loadPresentStudents();
@@ -82,32 +67,32 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   const loadPresentStudents = async () => {
     try {
       const res = await attendanceService.getTodayPresentStudents(currentClassId);
-      if (res && res.present_students && res.present_students.length > 0) {
-        const formatted: StudentCandidate[] = res.present_students.map((s, idx) => {
-          const parts = s.full_name.trim().split(' ');
-          const shortName = parts[parts.length - 1] || s.full_name;
-          return {
-            id: s.id,
-            code: s.student_code || `HS${idx + 1}`,
-            name: shortName,
-            fullName: s.full_name,
-            gender: 'N/A',
-            order: idx + 1,
-          };
-        });
-        setStudents(formatted);
-        setSelectedStudent(formatted[0]);
-        setPresentCount(res.total_present || formatted.length);
-      }
+      const formatted: StudentCandidate[] = (res?.present_students || []).map((s, idx) => {
+        const parts = s.full_name.trim().split(' ');
+        const shortName = parts[parts.length - 1] || s.full_name;
+        return {
+          id: s.id,
+          code: s.student_code || `HS${idx + 1}`,
+          name: shortName,
+          fullName: s.full_name,
+          gender: 'N/A',
+          order: idx + 1,
+        };
+      });
+      setStudents(formatted);
+      setSelectedStudent(formatted[0] ?? null);
+      setPresentCount(res?.total_present ?? formatted.length);
     } catch (e) {
-      // Giữ mock CANDIDATES khi offline
+      setStudents([]);
+      setSelectedStudent(null);
+      setPresentCount(0);
     }
   };
 
   // Modal chấm điểm miệng
   const [scoreModalVisible, setScoreModalVisible] = useState(false);
-  const [inputScore, setInputScore] = useState('8.5');
-  const [teacherComment, setTeacherComment] = useState('Thuộc bài tốt, vẽ hình chính xác và rõ ràng.');
+  const [inputScore, setInputScore] = useState('');
+  const [teacherComment, setTeacherComment] = useState('');
 
   // Màn hình thành công (Đã lưu điểm miệng)
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
@@ -117,6 +102,13 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
   const handleSpin = () => {
     if (isSpinning) return;
+    if (students.length === 0) {
+      Alert.alert(
+        'Chưa có học sinh có mặt',
+        'Hôm nay lớp chưa được điểm danh hoặc danh sách có mặt đang trống. Vui lòng điểm danh trước khi dò bài.'
+      );
+      return;
+    }
     setIsSpinning(true);
 
     const randomExtra = Math.floor(Math.random() * students.length);
@@ -138,16 +130,25 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   };
 
   const handleSkip = () => {
-    const currentIndex = students.findIndex((s) => s.id === selectedStudent.id);
+    if (students.length === 0) return;
+    const currentIndex = selectedStudent
+      ? students.findIndex((s) => s.id === selectedStudent.id)
+      : -1;
     const nextIndex = (currentIndex + 1) % students.length;
     setSelectedStudent(students[nextIndex]);
   };
 
   const handleSaveScore = async () => {
+    if (!selectedStudent) return;
+    const score = parseFloat(inputScore);
+    if (isNaN(score) || score < 0 || score > 10) {
+      Alert.alert('Thông báo', 'Vui lòng nhập điểm hợp lệ trong khoảng 0 đến 10');
+      return;
+    }
     try {
-      await quizService.recordInClassScore('qz_88219', {
+      await quizService.recordInClassScore(ORAL_SCORE_QUIZ_ID, {
         student_id: selectedStudent.id,
-        score: parseFloat(inputScore) || 8.5,
+        score,
         teacher_note: teacherComment,
         mode_played: 'GOLDEN_BELL',
         sync_to_scores_table: true,
@@ -233,22 +234,34 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
             {/* Title */}
             <Text style={styles.successTitle}>Đã lưu điểm miệng!</Text>
-            <Text style={styles.successSubtitle}>Toán Hình • Lớp 6A1 • Tiết 2</Text>
+            <Text style={styles.successSubtitle}>
+              {subjectName ? `${subjectName} • ` : ''}
+              {className}
+            </Text>
 
             {/* White Summary Card */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryTopRow}>
                 <View style={styles.summaryStudentInfo}>
                   <View style={styles.studentAvatarCircle}>
-                    <Text style={styles.studentAvatarText}>KL</Text>
+                    <Text style={styles.studentAvatarText}>
+                      {selectedStudent
+                        ? selectedStudent.name
+                            .split(' ')
+                            .map((w) => w.charAt(0))
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase()
+                        : '--'}
+                    </Text>
                   </View>
                   <View>
-                    <Text style={styles.summaryStudentName}>{selectedStudent.fullName}</Text>
+                    <Text style={styles.summaryStudentName}>{selectedStudent?.fullName || '--'}</Text>
                     <View style={styles.summaryMetaRow}>
                       <View style={styles.summaryCodeBadge}>
-                        <Text style={styles.summaryCodeBadgeText}>{selectedStudent.code}</Text>
+                        <Text style={styles.summaryCodeBadgeText}>{selectedStudent?.code || '--'}</Text>
                       </View>
-                      <Text style={styles.summaryOrderText}>STT: {selectedStudent.order}</Text>
+                      <Text style={styles.summaryOrderText}>STT: {selectedStudent?.order ?? '--'}</Text>
                     </View>
                   </View>
                 </View>
@@ -336,7 +349,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
             <View style={styles.headerTitleWrap}>
               <Text style={styles.screenTitle}>Dò Bài Cũ</Text>
-              <Text style={styles.screenSubtitle}>{`${subjectName} • ${className}`}</Text>
+              <Text style={styles.screenSubtitle}>
+                {[subjectName, className].filter(Boolean).join(' • ')}
+              </Text>
               <View style={styles.attendancePill}>
                 <View style={styles.onlineDot} />
                 <Text style={styles.attendancePillText}>{`${presentCount} em có mặt`}</Text>
@@ -437,7 +452,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
                 <Path d="M12 2L14.7 8.3L21.5 9.1L16.4 13.7L17.8 20.4L12 17L6.2 20.4L7.6 13.7L2.5 9.1L9.3 8.3L12 2Z" />
               </Svg>
               <Text style={styles.resultChipText}>
-                Đang gọi: <Text style={styles.resultChipBoldName}>{selectedStudent.name}</Text>
+                Đang gọi: <Text style={styles.resultChipBoldName}>{selectedStudent?.name || '--'}</Text>
               </Text>
             </View>
 
@@ -463,7 +478,16 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
           <TouchableOpacity
             style={styles.openScoreModalBtn}
-            onPress={() => setScoreModalVisible(true)}
+            onPress={() => {
+              if (!selectedStudent) {
+                Alert.alert(
+                  'Chưa chọn được học sinh',
+                  'Danh sách học sinh có mặt đang trống. Vui lòng điểm danh trước khi dò bài.'
+                );
+                return;
+              }
+              setScoreModalVisible(true);
+            }}
             activeOpacity={0.9}
           >
             <Text style={styles.openScoreModalBtnText}>Chấm Điểm Miệng</Text>
@@ -488,15 +512,26 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
               <View style={styles.modalStudentRow}>
                 <View style={styles.modalStudentLeft}>
                   <View style={styles.modalAvatarCircle}>
-                    <Text style={styles.modalAvatarText}>KL</Text>
+                    <Text style={styles.modalAvatarText}>
+                      {selectedStudent
+                        ? selectedStudent.name
+                            .split(' ')
+                            .map((w) => w.charAt(0))
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase()
+                        : '--'}
+                    </Text>
                   </View>
                   <View>
-                    <Text style={styles.modalStudentName}>{selectedStudent.fullName}</Text>
-                    <Text style={styles.modalStudentMeta}>STT: {selectedStudent.order} • {selectedStudent.gender}</Text>
+                    <Text style={styles.modalStudentName}>{selectedStudent?.fullName || '--'}</Text>
+                    <Text style={styles.modalStudentMeta}>
+                      STT: {selectedStudent?.order ?? '--'} • {selectedStudent?.gender || '--'}
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.modalCodeBadge}>
-                  <Text style={styles.modalCodeBadgeText}>{selectedStudent.code}</Text>
+                  <Text style={styles.modalCodeBadgeText}>{selectedStudent?.code || '--'}</Text>
                 </View>
               </View>
 
@@ -537,7 +572,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
                 />
               </View>
 
-              <Text style={styles.modalSyncNote}>Ghi vào cột điểm miệng • Toán Hình</Text>
+              <Text style={styles.modalSyncNote}>
+                Ghi vào cột điểm miệng{subjectName ? ` • ${subjectName}` : ''}
+              </Text>
 
               <TouchableOpacity
                 style={styles.saveScoreBtn}

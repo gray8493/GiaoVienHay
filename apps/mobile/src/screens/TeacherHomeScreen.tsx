@@ -28,25 +28,47 @@ import { attendanceService } from '../services/attendance.service';
 import { feesService, ClassFeesSummary } from '../services/fees.service';
 import { remarksService, ExamReminderItem, StudentRemarkItem } from '../services/remarks.service';
 import { authService } from '../services/auth.service';
+import { getCurrentAcademicYear } from '../utils/academic';
 
 export interface ClassOption {
   id: string;
   name: string;
   studentsCount: number;
-  room: string;
+  schoolName: string;
   roleType: 'HOMEROOM' | 'SUBJECT';
   subjectBadge: string;
-  nextLessonTitle: string;
-  nextLessonTime: string;
-  ctaText: string;
 }
 
-export const TEACHER_CLASSES: ClassOption[] = [];
+const formatExamDate = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+const daysUntilExam = (dateStr?: string): number | null => {
+  if (!dateStr) return null;
+  const target = new Date(`${dateStr.split('T')[0]}T00:00:00`);
+  if (isNaN(target.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+};
+
+const examCountdownLabel = (dateStr?: string) => {
+  const diff = daysUntilExam(dateStr);
+  if (diff === null) return 'Sắp tới';
+  if (diff === 0) return 'Hôm nay';
+  if (diff === 1) return 'Ngày mai';
+  if (diff > 1) return `Còn ${diff} ngày`;
+  return 'Đã qua';
+};
 
 interface TeacherHomeScreenProps {
   currentClassId?: string;
+  currentClassName?: string;
   hasNoClass?: boolean;
-  onSelectClass?: (classId: string, className?: string) => void;
+  onSelectClass?: (classId: string, className?: string, subjectName?: string) => void;
   onEnterClassroom?: () => void;
   onOpenAIQuiz?: () => void;
   onOpenWheel?: () => void;
@@ -59,6 +81,7 @@ interface TeacherHomeScreenProps {
 
 export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   currentClassId = '',
+  currentClassName = '',
   hasNoClass = false,
   onSelectClass,
   onEnterClassroom,
@@ -77,7 +100,10 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   // Dynamic Dashboard States from Backend
   const [teacherName, setTeacherName] = useState<string>(() => authService.getUser()?.full_name || 'Thầy/Cô');
   const [classesList, setClassesList] = useState<ClassOption[]>([]);
+  // Đánh dấu đã tải xong danh sách lớp để phân biệt "đang tải" với "chưa có lớp"
+  const [isClassesLoaded, setIsClassesLoaded] = useState(false);
   const [attendanceStats, setAttendanceStats] = useState<{ presentCount: number; totalCount: number }>({ presentCount: 0, totalCount: 0 });
+  const [isAttendedToday, setIsAttendedToday] = useState<boolean>(false);
   const [feesSummary, setFeesSummary] = useState<ClassFeesSummary | null>(null);
   const [examReminders, setExamReminders] = useState<ExamReminderItem[]>([]);
   const [remarksList, setRemarksList] = useState<StudentRemarkItem[]>([]);
@@ -87,26 +113,38 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   const [joinClassModalVisible, setJoinClassModalVisible] = useState(false);
   const [newClassName, setNewClassName] = useState('');
   const [newClassGrade, setNewClassGrade] = useState('6');
-  const [newClassYear, setNewClassYear] = useState('2026-2027');
+  const [newClassYear, setNewClassYear] = useState(getCurrentAcademicYear());
   const [joinInviteCode, setJoinInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedClassId = internalClassId || currentClassId;
-  const isNoClassState = hasNoClass || selectedClassId === 'cls_empty' || (!selectedClassId && classesList.length === 0) || classesList.length === 0;
+  // Chỉ coi là "chưa có lớp" khi đã tải xong danh sách và xác nhận rỗng
+  // (tránh nháy trang rỗng mỗi lần mount trong khi API chưa trả kết quả)
+  const isNoClassState = hasNoClass || (isClassesLoaded && classesList.length === 0 && (!selectedClassId || selectedClassId === 'cls_empty'));
   const currentClass =
     classesList.find((c) => c.id === selectedClassId) ||
     classesList[0] || {
-      id: 'cls_empty',
-      name: 'Chưa có lớp',
+      id: selectedClassId || 'cls_empty',
+      name: currentClassName || 'Chưa có lớp',
       studentsCount: 0,
-      room: '',
+      schoolName: '',
       roleType: 'HOMEROOM' as const,
       subjectBadge: '',
-      nextLessonTitle: '',
-      nextLessonTime: '',
-      ctaText: 'Tạo Lớp',
     };
   const isHomeroom = currentClass.roleType === 'HOMEROOM';
+  const totalStudents = currentClass.studentsCount;
+  const presentCount = Math.min(
+    attendanceStats.presentCount,
+    totalStudents > 0 ? totalStudents : attendanceStats.presentCount
+  );
+  const absentCount = Math.max(totalStudents - presentCount, 0);
+  const heroCtaLabel = isHomeroom
+    ? isAttendedToday
+      ? 'Vào Lớp'
+      : 'Điểm danh ngay'
+    : isAttendedToday
+    ? 'Dò bài cũ'
+    : 'Vào Lớp';
 
   useEffect(() => {
     if (currentClassId && currentClassId !== 'cls_empty') {
@@ -122,7 +160,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
     if (selectedClassId && selectedClassId !== 'cls_empty') {
       loadClassDashboard(selectedClassId);
     }
-  }, [selectedClassId]);
+  }, [selectedClassId, classesList.length]);
 
   const loadClasses = async () => {
     try {
@@ -134,21 +172,22 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       const cls = await classService.getMyClasses();
       if (Array.isArray(cls)) {
         if (cls.length > 0) {
-          const mapped: ClassOption[] = cls.map((c, idx) => ({
+          const mapped: ClassOption[] = cls.map((c) => ({
             id: c.id,
             name: c.name.startsWith('Lớp ') ? c.name : `Lớp ${c.name}`,
             studentsCount: typeof c.student_count === 'number' ? c.student_count : 0,
-            room: c.school_name ? c.school_name : (c.grade_level ? `Khối ${c.grade_level}` : ''),
-            roleType: c.role_type || (idx === 0 ? 'HOMEROOM' : 'SUBJECT'),
-            subjectBadge: c.subject_name || (c.role_type === 'HOMEROOM' ? 'Chủ nhiệm' : 'Bộ môn'),
-            nextLessonTitle: `${c.name} - Tiết ${idx + 1}`,
-            nextLessonTime: '08:00 – 08:45',
-            ctaText: c.role_type === 'HOMEROOM' ? 'Vào Lớp' : 'Dò Bài',
+            schoolName: c.school_name || '',
+            roleType: c.role_type || 'SUBJECT',
+            subjectBadge: c.role_type === 'HOMEROOM' ? 'Chủ nhiệm' : c.subject_name || 'Bộ môn',
           }));
           setClassesList(mapped);
-          if (mapped[0] && (!currentClassId || currentClassId === 'cls_empty' || currentClassId === 'cls_6a1' || !mapped.some(m => m.id === currentClassId))) {
+          if (mapped[0] && (!currentClassId || currentClassId === 'cls_empty' || !mapped.some(m => m.id === currentClassId))) {
             setInternalClassId(mapped[0].id);
-            onSelectClass?.(mapped[0].id, mapped[0].name);
+            onSelectClass?.(
+              mapped[0].id,
+              mapped[0].name,
+              mapped[0].roleType === 'SUBJECT' ? mapped[0].subjectBadge : ''
+            );
           }
         } else {
           setClassesList([]);
@@ -157,19 +196,27 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       }
     } catch (e) {
       console.warn('Error fetching classes:', e);
+    } finally {
+      setIsClassesLoaded(true);
     }
   };
 
   const loadClassDashboard = async (clsId: string) => {
+    const clsInfo = classesList.find((c) => c.id === clsId);
+    const clsTotal = clsInfo?.studentsCount || 0;
+
+    setAttendanceStats({ presentCount: 0, totalCount: clsTotal });
+    setIsAttendedToday(false);
+    setFeesSummary(null);
+    setExamReminders([]);
+    setRemarksList([]);
+
     try {
       attendanceService.getTodayPresentStudents(clsId).then((res: any) => {
         if (res) {
-          const tot = currentClass.studentsCount || (res.present_students?.length) || 0;
           const pres = typeof res.total_present === 'number' ? res.total_present : (res.present_students?.length || 0);
-          setAttendanceStats({
-            presentCount: Math.min(pres, tot > 0 ? tot : pres),
-            totalCount: tot,
-          });
+          setAttendanceStats({ presentCount: pres, totalCount: clsTotal });
+          setIsAttendedToday(res.is_attended_today === true || pres > 0);
         }
       }).catch(() => null);
 
@@ -178,7 +225,15 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       }).catch(() => null);
 
       remarksService.getClassExamReminders(clsId).then((res: any) => {
-        if (res && res.length > 0) setExamReminders(res);
+        if (res && res.length > 0) {
+          const upcoming = (res as ExamReminderItem[])
+            .filter((r) => {
+              const diff = daysUntilExam(r.exam_date);
+              return diff === null || diff >= 0;
+            })
+            .sort((a, b) => (a.exam_date || '').localeCompare(b.exam_date || ''));
+          setExamReminders(upcoming);
+        }
       }).catch(() => null);
 
       remarksService.getClassRemarks(clsId).then((res: any) => {
@@ -200,17 +255,30 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
 
   const handleChooseClass = (classItem: ClassOption) => {
     setInternalClassId(classItem.id);
-    onSelectClass?.(classItem.id, classItem.name);
+    onSelectClass?.(
+      classItem.id,
+      classItem.name,
+      classItem.roleType === 'SUBJECT' ? classItem.subjectBadge : ''
+    );
     setIsClassSheetVisible(false);
   };
 
   const handleHeroCta = () => {
     if (isHomeroom) {
+      if (!isAttendedToday) {
+        // GVCN chưa điểm danh hôm nay → mở thẳng màn hình Điểm danh 1-chạm
+        if (onTabChange) onTabChange('attendance');
+        else onEnterClassroom?.();
+        return;
+      }
       onEnterClassroom?.();
-    } else {
-      // GVBM: Vào lớp & dò bài cũ trực tiếp bằng Vòng quay gọi tên
-      onOpenWheel?.();
+      return;
     }
+
+    // GVBM: đã có danh sách hiện diện → dò bài cũ bằng Vòng quay gọi tên;
+    // GVCN chưa điểm danh → vào lớp trước
+    if (isAttendedToday) onOpenWheel?.();
+    else onEnterClassroom?.();
   };
 
   const handleCreateClassSubmit = async () => {
@@ -429,7 +497,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                 />
                 <TextInput
                   style={styles.dialogInput}
-                  placeholder="Năm học (ví dụ: 2026-2027)"
+                  placeholder={`Năm học (ví dụ: ${getCurrentAcademicYear()})`}
                   placeholderTextColor="#9D9AA8"
                   value={newClassYear}
                   onChangeText={setNewClassYear}
@@ -462,7 +530,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
               <Text style={styles.dialogSheetSubtitle}>Nhập mã mời được cung cấp bởi Giáo viên chủ nhiệm</Text>
               <TextInput
                 style={[styles.dialogInput, { marginBottom: 16 }]}
-                placeholder="Mã mời (ví dụ: INV-6A1-9821 hoặc TCH-6A1-4417)"
+                placeholder="Mã mời (ví dụ: INV-XXXX-XXXX)"
                 placeholderTextColor="#9D9AA8"
                 autoCapitalize="characters"
                 value={joinInviteCode}
@@ -631,29 +699,69 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
             {/* Hero Content */}
             <View style={styles.heroContent}>
               <View style={styles.heroTagPill}>
-                <Text style={styles.heroTagText}>TIẾT DẠY TIẾP THEO</Text>
+                <Text style={styles.heroTagText}>
+                  {isHomeroom ? 'ĐIỂM DANH ĐẦU NGÀY' : 'TIẾT DẠY BỘ MÔN'}
+                </Text>
               </View>
 
               <Text style={styles.heroTitle} numberOfLines={2}>
-                {currentClass.nextLessonTitle}
+                {isHomeroom ? currentClass.name : `${currentClass.name} • ${currentClass.subjectBadge}`}
               </Text>
+
+              {/* Attendance Status Badge */}
+              <View style={styles.heroStatusRow}>
+                <View
+                  style={[
+                    styles.heroStatusPill,
+                    {
+                      backgroundColor: isAttendedToday ? 'rgba(16,185,129,0.18)' : 'rgba(251,191,36,0.18)',
+                      borderColor: isAttendedToday ? 'rgba(52,211,153,0.55)' : 'rgba(251,191,36,0.55)',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.heroStatusDot,
+                      { backgroundColor: isAttendedToday ? '#34D399' : '#FBBF24' },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.heroStatusText,
+                      { color: isAttendedToday ? '#6EE7B7' : '#FCD34D' },
+                    ]}
+                  >
+                    {isAttendedToday ? 'ĐÃ ĐIỂM DANH' : 'CHƯA ĐIỂM DANH'}
+                  </Text>
+                </View>
+              </View>
 
               <View style={styles.heroMetaRow}>
                 <View style={styles.heroMetaItem}>
                   <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={2}>
-                    <Circle cx={12} cy={12} r={10} />
-                    <Path d="M12 6v6l4 2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Circle cx={9} cy={7} r={4} strokeLinecap="round" strokeLinejoin="round" />
                   </Svg>
-                  <Text style={styles.heroMetaText}>{currentClass.nextLessonTime}</Text>
+                  <Text style={styles.heroMetaText}>
+                    {isHomeroom
+                      ? isAttendedToday
+                        ? `Có mặt ${presentCount}/${totalStudents} học sinh`
+                        : `Sĩ số: ${totalStudents} học sinh`
+                      : isAttendedToday
+                      ? `Hiện diện ${presentCount}/${totalStudents} em`
+                      : `Sĩ số: ${totalStudents} em`}
+                  </Text>
                 </View>
                 <Text style={styles.heroMetaSeparator}>•</Text>
-                <View style={styles.heroMetaItem}>
-                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={2}>
-                    <Path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeLinecap="round" strokeLinejoin="round" />
-                    <Path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                  <Text style={styles.heroMetaText}>{currentClass.room}</Text>
-                </View>
+                <Text style={styles.heroMetaText}>
+                  {isHomeroom
+                    ? isAttendedToday
+                      ? `Vắng ${absentCount} em`
+                      : 'Hôm nay chưa điểm danh'
+                    : isAttendedToday
+                    ? 'Sẵn sàng vào tiết'
+                    : 'Chờ GVCN điểm danh'}
+                </Text>
               </View>
 
               {/* Quick Action CTA Button */}
@@ -662,7 +770,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                 onPress={handleHeroCta}
                 activeOpacity={0.85}
               >
-                <Text style={styles.heroCtaBtnText}>{currentClass.ctaText}</Text>
+                <Text style={styles.heroCtaBtnText}>{heroCtaLabel}</Text>
                 <View style={styles.heroCtaArrowCircle}>
                   <Text style={styles.heroCtaArrowText}>→</Text>
                 </View>
@@ -694,14 +802,33 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
 
                     <View>
                       <Text style={styles.bentoPrimaryValue}>
-                        {attendanceStats.totalCount > 0 ? `${attendanceStats.presentCount}/${attendanceStats.totalCount}` : '0/0'}
+                        {isAttendedToday ? `${presentCount}/${totalStudents}` : `${totalStudents}`}
                       </Text>
                       <View style={styles.bentoTagWrapper}>
-                        <View style={[styles.statusBadge, { backgroundColor: '#ECFDF5', borderColor: '#D1FAE5' }]}>
-                          <View style={styles.pulsingGreenDot} />
-                          <Text style={[styles.statusBadgeText, { color: '#059669' }]}>
-                            {attendanceStats.totalCount > 0
-                              ? `Có mặt ${Math.round((attendanceStats.presentCount / attendanceStats.totalCount) * 100)}%`
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            isAttendedToday
+                              ? { backgroundColor: '#ECFDF5', borderColor: '#D1FAE5' }
+                              : { backgroundColor: '#FFF7ED', borderColor: '#FFEDD5' },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.pulsingGreenDot,
+                              { backgroundColor: isAttendedToday ? '#10B981' : '#F59E0B' },
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.statusBadgeText,
+                              { color: isAttendedToday ? '#059669' : '#B45309' },
+                            ]}
+                          >
+                            {isAttendedToday
+                              ? `Có mặt ${totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0}%`
+                              : totalStudents > 0
+                              ? 'Chưa điểm danh'
                               : 'Chưa có HS'}
                           </Text>
                         </View>
@@ -732,7 +859,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <Text style={styles.bentoSubtitleText} numberOfLines={1}>Soạn đề bài mới</Text>
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#EEF2FF', borderColor: '#E0E7FF' }]}>
-                          <Text style={[styles.statusBadgeText, { color: '#5E5CE6' }]}>Tạo nhanh ✨</Text>
+                          <Text style={[styles.statusBadgeText, { color: '#5E5CE6' }]}>Tạo nhanh</Text>
                         </View>
                       </View>
                     </View>
@@ -762,7 +889,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <Text style={styles.bentoSubtitleText} numberOfLines={1}>Vòng quay gọi tên</Text>
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
-                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>Ngẫu nhiên 🎲</Text>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>Ngẫu nhiên</Text>
                         </View>
                       </View>
                     </View>
@@ -828,7 +955,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
                           <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>
-                            {remarksList.length > 0 ? `${remarksList.length} lời nhắn 💬` : 'Chưa có lời nhắn 💬'}
+                            {remarksList.length > 0 ? `${remarksList.length} lời nhắn` : 'Chưa có lời nhắn'}
                           </Text>
                         </View>
                       </View>
@@ -861,13 +988,13 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                               ? (() => {
                                   try {
                                     const parts = examReminders[0].exam_date.split('-');
-                                    if (parts.length === 3) return `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)} 📅`;
+                                    if (parts.length === 3) return `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)}`;
                                   } catch (e) {}
-                                  return `${examReminders[0].exam_date} 📅`;
+                                  return `${examReminders[0].exam_date}`;
                                 })()
                               : examReminders.length > 0
-                              ? `${examReminders.length} sắp tới 📅`
-                              : 'Chưa có lịch 📅'}
+                              ? `${examReminders.length} sắp tới`
+                              : 'Chưa có lịch'}
                           </Text>
                         </View>
                       </View>
@@ -1007,87 +1134,65 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
             )}
           </View>
 
-          {/* ================= 4. DAILY TIMELINE SECTION ================= */}
+          {/* ================= 4. EXAM REMINDERS TIMELINE ================= */}
           <View style={styles.timelineSection}>
             <View style={styles.timelineHeader}>
-              <Text style={styles.timelineTitleText}>Lịch dạy còn lại hôm nay</Text>
+              <Text style={styles.timelineTitleText}>Lịch kiểm tra & nhắc hẹn</Text>
               <View style={styles.timelineCountBadge}>
-                <Text style={styles.timelineCountBadgeText}>
-                  {classesList.filter((c) => c.id !== selectedClassId).length > 0
-                    ? `${classesList.filter((c) => c.id !== selectedClassId).length} tiết`
-                    : '1 tiết'}
-                </Text>
+                <Text style={styles.timelineCountBadgeText}>{`${examReminders.length} mục`}</Text>
               </View>
             </View>
 
-            {/* Vertical Timeline Items matching Stitch AI */}
             <View style={styles.timelineList}>
               <View style={styles.timelineVerticalLine} />
 
-              {classesList.filter((c) => c.id !== selectedClassId).length > 0 ? (
-                classesList
-                  .filter((c) => c.id !== selectedClassId)
-                  .map((clsItem, idx) => (
-                    <TouchableOpacity
-                      key={clsItem.id}
-                      style={styles.timelineItem}
-                      activeOpacity={0.88}
-                      onPress={() => handleChooseClass(clsItem)}
-                    >
-                      <View style={idx === 0 ? styles.indicatorDotUpcoming : styles.indicatorDotPending} />
-                      <View style={styles.timelineCard}>
-                        <View style={styles.timelineCardContent}>
-                          <Text style={styles.timelineLessonTitle}>
-                            Tiết {idx + 3}: {clsItem.subjectBadge} – {clsItem.name.replace('Lớp ', '')}
-                          </Text>
-                          <View style={styles.timelineMetaRow}>
-                            <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
-                              <Circle cx={12} cy={12} r={10} />
-                              <Path d="M12 6v6l3 2" />
-                            </Svg>
-                            <Text style={styles.timelineMetaText}>
-                              {idx === 0 ? '09:15 – 10:00' : '10:15 – 11:00'}
-                            </Text>
-                            <Text style={styles.timelineMetaDot}>•</Text>
-                            <Text style={styles.timelineMetaText}>
-                              {clsItem.room}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={idx === 0 ? styles.upcomingBadge : styles.pendingBadge}>
-                          <Text style={idx === 0 ? styles.upcomingBadgeText : styles.pendingBadgeText}>
-                            {idx === 0 ? 'Sắp tới' : 'Chưa dạy'}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))
-              ) : (
-                <View style={styles.timelineItem}>
-                  <View style={styles.indicatorDotUpcoming} />
-                  <View style={styles.timelineCard}>
-                    <View style={styles.timelineCardContent}>
-                      <Text style={styles.timelineLessonTitle}>
-                        {examReminders[0]?.exam_type
-                          ? `${examReminders[0].exam_type} – ${examReminders[0].subject_name}`
-                          : `${currentClass.name} – Ôn tập kiến thức`}
-                      </Text>
-                      <View style={styles.timelineMetaRow}>
-                        <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
-                          <Circle cx={12} cy={12} r={10} />
-                          <Path d="M12 6v6l3 2" />
-                        </Svg>
-                        <Text style={styles.timelineMetaText}>
-                          {examReminders[0]?.exam_date ? `Ngày ${examReminders[0].exam_date}` : '09:15 – 10:00'}
+              {examReminders.length > 0 ? (
+                examReminders.map((rem, idx) => (
+                  <View key={rem.id || `${rem.exam_date}-${idx}`} style={styles.timelineItem}>
+                    <View style={idx === 0 ? styles.indicatorDotUpcoming : styles.indicatorDotPending} />
+                    <View style={styles.timelineCard}>
+                      <View style={styles.timelineCardContent}>
+                        <Text style={styles.timelineLessonTitle} numberOfLines={2}>
+                          {rem.exam_type
+                            ? `${rem.exam_type} – Môn ${rem.subject_name}`
+                            : rem.title || `Kiểm tra – Môn ${rem.subject_name}`}
                         </Text>
-                        <Text style={styles.timelineMetaDot}>•</Text>
-                        <Text style={styles.timelineMetaText}>
-                          {currentClass.room}
+                        <View style={styles.timelineMetaRow}>
+                          <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
+                            <Rect x={3} y={4} width={18} height={18} rx={2} />
+                            <Path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" strokeLinejoin="round" />
+                          </Svg>
+                          <Text style={styles.timelineMetaText}>{`Ngày ${formatExamDate(rem.exam_date)}`}</Text>
+                          {rem.day_of_week ? (
+                            <>
+                              <Text style={styles.timelineMetaDot}>•</Text>
+                              <Text style={styles.timelineMetaText}>{rem.day_of_week}</Text>
+                            </>
+                          ) : null}
+                        </View>
+                        {rem.message ? (
+                          <Text style={styles.timelineMessageText} numberOfLines={2}>
+                            {rem.message}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={idx === 0 ? styles.upcomingBadge : styles.pendingBadge}>
+                        <Text style={idx === 0 ? styles.upcomingBadgeText : styles.pendingBadgeText}>
+                          {examCountdownLabel(rem.exam_date)}
                         </Text>
                       </View>
                     </View>
-                    <View style={styles.upcomingBadge}>
-                      <Text style={styles.upcomingBadgeText}>Sắp tới</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.timelineItem}>
+                  <View style={styles.indicatorDotPending} />
+                  <View style={styles.timelineCard}>
+                    <View style={styles.timelineCardContent}>
+                      <Text style={styles.timelineLessonTitle}>Hôm nay không có lịch kiểm tra</Text>
+                      <View style={styles.timelineMetaRow}>
+                        <Text style={styles.timelineMetaText}>Lớp học đang diễn ra bình thường</Text>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -1281,7 +1386,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <View style={styles.classInfoTextWrap}>
                         <Text style={styles.classNameText}>{item.name}</Text>
                         <Text style={styles.classSubMetaText}>
-                          {item.studentsCount} học sinh{item.room ? ` • ${item.room}` : ''}
+                          {item.studentsCount} học sinh{item.schoolName ? ` • ${item.schoolName}` : ''}
                         </Text>
                       </View>
                     </View>
@@ -1565,6 +1670,31 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 6,
   },
+  heroStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  heroStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  heroStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  heroStatusText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
   heroMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1846,6 +1976,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#9CA3AF',
   },
+  timelineMessageText: {
+    fontSize: 11.5,
+    lineHeight: 15,
+    fontWeight: '500',
+    color: '#8A8798',
+    marginTop: 3,
+    fontStyle: 'italic',
+  },
   upcomingBadge: {
     backgroundColor: '#FFF1E6',
     borderWidth: 1,
@@ -1858,7 +1996,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '700',
-    color: '#6B6880',
+    color: '#F58F4C',
   },
   pendingBadge: {
     backgroundColor: '#FFF1E6',

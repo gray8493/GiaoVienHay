@@ -1,10 +1,6 @@
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
+import { getCurrentAcademicYear } from '../utils/academic';
 
 export interface StudentItem {
   id: string;
@@ -52,51 +48,20 @@ export interface InviteCodeResult {
   expires_in_hours: number;
 }
 
-const DEFAULT_STUDENTS: StudentItem[] = [
-  {
-    id: 'stu_01',
-    student_code: 'HS240101',
-    full_name: 'Nguyễn Minh Anh',
-    dob: '2014-05-15',
-    gender: 'FEMALE',
-    parent_phone: '0901 234 567',
-  },
-  {
-    id: 'stu_02',
-    student_code: 'HS240102',
-    full_name: 'Trần Bảo Nam',
-    dob: '2019-05-15',
-    gender: 'MALE',
-    parent_phone: '0977 112 233',
-  },
-  {
-    id: 'stu_03',
-    student_code: 'HS240103',
-    full_name: 'Lê Thị Cẩm Tú',
-    dob: '2014-08-20',
-    gender: 'FEMALE',
-    parent_phone: '0987 654 321',
-  },
-  {
-    id: 'stu_04',
-    student_code: 'HS240104',
-    full_name: 'Phạm Hoàng Nam',
-    dob: '2014-11-05',
-    gender: 'MALE',
-    parent_phone: '0933 112 233',
-  },
-  {
-    id: 'stu_05',
-    student_code: 'HS240105',
-    full_name: 'Võ Khánh Linh',
-    dob: '2014-09-18',
-    gender: 'FEMALE',
-    parent_phone: '0966 889 900',
-  },
-];
+const SUBJECT_LABELS: Record<string, string> = {
+  MATH: 'Toán',
+  LIT: 'Ngữ văn',
+  LITERATURE: 'Ngữ văn',
+  ENG: 'Tiếng Anh',
+  ENGLISH: 'Tiếng Anh',
+  CS: 'Tin học',
+  INFORMATICS: 'Tin học',
+  SCIENCE: 'Khoa học',
+  ETHICS: 'Đạo đức',
+};
 
 export const classService = {
-  async getClassDetail(classId: string = 'cls_1a_2026'): Promise<ClassDetailData> {
+  async getClassDetail(classId: string): Promise<ClassDetailData> {
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/${classId}`, {
@@ -118,14 +83,14 @@ export const classService = {
       id: classId,
       name: 'Lớp học',
       grade_level: 1,
-      academic_year: '2026-2027',
+      academic_year: getCurrentAcademicYear(),
       school_name: '',
       student_count: 0,
       students: [],
     };
   },
 
-  async generateInviteCode(classId: string = 'cls_1a_2026'): Promise<InviteCodeResult> {
+  async generateInviteCode(classId: string): Promise<InviteCodeResult> {
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/${classId}/invite`, {
@@ -140,19 +105,15 @@ export const classService = {
         const resJson = await response.json();
         return resJson.data || resJson;
       }
-    } catch (e) {
-      console.warn('Backend not reachable, fallback to mock invite code:', e);
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể tạo mã mời');
+    } catch (e: any) {
+      console.warn('generateInviteCode failed:', e?.message);
+      throw e;
     }
-
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    return {
-      class_id: classId,
-      invite_code: `INV-6A1-${randomSuffix}`,
-      expires_in_hours: 72,
-    };
   },
 
-  async addStudent(classId: string = 'cls_1a_2026', payload: AddStudentPayload): Promise<StudentItem> {
+  async addStudent(classId: string, payload: AddStudentPayload): Promise<StudentItem> {
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/${classId}/students`, {
@@ -168,22 +129,15 @@ export const classService = {
         const resJson = await response.json();
         return resJson.data || resJson;
       }
-    } catch (e) {
-      console.warn('Backend not reachable, fallback to local student create:', e);
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể thêm học sinh');
+    } catch (e: any) {
+      console.warn('addStudent failed:', e?.message);
+      throw e;
     }
-
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    return {
-      id: 'stu_' + Date.now(),
-      student_code: `HS240${randomNum}`,
-      full_name: payload.full_name,
-      dob: payload.dob || '2019-01-01',
-      gender: payload.gender || 'MALE',
-      parent_phone: payload.parent_phone || '',
-    };
   },
 
-  async removeStudent(classId: string = 'cls_1a_2026', studentId: string): Promise<boolean> {
+  async removeStudent(classId: string, studentId: string): Promise<boolean> {
     try {
       const authHeader = await authService.getAuthHeaderAsync();
       const response = await fetch(`${API_BASE_URL}/classes/${classId}/students/${studentId}`, {
@@ -197,10 +151,12 @@ export const classService = {
       if (response.ok) {
         return true;
       }
-    } catch (e) {
-      console.warn('Backend not reachable, fallback local student remove:', e);
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể xoá học sinh');
+    } catch (e: any) {
+      console.warn('removeStudent failed:', e?.message);
+      throw e;
     }
-    return true;
   },
 
   async createClass(payload: { name: string; grade_level: number; academic_year: string }): Promise<any> {
@@ -219,18 +175,12 @@ export const classService = {
         const resJson = await response.json();
         return resJson.data || resJson;
       }
-    } catch (e) {
-      console.warn('Backend not reachable, fallback createClass:', e);
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể tạo lớp học');
+    } catch (e: any) {
+      console.warn('createClass failed:', e?.message);
+      throw e;
     }
-
-    return {
-      id: 'cls_' + Date.now().toString(36),
-      name: payload.name,
-      grade_level: payload.grade_level,
-      academic_year: payload.academic_year,
-      student_count: 0,
-      invite_code: `INV-${payload.name.toUpperCase()}-1234`,
-    };
   },
 
   async joinClass(inviteCode: string): Promise<any> {
@@ -280,18 +230,33 @@ export const classService = {
 
         // Lọc bỏ lớp mẫu fallback 'cls_1a_2026' do backend tự sinh khi tài khoản mới chưa có lớp trong DB
         const realClasses = list.filter((item: any) => item.id !== 'cls_1a_2026');
-        return realClasses.map((item: any, idx: number) => ({
-          id: item.id || `cls_${idx}`,
-          name: item.name?.startsWith('Lớp') ? item.name : `Lớp ${item.name}`,
-          grade_level: item.grade_level || 6,
-          academic_year: item.academic_year || '2026–2027',
-          school_name: item.school_name || 'THCS Lê Quý Đôn',
-          student_count: item.student_count || 0,
-          role_type: (item.role_type || (idx === 0 ? 'HOMEROOM' : 'SUBJECT')) as 'HOMEROOM' | 'SUBJECT',
-          subject_name: item.subject_name || (idx === 1 ? 'Toán' : idx === 2 ? 'Tin Học' : undefined),
-          icon_name: (idx === 0 ? 'groups' : idx === 1 ? 'square_foot' : 'laptop_mac') as any,
-        }));
+        const currentUserId = authService.getUser()?.id;
+
+        return realClasses.map((item: any) => {
+          const roleType = (item.role_type || item.role_in_class || 'SUBJECT') as 'HOMEROOM' | 'SUBJECT';
+          const assigned = Array.isArray(item.subject_teachers)
+            ? item.subject_teachers.find(
+                (st: any) => (st.teacher_id || st.teacherId) === currentUserId
+              )
+            : undefined;
+          const subjectCode = assigned?.subject_code || assigned?.subjectCode || item.subject_code;
+
+          return {
+            id: item.id,
+            name: item.name?.startsWith('Lớp') ? item.name : `Lớp ${item.name}`,
+            grade_level: item.grade_level ?? item.gradeLevel ?? 0,
+            academic_year: item.academic_year ?? item.academicYear ?? '',
+            school_name: item.school_name ?? item.schoolName ?? '',
+            student_count: item.student_count ?? item.total_students ?? item.studentCount ?? 0,
+            role_type: roleType,
+            subject_name: subjectCode
+              ? SUBJECT_LABELS[subjectCode] || subjectCode
+              : item.subject_name || undefined,
+            icon_name: item.icon_name || undefined,
+          };
+        });
       }
+      console.warn(`getMyClasses failed with status ${response.status}`);
     } catch (e) {
       console.warn('Backend not reachable, returning empty class list:', e);
     }

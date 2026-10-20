@@ -17,10 +17,12 @@ import {
   ExamReminderItem,
   RemarkStatus,
 } from '../services/remarks.service';
+import { getCurrentAcademicYear } from '../utils/academic';
 
 interface RemarksExamScreenProps {
   onBack?: () => void;
   classId?: string;
+  className?: string;
   initialTab?: 'REMARKS' | 'EXAMS';
 }
 
@@ -29,6 +31,7 @@ type RemarkFilter = 'ALL' | 'SENT' | 'UNSENT';
 export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   onBack,
   classId = '',
+  className = 'Lớp học',
   initialTab = 'REMARKS',
 }) => {
   const [activeTab, setActiveTab] = useState<'REMARKS' | 'EXAMS'>(initialTab);
@@ -38,7 +41,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   // Tab A states
   const [searchQuery, setSearchQuery] = useState('');
   const [remarkFilter, setRemarkFilter] = useState<RemarkFilter>('ALL');
-  const [expandedStudentId, setExpandedStudentId] = useState<string | null>('stu_02'); // Mặc định mở Trần Bảo Nam như database
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
 
   // Modal TEA-09.2 Nhập nhận xét
   const [showRemarkModal, setShowRemarkModal] = useState(false);
@@ -49,7 +52,13 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   // Modal TEA-09.3 Tạo lịch kiểm tra
   const [showExamModal, setShowExamModal] = useState(false);
   const [examSubject, setExamSubject] = useState('Toán học');
-  const [examDate, setExamDate] = useState('16/10/2026');
+  const [examDate, setExamDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  });
   const [examType, setExamType] = useState('Kiểm tra 15 phút');
   const [examMessage, setExamMessage] = useState('Kính nhờ phụ huynh nhắc con ôn kỹ các dạng bài chương 1 cho bài kiểm tra.');
 
@@ -82,12 +91,17 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       return;
     }
 
-    await remarksService.createRemark({
-      student_id: targetStudent.student_id,
-      class_id: classId,
-      subject_code: targetStudent.subject_code,
-      content: remarkContent.trim(),
-    });
+    try {
+      await remarksService.createRemark({
+        student_id: targetStudent.student_id,
+        class_id: classId,
+        subject_code: targetStudent.subject_code,
+        content: remarkContent.trim(),
+      });
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể gửi nhận xét. Vui lòng thử lại.');
+      return;
+    }
 
     setRemarksList(prev =>
       prev.map(item => {
@@ -113,32 +127,23 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       return;
     }
 
-    await remarksService.createExamReminder({
-      class_id: classId,
-      subject_code: examSubject === 'Toán học' ? 'MATH' : 'LIT',
-      exam_type: examType,
-      exam_date: examDate,
-      message: examMessage.trim(),
-    });
+    try {
+      await remarksService.createExamReminder({
+        class_id: classId,
+        subject_code: examSubject === 'Toán học' ? 'MATH' : 'LIT',
+        exam_type: examType,
+        exam_date: examDate,
+        message: examMessage.trim(),
+      });
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể tạo lịch kiểm tra. Vui lòng thử lại.');
+      return;
+    }
 
-    const newExam: ExamReminderItem = {
-      id: 'exam_' + Date.now(),
-      class_id: classId,
-      subject_code: 'MATH',
-      subject_name: examSubject,
-      exam_type: examType,
-      exam_date: examDate,
-      day_of_week: 'Thứ Sáu',
-      day_number: '16',
-      month_str: 'Th10',
-      message: examMessage.trim(),
-      teacher_name: 'Cô Nguyễn Thu Hà',
-      created_at: 'Hôm nay',
-    };
-
-    setExamsList(prev => [newExam, ...prev]);
+    const exams = await remarksService.getClassExamReminders(classId);
+    setExamsList(exams);
     setShowExamModal(false);
-    Alert.alert('Đã gửi thông báo! 📢', `Lịch kiểm tra ${examSubject} (${examType}) đã được gửi đến toàn thể 38 phụ huynh.`);
+    Alert.alert('Đã gửi thông báo! 📢', `Lịch kiểm tra ${examSubject} (${examType}) đã được gửi tới phụ huynh trong lớp.`);
   };
 
   const getAvatarColors = (index: number) => {
@@ -221,7 +226,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
           </TouchableOpacity>
 
           <View style={styles.classPillDropdown}>
-            <Text style={styles.classPillText}>Lớp 6A1</Text>
+            <Text style={styles.classPillText}>{className}</Text>
             <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
               <Path d="M6 9l6 6 6-6" stroke="#4B5563" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
@@ -232,7 +237,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
         <View style={styles.titleRow}>
           <View style={styles.titleCol}>
             <Text style={styles.headingTitle}>Nhận Xét & Lịch Kiểm Tra</Text>
-            <Text style={styles.headingSubtitle}>Năm học 2024 - 2025</Text>
+            <Text style={styles.headingSubtitle}>Năm học {getCurrentAcademicYear()}</Text>
           </View>
 
           {/* 3D Pastel Illustration Badge */}
@@ -332,6 +337,25 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
 
             {/* Student List Bento Container */}
             <View style={styles.studentListCard}>
+              {filteredRemarks.length === 0 && (
+                <View style={styles.listEmptyState}>
+                  <View style={styles.emptyIconWrap}>
+                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
+                      <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    {searchQuery.trim() || remarkFilter !== 'ALL'
+                      ? 'Không có lời nhắn khớp bộ lọc'
+                      : 'Chưa có lời nhắn nào'}
+                  </Text>
+                  <Text style={styles.emptySubtitle}>
+                    {searchQuery.trim() || remarkFilter !== 'ALL'
+                      ? 'Thử đổi bộ lọc (Tất cả / Đã gửi / Chưa gửi) hoặc xóa từ khóa tìm kiếm.'
+                      : 'Lớp của bạn chưa có nhận xét nào được gửi cho phụ huynh. Thêm học sinh ở Quản lý lớp học, sau đó bấm bút chỉnh sửa bên cạnh từng em để gửi lời nhắn.'}
+                  </Text>
+                </View>
+              )}
               {filteredRemarks.map((student, idx) => {
                 const colors = getAvatarColors(idx);
                 const isExpanded = expandedStudentId === student.id;
@@ -430,6 +454,24 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
         {/* ======================================================== */}
         {activeTab === 'EXAMS' && (
           <View style={styles.tabContentCol}>
+            {examsList.length === 0 && (
+              <View style={[styles.studentListCard, { paddingVertical: 10 }]}>
+                <View style={styles.listEmptyState}>
+                  <View style={styles.emptyIconWrap}>
+                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
+                      <Rect x="3" y="4" width="18" height="18" rx="2" />
+                      <Line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" />
+                      <Line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
+                      <Line x1="3" y1="10" x2="21" y2="10" />
+                    </Svg>
+                  </View>
+                  <Text style={styles.emptyTitle}>Chưa có lịch kiểm tra nào</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Dùng nút “Tạo Lịch Kiểm Tra” ở bên dưới để nhắc phụ huynh giúp con ôn tập trước ngày thi.
+                  </Text>
+                </View>
+              </View>
+            )}
             {examsList.map(exam => (
               <View key={exam.id} style={styles.examCard}>
                 {/* Left Date Block */}
@@ -442,28 +484,34 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                 {/* Right Content */}
                 <View style={styles.examRightCol}>
                   <View style={styles.examTitleRow}>
-                    <Text style={styles.examSubjectText}>{exam.subject_name}</Text>
-                    <View style={styles.examTypePill}>
-                      <Text style={styles.examTypePillText}>{exam.exam_type}</Text>
-                    </View>
+                    <Text style={styles.examSubjectText}>
+                      {exam.subject_name || exam.title || 'Lịch kiểm tra'}
+                    </Text>
+                    {exam.exam_type ? (
+                      <View style={styles.examTypePill}>
+                        <Text style={styles.examTypePillText}>{exam.exam_type}</Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <Text style={styles.examMessageText} numberOfLines={3}>
                     {exam.message}
                   </Text>
 
-                  <View style={styles.examMetaRow}>
-                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                      <Path
-                        d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"
-                        stroke="#887367"
-                        strokeWidth={2}
-                      />
-                    </Svg>
-                    <Text style={styles.examMetaText}>
-                      {exam.teacher_name} • {exam.created_at}
-                    </Text>
-                  </View>
+                  {(exam.teacher_name || exam.created_at) ? (
+                    <View style={styles.examMetaRow}>
+                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                        <Path
+                          d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"
+                          stroke="#887367"
+                          strokeWidth={2}
+                        />
+                      </Svg>
+                      <Text style={styles.examMetaText}>
+                        {[exam.teacher_name, exam.created_at].filter(Boolean).join(' • ')}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             ))}
@@ -514,16 +562,16 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               <View style={styles.sheetStudentLeft}>
                 <View style={styles.sheetAvatarBox}>
                   <Text style={styles.sheetAvatarText}>
-                    {targetStudent ? getInitials(targetStudent.student_name) : 'BN'}
+                    {targetStudent ? getInitials(targetStudent.student_name) : 'HS'}
                   </Text>
                 </View>
                 <View>
                   <Text style={styles.sheetStudentName}>
-                    {targetStudent?.student_name || 'Trần Bảo Nam'}
+                    {targetStudent?.student_name || 'Học sinh'}
                   </Text>
                   <View style={styles.sheetStudentCodeBadge}>
                     <Text style={styles.sheetStudentCodeText}>
-                      {targetStudent?.student_code || 'HS240102'}
+                      {targetStudent?.student_code || '—'}
                     </Text>
                   </View>
                 </View>
@@ -908,6 +956,33 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 20,
     elevation: 3,
+  },
+  listEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 18,
+  },
+  emptyIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#3D2C29',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: '#887367',
+    textAlign: 'center',
   },
   studentRow: {
     flexDirection: 'row',

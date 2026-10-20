@@ -1,10 +1,5 @@
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
 
 export type FeeType = 'TUITION' | 'INSURANCE';
 
@@ -51,54 +46,6 @@ export interface RemindFeePayload {
   custom_message?: string;
 }
 
-const DEFAULT_RECORDS: StudentFeeRecord[] = [
-  {
-    record_id: 'fee_01',
-    student_id: 'stu_01',
-    student_code: 'HS240101',
-    student_name: 'Nguyễn Minh Anh',
-    insurance: { is_paid: true, paid_date: '18/09' },
-    tuition: { is_paid: true, paid_date: '20/09' },
-    note: null,
-  },
-  {
-    record_id: 'fee_02',
-    student_id: 'stu_02',
-    student_code: 'HS240102',
-    student_name: 'Trần Bảo Nam',
-    insurance: { is_paid: false, paid_date: null },
-    tuition: { is_paid: true, paid_date: '22/09' },
-    note: null,
-  },
-  {
-    record_id: 'fee_03',
-    student_id: 'stu_03',
-    student_code: 'HS240103',
-    student_name: 'Lê Thị Cẩm Tú',
-    insurance: { is_paid: true, paid_date: '18/09' },
-    tuition: { is_paid: false, paid_date: null },
-    note: 'Nộp tiền mặt tại lớp',
-  },
-  {
-    record_id: 'fee_04',
-    student_id: 'stu_04',
-    student_code: 'HS240104',
-    student_name: 'Phạm Hoàng Nam',
-    insurance: { is_paid: true, paid_date: '20/09' },
-    tuition: { is_paid: false, paid_date: null },
-    note: null,
-  },
-  {
-    record_id: 'fee_05',
-    student_id: 'stu_05',
-    student_code: 'HS240105',
-    student_name: 'Võ Khánh Linh',
-    insurance: { is_paid: false, paid_date: null },
-    tuition: { is_paid: true, paid_date: '19/09' },
-    note: null,
-  },
-];
-
 export const feesService = {
   async getClassFeesList(classId: string = ''): Promise<ClassFeesSummary> {
     const emptySummary: ClassFeesSummary = {
@@ -127,10 +74,10 @@ export const feesService = {
         const resJson = await response.json();
         const data = resJson.data || resJson;
         if (data && Array.isArray(data.records)) {
-          const records: StudentFeeRecord[] = data.records.map((r: any, idx: number) => ({
-            record_id: r.record_id || `fee_0${idx + 1}`,
-            student_id: r.student_id || `stu_0${idx + 1}`,
-            student_code: r.student_code || `HS24010${idx + 1}`,
+          const records: StudentFeeRecord[] = data.records.map((r: any) => ({
+            record_id: r.record_id || '',
+            student_id: r.student_id || '',
+            student_code: r.student_code || '',
             student_name: r.student_name || 'Học sinh',
             tuition: r.tuition || { is_paid: false, paid_date: null },
             insurance: r.insurance || { is_paid: false, paid_date: null },
@@ -164,37 +111,41 @@ export const feesService = {
   },
 
   async toggleFeeStatus(payload: ToggleFeePayload): Promise<boolean> {
+    const authHeader = await authService.getAuthHeaderAsync();
+    let response: Response;
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/fees-insurance/toggle`, {
+      response = await fetch(`${API_BASE_URL}/fees-insurance/toggle`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify(payload),
       });
+    } catch (e: any) {
+      throw new Error('Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng.');
+    }
 
-      if (response.ok) {
-        return true;
-      }
-    } catch (e) {
-      console.warn('Backend not reachable, toggle offline:', e);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể cập nhật trạng thái thu phí');
     }
     return true;
   },
 
   async sendFeeReminder(payload: RemindFeePayload): Promise<boolean> {
+    const authHeader = await authService.getAuthHeaderAsync();
+    let response: Response;
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/fees-insurance/remind`, {
+      response = await fetch(`${API_BASE_URL}/fees-insurance/remind`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify(payload),
       });
+    } catch (e: any) {
+      throw new Error('Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng.');
+    }
 
-      if (response.ok) {
-        return true;
-      }
-    } catch (e) {
-      console.warn('Backend not reachable, reminder sent offline:', e);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể gửi thông báo nhắc đóng phí');
     }
     return true;
   },

@@ -2,6 +2,80 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// =========================================================================
+// DANH MỤC MÔN HỌC CHUẨN (chân phương rõ ràng) — dùng đồng bộ toàn hệ thống
+// Bảng users không có cột teaching_subjects nên lưu trong assigned_info dạng JSON
+// =========================================================================
+export const CANON_SUBJECT_CODES = [
+  'MATH', 'LIT', 'ENG', 'CS', 'SCIENCE', 'HISTORY', 'GEOGRAPHY', 'ETHICS',
+  'PE', 'ART', 'MUSIC',
+];
+
+const SUBJECT_ALIASES: Record<string, string> = {
+  LITERATURE: 'LIT',
+  VN: 'LIT',
+  INFORMATICS: 'CS',
+  INF: 'CS',
+  TECH: 'CS',
+  IT: 'CS',
+  SCI: 'SCIENCE',
+  NAT_SOC: 'SCIENCE',
+  PHYSICS: 'SCIENCE',
+  CHEMISTRY: 'SCIENCE',
+  BIOLOGY: 'SCIENCE',
+  HIST: 'HISTORY',
+  GEO: 'GEOGRAPHY',
+  CIVICS: 'ETHICS',
+  ETH: 'ETHICS',
+  GD: 'ETHICS',
+  AMH: 'ART',
+};
+
+/** Trả về { codes, invalid } — codes đã chuẩn GDPT, invalid là mã lạ (dùng để báo lỗi rõ cho người dùng) */
+export const normalizeSubjectCodes = (
+  list: any,
+): { codes: string[]; invalid: string[] } => {
+  const codes: string[] = [];
+  const invalid: string[] = [];
+  if (Array.isArray(list)) {
+    list.forEach((raw) => {
+      const s = String(raw || '').trim();
+      if (!s) return;
+      const key = s.toUpperCase();
+      const code = SUBJECT_ALIASES[key] || key;
+      if (CANON_SUBJECT_CODES.includes(code)) {
+        if (!codes.includes(code)) codes.push(code);
+      } else if (!invalid.includes(s)) {
+        invalid.push(s);
+      }
+    });
+  }
+  return { codes, invalid };
+};
+
+/** Đọc lại teaching_subjects đã lưu JSON trong assigned_info (VD: {"teaching_subjects":["MATH"],"assigned_info":null}) */
+export const decodeSubjectsFromAssignedInfo = (info: any): string[] => {
+  if (typeof info !== 'string' || !info.trim()) return [];
+  try {
+    const parsed = JSON.parse(info);
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.teaching_subjects)) {
+      return parsed.teaching_subjects.map(String);
+    }
+  } catch {}
+  return [];
+};
+
+/** Gói teaching_subjects + thông tin phân công dạng text vào 1 chuỗi JSON lưu cột assigned_info */
+export const encodeSubjectsToAssignedInfo = (
+  subjects: string[],
+  assignedInfoText?: string | null,
+): string => {
+  return JSON.stringify({
+    teaching_subjects: subjects,
+    assigned_info: assignedInfoText ?? null,
+  });
+};
+
 export interface DataConnectUserRecord {
   id: string;
   code: string;
@@ -10,6 +84,7 @@ export interface DataConnectUserRecord {
   phone: string;
   email?: string | null;
   role: string;
+  teaching_subjects?: string[];
   schoolName?: string | null;
   school_name?: string | null;
   assignedInfo?: string | null;
@@ -536,7 +611,29 @@ export class SupabaseService implements OnModuleInit {
   private mapUser(u: any): DataConnectUserRecord {
     const isAct = u.is_active ?? u.isActive ?? true;
     const isDel = u.is_deleted ?? u.isDeleted ?? false;
-    const pwdHash = u.password_hash ?? u.passwordHash ?? null;
+    let pwdHash = u.password_hash ?? u.passwordHash ?? null;
+    const assignedInfo = u.assigned_info ?? u.assignedInfo ?? null;
+    if (!pwdHash && assignedInfo) {
+      try {
+        let parsed = typeof assignedInfo === 'string' ? JSON.parse(assignedInfo) : assignedInfo;
+        while (parsed && typeof parsed.assigned_info === 'string') {
+          try {
+            parsed = JSON.parse(parsed.assigned_info);
+          } catch { break; }
+        }
+        if (parsed?.password_hash) {
+          pwdHash = parsed.password_hash;
+        }
+      } catch {}
+    }
+    const teachingSubjects =
+      (Array.isArray(u.teaching_subjects) && u.teaching_subjects.length > 0
+        ? u.teaching_subjects
+        : null) ||
+      (Array.isArray(u.teachingSubjects) && u.teachingSubjects.length > 0
+        ? u.teachingSubjects
+        : null) ||
+      decodeSubjectsFromAssignedInfo(assignedInfo);
     return {
       id: u.id,
       code: u.code,
@@ -545,10 +642,11 @@ export class SupabaseService implements OnModuleInit {
       phone: u.phone,
       email: u.email ?? null,
       role: u.role,
+      teaching_subjects: teachingSubjects,
       schoolName: u.school_name ?? u.schoolName ?? null,
       school_name: u.school_name ?? u.schoolName ?? null,
-      assignedInfo: u.assigned_info ?? u.assignedInfo ?? null,
-      assigned_info: u.assigned_info ?? u.assignedInfo ?? null,
+      assignedInfo,
+      assigned_info: assignedInfo,
       isActive: isAct,
       is_active: isAct,
       isDeleted: isDel,
@@ -680,15 +778,44 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async createUser(user: any) {
+    // DB ràng buộc users.code NOT NULL: tự sinh mã theo vai trò nếu caller không cung cấp (GV-xxxx / PH-xxxx / ADM-xxxx)
+    const rolePrefix = user.role === 'ADMIN' ? 'ADM' : user.role === 'PARENT' ? 'PH' : 'GV';
+    const randSuffix = String(Math.floor(Math.random() * 9000) + 1000);
+    const resolvedCode = user.code || user.userCode || `${rolePrefix}-${randSuffix}`;
+
+    const { codes: normSubjects } = normalizeSubjectCodes(
+      user.teaching_subjects || user.teachingSubjects,
+    );
+
+    // DB bảng users không có cột teaching_subjects & password_hash:
+    // lưu môn và mật khẩu vào cột assigned_info dạng JSON
+    const plainAssignedInfo = user.assigned_info || user.assignedInfo || null;
+    let baseInfo: any = {};
+    if (plainAssignedInfo) {
+      try {
+        baseInfo = typeof plainAssignedInfo === 'string' ? JSON.parse(plainAssignedInfo) : plainAssignedInfo;
+      } catch {
+        baseInfo = { info: plainAssignedInfo };
+      }
+    }
+    if (normSubjects.length > 0) {
+      baseInfo.teaching_subjects = normSubjects;
+    }
+    const pwdToStore = user.password_hash || user.passwordHash || null;
+    if (pwdToStore) {
+      baseInfo.password_hash = pwdToStore;
+    }
+    const assignedInfoStored = Object.keys(baseInfo).length > 0 ? JSON.stringify(baseInfo) : null;
+
     const record = {
       id: user.id,
-      code: user.code,
+      code: resolvedCode,
       full_name: user.full_name || user.fullName,
       phone: user.phone,
       email: user.email || null,
       role: user.role,
       school_name: user.school_name || user.schoolName || null,
-      assigned_info: user.assigned_info || user.assignedInfo || null,
+      assigned_info: assignedInfoStored,
       is_active: user.is_active ?? user.isActive ?? true,
       is_deleted: false,
       ai_daily_quota: user.ai_daily_quota ?? user.aiDailyQuota ?? 25,
@@ -697,16 +824,17 @@ export class SupabaseService implements OnModuleInit {
     };
 
     if (this.supabase) {
-      try {
-        await this.supabase.from('users').upsert(record);
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] createUser error: ${err?.message}`);
+      const { error } = await this.supabase.from('users').upsert(record);
+      if (error) {
+        this.logger.error(`[Supabase] createUser failed for ${user.id}: ${error.message} (code=${error.code})`);
       }
     }
 
     const fullRecord = {
       ...record,
       ...user,
+      assigned_info: assignedInfoStored,
+      teaching_subjects: normSubjects.length > 0 ? normSubjects : (user.teaching_subjects || []),
       password_hash: user.password_hash || user.passwordHash || null,
       passwordHash: user.password_hash || user.passwordHash || null,
     };
@@ -896,16 +1024,23 @@ export class SupabaseService implements OnModuleInit {
       id: c.id,
       name: c.name,
       gradeLevel: c.grade_level ?? c.gradeLevel ?? 1,
+      grade_level: c.grade_level ?? c.gradeLevel,
       academicYear: c.academic_year ?? c.academicYear ?? '2024-2025',
+      academic_year: c.academic_year ?? c.academicYear,
       schoolName: c.school_name ?? c.schoolName ?? null,
+      school_name: c.school_name ?? c.schoolName ?? null,
       homeroomTeacherId: c.homeroom_teacher_id ?? c.homeroomTeacherId ?? null,
       homeroom_teacher_id: c.homeroom_teacher_id ?? c.homeroomTeacherId ?? null,
       homeroom_teacher: c.homeroom_teacher ?? c.homeroomTeacher ?? null,
       subject_teachers: c.subject_teachers ?? [],
       inviteCode: c.invite_code ?? c.inviteCode ?? '',
+      invite_code: c.invite_code ?? c.inviteCode,
       studentCount: c.student_count ?? c.studentCount ?? 0,
+      student_count: c.student_count ?? c.studentCount,
       isDeleted: c.is_deleted ?? c.isDeleted ?? false,
+      is_deleted: c.is_deleted ?? c.isDeleted ?? false,
       createdAt: c.created_at ?? c.createdAt ?? new Date().toISOString(),
+      created_at: c.created_at ?? c.createdAt,
     };
   }
 
@@ -937,11 +1072,21 @@ export class SupabaseService implements OnModuleInit {
         const { data, error } = await this.supabase
           .from('classes')
           .select('*')
-          .or(`homeroom_teacher_id.eq.${teacherId},subject_teacher_ids.cs.{${teacherId}}`)
           .eq('is_deleted', false)
           .order('grade_level', { ascending: true });
-        if (!error && data && data.length > 0) {
-          return data.map((c) => this.mapClass(c));
+        if (!error && data) {
+          const mine = data.filter((c: any) => {
+            const isHomeroom = (c.homeroom_teacher_id || c.homeroomTeacherId) === teacherId;
+            const subjects = c.subject_teachers;
+            const isSubject =
+              Array.isArray(subjects) &&
+              subjects.some((st: any) => (st.teacher_id || st.teacherId || st) === teacherId);
+            return isHomeroom || isSubject;
+          });
+          return mine.map((c) => this.mapClass(c));
+        }
+        if (error) {
+          this.logger.warn(`[Supabase] listClassesByTeacher: ${error.message}`);
         }
       } catch (err: any) {
         this.logger.debug(`[Supabase] listClassesByTeacher fallback: ${err?.message}`);
@@ -1011,7 +1156,10 @@ export class SupabaseService implements OnModuleInit {
 
     if (this.supabase) {
       try {
-        await this.supabase.from('classes').upsert(record);
+        const { error } = await this.supabase.from('classes').upsert(record);
+        if (error) {
+          this.logger.warn(`[Supabase] createClass upsert: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] createClass error: ${err?.message}`);
       }
@@ -1024,10 +1172,13 @@ export class SupabaseService implements OnModuleInit {
   async softDeleteClass(id: string) {
     if (this.supabase) {
       try {
-        await this.supabase
+        const { error } = await this.supabase
           .from('classes')
           .update({ is_deleted: true, updated_at: new Date().toISOString() })
           .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] softDeleteClass: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] softDeleteClass error: ${err?.message}`);
       }
@@ -1119,7 +1270,10 @@ export class SupabaseService implements OnModuleInit {
 
     if (this.supabase) {
       try {
-        await this.supabase.from('students').upsert(record);
+        const { error } = await this.supabase.from('students').upsert(record);
+        if (error) {
+          this.logger.warn(`[Supabase] createStudent upsert: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] createStudent error: ${err?.message}`);
       }
@@ -1132,7 +1286,10 @@ export class SupabaseService implements OnModuleInit {
   async softDeleteStudent(id: string) {
     if (this.supabase) {
       try {
-        await this.supabase.from('students').update({ is_deleted: true }).eq('id', id);
+        const { error } = await this.supabase.from('students').update({ is_deleted: true }).eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] softDeleteStudent: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] softDeleteStudent error: ${err?.message}`);
       }
@@ -1509,6 +1666,7 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async createExamReminder(reminder: any) {
+    const createdBy = reminder.created_by || reminder.createdBy;
     const record = {
       id: reminder.id,
       class_id: reminder.class_id || reminder.classId,
@@ -1516,20 +1674,22 @@ export class SupabaseService implements OnModuleInit {
       exam_date: reminder.exam_date || reminder.examDate,
       title: reminder.title,
       note: reminder.note || reminder.message || null,
-      created_by: reminder.created_by || reminder.createdBy,
       is_deleted: false,
     };
 
     if (this.supabase) {
       try {
-        await this.supabase.from('exam_reminders').upsert(record);
+        const { error } = await this.supabase.from('exam_reminders').upsert(record);
+        if (error) {
+          this.logger.warn(`[Supabase] createExamReminder upsert: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] createExamReminder error: ${err?.message}`);
       }
     }
 
-    this.memoryStore.examReminders.set(reminder.id, record);
-    return { ...this.mapExamReminder(record), created_by: record.created_by };
+    this.memoryStore.examReminders.set(reminder.id, { ...record, created_by: createdBy });
+    return { ...this.mapExamReminder(record), created_by: createdBy };
   }
 
   async getExamReminderById(id: string) {

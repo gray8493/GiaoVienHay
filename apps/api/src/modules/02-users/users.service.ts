@@ -2,7 +2,11 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException,
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ErrorCode } from '@giaovienhay/shared-types';
-import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import {
+  FirebaseDataConnectService,
+  normalizeSubjectCodes,
+  decodeSubjectsFromAssignedInfo,
+} from '../../common/supabase/supabase.service';
 import { UpdateProfileDto, RegisterDeviceTokenDto } from './dto/users.dto';
 
 @Injectable()
@@ -69,17 +73,15 @@ export class UsersService {
       });
     }
 
-    const VALID_GDPT_SUBJECTS = [
-      'MATH', 'LIT', 'ETHICS', 'ENG', 'SCI', 'HIST', 'GEO', 'PE', 'ART', 'MUSIC', 'TECH', 'INF', 'NAT_SOC',
-    ];
     if (dto.teaching_subjects) {
-      const invalidSubject = dto.teaching_subjects.find((s) => !VALID_GDPT_SUBJECTS.includes(s));
-      if (invalidSubject) {
+      const { codes, invalid } = normalizeSubjectCodes(dto.teaching_subjects);
+      if (invalid.length > 0) {
         throw new BadRequestException({
           error_code: 'INVALID_SUBJECT_CODE',
-          message: `Mã môn học ${invalidSubject} không nằm trong danh mục chương trình GDPT`,
+          message: `Mã môn học ${invalid.join(', ')} không nằm trong chương trình (các mã hợp lệ: MATH, LIT, ENG, CS, SCIENCE, HISTORY, GEOGRAPHY, ETHICS...)`,
         });
       }
+      dto.teaching_subjects = codes;
     }
 
     const updatedData = {
@@ -101,6 +103,15 @@ export class UsersService {
     if (!user) return null;
     const uid = user.uid || user.id;
     const fullName = user.full_name || user.fullName;
+    const assignedInfo = user.assigned_info || user.assignedInfo || null;
+    const subjects =
+      (Array.isArray(user.teaching_subjects) && user.teaching_subjects.length > 0
+        ? user.teaching_subjects
+        : null) ||
+      (Array.isArray(user.teachingSubjects) && user.teachingSubjects.length > 0
+        ? user.teachingSubjects
+        : null) ||
+      decodeSubjectsFromAssignedInfo(assignedInfo);
     return {
       uid,
       id: uid,
@@ -111,7 +122,7 @@ export class UsersService {
       school_name: user.school_name !== undefined ? user.school_name : (user.schoolName !== undefined ? user.schoolName : null),
       role: user.role || 'TEACHER_HOMEROOM',
       avatar_url: user.avatar_url || user.avatarUrl || null,
-      teaching_subjects: user.teaching_subjects || user.teachingSubjects || [],
+      teaching_subjects: subjects,
       is_active: user.is_active !== undefined ? Boolean(user.is_active) : (user.isActive !== undefined ? Boolean(user.isActive) : true),
       created_at: user.created_at || user.createdAt || new Date().toISOString(),
     };

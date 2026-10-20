@@ -275,11 +275,21 @@ export class AttendanceService {
       const sqlList = await this.dataConnect.getAttendanceByClassDate(classId, today);
       const presents = (sqlList || []).filter((a: any) => a.status === AttendanceStatus.PRESENT);
       if (presents.length > 0) {
-        presentStudents = presents.map((p: any) => ({
-          id: p.studentId || p.student_id,
-          full_name: p.full_name || p.student_name || 'Học sinh',
-          student_code: p.student_code || p.studentCode || 'HS',
-        }));
+        const studentMap = new Map<string, any>();
+        try {
+          const students = await this.dataConnect.listStudentsByClass(classId);
+          (students || []).forEach((s: any) => studentMap.set(s.id, s));
+        } catch (e) {}
+
+        presentStudents = presents.map((p: any) => {
+          const sid = p.studentId || p.student_id;
+          const st = studentMap.get(sid);
+          return {
+            id: sid,
+            full_name: p.full_name || p.student_name || st?.full_name || st?.fullName || 'Học sinh',
+            student_code: p.student_code || p.studentCode || st?.student_code || st?.studentCode || 'HS',
+          };
+        });
       }
     } catch (e) {}
 

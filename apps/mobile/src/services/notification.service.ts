@@ -1,11 +1,6 @@
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 import { authService } from './auth.service';
 import { fcmService } from './fcm.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
 
 export interface NotificationItem {
   id: string;
@@ -45,53 +40,10 @@ export class NotificationService {
         };
       }
     } catch (e) {
-      console.warn('Backend not reachable, fallback to mock notifications:', e);
+      console.warn('Backend not reachable:', e);
     }
 
-    // Mock fallback matching Stitch TEA-12
-    const mockItems: NotificationItem[] = [
-      {
-        id: 'notif_01',
-        title: 'Phụ huynh Minh Anh đã đọc nhận xét',
-        body: 'Phụ huynh em Nguyễn Minh Anh lớp 6A1 đã xem lời nhận xét tuần này.',
-        type: 'REMARK_READ',
-        is_read: false,
-        timeAgo: '10 phút trước',
-        created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'notif_02',
-        title: 'Bạn đã vào lớp 6A2',
-        body: 'Giáo viên chủ nhiệm lớp 6A2 đã duyệt bạn vào danh sách GVBM.',
-        type: 'CLASS_JOINED',
-        is_read: true,
-        timeAgo: 'Hôm qua',
-        created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'notif_03',
-        title: 'Lịch kiểm tra Toán 6A2',
-        body: 'Lịch kiểm tra 15 phút Toán Đại đã được lên lịch lúc 09:15 ngày mai.',
-        type: 'EXAM_SCHEDULED',
-        is_read: true,
-        timeAgo: 'Hôm qua',
-        created_at: new Date(Date.now() - 28 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'notif_04',
-        title: 'Phụ huynh Bảo Nam đã đọc nhận xét',
-        body: 'Phụ huynh em Trần Bảo Nam lớp 1A đã xác nhận đã đọc.',
-        type: 'REMARK_READ',
-        is_read: true,
-        timeAgo: '2 ngày trước',
-        created_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-      },
-    ];
-
-    return {
-      items: mockItems,
-      unreadCount: mockItems.filter(i => !i.is_read).length,
-    };
+    return { items: [], unreadCount: 0 };
   }
 
   async markAsRead(id: string): Promise<boolean> {
@@ -106,7 +58,7 @@ export class NotificationService {
       });
       return response.ok;
     } catch (e) {
-      return true;
+      return false;
     }
   }
 
@@ -122,7 +74,7 @@ export class NotificationService {
       });
       return response.ok;
     } catch (e) {
-      return true;
+      return false;
     }
   }
 

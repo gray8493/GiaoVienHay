@@ -55,12 +55,17 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
     setFeesSummary(data);
   };
 
+  const getTodayDateLabel = () => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
   const handleOpenEdit = (student: StudentFeeRecord, defaultType: FeeType = 'INSURANCE') => {
     setSelectedStudent(student);
     setEditFeeType(defaultType);
     const targetStatus = defaultType === 'INSURANCE' ? student.insurance : student.tuition;
     setEditIsPaid(targetStatus.is_paid);
-    setEditPaidDate(targetStatus.paid_date || '05/10/2026');
+    setEditPaidDate(targetStatus.paid_date || getTodayDateLabel());
     setEditNote(student.note || '');
     setShowEditModal(true);
   };
@@ -70,19 +75,24 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
     setEditFeeType(type);
     const targetStatus = type === 'INSURANCE' ? selectedStudent.insurance : selectedStudent.tuition;
     setEditIsPaid(targetStatus.is_paid);
-    setEditPaidDate(targetStatus.paid_date || '05/10/2026');
+    setEditPaidDate(targetStatus.paid_date || getTodayDateLabel());
   };
 
   const handleSaveFeeStatus = async () => {
     if (!selectedStudent || !feesSummary) return;
 
-    await feesService.toggleFeeStatus({
-      record_id: selectedStudent.record_id,
-      fee_type: editFeeType,
-      is_paid: editIsPaid,
-      paid_date: editPaidDate,
-      note: editNote,
-    });
+    try {
+      await feesService.toggleFeeStatus({
+        record_id: selectedStudent.record_id,
+        fee_type: editFeeType,
+        is_paid: editIsPaid,
+        paid_date: editPaidDate,
+        note: editNote,
+      });
+    } catch (e: any) {
+      Alert.alert('Lỗi', e.message || 'Không thể cập nhật trạng thái thu phí');
+      return;
+    }
 
     // Cập nhật local state
     setFeesSummary(prev => {
@@ -127,14 +137,27 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   };
 
   const handleSendReminder = async () => {
-    const count = remindCategory === 'INSURANCE' ? feesSummary?.insurance_unpaid_count || 3 : feesSummary?.tuition_unpaid_count || 5;
-    const catName = remindCategory === 'INSURANCE' ? 'BHYT' : 'Học phí';
+    const count = remindCategory === 'INSURANCE'
+      ? feesSummary?.insurance_unpaid_count || 0
+      : feesSummary?.tuition_unpaid_count || 0;
+    const catName = remindCategory === 'INSURANCE' ? 'BHYT' : 'học phí';
 
-    await feesService.sendFeeReminder({
-      class_id: classId,
-      fee_type: remindCategory,
-      custom_message: getPreviewMessage(),
-    });
+    if (count === 0) {
+      Alert.alert('Thông báo', 'Không có phụ huynh nào cần nhắc đóng cho danh mục này.');
+      setShowRemindModal(false);
+      return;
+    }
+
+    try {
+      await feesService.sendFeeReminder({
+        class_id: classId,
+        fee_type: remindCategory,
+        custom_message: getPreviewMessage(),
+      });
+    } catch (e: any) {
+      Alert.alert('Lỗi', e.message || 'Không thể gửi thông báo nhắc đóng phí');
+      return;
+    }
 
     setShowRemindModal(false);
     Alert.alert(
@@ -147,12 +170,12 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   const getPreviewMessage = () => {
     const feeName = remindCategory === 'INSURANCE' ? 'BHYT' : 'học phí HK1';
     if (remindTone === 'POLITE') {
-      return `“Kính nhờ phụ huynh nộp ${feeName} cho cô Thu Hà trước ngày 15/10 để nhà trường hoàn thiện thủ tục cho con.”`;
+      return `“Kính nhờ phụ huynh nộp ${feeName} trong hạn chót nhà trường thông báo để hoàn thiện thủ tục cho con.”`;
     }
     if (remindTone === 'EXPIRING') {
-      return `“Kính nhắc phụ huynh: Hạn nộp ${feeName} sắp kết thúc vào ngày 15/10. Phụ huynh vui lòng hoàn thành sớm cho con.”`;
+      return `“Kính nhắc phụ huynh: Hạn nộp ${feeName} sắp kết thúc. Phụ huynh vui lòng hoàn thành sớm cho con.”`;
     }
-    return `“Kính nhắc phụ huynh: Ngày mai là hạn chót nộp ${feeName}. Xin phụ huynh lưu ý nộp cho cô Thu Hà trong ngày mai.”`;
+    return `“Kính nhắc phụ huynh: Ngày mai là hạn chót nộp ${feeName}. Xin phụ huynh lưu ý nộp cho con trong ngày mai.”`;
   };
 
   const getAvatarColors = (index: number) => {
@@ -185,7 +208,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
     return true;
   });
 
-  const totalUnpaid = (feesSummary?.insurance_unpaid_count || 3) + (feesSummary?.tuition_unpaid_count || 5);
+  const totalUnpaid = (feesSummary?.insurance_unpaid_count || 0) + (feesSummary?.tuition_unpaid_count || 0);
 
   return (
     <View style={styles.container}>
@@ -237,7 +260,9 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
             <View style={styles.headerTitleCol}>
               <Text style={styles.headerTitle}>Học Phí & BHYT</Text>
               <View style={styles.classPillDropdown}>
-                <Text style={styles.classPillDropdownText}>Lớp 6A1 • HK1</Text>
+                <Text style={styles.classPillDropdownText}>
+                  {feesSummary?.class_name || 'Lớp học'}{feesSummary?.term_name ? ` • ${feesSummary.term_name}` : ''}
+                </Text>
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                   <Path d="M6 9l6 6 6-6" stroke="#6B6880" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
@@ -293,16 +318,16 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                 />
               </Svg>
               <View style={styles.progressRingTextWrap}>
-                <Text style={styles.progressPercentText}>{feesSummary?.insurance_percent || 92}%</Text>
+                <Text style={styles.progressPercentText}>{feesSummary?.insurance_percent || 0}%</Text>
               </View>
             </View>
 
             <Text style={styles.kpiRatio}>
-              {feesSummary?.insurance_paid_count || 35}/{feesSummary?.total_students || 38}
+              {feesSummary?.insurance_paid_count || 0}/{feesSummary?.total_students || 0}
             </Text>
             <View style={styles.kpiRemainingBadge}>
               <View style={[styles.remainingDot, { backgroundColor: '#F59E0B' }]} />
-              <Text style={styles.kpiRemainingText}>Còn {feesSummary?.insurance_unpaid_count || 3} em</Text>
+              <Text style={styles.kpiRemainingText}>Còn {feesSummary?.insurance_unpaid_count || 0} em</Text>
             </View>
           </View>
 
@@ -336,16 +361,16 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                 />
               </Svg>
               <View style={styles.progressRingTextWrap}>
-                <Text style={styles.progressPercentText}>{feesSummary?.tuition_percent || 87}%</Text>
+                <Text style={styles.progressPercentText}>{feesSummary?.tuition_percent || 0}%</Text>
               </View>
             </View>
 
             <Text style={styles.kpiRatio}>
-              {feesSummary?.tuition_paid_count || 33}/{feesSummary?.total_students || 38}
+              {feesSummary?.tuition_paid_count || 0}/{feesSummary?.total_students || 0}
             </Text>
             <View style={styles.kpiRemainingBadge}>
               <View style={[styles.remainingDot, { backgroundColor: '#F59E0B' }]} />
-              <Text style={styles.kpiRemainingText}>Còn {feesSummary?.tuition_unpaid_count || 5} em</Text>
+              <Text style={styles.kpiRemainingText}>Còn {feesSummary?.tuition_unpaid_count || 0} em</Text>
             </View>
           </View>
         </View>
@@ -373,7 +398,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
             activeOpacity={0.85}
           >
             <Text style={[styles.filterChipText, filterMode === 'ALL' && styles.filterChipTextActive]}>
-              Tất cả ({feesSummary?.total_students || 38})
+              Tất cả ({feesSummary?.total_students || 0})
             </Text>
           </TouchableOpacity>
 
@@ -383,7 +408,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
             activeOpacity={0.85}
           >
             <Text style={[styles.filterChipText, filterMode === 'UNPAID_INSURANCE' && styles.filterChipTextActive]}>
-              BHYT ({feesSummary?.insurance_unpaid_count || 3})
+              BHYT ({feesSummary?.insurance_unpaid_count || 0})
             </Text>
           </TouchableOpacity>
 
@@ -393,7 +418,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
             activeOpacity={0.85}
           >
             <Text style={[styles.filterChipText, filterMode === 'UNPAID_TUITION' && styles.filterChipTextActive]}>
-              Học phí ({feesSummary?.tuition_unpaid_count || 5})
+              Học phí ({feesSummary?.tuition_unpaid_count || 0})
             </Text>
           </TouchableOpacity>
         </View>
@@ -614,7 +639,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                     styles.catCountText,
                     remindCategory === 'INSURANCE' ? { color: '#984704' } : { color: '#887367' },
                   ]}>
-                    {feesSummary?.insurance_unpaid_count || 3} phụ huynh
+                    {feesSummary?.insurance_unpaid_count || 0} phụ huynh
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -652,7 +677,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                     styles.catCountText,
                     remindCategory === 'TUITION' ? { color: '#984704' } : { color: '#887367' },
                   ]}>
-                    {feesSummary?.tuition_unpaid_count || 5} phụ huynh
+                    {feesSummary?.tuition_unpaid_count || 0} phụ huynh
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -714,7 +739,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
               <Text style={styles.sendActionBtnText}>Gửi Nhắc</Text>
               <View style={styles.sendActionBadge}>
                 <Text style={styles.sendActionBadgeText}>
-                  {remindCategory === 'INSURANCE' ? feesSummary?.insurance_unpaid_count || 3 : feesSummary?.tuition_unpaid_count || 5}
+                  {remindCategory === 'INSURANCE' ? feesSummary?.insurance_unpaid_count || 0 : feesSummary?.tuition_unpaid_count || 0}
                 </Text>
               </View>
             </TouchableOpacity>

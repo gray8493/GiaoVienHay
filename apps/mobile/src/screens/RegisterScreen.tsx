@@ -66,13 +66,21 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
       return;
     }
 
+    if (!/^(03|05|07|08|09)\d{8}$/.test(phone.trim())) {
+      setErrorMessage('Số điện thoại phải gồm đúng 10 chữ số, bắt đầu bằng đầu số hợp lệ: 03, 05, 07, 08, 09');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setErrorMessage('Mật khẩu nhập lại không khớp');
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage('Mật khẩu phải chứa ít nhất 6 ký tự');
+    // Chuẩn mật khẩu khớp yêu cầu Backend: 8+ ký tự, có chữ hoa, chữ thường, số, ký tự đặc biệt
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
+      setErrorMessage(
+        'Mật khẩu phải từ 8 ký tự trở lên, gồm ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt (@ $ ! % * ? &)\nVí dụ: MatKhau123@',
+      );
       return;
     }
 

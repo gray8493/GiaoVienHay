@@ -1,10 +1,5 @@
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
 
 export interface UserProfile {
   id: string;

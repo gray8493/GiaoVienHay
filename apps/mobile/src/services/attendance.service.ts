@@ -1,10 +1,5 @@
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
 
 export enum AttendanceStatus {
   PRESENT = 'PRESENT',
@@ -74,20 +69,8 @@ export class AttendanceService {
       const resJson = await response.json();
       return resJson.data || resJson;
     } catch (err: any) {
-      console.warn('[AttendanceService] submitAttendance fallback/mock:', err?.message);
-      // Fallback mock khi BE offline
-      const presentCount = payload.records.filter(
-        (r) => r.status === AttendanceStatus.PRESENT
-      ).length;
-      const absentCount = payload.records.length - presentCount;
-
-      return {
-        attendance_date: payload.attendance_date,
-        total_students: payload.records.length,
-        present_count: presentCount,
-        absent_count: absentCount,
-        notified_parents_queued: absentCount,
-      };
+      console.warn('[AttendanceService] submitAttendance failed:', err?.message);
+      throw err;
     }
   }
 
@@ -115,19 +98,13 @@ export class AttendanceService {
       const resJson = await response.json();
       return resJson.data || resJson;
     } catch (err: any) {
-      console.warn('[AttendanceService] getTodayPresentStudents mock fallback:', err?.message);
+      console.warn('[AttendanceService] getTodayPresentStudents failed:', err?.message);
       return {
         class_id: classId,
         today: new Date().toISOString().split('T')[0],
-        total_present: 36,
-        present_students: [
-          { id: 'stu_1', full_name: 'Nguyễn Minh Anh', student_code: 'HS240101' },
-          { id: 'stu_3', full_name: 'Lê Thị Cẩm Tú', student_code: 'HS240103' },
-          { id: 'stu_5', full_name: 'Võ Khánh Linh', student_code: 'HS240105' },
-          { id: 'stu_6', full_name: 'Đặng Quốc Huy', student_code: 'HS240106' },
-          { id: 'stu_7', full_name: 'Hoàng Hải Đăng', student_code: 'HS240107' },
-          { id: 'stu_8', full_name: 'Bùi Thanh Trúc', student_code: 'HS240108' },
-        ],
+        is_attended_today: false,
+        total_present: 0,
+        present_students: [],
       };
     }
   }

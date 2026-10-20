@@ -22,7 +22,7 @@ export const ParentJoinCodeScreen: React.FC<ParentJoinCodeScreenProps> = ({
   onBack,
   onJoinSuccess,
 }) => {
-  const [inviteCode, setInviteCode] = useState('INV-6A1-9821');
+  const [inviteCode, setInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleJoin = async () => {
@@ -95,7 +95,7 @@ export const ParentJoinCodeScreen: React.FC<ParentJoinCodeScreenProps> = ({
               style={styles.codeInput}
               value={inviteCode}
               onChangeText={setInviteCode}
-              placeholder="INV-6A1-9821"
+              placeholder="INV-XXXX-XXXX"
               placeholderTextColor="#A09DAE"
               autoCapitalize="characters"
               textAlign="center"

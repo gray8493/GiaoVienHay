@@ -34,7 +34,8 @@ export const NotificationScreen: React.FC<NotificationScreenProps> = ({ onBack }
 
   const handleItemPress = async (item: NotificationItem) => {
     if (!item.is_read) {
-      await notificationService.markAsRead(item.id);
+      const ok = await notificationService.markAsRead(item.id);
+      if (!ok) return;
       setNotifications(prev =>
         prev.map(n => (n.id === item.id ? { ...n, is_read: true } : n))
       );
@@ -134,6 +135,13 @@ export const NotificationScreen: React.FC<NotificationScreenProps> = ({ onBack }
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.notificationsCard}>
+              {!isLoading && notifications.length === 0 && (
+                <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+                  <Text style={{ fontSize: 13, color: '#6B6880', textAlign: 'center' }}>
+                    Chưa có thông báo nào
+                  </Text>
+                </View>
+              )}
               {notifications.map((item, index) => {
                 const isLast = index === notifications.length - 1;
                 return (

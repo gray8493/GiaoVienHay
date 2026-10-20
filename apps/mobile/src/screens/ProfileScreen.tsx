@@ -72,10 +72,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [editName, setEditName] = useState(profile.full_name);
   const [editEmail, setEditEmail] = useState(profile.email || '');
   const [editSchool, setEditSchool] = useState(profile.school_name || '');
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(['Toán', 'Tin Học']);
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  // Môn dạy làm việc bằng MÃ CHUẨN trùng backend (MATH/LIT/ENG/CS/SCIENCE/...) — hiển thị bằng nhãn VN
+  const ALL_SUBJECTS: { code: string; label: string }[] = [
+    { code: 'MATH', label: 'Toán' },
+    { code: 'LIT', label: 'Ngữ Văn' },
+    { code: 'ENG', label: 'Tiếng Anh' },
+    { code: 'CS', label: 'Tin Học' },
+    { code: 'SCIENCE', label: 'Khoa học' },
+    { code: 'HISTORY', label: 'Lịch sử' },
+    { code: 'GEOGRAPHY', label: 'Địa lí' },
+    { code: 'ETHICS', label: 'Đạo đức' },
+  ];
+  const subjectLabel = (code: string) =>
+    ALL_SUBJECTS.find((s) => s.code === code)?.label || code;
 
-  const ALL_SUBJECTS = ['Toán', 'Ngữ Văn', 'Tiếng Anh', 'Khoa Học', 'Lịch Sử – Địa Lý', 'Tin Học'];
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   useEffect(() => {
     loadUserProfile();
@@ -89,7 +101,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       setEditEmail(data.email || '');
       setEditSchool(data.school_name || '');
       if (data.teaching_subjects && data.teaching_subjects.length > 0) {
-        setSelectedSubjects(data.teaching_subjects);
+        setSelectedSubjects(data.teaching_subjects); // Mã môn chuẩn từ backend
+      } else {
+        setSelectedSubjects([]);
       }
     } catch (e) {
       // Giữ mock fallback
@@ -365,35 +379,39 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   <Text style={styles.infoRowText}>{profile.phone}</Text>
                 </View>
 
-                {/* Email */}
-                <View style={styles.infoRow}>
-                  <View style={[styles.infoIconBox, { backgroundColor: '#EFF6FF' }]}>
-                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={2}>
-                      <Rect x={2} y={4} width={20} height={16} rx={2} strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" strokeLinecap="round" strokeLinejoin="round" />
-                    </Svg>
+                {/* Email: chỉ hiển thị khi người dùng có email thực tế */}
+                {profile.email ? (
+                  <View style={styles.infoRow}>
+                    <View style={[styles.infoIconBox, { backgroundColor: '#EFF6FF' }]}>
+                      <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={2}>
+                        <Rect x={2} y={4} width={20} height={16} rx={2} strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
+                    </View>
+                    <Text style={styles.infoRowText} numberOfLines={1}>
+                      {profile.email}
+                    </Text>
                   </View>
-                  <Text style={styles.infoRowText} numberOfLines={1}>
-                    {profile.email || 'ha.nguyen@school.edu.vn'}
-                  </Text>
-                </View>
+                ) : null}
 
-                {/* School */}
-                <View style={styles.infoRow}>
-                  <View style={[styles.infoIconBox, { backgroundColor: '#ECFDF5' }]}>
-                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2}>
-                      <Path d="M3 21h18" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M9 7h1" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M9 11h1" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M9 15h1" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M14 7h1" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M14 11h1" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M14 15h1" strokeLinecap="round" strokeLinejoin="round" />
-                    </Svg>
+                {/* School: chỉ hiển thị khi có dữ liệu thực tế */}
+                {profile.school_name ? (
+                  <View style={styles.infoRow}>
+                    <View style={[styles.infoIconBox, { backgroundColor: '#ECFDF5' }]}>
+                      <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2}>
+                        <Path d="M3 21h18" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="M9 7h1" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="M9 11h1" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="M9 15h1" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="M14 7h1" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="M14 11h1" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="M14 15h1" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
+                    </View>
+                    <Text style={styles.infoRowText}>{profile.school_name}</Text>
                   </View>
-                  <Text style={styles.infoRowText}>{profile.school_name || 'THCS Lê Quý Đôn'}</Text>
-                </View>
+                ) : null}
               </View>
 
               {/* Divider */}
@@ -403,14 +421,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               <View style={styles.subjectsSection}>
                 <Text style={styles.subjectsTitle}>Môn dạy</Text>
                 <View style={styles.subjectChipsRow}>
-                  {(profile.teaching_subjects && profile.teaching_subjects.length > 0
-                    ? profile.teaching_subjects
-                    : ['Toán', 'Tin Học']
-                  ).map((sub, index) => (
+                  {(profile.teaching_subjects || []).map((sub, index) => (
                     <View key={index} style={styles.subjectChip}>
-                      <Text style={styles.subjectChipText}>{sub}</Text>
+                      <Text style={styles.subjectChipText}>{subjectLabel(sub)}</Text>
                     </View>
                   ))}
+                  {(!profile.teaching_subjects || profile.teaching_subjects.length === 0) && (
+                    <Text style={styles.subjectsEmptyText}>Chưa cập nhật môn dạy</Text>
+                  )}
                 </View>
               </View>
             </View>
@@ -762,16 +780,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   <Text style={styles.editSubjectsSectionTitle}>Môn dạy</Text>
                   <View style={styles.subjectChipsWrap}>
                     {ALL_SUBJECTS.map((sub, idx) => {
-                      const isSelected = selectedSubjects.includes(sub);
+                      const isSelected = selectedSubjects.includes(sub.code);
                       return (
                         <TouchableOpacity
                           key={idx}
                           style={[styles.editSubjectChip, isSelected && styles.editSubjectChipSelected]}
-                          onPress={() => handleToggleSubject(sub)}
+                          onPress={() => handleToggleSubject(sub.code)}
                           activeOpacity={0.8}
                         >
                           <Text style={[styles.editSubjectChipText, isSelected && styles.editSubjectChipTextSelected]}>
-                            {sub}
+                            {sub.label}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -1022,6 +1040,11 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: '500',
     color: '#94A3B8',
+  },
+  subjectsEmptyText: {
+    fontSize: 13,
+    color: '#9D9AA8',
+    fontStyle: 'italic',
   },
   subjectChipsRow: {
     flexDirection: 'row',

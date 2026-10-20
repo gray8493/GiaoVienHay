@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Line } from 'react-native-svg';
 import { notificationService } from '../services/notification.service';
@@ -25,54 +26,11 @@ interface NotificationItem {
   icon_type: 'calendar' | 'book' | 'shield' | 'exam' | 'chat';
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'notif_01',
-    title: 'Bảo Nam đã có mặt tại lớp',
-    time_label: '07:45',
-    category: 'ATTENDANCE',
-    is_unread: false,
-    icon_type: 'calendar',
-  },
-  {
-    id: 'notif_02',
-    title: 'Cô Lan gửi sổ liên lạc môn Toán',
-    time_label: 'Hôm qua',
-    category: 'GRADES',
-    is_unread: true,
-    icon_type: 'book',
-  },
-  {
-    id: 'notif_03',
-    title: 'Nhắc nộp BHYT trước 15/10',
-    time_label: 'Hôm qua',
-    category: 'FEES',
-    is_unread: false,
-    icon_type: 'shield',
-  },
-  {
-    id: 'notif_04',
-    title: 'Kiểm tra 15 phút Toán ngày 02/10',
-    time_label: '2 ngày trước',
-    category: 'EXAMS',
-    is_unread: false,
-    icon_type: 'exam',
-  },
-  {
-    id: 'notif_05',
-    title: 'Có nhận xét mới từ cô Lan',
-    time_label: '2 ngày trước',
-    category: 'GRADES',
-    is_unread: false,
-    icon_type: 'chat',
-  },
-];
-
 export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> = ({
   onBack,
 }) => {
   const [filter, setFilter] = useState<FilterType>('ALL');
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
     loadNotifications();
@@ -121,8 +79,13 @@ export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> =
     }
   };
 
-  const handleMarkAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, is_unread: false })));
+  const handleMarkAllRead = async () => {
+    const ok = await notificationService.markAllAsRead();
+    if (ok) {
+      setNotifications(prev => prev.map(n => ({ ...n, is_unread: false })));
+    } else {
+      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái thông báo');
+    }
   };
 
   const filteredList = notifications.filter(item => {
@@ -217,15 +180,26 @@ export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> =
 
         {/* Notification List Card */}
         <View style={styles.card}>
+          {filteredList.length === 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <Text style={{ fontSize: 13, color: '#6B6880', textAlign: 'center' }}>
+                Chưa có thông báo nào
+              </Text>
+            </View>
+          )}
           {filteredList.map((item, index) => (
             <View key={item.id}>
               <TouchableOpacity
                 style={styles.itemRow}
                 activeOpacity={0.8}
-                onPress={() => {
-                  setNotifications(prev =>
-                    prev.map(n => (n.id === item.id ? { ...n, is_unread: false } : n))
-                  );
+                onPress={async () => {
+                  if (!item.is_unread) return;
+                  const ok = await notificationService.markAsRead(item.id);
+                  if (ok) {
+                    setNotifications(prev =>
+                      prev.map(n => (n.id === item.id ? { ...n, is_unread: false } : n))
+                    );
+                  }
                 }}
               >
                 {/* Icon Tile */}

@@ -208,18 +208,30 @@ export class ClassesService {
       }
     } catch (e) {}
 
-    const mapped = classes.map((c: any) => {
-      const isHomeroom = (c.homeroom_teacher_id || c.homeroomTeacherId) === teacherId;
-      return {
-        ...c,
-        class_id: c.id || c.class_id,
-        name: c.name,
-        grade_level: c.grade_level || c.gradeLevel,
-        academic_year: c.academic_year || c.academicYear,
-        role_in_class: isHomeroom ? 'HOMEROOM' : 'SUBJECT',
-        total_students: c.student_count || c.studentCount || c.total_students || 0,
-      };
-    });
+    const mapped = await Promise.all(
+      classes.map(async (c: any) => {
+        const isHomeroom = (c.homeroom_teacher_id || c.homeroomTeacherId) === teacherId;
+        const classId = c.id || c.class_id;
+        let totalStudents = c.student_count || c.studentCount || c.total_students || 0;
+        try {
+          const students = await this.dataConnect.listStudentsByClass(classId);
+          if (Array.isArray(students)) {
+            totalStudents = students.filter((s: any) => !s.is_deleted && !s.isDeleted).length;
+          }
+        } catch (e) {}
+        return {
+          ...c,
+          class_id: classId,
+          name: c.name,
+          grade_level: c.grade_level || c.gradeLevel,
+          academic_year: c.academic_year || c.academicYear,
+          role_in_class: isHomeroom ? 'HOMEROOM' : 'SUBJECT',
+          student_count: totalStudents,
+          studentCount: totalStudents,
+          total_students: totalStudents,
+        };
+      }),
+    );
 
     const resultData = {
       total: mapped.length,
@@ -248,11 +260,27 @@ export class ClassesService {
 
     const students = await this.getClassStudents(classId);
     const activeStudents = students.filter((s: any) => !s.is_deleted && !s.isDeleted);
+
+    // Tra tên GVCN thật theo homeroom_teacher_id nếu lớp chưa lưu tên
+    const homeroomTeacherName =
+      cls.homeroom_teacher ||
+      (cls.homeroom_teacher_id && typeof this.dataConnect.getUserById === 'function'
+        ? await this.dataConnect
+            .getUserById(cls.homeroom_teacher_id)
+            .then((u: any) => u?.full_name || u?.fullName || null)
+            .catch(() => null)
+        : null);
+
     return {
       ...cls,
       class_id: cls.id || classId,
+      grade_level: cls.grade_level ?? cls.gradeLevel,
+      academic_year: cls.academic_year ?? cls.academicYear,
+      school_name: cls.school_name ?? cls.schoolName ?? '',
+      invite_code: cls.invite_code ?? cls.inviteCode ?? '',
+      student_count: cls.student_count ?? cls.studentCount ?? activeStudents.length,
       total_students: activeStudents.length,
-      student_count: activeStudents.length,
+      homeroom_teacher: homeroomTeacherName || null,
       students: activeStudents,
     };
   }

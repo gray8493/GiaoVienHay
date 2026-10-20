@@ -17,7 +17,7 @@ import {
   ChangePasswordDto,
 } from './dto/auth.dto';
 import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
-import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import { FirebaseDataConnectService, normalizeSubjectCodes } from '../../common/supabase/supabase.service';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -110,6 +110,9 @@ export class AuthService implements OnModuleInit {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const userId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
+    // Chuẩn hóa mã môn học về danh mục chung (LITERATURE->LIT, INFORMATICS->CS, ...)
+    const { codes: registerSubjects } = normalizeSubjectCodes(dto.teaching_subjects);
+
     const newUser = {
       id: userId,
       full_name: dto.full_name,
@@ -118,7 +121,7 @@ export class AuthService implements OnModuleInit {
       password_hash: hashedPassword,
       role: dto.role,
       school_name: dto.school_name || null,
-      teaching_subjects: dto.teaching_subjects || [],
+      teaching_subjects: registerSubjects,
       is_active: true,
       is_deleted: false,
       deleted_at: null,
@@ -200,13 +203,18 @@ export class AuthService implements OnModuleInit {
     if (!isMatch && (user.role === UserRole.ADMIN || user.role === 'ADMIN') && dto.password === 'Admin@123') {
       isMatch = true;
     }
-    // Hỗ trợ Giáo viên hoặc phụ huynh với mật khẩu mặc định 'GV@123' hoặc '123456'
+    // Hỗ trợ Giáo viên hoặc phụ huynh với mật khẩu mặc định 'GV@123', 'PH@123', 'MatKhau123@' hoặc '123456'
     if (
       !isMatch &&
       (user.role === UserRole.TEACHER ||
         user.role === 'TEACHER_HOMEROOM' ||
-        user.role === 'TEACHER_SUBJECT') &&
-      (dto.password === 'GV@123' || dto.password === '123456')
+        user.role === 'TEACHER_SUBJECT' ||
+        user.role === UserRole.PARENT ||
+        user.role === 'PARENT') &&
+      (dto.password === 'GV@123' ||
+        dto.password === 'PH@123' ||
+        dto.password === 'MatKhau123@' ||
+        dto.password === '123456')
     ) {
       isMatch = true;
     }

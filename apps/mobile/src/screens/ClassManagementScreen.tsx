@@ -27,7 +27,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 }) => {
   const [classData, setClassData] = useState<ClassDetailData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedStudentId, setExpandedStudentId] = useState<string | null>('stu_02'); // Mặc định mở Trần Bảo Nam như database
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
   const [activeMenuStudentId, setActiveMenuStudentId] = useState<string | null>(null);
 
   // Modals state
@@ -36,9 +36,9 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
   const [studentToDelete, setStudentToDelete] = useState<StudentItem | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteRole, setInviteRole] = useState<'PARENT' | 'TEACHER'>('TEACHER');
-  const [teacherInviteCode, setTeacherInviteCode] = useState('TCH-4417');
-  const [parentInviteCode, setParentInviteCode] = useState('PAR-8821');
-  const [currentInviteCode, setCurrentInviteCode] = useState('TCH-4417');
+  const [teacherInviteCode, setTeacherInviteCode] = useState('');
+  const [parentInviteCode, setParentInviteCode] = useState('');
+  const [currentInviteCode, setCurrentInviteCode] = useState('');
   const [copiedToast, setCopiedToast] = useState(false);
 
   // Form State Thêm học sinh
@@ -58,10 +58,13 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
     }
     const data = await classService.getClassDetail(classId);
     setClassData(data);
-    const cleanName = (data.name || 'LOP').toUpperCase().replace(/\s+/g, '');
     if (data.invite_code) {
       setParentInviteCode(data.invite_code.startsWith('INV-') ? data.invite_code.replace('INV-', 'PAR-') : data.invite_code);
-      setTeacherInviteCode(`TCH-${cleanName}-4417`);
+      const cleanName = (data.name || 'LOP').toUpperCase().replace(/\s+/g, '');
+      const suffix = data.invite_code.includes('-') ? data.invite_code.split('-').pop() : data.invite_code;
+      setTeacherInviteCode(`TCH-${cleanName}-${suffix}`);
+      setParentInviteCode(`PAR-${cleanName}-${suffix}`);
+      setCurrentInviteCode(`TCH-${cleanName}-${suffix}`);
     }
   };
 
@@ -82,7 +85,12 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 
   const handleConfirmDelete = async () => {
     if (!studentToDelete || !classData) return;
-    await classService.removeStudent(classId, studentToDelete.id);
+    try {
+      await classService.removeStudent(classId, studentToDelete.id);
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể xoá học sinh. Vui lòng thử lại.');
+      return;
+    }
     setClassData(prev => {
       if (!prev) return null;
       return {
@@ -101,12 +109,39 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
       return;
     }
 
-    const newStudent = await classService.addStudent(classId, {
-      full_name: formName.trim(),
-      dob: formDob.trim(),
-      gender: formGender,
-      parent_phone: formPhone.trim(),
-    });
+    let dobIso: string | undefined;
+    const dobRaw = formDob.trim();
+    if (dobRaw) {
+      const dobMatch = dobRaw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!dobMatch) {
+        Alert.alert('Thông báo', 'Ngày sinh cần định dạng DD/MM/YYYY, ví dụ 15/06/2014');
+        return;
+      }
+      const d = Number(dobMatch[1]);
+      const m = Number(dobMatch[2]);
+      const y = Number(dobMatch[3]);
+      const parsed = new Date(Date.UTC(y, m - 1, d));
+      const realDate =
+        parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m - 1 && parsed.getUTCDate() === d;
+      if (!realDate) {
+        Alert.alert('Thông báo', 'Ngày sinh không tồn tại trong lịch thực tế');
+        return;
+      }
+      dobIso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    let newStudent: StudentItem;
+    try {
+      newStudent = await classService.addStudent(classId, {
+        full_name: formName.trim(),
+        dob: dobIso,
+        gender: formGender,
+        parent_phone: formPhone.trim(),
+      });
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể thêm học sinh. Vui lòng thử lại.');
+      return;
+    }
 
     setClassData(prev => {
       if (!prev) return null;
@@ -126,23 +161,18 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
   const handleRefreshInviteCode = async () => {
     try {
       const res = await classService.generateInviteCode(classId);
-      const cleanClassName = (classData?.name || '6A1').toUpperCase().replace(/\s+/g, '');
       const rawCode = res.invite_code || '';
-      const suffix = rawCode.includes('-') ? rawCode.split('-').pop() : Math.floor(1000 + Math.random() * 9000).toString();
+      if (!rawCode) throw new Error('Máy chủ không trả về mã mời');
+      const cleanClassName = (classData?.name || '').toUpperCase().replace(/\s+/g, '');
+      const suffix = rawCode.includes('-') ? rawCode.split('-').pop() : rawCode;
 
       if (inviteRole === 'TEACHER') {
         setTeacherInviteCode(`TCH-${cleanClassName}-${suffix}`);
       } else {
         setParentInviteCode(`PAR-${cleanClassName}-${suffix}`);
       }
-    } catch (e) {
-      const cleanClassName = (classData?.name || '6A1').toUpperCase().replace(/\s+/g, '');
-      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      if (inviteRole === 'TEACHER') {
-        setTeacherInviteCode(`TCH-${cleanClassName}-${randomSuffix}`);
-      } else {
-        setParentInviteCode(`PAR-${cleanClassName}-${randomSuffix}`);
-      }
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể tạo mã mời. Vui lòng thử lại.');
     }
   };
 
@@ -266,27 +296,33 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
         <View style={styles.classInfoCard}>
           <View style={styles.classInfoLeft}>
             <View style={styles.classTitleRow}>
-              <Text style={styles.className}>{classData?.name || 'Lớp 6A1'}</Text>
+              <Text style={styles.className}>{classData?.name || 'Lớp học'}</Text>
               <View style={styles.gradeBadge}>
-                <Text style={styles.gradeBadgeText}>Khối {classData?.grade_level || 6} • {classData?.academic_year || '2026-2027'}</Text>
+                <Text style={styles.gradeBadgeText}>
+                  Khối {classData?.grade_level || '—'}{classData?.academic_year ? ` • ${classData.academic_year}` : ''}
+                </Text>
               </View>
             </View>
-            <View style={styles.schoolRow}>
-              <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m4 0h1M9 11h1m4 0h1M9 15h1m4 0h1m-4 6v-4h4v4"
-                  stroke="#F58F4C"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                />
-              </Svg>
-              <Text style={styles.schoolText}>{classData?.school_name || 'THCS Lê Quý Đôn'}</Text>
-            </View>
-            <Text style={styles.homeroomTeacherText}>GVCN: {classData?.homeroom_teacher || 'Cô Nguyễn Thu Hà'}</Text>
+              {classData?.school_name ? (
+                <View style={styles.schoolRow}>
+                  <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m4 0h1M9 11h1m4 0h1M9 15h1m4 0h1m-4 6v-4h4v4"
+                      stroke="#F58F4C"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                    />
+                  </Svg>
+                  <Text style={styles.schoolText}>{classData.school_name}</Text>
+                </View>
+              ) : null}
+              {classData?.homeroom_teacher ? (
+                <Text style={styles.homeroomTeacherText}>GVCN: {classData.homeroom_teacher}</Text>
+              ) : null}
           </View>
 
           <View style={styles.classInfoRight}>
-            <Text style={styles.studentCountNumber}>{classData?.student_count || 38}</Text>
+            <Text style={styles.studentCountNumber}>{classData?.student_count || 0}</Text>
             <Text style={styles.studentCountLabel}>học sinh</Text>
           </View>
         </View>
@@ -308,6 +344,43 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 
         {/* Student List Bento Container */}
         <View style={styles.studentListCard}>
+          {filteredStudents.length === 0 && (
+            <View style={styles.studentEmptyState}>
+              <View style={styles.studentEmptyIconWrap}>
+                <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
+                  <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" strokeLinecap="round" strokeLinejoin="round" />
+                  <Circle cx={9} cy={7} r={4} strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M23 21v-2a4 4 0 0 0-3-3.87" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </View>
+              <Text style={styles.studentEmptyTitle}>
+                {searchQuery.trim() ? 'Không tìm thấy học sinh' : 'Lớp chưa có học sinh'}
+              </Text>
+              <Text style={styles.studentEmptySubtitle}>
+                {searchQuery.trim()
+                  ? 'Không có em nào khớp tên hoặc mã bạn vừa tìm. Thử từ khóa khác nhé.'
+                  : 'Bấm “+ Thêm Học Sinh” ở bên dưới để nhập tên, ngày sinh và số điện thoại phụ huynh.'}
+              </Text>
+              {searchQuery.trim() ? (
+                <TouchableOpacity
+                  style={styles.studentEmptyAction}
+                  onPress={() => setSearchQuery('')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.studentEmptyActionText}>Xóa tìm kiếm</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.studentEmptyAction}
+                  onPress={() => setShowAddModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.studentEmptyActionText}>+ Thêm học sinh đầu tiên</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
           {filteredStudents.map((student, idx) => {
             const isExpanded = expandedStudentId === student.id;
             const isMenuOpen = activeMenuStudentId === student.id;
@@ -388,7 +461,14 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                         <Rect x={3} y={4} width={18} height={18} rx={2} stroke="#984704" strokeWidth={2} />
                         <Path d="M16 2v4M8 2v4M3 10h18" stroke="#984704" strokeWidth={2} strokeLinecap="round" />
                       </Svg>
-                      <Text style={styles.infoPillText}>{student.dob || '12/03/2014'}</Text>
+                      <Text style={styles.infoPillText}>
+                        {student.dob
+                          ? (() => {
+                              const iso = student.dob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                              return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : student.dob;
+                            })()
+                          : '—'}
+                      </Text>
                     </View>
 
                     {student.parent_phone ? (
@@ -654,7 +734,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 
             <Text style={styles.dialogTitle}>Xóa học sinh?</Text>
             <Text style={styles.dialogDesc}>
-              {studentToDelete?.full_name || 'Học sinh này'} sẽ bị xóa khỏi {classData?.name || 'lớp 6A1'}.
+              {studentToDelete?.full_name || 'Học sinh này'} sẽ bị xóa khỏi {classData?.name || 'lớp học'}.
             </Text>
 
             {/* Stacked Action Buttons */}
@@ -1031,6 +1111,47 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.7)',
+  },
+  studentEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+  },
+  studentEmptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  studentEmptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#3D2C29',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  studentEmptySubtitle: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: '#887367',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  studentEmptyAction: {
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1,
+    borderColor: '#F58F4C',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  studentEmptyActionText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#F58F4C',
   },
   studentRowContainer: {
     paddingVertical: 8,

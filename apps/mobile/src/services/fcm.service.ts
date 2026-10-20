@@ -1,11 +1,7 @@
 import { Platform, Alert } from 'react-native';
 import { app } from '../config/firebase';
 import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
+import { API_BASE_URL } from '../config/api';
 
 type NotificationListener = (payload: any) => void;
 
@@ -89,7 +85,7 @@ class FCMService {
         return true;
       }
     } catch (err) {
-      console.warn('[FCM] Lỗi khi gửi token lên backend:', err);
+      console.log('[FCM] Chưa kết nối được token với backend (offline/dev):', err);
     }
     return false;
   }

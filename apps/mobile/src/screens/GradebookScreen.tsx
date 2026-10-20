@@ -10,6 +10,7 @@ import {
   Image,
   Modal,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, {
@@ -30,6 +31,22 @@ import { gradesService } from '../services/grades.service';
 import { authService } from '../services/auth.service';
 import { classService } from '../services/class.service';
 
+const SUBJECT_LABELS: Record<string, string> = {
+  MATH: 'Toán Học',
+  LIT: 'Ngữ Văn',
+  ENG: 'Tiếng Anh',
+  CS: 'Tin Học',
+  SCIENCE: 'Khoa học',
+  ETHICS: 'Đạo đức',
+  HISTORY: 'Lịch sử',
+  GEOGRAPHY: 'Địa lí',
+};
+
+const buildSubjectOptions = (codes: string[]) => {
+  const unique = Array.from(new Set(codes.filter(Boolean)));
+  return unique.map((code) => ({ code, label: SUBJECT_LABELS[code] || code }));
+};
+
 interface StudentGrade {
   id: string;
   rank: number;
@@ -45,15 +62,15 @@ interface StudentGrade {
 }
 
 interface GradebookScreenProps {
-  currentClassId?: string;
+  currentClassId: string;
   className?: string;
   onBackToHome?: () => void;
   onTabChange?: (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => void;
 }
 
 export const GradebookScreen: React.FC<GradebookScreenProps> = ({
-  currentClassId = 'cls_1a_2026',
-  className = 'Lớp 1A',
+  currentClassId,
+  className = 'Lớp học',
   onBackToHome,
   onTabChange,
 }) => {
@@ -64,21 +81,42 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Quản lý môn học & chế độ Xem (Visibility / Read-only) theo Backend & phân quyền
-  const [selectedSubject, setSelectedSubject] = useState<'MATH' | 'LIT' | 'CS'>('MATH');
+  const [selectedSubject, setSelectedSubject] = useState<string>('MATH');
+  const [subjectOptions, setSubjectOptions] = useState<{ code: string; label: string }[]>([{ code: 'MATH', label: 'Toán Học' }]);
+  const [isClassHomeroom, setIsClassHomeroom] = useState<boolean>(false);
+  const [selectedSemester, setSelectedSemester] = useState<number>(1);
+  const [pickerView, setPickerView] = useState<'subject' | 'semester' | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
 
   useEffect(() => {
     loadGradebookData();
-  }, [currentClassId, selectedSubject]);
+  }, [currentClassId, selectedSubject, selectedSemester]);
 
   const loadGradebookData = async () => {
     setIsLoading(true);
     try {
       const [gradesRes, lbRes, classDetail] = await Promise.all([
-        gradesService.getClassGrades(currentClassId, selectedSubject).catch(() => null),
-        gradesService.getLeaderboard(currentClassId, selectedSubject).catch(() => null),
+        gradesService.getClassGrades(currentClassId, selectedSubject, selectedSemester).catch(() => null),
+        gradesService.getLeaderboard(currentClassId, selectedSubject, selectedSemester).catch(() => null),
         classService.getClassDetail(currentClassId).catch(() => null),
       ]);
+
+      // Xác định GVCN + danh sách môn userrights: GVCN xem đủ môn, GVBM chỉ môn được phân công
+      const clsAny = classDetail as any;
+      const myId = authService.getUser()?.id || '';
+      const homeroom = !!(clsAny && (clsAny.homeroom_teacher_id || clsAny.homeroomTeacherId) === myId);
+      setIsClassHomeroom(homeroom);
+      const sts: any[] = Array.isArray(clsAny?.subject_teachers) ? clsAny.subject_teachers : [];
+      const stCodes = sts.map((st: any) => st.subject_code || st.subjectCode).filter(Boolean);
+      if (homeroom || sts.length === 0) {
+        setSubjectOptions(buildSubjectOptions(['MATH', 'LIT', 'CS', ...stCodes]));
+      } else {
+        const mine = sts
+          .filter((st: any) => (st.teacher_id || st.teacherId) === myId)
+          .map((st: any) => st.subject_code || st.subjectCode)
+          .filter(Boolean);
+        setSubjectOptions(buildSubjectOptions(mine.length > 0 ? mine : ['MATH']));
+      }
 
       if (lbRes && lbRes.top_students && lbRes.top_students.length > 0) {
         setLeaderboard(lbRes.top_students);
@@ -124,15 +162,15 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
     }
   };
 
-  // Môn 'LIT' (Ngữ Văn) do GV khác dạy => GVCN chỉ có quyền xem (Read-only)
-  const isReadOnly = selectedSubject === 'LIT' || isPreviewMode;
+  // Môn không được phân công sẽ do backend chặn quyền (403); chế độ xem chỉ từ nút mắt
+  const isReadOnly = isPreviewMode;
 
   // Modal 1: Nhập điểm (TEA-06b)
   const [scoreModalVisible, setScoreModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentGrade | null>(null);
   const [activeScoreType, setActiveScoreType] = useState<'oral' | 'test15p' | 'test1p' | 'midTerm' | 'final'>('test1p');
-  const [inputScore, setInputScore] = useState('9.0');
-  const [teacherComment, setTeacherComment] = useState('Thuộc bài tốt, trình bày sạch đẹp');
+  const [inputScore, setInputScore] = useState('');
+  const [teacherComment, setTeacherComment] = useState('');
 
   // Modal 2: Gửi sổ liên lạc (TEA-06c)
   const [sendModalVisible, setSendModalVisible] = useState(false);
@@ -141,19 +179,14 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
   // Screen 4: Thành công (TEA-06d)
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
 
-  // Chuyển đổi môn học vòng quanh (Toán -> Ngữ Văn -> Tin Học -> Toán)
-  const handleToggleSubject = () => {
-    setSelectedSubject((prev) => {
-      if (prev === 'MATH') return 'LIT';
-      if (prev === 'LIT') return 'CS';
-      return 'MATH';
-    });
+  const getSubjectDisplayName = () => {
+    return SUBJECT_LABELS[selectedSubject] || selectedSubject;
   };
 
-  const getSubjectDisplayName = () => {
-    if (selectedSubject === 'LIT') return 'Ngữ Văn';
-    if (selectedSubject === 'CS') return 'Tin Học';
-    return 'Toán Học';
+  // Đổi học kỳ
+  const handlePickSemester = (semester: number) => {
+    setSelectedSemester(semester);
+    setPickerView(null);
   };
 
   // Mở modal nhập điểm cho học sinh (chỉ cho phép khi không ở chế độ Read-only)
@@ -168,7 +201,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
       setActiveScoreType('test1p');
       setInputScore(student.test1p !== null ? student.test1p.toFixed(1) : '9.0');
     }
-    setTeacherComment(student.comment || 'Thuộc bài tốt, trình bày sạch đẹp');
+    setTeacherComment(student.comment || '');
     setScoreModalVisible(true);
   };
 
@@ -195,7 +228,38 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
   const handleSaveScoreAndNext = async () => {
     if (!selectedStudent) return;
     const num = parseFloat(inputScore);
-    const validScore = isNaN(num) ? 9.0 : Math.min(10, Math.max(0, num));
+    if (isNaN(num) || num < 0 || num > 10) {
+      Alert.alert('Thông báo', 'Vui lòng nhập điểm hợp lệ trong khoảng 0 đến 10');
+      return;
+    }
+    const validScore = num;
+
+    // Gọi backend API trước, chỉ cập nhật state khi lưu thành công
+    try {
+      const typeMap: Record<string, 'ORAL_TEST' | 'TEST_15P' | 'TEST_1P' | 'MID_TERM' | 'FINAL'> = {
+        oral: 'ORAL_TEST',
+        test15p: 'TEST_15P',
+        test1p: 'TEST_1P',
+        midTerm: 'MID_TERM',
+        final: 'FINAL',
+      };
+      await gradesService.batchInputScores({
+        class_id: currentClassId,
+        subject_code: selectedSubject,
+        score_type: typeMap[activeScoreType] || 'TEST_1P',
+        semester: selectedSemester,
+        scores: [
+          {
+            student_id: selectedStudent.id,
+            score_value: validScore,
+            teacher_comment: teacherComment,
+          },
+        ],
+      });
+    } catch (e: any) {
+      Alert.alert('Lỗi', e.message || 'Không thể lưu điểm');
+      return;
+    }
 
     // Cập nhật state học sinh
     setStudents((prev) =>
@@ -211,40 +275,14 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
       })
     );
 
-    // Gọi backend API nếu có kết nối
-    try {
-      const typeMap: Record<string, 'ORAL_TEST' | 'TEST_15P' | 'TEST_1P' | 'MID_TERM' | 'FINAL'> = {
-        oral: 'ORAL_TEST',
-        test15p: 'TEST_15P',
-        test1p: 'TEST_1P',
-        midTerm: 'MID_TERM',
-        final: 'FINAL',
-      };
-      await gradesService.batchInputScores({
-        class_id: currentClassId,
-        subject_code: selectedSubject,
-        score_type: typeMap[activeScoreType] || 'TEST_1P',
-        semester: 1,
-        scores: [
-          {
-            student_id: selectedStudent.id,
-            score_value: validScore,
-            teacher_comment: teacherComment,
-          },
-        ],
-      });
-    } catch (e) {
-      // Ignored for demo
-    }
-
     // Tìm học sinh tiếp theo
     const currentIndex = students.findIndex((s) => s.id === selectedStudent.id);
     if (currentIndex >= 0 && currentIndex < students.length - 1) {
       const nextStudent = students[currentIndex + 1];
       setSelectedStudent(nextStudent);
       const scoreVal = activeScoreType === 'final' ? null : nextStudent[activeScoreType];
-      setInputScore(scoreVal !== null && scoreVal !== undefined ? scoreVal.toFixed(1) : '9.0');
-      setTeacherComment(nextStudent.comment || 'Chăm chú lắng nghe, hoàn thành bài tập');
+      setInputScore(scoreVal !== null && scoreVal !== undefined ? scoreVal.toFixed(1) : '');
+      setTeacherComment(nextStudent.comment || '');
     } else {
       setScoreModalVisible(false);
     }
@@ -265,10 +303,12 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
         class_id: currentClassId,
         subject_code: selectedSubject,
         score_type: typeMap[activeScoreType] || 'TEST_1P',
-        semester: 1,
+        semester: selectedSemester,
       });
-    } catch (e) {
-      // Ignored
+    } catch (e: any) {
+      setIsSending(false);
+      Alert.alert('Lỗi', e.message || 'Không thể công bố sổ điểm');
+      return;
     }
 
     setTimeout(() => {
@@ -277,6 +317,16 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
       setShowSuccessScreen(true);
     }, 800);
   };
+
+  // Học sinh kế tiếp trong danh sách sau hiện tại (hiển thị ở footer modal)
+  const nextStudentAfter = (() => {
+    if (!selectedStudent) return null;
+    const idx = students.findIndex((s) => s.id === selectedStudent.id);
+    return idx >= 0 && idx < students.length - 1 ? students[idx + 1] : null;
+  })();
+  const selectedOrder = selectedStudent
+    ? students.findIndex((s) => s.id === selectedStudent.id) + 1
+    : 0;
 
   // ====================== MÀN HÌNH THÀNH CÔNG (TEA-06d) ======================
   if (showSuccessScreen) {
@@ -374,7 +424,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
 
             {/* Typography */}
             <Text style={styles.successHeadline}>Đã gửi sổ liên lạc!</Text>
-            <Text style={styles.successSubtitle}>Lớp 6A1 • Toán học • Học kỳ 1</Text>
+              <Text style={styles.successSubtitle}>{className || 'Lớp học'} • {getSubjectDisplayName()} • Học kỳ {selectedSemester}</Text>
 
             {/* Bento Stats Card */}
             <View style={styles.successBentoCard}>
@@ -515,15 +565,15 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             {/* Chip 1: Class (fixed badge pill) */}
             <View style={styles.classChipFixed}>
               <Text style={styles.classChipFixedText}>
-                {className || (currentClassId === 'cls_1a_2026' ? 'Lớp 1A' : currentClassId.replace('cls_', 'Lớp ').toUpperCase())}
+                {className || 'Lớp học'}
               </Text>
             </View>
 
-            {/* Chip 2: Subject (Tap to switch subject) */}
+            {/* Chip 2: Subject (Dropdown chọn môn xem) */}
             <TouchableOpacity
               style={styles.dropdownChipBtn}
               activeOpacity={0.85}
-              onPress={handleToggleSubject}
+              onPress={() => setPickerView('subject')}
             >
               <Text style={styles.dropdownChipText}>{getSubjectDisplayName()}</Text>
               <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#6B6880" strokeWidth={2}>
@@ -532,8 +582,12 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             </TouchableOpacity>
 
             {/* Chip 3: Semester */}
-            <TouchableOpacity style={styles.dropdownChipBtn} activeOpacity={0.85}>
-              <Text style={styles.dropdownChipText}>Học kỳ 1</Text>
+            <TouchableOpacity
+              style={styles.dropdownChipBtn}
+              activeOpacity={0.85}
+              onPress={() => setPickerView('semester')}
+            >
+              <Text style={styles.dropdownChipText}>Học kỳ {selectedSemester}</Text>
               <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#6B6880" strokeWidth={2}>
                 <Path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
@@ -913,6 +967,83 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
           </View>
         </View>
 
+        {/* ================= MODAL: CHỌN MÔN / HỌC KỲ ================= */}
+        <Modal
+          visible={pickerView !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPickerView(null)}
+        >
+          <View style={styles.pickerOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFillObject}
+              onPress={() => setPickerView(null)}
+              activeOpacity={1}
+            />
+            <View style={styles.pickerSheet}>
+              <View style={styles.modalDragHandle} />
+              <Text style={styles.pickerTitle}>
+                {pickerView === 'semester' ? 'Chọn học kỳ' : 'Chọn môn học'}
+              </Text>
+              {pickerView === 'semester' ? (
+                <>
+                  {[1, 2].map((semester) => {
+                    const isActive = selectedSemester === semester;
+                    return (
+                      <TouchableOpacity
+                        key={semester}
+                        style={[styles.pickerOptionRow, isActive && styles.pickerOptionRowActive]}
+                        onPress={() => handlePickSemester(semester)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.pickerOptionText, isActive && styles.pickerOptionTextActive]}>
+                          Học kỳ {semester}
+                        </Text>
+                        {isActive && (
+                          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2.5}>
+                            <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                          </Svg>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </>
+              ) : (
+                <ScrollView style={styles.pickerList} showsVerticalScrollIndicator={false}>
+                  {subjectOptions.map((opt) => {
+                    const isActive = opt.code === selectedSubject;
+                    return (
+                      <TouchableOpacity
+                        key={opt.code}
+                        style={[styles.pickerOptionRow, isActive && styles.pickerOptionRowActive]}
+                        onPress={() => {
+                          setSelectedSubject(opt.code);
+                          setPickerView(null);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.pickerOptionText, isActive && styles.pickerOptionTextActive]}>
+                          {opt.label}
+                        </Text>
+                        {isActive && (
+                          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2.5}>
+                            <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                          </Svg>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {!isClassHomeroom && (
+                    <Text style={styles.pickerNote}>
+                      Bạn đang xem các môn được phân công giảng dạy trong lớp này. GVCN của lớp xem được tất cả môn.
+                    </Text>
+                  )}
+                </ScrollView>
+              )}
+            </View>
+          </View>
+        </Modal>
+
         {/* ================= MODAL TEA-06b: NHẬP ĐIỂM HỌC SINH ================= */}
         <Modal
           visible={scoreModalVisible}
@@ -940,7 +1071,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                     </View>
                     <View>
                       <Text style={styles.modalStudentName}>{selectedStudent.name}</Text>
-                      <Text style={styles.modalStudentClass}>Lớp 6A1 • Toán học</Text>
+                      <Text style={styles.modalStudentClass}>{className || 'Lớp học'} • {getSubjectDisplayName()}</Text>
                     </View>
                   </View>
 
@@ -1059,7 +1190,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
               {/* Footer Actions */}
               <View style={styles.modalFooterActions}>
                 <Text style={styles.nextStudentCaption}>
-                  Tiếp theo: <Text style={{ fontWeight: '800', color: '#1E1B2E' }}>Trần Minh Anh</Text> • 3/40
+                  Tiếp theo: <Text style={{ fontWeight: '800', color: '#1E1B2E' }}>{nextStudentAfter?.name || '—'}</Text> • {selectedOrder || '—'}/{students.length || '—'}
                 </Text>
                 <View style={styles.dualModalButtons}>
                   <TouchableOpacity
@@ -1120,7 +1251,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
 
               <Text style={styles.sendModalTitle}>Gửi sổ liên lạc?</Text>
               <Text style={styles.sendModalDesc}>
-                40 phụ huynh lớp 6A1 sẽ nhận thông báo điểm môn Toán học • Học kỳ 1.
+                {students.length} phụ huynh {className || 'lớp học'} sẽ nhận thông báo điểm {getSubjectDisplayName()} • Học kỳ {selectedSemester}.
               </Text>
 
               {/* Summary Info Card */}
@@ -1829,6 +1960,56 @@ const styles = StyleSheet.create({
   },
 
   /* ================= MODAL STYLES ================= */
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 27, 46, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 26,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E1B2E',
+    marginBottom: 10,
+  },
+  pickerList: {
+    maxHeight: 360,
+  },
+  pickerOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  pickerOptionRowActive: {
+    backgroundColor: '#FFF1E6',
+  },
+  pickerOptionText: {
+    fontSize: 14.5,
+    fontWeight: '500',
+    color: '#4B5563',
+  },
+  pickerOptionTextActive: {
+    fontWeight: '700',
+    color: '#F58F4C',
+  },
+  pickerNote: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: '#9A8894',
+    marginTop: 10,
+    paddingHorizontal: 12,
+    textAlign: 'center',
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(30, 27, 46, 0.48)',

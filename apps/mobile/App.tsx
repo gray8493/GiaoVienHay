@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   useWindowDimensions,
   ScrollView,
   Platform,
@@ -70,6 +69,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('login');
   const [currentClassId, setCurrentClassId] = useState<string>('cls_empty');
   const [currentClassName, setCurrentClassName] = useState<string>('Chưa có lớp');
+  const [currentSubjectName, setCurrentSubjectName] = useState<string>('');
   const [currentStudentId, setCurrentStudentId] = useState<string>('');
   const [currentStudentName, setCurrentStudentName] = useState<string>('');
   const [currentStudentClass, setCurrentStudentClass] = useState<string>('');
@@ -119,7 +119,7 @@ export default function App() {
           .then((clsList) => {
             if (clsList && clsList.length > 0) {
               setCurrentClassId(clsList[0].id);
-              setCurrentClassName(clsList[0].name || 'Lớp ' + clsList[0].name);
+              setCurrentClassName(clsList[0].name || 'Lớp học');
               setCurrentScreen('teacher_home');
             } else {
               setCurrentClassId('cls_empty');
@@ -166,404 +166,6 @@ export default function App() {
     <View style={styles.root}>
       <StatusBar style="dark" />
 
-      {/* Top Floating Control Bar to switch between screens or view showcase */}
-      <SafeAreaView style={styles.controlHeaderArea}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabBar}
-        >
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'login' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('login')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'login' && styles.tabTextActive,
-              ]}
-            >
-              🔑 Đăng Nhập
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'register' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('register')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'register' && styles.tabTextActive,
-              ]}
-            >
-              📝 Đăng Ký
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'parent_home' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('parent_home')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'parent_home' && styles.tabTextActive,
-              ]}
-            >
-              ★ PAR-01 (Trang Chủ PH)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'parent_academic' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('parent_academic')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'parent_academic' && styles.tabTextActive,
-              ]}
-            >
-              ★ PAR-02 (Học Tập Con)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'parent_fees' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('parent_fees')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'parent_fees' && styles.tabTextActive,
-              ]}
-            >
-              ★ PAR-03 (Thu Phí PH)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'parent_profile' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('parent_profile')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'parent_profile' && styles.tabTextActive,
-              ]}
-            >
-              ★ PAR-05 (Cá Nhân PH)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'parent_join_code' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('parent_join_code')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'parent_join_code' && styles.tabTextActive,
-              ]}
-            >
-              ★ PAR-00 (Mã Mời PH)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'parent_notifications' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('parent_notifications')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'parent_notifications' && styles.tabTextActive,
-              ]}
-            >
-              ★ PAR-04 (Thông Báo PH)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'remarks_exam' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('remarks_exam')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'remarks_exam' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-09 (Nhận xét & Thi)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'fees_insurance' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('fees_insurance')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'fees_insurance' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-07 (Học phí & BHYT)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'my_classes' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('my_classes')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'my_classes' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-11 (Lớp Của Tôi)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'class_mgmt' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('class_mgmt')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'class_mgmt' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-08 (Chi tiết lớp)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'wheel' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('wheel')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'wheel' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-03b (Vòng quay)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'teacher_home' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('teacher_home')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'teacher_home' && styles.tabTextActive,
-              ]}
-            >
-              TEA-01 (Home)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'teacher_home_empty' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('teacher_home_empty')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'teacher_home_empty' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-01.empty (Chưa lớp)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'notifications' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('notifications')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'notifications' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-12 (Thông Báo)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'attendance' && styles.tabItemActive]}
-            onPress={() => {
-              if (currentClassId === 'cls_empty' || !currentClassId) {
-                Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
-                return;
-              }
-              setCurrentScreen('attendance');
-            }}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'attendance' && styles.tabTextActive,
-              ]}
-            >
-              TEA-02 (Điểm danh)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'attendance_result' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('attendance_result')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'attendance_result' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-02b (Kết quả)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'gradebook' && styles.tabItemActive]}
-            onPress={() => {
-              if (currentClassId === 'cls_empty' || !currentClassId) {
-                Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
-                return;
-              }
-              setCurrentScreen('gradebook');
-            }}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'gradebook' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-06 (Sổ điểm)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'profile' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('profile')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'profile' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-03 (Cá nhân)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'quiz_gen' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('quiz_gen')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'quiz_gen' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-04 (Tạo đề AI)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'game_select' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('game_select')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'game_select' && styles.tabTextActive,
-              ]}
-            >
-              ★ TEA-05 (Chọn Game)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'onboarding' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('onboarding')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'onboarding' && styles.tabTextActive,
-              ]}
-            >
-              Onboarding
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'login' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('login')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'login' && styles.tabTextActive,
-              ]}
-            >
-              Login
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'role' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('role')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'role' && styles.tabTextActive,
-              ]}
-            >
-              Role
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'register' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('register')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'register' && styles.tabTextActive,
-              ]}
-            >
-              Register
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, currentScreen === 'showcase' && styles.tabItemActive]}
-            onPress={() => setCurrentScreen('showcase')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                currentScreen === 'showcase' && styles.tabTextActive,
-              ]}
-            >
-              Showcase All
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
 
       {/* Main Screen Viewport */}
       {currentScreen === 'showcase' ? (
@@ -667,9 +269,11 @@ export default function App() {
             <View style={styles.phoneNotch} />
             <TeacherHomeScreen
               currentClassId={currentClassId}
-              onSelectClass={(clsId, clsName) => {
+              currentClassName={currentClassName}
+              onSelectClass={(clsId, clsName, subjectName) => {
                 setCurrentClassId(clsId);
                 if (clsName) setCurrentClassName(clsName);
+                setCurrentSubjectName(subjectName || '');
               }}
               onEnterClassroom={() => setCurrentScreen('attendance')}
               onOpenAIQuiz={() => setCurrentScreen('quiz_gen')}
@@ -713,6 +317,7 @@ export default function App() {
             <View style={styles.phoneNotch} />
             <RemarksExamScreen
               classId={currentClassId}
+              className={currentClassName}
               initialTab={remarksInitialTab}
               onBack={() => setCurrentScreen('teacher_home')}
             />
@@ -754,6 +359,7 @@ export default function App() {
             <WheelScreen
               currentClassId={currentClassId}
               className={currentClassName}
+              subjectName={currentSubjectName}
               onBack={() => setCurrentScreen('game_select')}
               onGoHome={() => setCurrentScreen('teacher_home')}
             />
@@ -808,6 +414,7 @@ export default function App() {
               classId={currentClassId}
               className={currentClassName}
               onBack={() => setCurrentScreen('teacher_home')}
+              onTabChange={handleTeacherTabChange}
               onSaveSuccess={(data) => {
                 setAttendanceData(data);
                 setCurrentScreen('attendance_result');
@@ -856,7 +463,7 @@ export default function App() {
                     .then((clsList) => {
                       if (clsList && clsList.length > 0) {
                         setCurrentClassId(clsList[0].id);
-                        setCurrentClassName(clsList[0].name || 'Lớp ' + clsList[0].name);
+                        setCurrentClassName(clsList[0].name || 'Lớp học');
                         setCurrentScreen('teacher_home');
                       } else {
                         setCurrentClassId('cls_empty');
@@ -911,8 +518,13 @@ export default function App() {
           </View>
         </ScrollView>
       ) : (
-        <View style={styles.singleScreenWrap}>
-          <View style={styles.phoneFrame}>
+        <View
+          style={[
+            styles.singleScreenWrap,
+            Platform.OS !== 'web' && styles.singleScreenWrapMobile,
+          ]}
+        >
+          <View style={[styles.phoneFrame, Platform.OS !== 'web' && styles.phoneFrameMobile]}>
             {currentScreen === 'parent_home' && (
               <ParentHomeScreen
                 selectedChildId={currentStudentId}
@@ -988,6 +600,7 @@ export default function App() {
             {currentScreen === 'remarks_exam' && (
               <RemarksExamScreen
                 classId={currentClassId}
+                className={currentClassName}
                 initialTab={remarksInitialTab}
                 onBack={() => setCurrentScreen('teacher_home')}
               />
@@ -1017,7 +630,7 @@ export default function App() {
               <WheelScreen
                 currentClassId={currentClassId}
                 className={currentClassName}
-                subjectName={currentClassId === 'cls_6a2' ? 'Toán Đại' : currentClassId === 'cls_6a3' ? 'Tin Học' : 'Toán Hình'}
+                subjectName={currentSubjectName}
                 onBack={() => setCurrentScreen('teacher_home')}
                 onGoHome={() => setCurrentScreen('teacher_home')}
               />
@@ -1025,10 +638,12 @@ export default function App() {
             {currentScreen === 'teacher_home' && (
               <TeacherHomeScreen
                 currentClassId={currentClassId}
+                currentClassName={currentClassName}
                 hasNoClass={currentClassId === 'cls_empty'}
-                onSelectClass={(clsId, clsName) => {
+                onSelectClass={(clsId, clsName, subjectName) => {
                   setCurrentClassId(clsId);
                   if (clsName) setCurrentClassName(clsName);
+                  setCurrentSubjectName(subjectName || '');
                 }}
                 onEnterClassroom={() => {
                   if (currentClassId === 'cls_empty' || !currentClassId) {
@@ -1069,9 +684,10 @@ export default function App() {
               <TeacherHomeScreen
                 hasNoClass={true}
                 currentClassId="cls_empty"
-                onSelectClass={(clsId, clsName) => {
+                onSelectClass={(clsId, clsName, subjectName) => {
                   setCurrentClassId(clsId);
                   if (clsName) setCurrentClassName(clsName);
+                  setCurrentSubjectName(subjectName || '');
                   setCurrentScreen('teacher_home');
                 }}
                 onEnterClassroom={() => {
@@ -1099,6 +715,8 @@ export default function App() {
             )}
             {currentScreen === 'quiz_gen' && (
               <QuizGenScreen
+                classId={currentClassId}
+                className={currentClassName}
                 onBack={() => setCurrentScreen('teacher_home')}
                 onSaveAndPlay={() => setCurrentScreen('game_select')}
               />
@@ -1114,6 +732,7 @@ export default function App() {
                 classId={currentClassId}
                 className={currentClassName}
                 onBack={() => setCurrentScreen('teacher_home')}
+                onTabChange={handleTeacherTabChange}
                 onSaveSuccess={(data) => {
                   setAttendanceData(data);
                   setCurrentScreen('attendance_result');
@@ -1159,7 +778,7 @@ export default function App() {
                       .then((clsList) => {
                         if (clsList && clsList.length > 0) {
                           setCurrentClassId(clsList[0].id);
-                          setCurrentClassName(clsList[0].name || 'Lớp ' + clsList[0].name);
+                          setCurrentClassName(clsList[0].name || 'Lớp học');
                           setCurrentScreen('teacher_home');
                         } else {
                           setCurrentClassId('cls_empty');
@@ -1215,36 +834,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EAE6FA', // Soft ambient pastel purple/cream canvas gradient backdrop
   },
-  controlHeaderArea: {
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(124, 58, 237, 0.12)',
-    zIndex: 100,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  tabItem: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: '#F3F0FC',
-  },
-  tabItemActive: {
-    backgroundColor: '#7C3AED',
-  },
-  tabText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-  },
   singleScreenWrap: {
     flex: 1,
     width: '100%',
@@ -1252,6 +841,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 8,
+  },
+  singleScreenWrapMobile: {
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   showcaseContainer: {
     paddingHorizontal: 20,
@@ -1280,6 +873,7 @@ const styles = StyleSheet.create({
   phoneFrameMobile: {
     width: '100%',
     height: '100%',
+    minWidth: 0,
     borderRadius: 0,
     borderWidth: 0,
     shadowOpacity: 0,

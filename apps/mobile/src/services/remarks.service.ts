@@ -1,10 +1,5 @@
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
 
 export type RemarkStatus = 'READ' | 'UNREAD' | 'NONE';
 
@@ -34,6 +29,7 @@ export interface ExamReminderItem {
   message: string;
   teacher_name: string;
   created_at: string;
+  title?: string;
 }
 
 export interface CreateRemarkPayload {
@@ -51,113 +47,67 @@ export interface CreateExamReminderPayload {
   message: string;
 }
 
-const DEFAULT_REMARKS: StudentRemarkItem[] = [
-  {
-    id: 'rem_01',
-    student_id: 'stu_01',
-    student_code: 'HS240101',
-    student_name: 'Nguyễn Minh Anh',
-    subject_code: 'MATH',
-    subject_name: 'Toán học',
-    content: 'Em nắm kiến thức bài học rất tốt, tư duy logic nhanh và làm bài tập cẩn thận.',
-    status: 'READ',
-    sent_date: '28/09 • Toán học',
-    teacher_name: 'Cô Nguyễn Thu Hà',
-  },
-  {
-    id: 'rem_02',
-    student_id: 'stu_02',
-    student_code: 'HS240102',
-    student_name: 'Trần Bảo Nam',
-    subject_code: 'MATH',
-    subject_name: 'Toán học',
-    content: 'Em tiếp thu bài nhanh, hăng hái phát biểu. Cần trình bày bài sạch hơn.',
-    status: 'UNREAD',
-    sent_date: 'Gửi 29/09 • Toán học',
-    teacher_name: 'Cô Nguyễn Thị Lan',
-  },
-  {
-    id: 'rem_03',
-    student_id: 'stu_03',
-    student_code: 'HS240103',
-    student_name: 'Lê Thị Cẩm Tú',
-    subject_code: 'LIT',
-    subject_name: 'Ngữ văn',
-    content: null,
-    status: 'NONE',
-    sent_date: null,
-    teacher_name: 'Thầy Lê Văn Hải',
-  },
-  {
-    id: 'rem_04',
-    student_id: 'stu_04',
-    student_code: 'HS240104',
-    student_name: 'Phạm Hoàng Nam',
-    subject_code: 'ENG',
-    subject_name: 'Tiếng Anh',
-    content: 'Phát âm chuẩn, tương tác bài sôi nổi trong giờ học nhóm.',
-    status: 'READ',
-    sent_date: '02/10 • Tiếng Anh',
-    teacher_name: 'Cô Hoàng Mai',
-  },
-  {
-    id: 'rem_05',
-    student_id: 'stu_05',
-    student_code: 'HS240105',
-    student_name: 'Võ Khánh Linh',
-    subject_code: 'MATH',
-    subject_name: 'Toán học',
-    content: null,
-    status: 'NONE',
-    sent_date: null,
-    teacher_name: 'Cô Nguyễn Thu Hà',
-  },
-];
+const SUBJECT_LABELS: Record<string, string> = {
+  MATH: 'Toán',
+  LIT: 'Ngữ văn',
+  LITERATURE: 'Ngữ văn',
+  ENG: 'Tiếng Anh',
+  ENGLISH: 'Tiếng Anh',
+  CS: 'Tin học',
+  INFORMATICS: 'Tin học',
+  SCIENCE: 'Khoa học',
+  ETHICS: 'Đạo đức',
+};
 
-const DEFAULT_EXAMS: ExamReminderItem[] = [
-  {
-    id: 'exam_01',
-    class_id: 'cls_6a1',
-    subject_code: 'MATH',
-    subject_name: 'Toán học',
-    exam_type: 'Kiểm tra 15 phút',
-    exam_date: '2026-10-09',
-    day_of_week: 'Thứ Sáu',
-    day_number: '09',
-    month_str: 'Th10',
-    message: 'Thứ Sáu tới lớp có bài kiểm tra 15 phút Toán về phép cộng. Kính nhờ phụ huynh nhắc con ôn bài 5 và 6.',
-    teacher_name: 'Cô Nguyễn Thu Hà',
-    created_at: '05/10 20:30',
-  },
-  {
-    id: 'exam_02',
-    class_id: 'cls_6a1',
-    subject_code: 'LIT',
-    subject_name: 'Ngữ văn',
-    exam_type: 'Kiểm tra 1 tiết',
-    exam_date: '2026-10-13',
-    day_of_week: 'Thứ Ba',
-    day_number: '13',
-    month_str: 'Th10',
-    message: 'Kiểm tra 1 tiết Ngữ văn bài Cổ tích. Nhờ phụ huynh nhắc con đọc lại truyện.',
-    teacher_name: 'Thầy Lê Văn Hải',
-    created_at: '06/10 19:15',
-  },
-  {
-    id: 'exam_03',
-    class_id: 'cls_6a1',
-    subject_code: 'ENG',
-    subject_name: 'Tiếng Anh',
-    exam_type: 'Thi Giữa kỳ',
-    exam_date: '2026-10-22',
-    day_of_week: 'Thứ Năm',
-    day_number: '22',
-    month_str: 'Th10',
-    message: 'Ôn tập Unit 1 đến Unit 3 phần từ vựng và ngữ pháp. Học sinh mang theo bút chì 2B để tô phiếu trắc nghiệm.',
-    teacher_name: 'Cô Hoàng Mai',
-    created_at: '08/10 08:00',
-  },
-];
+const WEEKDAY_LABELS = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+
+const EXAM_TYPE_LABELS: Record<string, string> = {
+  ORAL_TEST: 'Kiểm tra miệng',
+  QUIZ: 'Kiểm tra',
+  TEST_15P: 'Kiểm tra 15 phút',
+  TEST_1P: 'Kiểm tra 1 tiết',
+  MID_TERM: 'Thi Giữa kỳ',
+  FINAL: 'Thi Cuối kỳ',
+};
+
+const formatReminderCreatedAt = (value: any): string => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${mi}`;
+};
+
+// Chuẩn hóa record từ backend (camelCase: classId/subject/examDate/title/note)
+// về shape ExamReminderItem dùng cho UI
+const normalizeExamReminder = (raw: any): ExamReminderItem => {
+  const rawSubject = raw.subject_code ?? raw.subjectCode ?? raw.subject ?? '';
+  const examDate = String(raw.exam_date ?? raw.examDate ?? '').split('T')[0];
+  const dateObj = examDate ? new Date(`${examDate}T00:00:00`) : null;
+  const validDate = dateObj !== null && !isNaN(dateObj.getTime());
+
+  return {
+    id: raw.id,
+    class_id: raw.class_id ?? raw.classId ?? '',
+    subject_code: rawSubject,
+    subject_name:
+      raw.subject_name ??
+      SUBJECT_LABELS[rawSubject] ??
+      (rawSubject && !/^[A-Z0-9_]+$/.test(rawSubject) ? rawSubject : ''),
+    exam_type: EXAM_TYPE_LABELS[raw.exam_type ?? raw.examType] ?? raw.exam_type ?? raw.examType ?? '',
+    exam_date: examDate,
+    day_of_week: raw.day_of_week ?? (validDate ? WEEKDAY_LABELS[dateObj!.getDay()] : ''),
+    day_number: raw.day_number ?? (validDate ? String(dateObj!.getDate()).padStart(2, '0') : ''),
+    month_str: raw.month_str ?? (validDate ? `Th${dateObj!.getMonth() + 1}` : ''),
+    message: raw.message ?? raw.note ?? '',
+    teacher_name: raw.teacher_name ?? '',
+    created_at: formatReminderCreatedAt(raw.created_at ?? raw.createdAt),
+    title: raw.title ?? '',
+  };
+};
 
 export const remarksService = {
   async getClassRemarks(classId: string = ''): Promise<StudentRemarkItem[]> {
@@ -196,10 +146,12 @@ export const remarksService = {
       if (response.ok) {
         return true;
       }
-    } catch (e) {
-      console.warn('Backend create remark not reachable, saved offline:', e);
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể gửi nhận xét');
+    } catch (e: any) {
+      console.warn('createRemark failed:', e?.message);
+      throw e;
     }
-    return true;
   },
 
   async getClassExamReminders(classId: string = ''): Promise<ExamReminderItem[]> {
@@ -212,9 +164,12 @@ export const remarksService = {
       if (response.ok) {
         const resJson = await response.json();
         const data = resJson.data !== undefined ? resJson.data : resJson;
-        if (Array.isArray(data)) {
-          return data;
-        }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.reminders)
+          ? data.reminders
+          : [];
+        return list.map(normalizeExamReminder);
       }
     } catch (e) {
       console.warn('Backend exam-reminders not reachable:', e);
@@ -258,9 +213,11 @@ export const remarksService = {
       if (response.ok) {
         return true;
       }
-    } catch (e) {
-      console.warn('Backend create exam-reminder not reachable, saved offline:', e);
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể tạo lịch kiểm tra');
+    } catch (e: any) {
+      console.warn('createExamReminder failed:', e?.message);
+      throw e;
     }
-    return true;
   },
 };
