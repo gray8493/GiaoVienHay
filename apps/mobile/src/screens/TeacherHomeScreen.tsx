@@ -530,7 +530,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
               <Text style={styles.dialogSheetSubtitle}>Nhập mã mời được cung cấp bởi Giáo viên chủ nhiệm</Text>
               <TextInput
                 style={[styles.dialogInput, { marginBottom: 16 }]}
-                placeholder="Mã mời (ví dụ: INV-XXXX-XXXX)"
+                placeholder="Nhập mã mời do GVCN cung cấp"
                 placeholderTextColor="#9D9AA8"
                 autoCapitalize="characters"
                 value={joinInviteCode}

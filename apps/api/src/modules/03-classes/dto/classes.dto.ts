@@ -123,14 +123,19 @@ export class AddStudentToClassDto {
 export { AddStudentToClassDto as AddStudentsToClassDto };
 
 export class JoinClassDto {
-  @ApiProperty({ example: 'INV-1A-9821', description: 'Mã mời tham gia lớp học' })
+  @ApiPropertyOptional({ example: 'INV-1A-9821', description: 'Mã mời tham gia lớp học' })
+  @ValidateIf((o) => !o.student_code)
   @IsString({ message: 'Mã mời phải là chuỗi ký tự' })
   @IsNotEmpty({ message: 'Mã mời tham gia lớp học không được để trống' })
-  invite_code: string;
+  invite_code?: string;
+
+  @ApiPropertyOptional({ example: 'HS-1A-01', description: 'Mã học sinh (dành cho phụ huynh liên kết con)' })
+  @IsOptional()
+  @IsString({ message: 'Mã học sinh phải là chuỗi ký tự' })
+  student_code?: string;
 
   @ApiPropertyOptional({ example: 'stu_01', description: 'Mã định danh học sinh con em' })
-  @ValidateIf((o) => o.student_id !== undefined)
-  @IsNotEmpty({ message: 'Vui lòng chọn học sinh xác nhận là con em mình' })
+  @IsOptional()
   @IsString({ message: 'Mã học sinh phải là chuỗi ký tự' })
   student_id?: string;
 }

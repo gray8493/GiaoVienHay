@@ -37,7 +37,8 @@ export const gradesService = {
         }
       );
       if (!response.ok) throw new Error('Không thể tải sổ điểm');
-      return await response.json();
+      const resJson = await response.json();
+      return resJson.data || resJson;
     } catch (error: any) {
       console.warn('Backend grades notice (offline fallback):', error.message);
       return null;
@@ -58,7 +59,8 @@ export const gradesService = {
         }
       );
       if (!response.ok) throw new Error('Không thể tải bảng vinh danh');
-      return await response.json();
+      const resJson = await response.json();
+      return resJson.data || resJson;
     } catch (error: any) {
       console.warn('Backend leaderboard notice (offline fallback):', error.message);
       return null;

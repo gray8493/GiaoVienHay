@@ -15,8 +15,10 @@ import {
   remarksService,
   StudentRemarkItem,
   ExamReminderItem,
-  RemarkStatus,
+  RawRemarkRecord,
+  subjectLabel,
 } from '../services/remarks.service';
+import { classService, StudentItem } from '../services/class.service';
 import { getCurrentAcademicYear } from '../utils/academic';
 
 interface RemarksExamScreenProps {
@@ -28,6 +30,34 @@ interface RemarksExamScreenProps {
 
 type RemarkFilter = 'ALL' | 'SENT' | 'UNSENT';
 
+const formatSentDate = (iso: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `Gửi ${dd}/${mm}/${d.getFullYear()}`;
+};
+
+const buildStudentRemarkRow = (
+  student: StudentItem,
+  remark?: RawRemarkRecord,
+): StudentRemarkItem => {
+  const subject = subjectLabel(remark?.subject_code);
+  const hasContent = !!(remark && remark.content);
+  return {
+    id: student.id,
+    student_id: student.id,
+    student_code: student.student_code || '',
+    student_name: student.full_name || '',
+    subject_code: remark?.subject_code || 'MATH',
+    subject_name: subject,
+    content: hasContent ? remark!.content : null,
+    status: hasContent ? (remark!.parent_acknowledged ? 'READ' : 'UNREAD') : 'NONE',
+    sent_date: hasContent ? [formatSentDate(remark!.created_at) || 'Gửi gần đây', subject].join(' • ') : null,
+  };
+};
+
 export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   onBack,
   classId = '',
@@ -37,6 +67,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'REMARKS' | 'EXAMS'>(initialTab);
   const [remarksList, setRemarksList] = useState<StudentRemarkItem[]>([]);
   const [examsList, setExamsList] = useState<ExamReminderItem[]>([]);
+  const [remarksLoading, setRemarksLoading] = useState(false);
 
   // Tab A states
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,10 +103,65 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       setExamsList([]);
       return;
     }
-    const remarks = await remarksService.getClassRemarks(classId);
+
     const exams = await remarksService.getClassExamReminders(classId);
-    setRemarksList(remarks);
     setExamsList(exams);
+
+    setRemarksLoading(true);
+    try {
+      // Danh sách học sinh của lớp là "khung" của tab Lời Nhận Xét:
+      // mỗi em một dòng, kèm badge đã gửi/chưa gửi.
+      let students: StudentItem[] = [];
+      try {
+        const classDetail = await classService.getClassDetail(classId);
+        students = classDetail?.students || [];
+      } catch (e) {
+        console.warn('class detail not reachable:', e);
+      }
+
+      const remarkByStudent = new Map<string, RawRemarkRecord>();
+      const classRemarks = await remarksService.getClassRemarks(classId);
+      classRemarks.forEach(r => {
+        if (r.student_id && !remarkByStudent.has(r.student_id)) {
+          remarkByStudent.set(r.student_id, r);
+        }
+      });
+
+      if (students.length > 0) {
+        const missing = students.filter(s => s.id && !remarkByStudent.has(s.id));
+        const histories = await Promise.all(
+          missing.map(async s => ({
+            id: s.id,
+            history: await remarksService.getStudentRemarks(s.id),
+          })),
+        );
+        histories.forEach(({ id, history }) => {
+          const latest = [...history]
+            .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+            .find(r => !!r.content);
+          if (latest) remarkByStudent.set(id, latest);
+        });
+      }
+
+      const rows: StudentRemarkItem[] =
+        students.length > 0
+          ? students.map(student => buildStudentRemarkRow(student, remarkByStudent.get(student.id)))
+          : classRemarks.map(r => ({
+              id: r.remark_id || r.student_id,
+              student_id: r.student_id,
+              student_code: '',
+              student_name: r.student_name || 'Học sinh',
+              subject_code: r.subject_code || 'MATH',
+              subject_name: subjectLabel(r.subject_code),
+              content: r.content || null,
+              status: r.parent_acknowledged ? 'READ' : 'UNREAD',
+              sent_date: [formatSentDate(r.created_at) || 'Gửi gần đây', subjectLabel(r.subject_code)].join(' • '),
+            }));
+
+      setRemarksList(rows);
+    } finally {
+      setRemarksLoading(false);
+    }
   };
 
   const handleOpenRemarkModal = (student: StudentRemarkItem) => {
@@ -104,17 +190,16 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
     }
 
     setRemarksList(prev =>
-      prev.map(item => {
-        if (item.id === targetStudent.id) {
-          return {
-            ...item,
-            content: remarkContent.trim(),
-            status: 'READ',
-            sent_date: `Gửi hôm nay • ${remarkSubject}`,
-          };
-        }
-        return item;
-      })
+      prev.map(item =>
+        item.student_id === targetStudent.student_id
+          ? {
+              ...item,
+              content: remarkContent.trim(),
+              status: 'UNREAD',
+              sent_date: `Gửi hôm nay • ${item.subject_name || remarkSubject}`,
+            }
+          : item,
+      ),
     );
 
     setShowRemarkModal(false);
@@ -158,6 +243,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   };
 
   const getInitials = (name: string) => {
+    if (!name || !name.trim()) return 'HS';
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -166,9 +252,10 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   };
 
   const filteredRemarks = remarksList.filter(item => {
+    const search = searchQuery.toLowerCase();
     const matchSearch =
-      item.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.student_code.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.student_name || '').toLowerCase().includes(search) ||
+      (item.student_code || '').toLowerCase().includes(search);
     if (!matchSearch) return false;
 
     if (remarkFilter === 'SENT') return item.status === 'READ' || item.status === 'UNREAD';
@@ -337,7 +424,12 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
 
             {/* Student List Bento Container */}
             <View style={styles.studentListCard}>
-              {filteredRemarks.length === 0 && (
+              {remarksLoading && (
+                <View style={styles.listLoadingState}>
+                  <Text style={styles.listLoadingText}>Đang tải danh sách học sinh...</Text>
+                </View>
+              )}
+              {filteredRemarks.length === 0 && !remarksLoading && (
                 <View style={styles.listEmptyState}>
                   <View style={styles.emptyIconWrap}>
                     <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
@@ -347,12 +439,12 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                   <Text style={styles.emptyTitle}>
                     {searchQuery.trim() || remarkFilter !== 'ALL'
                       ? 'Không có lời nhắn khớp bộ lọc'
-                      : 'Chưa có lời nhắn nào'}
+                      : 'Chưa có học sinh nào'}
                   </Text>
                   <Text style={styles.emptySubtitle}>
                     {searchQuery.trim() || remarkFilter !== 'ALL'
                       ? 'Thử đổi bộ lọc (Tất cả / Đã gửi / Chưa gửi) hoặc xóa từ khóa tìm kiếm.'
-                      : 'Lớp của bạn chưa có nhận xét nào được gửi cho phụ huynh. Thêm học sinh ở Quản lý lớp học, sau đó bấm bút chỉnh sửa bên cạnh từng em để gửi lời nhắn.'}
+                      : 'Thêm học sinh ở Quản lý lớp học, sau đó bấm bút chỉnh sửa bên cạnh từng em để gửi lời nhận.'}
                   </Text>
                 </View>
               )}
@@ -961,6 +1053,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 28,
     paddingHorizontal: 18,
+  },
+  listLoadingState: {
+    alignItems: 'center',
+    paddingVertical: 28,
+  },
+  listLoadingText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#887367',
   },
   emptyIconWrap: {
     width: 54,

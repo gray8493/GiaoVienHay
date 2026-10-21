@@ -61,6 +61,13 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   };
 
   const handleOpenEdit = (student: StudentFeeRecord, defaultType: FeeType = 'INSURANCE') => {
+    if (!student.record_id) {
+      Alert.alert(
+        'Thông báo',
+        `Học sinh ${student.student_name} chưa có hồ sơ thu nộp học phí/BHYT trên hệ thống.`
+      );
+      return;
+    }
     setSelectedStudent(student);
     setEditFeeType(defaultType);
     const targetStatus = defaultType === 'INSURANCE' ? student.insurance : student.tuition;
@@ -261,7 +268,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
               <Text style={styles.headerTitle}>Học Phí & BHYT</Text>
               <View style={styles.classPillDropdown}>
                 <Text style={styles.classPillDropdownText}>
-                  {feesSummary?.class_name || 'Lớp học'}{feesSummary?.term_name ? ` • ${feesSummary.term_name}` : ''}
+                  {feesSummary?.class_name || 'Lớp học'}
                 </Text>
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                   <Path d="M6 9l6 6 6-6" stroke="#6B6880" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -430,7 +437,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
 
             return (
               <TouchableOpacity
-                key={item.record_id}
+                key={item.record_id || item.student_id || String(idx)}
                 style={styles.studentCard}
                 onPress={() => handleOpenEdit(item, 'INSURANCE')}
                 activeOpacity={0.9}

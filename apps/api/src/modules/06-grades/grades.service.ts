@@ -53,6 +53,18 @@ export class GradesService {
       }
     } catch (e) {}
 
+    // Fallback: đọc trực tiếp bảng scores (Supabase) theo pattern listScoresByClass
+    if (typeof this.dataConnect.listScoresByClass === 'function') {
+      try {
+        const rows = await this.dataConnect.listScoresByClass(classId, subjectCode, semester);
+        if (rows && rows.length > 0) {
+          return rows;
+        }
+      } catch (e: any) {
+        this.logger.warn(`listScoresByClass fallback failed: ${e?.message}`);
+      }
+    }
+
     return [];
   }
 

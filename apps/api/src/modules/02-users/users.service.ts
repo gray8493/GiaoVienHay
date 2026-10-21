@@ -99,11 +99,32 @@ export class UsersService {
     return this.serializeUser(updatedData);
   }
 
+  private parseAssignedInfo(raw: any): Record<string, any> {
+    if (!raw) return {};
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch {}
+      return {};
+    }
+    return typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  }
+
   private serializeUser(user: any): any {
     if (!user) return null;
     const uid = user.uid || user.id;
     const fullName = user.full_name || user.fullName;
     const assignedInfo = user.assigned_info || user.assignedInfo || null;
+    const assignedData = this.parseAssignedInfo(assignedInfo);
+    const joinedClassIds = Array.isArray(assignedData.joined_class_ids)
+      ? assignedData.joined_class_ids.map(String)
+      : [];
+    const linkedStudentIds = Array.isArray(assignedData.linked_student_ids)
+      ? assignedData.linked_student_ids.map(String)
+      : [];
     const subjects =
       (Array.isArray(user.teaching_subjects) && user.teaching_subjects.length > 0
         ? user.teaching_subjects
@@ -123,6 +144,8 @@ export class UsersService {
       role: user.role || 'TEACHER_HOMEROOM',
       avatar_url: user.avatar_url || user.avatarUrl || null,
       teaching_subjects: subjects,
+      joined_class_ids: joinedClassIds,
+      linked_student_ids: linkedStudentIds,
       is_active: user.is_active !== undefined ? Boolean(user.is_active) : (user.isActive !== undefined ? Boolean(user.isActive) : true),
       created_at: user.created_at || user.createdAt || new Date().toISOString(),
     };

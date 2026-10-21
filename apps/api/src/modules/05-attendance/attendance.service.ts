@@ -5,7 +5,6 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
@@ -17,6 +16,12 @@ import { AttendanceStatus, NotificationType } from '@giaovienhay/shared-types';
 export interface AbsentEventPayload {
   classId: string;
   absentStudentIds: string[];
+  date: string;
+}
+
+export interface AttendanceUpdatedPayload {
+  classId: string;
+  updatedStudentIds: string[];
   date: string;
 }
 
@@ -139,29 +144,37 @@ export class AttendanceService {
       });
     }
 
-    // Kiểm tra trùng lặp buổi học
+    // Lấy trạng thái đã lưu trước đó để hỗ trợ chỉnh sửa (upsert) và chỉ thông báo học sinh có thay đổi
     const existingRecords = await this.dataConnect.getAttendanceByClassDate(dto.class_id, dto.attendance_date);
     const targetPeriod = dto.period || 1;
-    const isDuplicate = existingRecords && existingRecords.length > 0 && existingRecords.some((r: any) => (r.period || 1) === targetPeriod);
-    if (isDuplicate) {
-      throw new ConflictException({
-        error_code: 'ATTEND_ALREADY_EXISTS',
-        message: 'Tiết học/buổi học này đã được điểm danh trước đó',
-        details: null,
-      });
-    }
+    const oldStatusMap = new Map<string, string>();
+    (existingRecords || []).forEach((r: any) => {
+      if ((r.period || 1) !== targetPeriod) return;
+      const sid = r.studentId || r.student_id;
+      if (sid) oldStatusMap.set(sid, r.status);
+    });
 
     let presentCount = 0;
     let absentCount = 0;
-    const absentStudentIds: string[] = [];
+    const changedAbsentIds: string[] = [];
+    const changedPresentIds: string[] = [];
     const now = new Date().toISOString();
 
     for (const record of dto.records) {
-      if (record.status === AttendanceStatus.PRESENT) {
-        presentCount++;
-      } else {
+      const isAbsent = record.status !== AttendanceStatus.PRESENT;
+      if (isAbsent) {
         absentCount++;
-        absentStudentIds.push(record.student_id);
+      } else {
+        presentCount++;
+      }
+
+      // Chỉ thông báo khi trạng thái vừa thay đổi so với lần lưu trước
+      const oldStatus = oldStatusMap.get(record.student_id);
+      if (oldStatus === undefined) {
+        if (isAbsent) changedAbsentIds.push(record.student_id);
+      } else if (oldStatus !== record.status) {
+        if (isAbsent) changedAbsentIds.push(record.student_id);
+        else changedPresentIds.push(record.student_id);
       }
 
       const docId = `att_${dto.class_id}_${record.student_id}_${dto.attendance_date}`;
@@ -188,13 +201,22 @@ export class AttendanceService {
     const cacheKey = `att_present_${dto.class_id}_${dto.attendance_date}`;
     await this.cacheManager.del(cacheKey);
 
-    // Bắn Event xử lý ngầm (Message Queue/Event-driven) cho Notifications
-    if (absentStudentIds.length > 0) {
+    // Bắn Event xử lý ngầm (Message Queue/Event-driven) cho Notifications:
+    // - HS mới bị đánh vắng (kể cả lần đầu lưu) -> cảnh báo vắng học
+    // - HS được sửa từ vắng -> có mặt -> thông báo cập nhật điểm danh
+    if (changedAbsentIds.length > 0) {
       this.eventEmitter.emit('attendance.absent', {
         classId: dto.class_id,
-        absentStudentIds,
+        absentStudentIds: changedAbsentIds,
         date: dto.attendance_date,
       } as AbsentEventPayload);
+    }
+    if (changedPresentIds.length > 0) {
+      this.eventEmitter.emit('attendance.updated', {
+        classId: dto.class_id,
+        updatedStudentIds: changedPresentIds,
+        date: dto.attendance_date,
+      } as AttendanceUpdatedPayload);
     }
 
     return {
@@ -202,7 +224,8 @@ export class AttendanceService {
       total_students: dto.records.length,
       present_count: presentCount,
       absent_count: absentCount,
-      notified_parents_queued: absentStudentIds.length,
+      notified_parents_queued: changedAbsentIds.length + changedPresentIds.length,
+      is_update: oldStatusMap.size > 0,
     };
   }
 
@@ -220,14 +243,51 @@ export class AttendanceService {
       });
     }
 
+    let existing: any = null;
     if (typeof this.dataConnect.getAttendanceById === 'function') {
-      const record = await this.dataConnect.getAttendanceById(recordId);
-      if (!record) {
+      existing = await this.dataConnect.getAttendanceById(recordId);
+      if (!existing) {
         throw new NotFoundException({
           error_code: 'ATTEND_RECORD_NOT_FOUND',
           message: 'Không tìm thấy bản ghi điểm danh yêu cầu',
           details: null,
         });
+      }
+    }
+
+    if (existing) {
+      // Ghi đè bản ghi (id giữ nguyên) với trạng thái/ghi chú mới
+      await this.dataConnect.recordAttendance({
+        id: recordId,
+        class_id: existing.classId,
+        student_id: existing.studentId,
+        date: existing.date,
+        status,
+        note: note ?? existing.note,
+      });
+
+      // Xóa cache hôm nay của lớp
+      const cacheKey = `att_present_${existing.classId}_${existing.date}`;
+      await this.cacheManager.del(cacheKey);
+
+      // Thông báo nếu trạng thái thay đổi
+      const oldStatus = existing.status;
+      const isAbsent = status !== AttendanceStatus.PRESENT;
+      const wasAbsent = oldStatus !== AttendanceStatus.PRESENT;
+      if (oldStatus !== status) {
+        if (isAbsent) {
+          this.eventEmitter.emit('attendance.absent', {
+            classId: existing.classId,
+            absentStudentIds: [existing.studentId],
+            date: existing.date,
+          } as AbsentEventPayload);
+        } else if (wasAbsent) {
+          this.eventEmitter.emit('attendance.updated', {
+            classId: existing.classId,
+            updatedStudentIds: [existing.studentId],
+            date: existing.date,
+          } as AttendanceUpdatedPayload);
+        }
       }
     }
 
@@ -332,5 +392,33 @@ export class AttendanceService {
       await this.dataConnect.createNotification(notifData);
     }
     this.logger.log(`[Worker] Đã hoàn tất ghi thông báo vào SQL Data Connect.`);
+  }
+
+  /**
+   * Listener xử lý ngầm khi có học sinh được sửa từ vắng -> có mặt
+   * (phục vụ chỉnh sửa điểm danh: chỉ báo phụ huynh HS vừa thay đổi trạng thái)
+   */
+  @OnEvent('attendance.updated', { async: true })
+  async handleAttendanceUpdatedEvent(payload: AttendanceUpdatedPayload) {
+    const { updatedStudentIds, date } = payload;
+    this.logger.log(`[Worker] Thông báo cập nhật điểm danh cho ${updatedStudentIds.length} học sinh ngày ${date}`);
+
+    for (const stuId of updatedStudentIds) {
+      const notifId = 'notif_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+      const notifData = {
+        id: notifId,
+        recipient_id: stuId,
+        recipientId: stuId,
+        title: 'Điểm danh cập nhật',
+        body: `Điểm danh của học sinh đã được cập nhật thành CÓ MẶT ngày ${date}. Xin thông báo đến phụ huynh.`,
+        type: NotificationType.SYSTEM,
+        is_read: false,
+        metadata: { student_id: stuId, class_id: payload.classId, date },
+        created_at: new Date().toISOString(),
+      };
+
+      await this.dataConnect.createNotification(notifData);
+    }
+    this.logger.log(`[Worker] Đã hoàn tất ghi thông báo cập nhật điểm danh.`);
   }
 }

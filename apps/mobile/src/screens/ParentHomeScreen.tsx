@@ -111,7 +111,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
 
   const handleLinkChild = async () => {
     if (!studentCodeInput.trim()) {
-      Alert.alert('Thông báo', 'Vui lòng nhập mã học sinh hoặc mã mời (Ví dụ: HS-1A-01 hoặc GVH-1A-2024)');
+      Alert.alert('Thông báo', 'Vui lòng nhập mã học sinh hoặc mã mời do giáo viên cung cấp');
       return;
     }
 

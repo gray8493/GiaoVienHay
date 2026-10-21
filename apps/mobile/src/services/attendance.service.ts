@@ -138,7 +138,11 @@ export class AttendanceService {
       }
 
       const resJson = await response.json();
-      return resJson.data || resJson;
+      // API trả về dạng wrapper { class_id, date, total_records, records: [...] }
+      // Chuẩn hoá luôn thành mảng bản ghi để caller không phải bóc wrapper
+      const payload = resJson?.data ?? resJson;
+      if (Array.isArray(payload?.records)) return payload.records;
+      return Array.isArray(payload) ? payload : [];
     } catch (err: any) {
       console.warn('[AttendanceService] getClassAttendance fallback:', err?.message);
       return [];

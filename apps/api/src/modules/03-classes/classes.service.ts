@@ -16,6 +16,26 @@ import {
   UpdateSubjectTeachersDto,
 } from './dto/classes.dto';
 import { ErrorCode } from '@giaovienhay/shared-types';
+import { randomBytes } from 'crypto';
+
+const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function createRandomInviteCode(): string {
+  const bytes = randomBytes(8);
+  let suffix = '';
+  for (let i = 0; i < 8; i++) {
+    suffix += INVITE_CODE_ALPHABET[bytes[i] % INVITE_CODE_ALPHABET.length];
+  }
+  return `INV-${suffix}`;
+}
+
+function normalizePhone(value?: string | null): string {
+  if (!value) return '';
+  let digits = String(value).replace(/[^\d+]/g, '');
+  if (digits.startsWith('+84')) digits = `0${digits.slice(3)}`;
+  else if (digits.startsWith('84') && digits.length > 10) digits = `0${digits.slice(2)}`;
+  return digits;
+}
 
 function isValidCalendarDate(dateStr: string): boolean {
   if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
@@ -120,7 +140,7 @@ export class ClassesService {
     }
 
     const classId = 'cls_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
-    const inviteCode = 'INV-' + dto.name.toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
+    const inviteCode = createRandomInviteCode();
 
     const subjectTeachers = dto.subject_teachers || [];
     const assignedSubjects = [
@@ -203,8 +223,24 @@ export class ClassesService {
     let classes: any[] = [];
     try {
       const sqlClasses = await this.dataConnect.listClassesByTeacher(teacherId);
-      if (sqlClasses && sqlClasses.length > 0) {
-        classes = sqlClasses;
+      if (Array.isArray(sqlClasses) && sqlClasses.length > 0) {
+        classes = [...sqlClasses];
+      }
+    } catch (e) {}
+
+    try {
+      const assignedInfo = await this.dataConnect.getUserAssignedInfo(teacherId);
+      const joinedIds: string[] = Array.isArray(assignedInfo.joined_class_ids)
+        ? assignedInfo.joined_class_ids.map(String)
+        : [];
+      const knownIds = new Set(classes.map((c: any) => c.id || c.class_id));
+      for (const joinedId of joinedIds) {
+        if (knownIds.has(joinedId)) continue;
+        const joinedClass = await this.dataConnect.getClassById(joinedId).catch(() => null);
+        if (joinedClass && !(joinedClass as any).is_deleted && !(joinedClass as any).isDeleted) {
+          classes.push(joinedClass);
+          knownIds.add(joinedId);
+        }
       }
     } catch (e) {}
 
@@ -261,28 +297,87 @@ export class ClassesService {
     const students = await this.getClassStudents(classId);
     const activeStudents = students.filter((s: any) => !s.is_deleted && !s.isDeleted);
 
-    // Tra tên GVCN thật theo homeroom_teacher_id nếu lớp chưa lưu tên
-    const homeroomTeacherName =
-      cls.homeroom_teacher ||
-      (cls.homeroom_teacher_id && typeof this.dataConnect.getUserById === 'function'
-        ? await this.dataConnect
-            .getUserById(cls.homeroom_teacher_id)
-            .then((u: any) => u?.full_name || u?.fullName || null)
-            .catch(() => null)
-        : null);
+    if (!userId) {
+      throw new ForbiddenException({
+        error_code: 'FORBIDDEN_CLASS_ACCESS',
+        message: 'Bạn không có quyền truy cập thông tin lớp học này',
+      });
+    }
 
-    return {
-      ...cls,
-      class_id: cls.id || classId,
-      grade_level: cls.grade_level ?? cls.gradeLevel,
-      academic_year: cls.academic_year ?? cls.academicYear,
-      school_name: cls.school_name ?? cls.schoolName ?? '',
-      invite_code: cls.invite_code ?? cls.inviteCode ?? '',
-      student_count: cls.student_count ?? cls.studentCount ?? activeStudents.length,
-      total_students: activeStudents.length,
-      homeroom_teacher: homeroomTeacherName || null,
-      students: activeStudents,
-    };
+    const user = await this.dataConnect.getUserById(userId);
+    if (user) {
+      const role = String(user.role || '').toUpperCase();
+      const isAdmin = role === 'ADMIN';
+      const isTeacher = role.startsWith('TEACHER');
+      const isParent = role === 'PARENT';
+      const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === userId;
+
+      let assignedInfo: Record<string, any> = {};
+      try {
+        assignedInfo = await this.dataConnect.getUserAssignedInfo(userId);
+      } catch (e) {}
+      const joinedClassIds: string[] = Array.isArray(assignedInfo.joined_class_ids)
+        ? assignedInfo.joined_class_ids.map(String)
+        : [];
+      const linkedStudentIds: string[] = Array.isArray(assignedInfo.linked_student_ids)
+        ? assignedInfo.linked_student_ids.map(String)
+        : [];
+      const userPhone = normalizePhone(user.phone);
+
+      const canView =
+        isAdmin ||
+        (isTeacher && (isHomeroom || joinedClassIds.includes(classId))) ||
+        (isParent &&
+          activeStudents.some(
+            (s: any) =>
+              linkedStudentIds.includes(String(s.id)) ||
+              (userPhone && normalizePhone(s.parent_phone || s.parentPhone) === userPhone),
+          ));
+
+      if (!canView) {
+        throw new ForbiddenException({
+          error_code: 'FORBIDDEN_CLASS_ACCESS',
+          message: 'Bạn không có quyền truy cập thông tin lớp học này',
+        });
+      }
+
+      const visibleStudents = isParent
+        ? activeStudents.filter(
+            (s: any) =>
+              linkedStudentIds.includes(String(s.id)) ||
+              (userPhone && normalizePhone(s.parent_phone || s.parentPhone) === userPhone),
+          )
+        : activeStudents;
+      const canSeeInviteCode = isAdmin || (isTeacher && isHomeroom);
+      const homeroomTeacherName =
+        cls.homeroom_teacher ||
+        (cls.homeroom_teacher_id && typeof this.dataConnect.getUserById === 'function'
+          ? await this.dataConnect
+              .getUserById(cls.homeroom_teacher_id)
+              .then((u: any) => u?.full_name || u?.fullName || null)
+              .catch(() => null)
+          : null);
+
+      return {
+        ...cls,
+        class_id: cls.id || classId,
+        grade_level: cls.grade_level ?? cls.gradeLevel,
+        academic_year: cls.academic_year ?? cls.academicYear,
+        school_name: cls.school_name ?? cls.schoolName ?? '',
+        invite_code: canSeeInviteCode ? cls.invite_code ?? cls.inviteCode ?? '' : undefined,
+        student_count: isParent
+          ? visibleStudents.length
+          : cls.student_count ?? cls.studentCount ?? activeStudents.length,
+        total_students: visibleStudents.length,
+        homeroom_teacher: homeroomTeacherName || null,
+        students: visibleStudents,
+      };
+    }
+
+    throw new ForbiddenException({
+      error_code: 'FORBIDDEN_CLASS_ACCESS',
+      message: 'Bạn không có quyền truy cập thông tin lớp học này',
+    });
   }
 
   async getMySubjectInClass(classId: string, teacherId: string) {
@@ -330,7 +425,7 @@ export class ClassesService {
     };
   }
 
-  async getInviteCode(classId: string, teacherId: string) {
+  private async requireHomeroomClass(classId: string, teacherId: string) {
     let cls: any = null;
     try {
       cls = await this.dataConnect.getClassById(classId);
@@ -343,74 +438,206 @@ export class ClassesService {
       });
     }
 
+    const user = await this.dataConnect.getUserById(teacherId).catch(() => null);
+    const isAdmin = String(user?.role || '').toUpperCase() === 'ADMIN';
     const isHomeroom = (cls.homeroom_teacher_id || cls.homeroomTeacherId) === teacherId;
-    if (!isHomeroom && !teacherId.startsWith('usr_admin')) {
+    if (!isHomeroom && !isAdmin) {
       throw new ForbiddenException({
         error_code: 'CLASS_NOT_HOMEROOM_TEACHER',
         message: 'Chỉ Giáo viên chủ nhiệm mới có quyền thực hiện thao tác này',
       });
     }
+    return cls;
+  }
 
-    const inviteCode = cls?.invite_code || cls?.inviteCode || 'GVH1A26';
+  private buildInviteResponse(classId: string, className: string, inviteCode: string) {
     return {
       class_id: classId,
-      class_name: cls?.name || '1A',
+      class_name: className || '',
       invite_code: inviteCode,
       invite_link: `https://giaovienhay.vn/join?code=${inviteCode}`,
       qr_code_url: `https://api.giaovienhay.vn/qr/${inviteCode}.png`,
-      expires_in_hours: 72,
     };
   }
 
+  async getInviteCode(classId: string, teacherId: string) {
+    const cls = await this.requireHomeroomClass(classId, teacherId);
+
+    let inviteCode = String(cls.invite_code || cls.inviteCode || '').trim().toUpperCase();
+    if (!inviteCode) {
+      inviteCode = createRandomInviteCode();
+      await this.dataConnect.updateClassInviteCode(classId, inviteCode);
+    }
+
+    return this.buildInviteResponse(classId, cls.name || '', inviteCode);
+  }
+
   async generateInviteCode(classId: string, teacherId: string) {
-    return this.getInviteCode(classId, teacherId);
+    const cls = await this.requireHomeroomClass(classId, teacherId);
+
+    const inviteCode = createRandomInviteCode();
+    await this.dataConnect.updateClassInviteCode(classId, inviteCode);
+    await this.cacheManager.del(`classes_teacher_${teacherId}`);
+
+    return this.buildInviteResponse(classId, cls.name || '', inviteCode);
   }
 
   async joinClassByInvite(userId: string, dto: JoinClassDto) {
+    const user = await this.dataConnect.getUserById(userId);
+    if (!user) {
+      throw new NotFoundException({
+        error_code: 'USER_NOT_FOUND',
+        message: 'Không tìm thấy tài khoản người dùng',
+      });
+    }
+
+    const role = String(user.role || '').toUpperCase();
+    const isParent = role === 'PARENT';
+    const userPhone = normalizePhone(user.phone);
+
     let targetClass: any = null;
-    if (typeof (this.dataConnect as any).getClassByInviteCode === 'function') {
-      targetClass = await (this.dataConnect as any).getClassByInviteCode(dto.invite_code);
+    let linkedStudents: any[] = [];
+
+    if (dto.student_code && dto.student_code.trim()) {
+      if (!isParent) {
+        throw new ForbiddenException({
+          error_code: 'FORBIDDEN_STUDENT_LINK',
+          message: 'Chỉ tài khoản phụ huynh mới liên kết học sinh bằng mã học sinh',
+        });
+      }
+
+      const student = await this.dataConnect.getStudentById(dto.student_code.trim());
+      if (!student) {
+        throw new NotFoundException({
+          error_code: 'STUDENT_NOT_FOUND',
+          message: 'Không tìm thấy học sinh với mã đã nhập',
+        });
+      }
+
+      const studentPhone = normalizePhone((student as any).parent_phone || (student as any).parentPhone);
+      if (!userPhone || !studentPhone || userPhone !== studentPhone) {
+        throw new ForbiddenException({
+          error_code: 'PARENT_PHONE_NOT_MATCHED',
+          message: 'Số điện thoại của tài khoản không khớp với số điện thoại phụ huynh của học sinh. Vui lòng liên hệ GVCN để cập nhật số điện thoại.',
+        });
+      }
+
+      linkedStudents = [student];
+      if ((student as any).class_id || (student as any).classId) {
+        targetClass = await this.dataConnect
+          .getClassById((student as any).class_id || (student as any).classId)
+          .catch(() => null);
+      }
+    } else {
+      const inviteCode = String(dto.invite_code || '').trim().toUpperCase();
+      if (!inviteCode) {
+        throw new BadRequestException({
+          error_code: 'CLASS_INVITE_CODE_INVALID',
+          message: 'Vui lòng nhập mã mời lớp học hoặc mã học sinh',
+        });
+      }
+
+      targetClass = await this.dataConnect.getClassByInviteCode(inviteCode);
       if (!targetClass) {
         throw new NotFoundException({
           error_code: 'CLASS_INVITE_CODE_INVALID',
           message: 'Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn',
         });
       }
-    } else if (dto.invite_code?.includes('SAI') || dto.invite_code === 'GVH_SAI_MA_999') {
-      throw new NotFoundException({
-        error_code: 'CLASS_INVITE_CODE_INVALID',
-        message: 'Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn',
-      });
-    }
 
-    let student: any = null;
-    if (dto.student_id && typeof this.dataConnect.getStudentById === 'function') {
-      student = await this.dataConnect.getStudentById(dto.student_id);
-      if (student && student.parent_uids && Array.isArray(student.parent_uids) && student.parent_uids.includes(userId)) {
-        throw new ConflictException({
-          error_code: 'STUDENT_ALREADY_LINKED',
-          message: 'Học sinh này đã được liên kết với tài khoản phụ huynh này',
-        });
+      if (isParent) {
+        const students = await this.dataConnect.listStudentsByClass(targetClass.id || targetClass.class_id);
+        linkedStudents = (students || []).filter(
+          (s: any) =>
+            !s.is_deleted &&
+            !s.isDeleted &&
+            userPhone &&
+            normalizePhone(s.parent_phone || s.parentPhone) === userPhone,
+        );
+
+        if (linkedStudents.length === 0) {
+          throw new ForbiddenException({
+            error_code: 'PARENT_PHONE_NOT_MATCHED',
+            message: 'Số điện thoại của tài khoản không khớp với học sinh nào trong lớp. Vui lòng liên hệ GVCN để cập nhật số điện thoại.',
+          });
+        }
       }
     }
 
+    const patch: Record<string, any> = {};
+    if (isParent) {
+      patch.linked_student_ids = linkedStudents.map((s: any) => s.id);
+    } else {
+      patch.joined_class_ids = [targetClass?.id || targetClass?.class_id].filter(Boolean);
+    }
+
+    await this.dataConnect.mergeUserAssignedInfo(userId, patch);
+    await this.cacheManager.del(`user_profile_${userId}`);
+    await this.cacheManager.del(`classes_teacher_${userId}`);
+
+    const className = targetClass?.name || '';
+    const students = linkedStudents.map((s: any) => ({
+      student_id: s.id,
+      id: s.id,
+      student_code: s.student_code || s.studentCode || '',
+      full_name: s.full_name || s.fullName || '',
+      class_id: targetClass?.id || targetClass?.class_id || s.class_id || s.classId || '',
+      class_name: className,
+      parent_phone: s.parent_phone || s.parentPhone || null,
+    }));
+
     return {
-      message: 'Liên kết vào lớp học của con thành công',
-      class_id: targetClass?.id || '',
-      class_name: targetClass?.name || '',
+      message: isParent ? 'Liên kết vào lớp học của con thành công' : 'Tham gia lớp học thành công',
+      class_id: targetClass?.id || targetClass?.class_id || '',
+      class_name: className,
       user_id: userId,
-      child: {
-        student_id: student?.id || dto.student_id || '',
-        full_name: student?.full_name || student?.fullName || '',
-        student_code: student?.student_code || student?.studentCode || '',
-      },
+      role: isParent ? 'PARENT' : 'TEACHER',
+      students,
+      child: students[0] || null,
     };
   }
 
   async addStudent(classId: string, dto: any) {
+    const normalizeNameKey = (v: any) => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const throwIfMissingRequired = (s: any, prefix: string) => {
+      const issues: Array<{ field: string; issue: string }> = [];
+      if (!normalizeNameKey(s.full_name)) {
+        issues.push({ field: `${prefix}full_name`, issue: 'Họ và tên học sinh bắt buộc phải được cung cấp' });
+      }
+      if (!String(s.dob || '').trim()) {
+        issues.push({ field: `${prefix}dob`, issue: 'Ngày sinh học sinh bắt buộc phải được cung cấp (định dạng YYYY-MM-DD)' });
+      }
+      if (!String(s.parent_phone || s.parentPhone || '').trim()) {
+        issues.push({ field: `${prefix}parent_phone`, issue: 'SĐT phụ huynh bắt buộc phải được cung cấp' });
+      }
+      if (issues.length > 0) {
+        throw new BadRequestException({
+          message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+          error_code: ErrorCode.COMMON_VALIDATION_ERROR,
+          details: issues,
+        });
+      }
+    };
+    const buildDupKey = (s: any) => `${normalizeNameKey(s.full_name)}|${String(s.dob || '').trim()}`;
+    const throwIfDuplicate = (name: string, prefix: string) => {
+      throw new ConflictException({
+        error_code: 'CLASS_STUDENT_DUPLICATE',
+        message: `Học sinh ${name} đã tồn tại trong danh sách lớp (trùng họ tên và ngày sinh)`,
+        details: [
+          {
+            field: `${prefix}full_name`,
+            issue: 'Học sinh trùng họ tên và ngày sinh đã có trong lớp học này',
+          },
+        ],
+      });
+    };
+
     const existingStudents = await this.getClassStudents(classId);
     const activeExisting = existingStudents.filter((st: any) => !st.is_deleted && !st.isDeleted);
     const dbCount = activeExisting.length;
+    const existingDupKeys = new Set<string>(
+      activeExisting.map((st: any) => buildDupKey({ full_name: st.full_name || st.fullName, dob: st.dob })),
+    );
 
     // Trường hợp gửi danh sách học sinh: { students: [...] }
     if (dto.students && Array.isArray(dto.students)) {
@@ -437,6 +664,8 @@ export class ClassesService {
 
       for (let i = 0; i < dto.students.length; i++) {
         const s = dto.students[i];
+        throwIfMissingRequired(s, `students[${i}].`);
+
         const sCode = (s.student_code || s.studentCode || '').trim();
         if (sCode) {
           const codeExists = activeExisting.some(
@@ -458,7 +687,7 @@ export class ClassesService {
             });
           }
         }
-        if (s.dob && !isValidCalendarDate(s.dob)) {
+        if (!isValidCalendarDate(s.dob)) {
           throw new BadRequestException({
             message: 'Ngày sinh học sinh không hợp lệ hoặc không tồn tại trong lịch thực tế',
             error_code: ErrorCode.COMMON_VALIDATION_ERROR,
@@ -470,14 +699,25 @@ export class ClassesService {
             ],
           });
         }
+
+        // Chặn trùng học sinh: cùng họ tên + cùng ngày sinh (trong lớp và trong đợt gửi này)
+        const dupKey = buildDupKey(s);
+        if (existingDupKeys.has(dupKey)) {
+          throwIfDuplicate(s.full_name, `students[${i}].`);
+        }
+        existingDupKeys.add(dupKey);
+
         const studentId = 'stu_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+        const parentPhone = String(s.parent_phone || s.parentPhone || '').trim();
         await this.dataConnect.createStudent({
           id: studentId,
           class_id: classId,
           student_code: s.student_code || ('HS' + Math.floor(100 + Math.random() * 900)),
           full_name: s.full_name,
-          dob: s.dob || '2020-01-01',
+          dob: s.dob,
           gender: s.gender || 'MALE',
+          parent_phone: parentPhone,
+          parentPhone: parentPhone,
           is_deleted: false,
         });
       }
@@ -499,6 +739,8 @@ export class ClassesService {
       });
     }
 
+    throwIfMissingRequired(dto, '');
+
     const singleCode = (dto.student_code || dto.studentCode || '').trim();
     if (singleCode) {
       const codeExists = activeExisting.some(
@@ -515,7 +757,7 @@ export class ClassesService {
       }
     }
 
-    if (dto.dob && !isValidCalendarDate(dto.dob)) {
+    if (!isValidCalendarDate(dto.dob)) {
       throw new BadRequestException({
         message: 'Ngày sinh học sinh không hợp lệ hoặc không tồn tại trong lịch thực tế',
         error_code: ErrorCode.COMMON_VALIDATION_ERROR,
@@ -528,19 +770,25 @@ export class ClassesService {
       });
     }
 
+    // Chặn trùng học sinh: cùng họ tên + cùng ngày sinh trong lớp
+    if (existingDupKeys.has(buildDupKey(dto))) {
+      throwIfDuplicate(dto.full_name, '');
+    }
+
     const studentId = 'stu_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+    const singleParentPhone = String(dto.parent_phone || dto.parentPhone || '').trim();
     const newStudent = {
       id: studentId,
       class_id: classId,
       classId: classId,
-      student_code: dto.student_code || ('HS' + Math.floor(100 + Math.random() * 900)),
-      studentCode: dto.student_code || ('HS' + Math.floor(100 + Math.random() * 900)),
+      student_code: singleCode || ('HS' + Math.floor(100 + Math.random() * 900)),
+      studentCode: singleCode || ('HS' + Math.floor(100 + Math.random() * 900)),
       full_name: dto.full_name,
       fullName: dto.full_name,
-      dob: dto.dob || '2019-01-01',
+      dob: dto.dob,
       gender: dto.gender || 'MALE',
-      parent_phone: dto.parent_phone || null,
-      parentPhone: dto.parent_phone || null,
+      parent_phone: singleParentPhone,
+      parentPhone: singleParentPhone,
       parent_uids: [],
       is_deleted: false,
       deleted_at: null,

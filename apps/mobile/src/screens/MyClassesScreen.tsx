@@ -43,7 +43,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
   // Form State "Vào Lớp Bằng Mã" (TEA-11.4)
-  const [inviteCodeInput, setInviteCodeInput] = useState('TCH-6A2-3047');
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<'MATH' | 'CS'>('MATH'); // 'MATH' (Toán) | 'CS' (Tin Học)
   const [isSubmittingJoin, setIsSubmittingJoin] = useState(false);
 
@@ -120,13 +120,20 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
     try {
       const result = await classService.joinClass(code);
 
-      // Thêm vào danh sách lớp giảng dạy cục bộ
+      if (!result?.class_id) {
+        throw new Error('Không thể xác định lớp học vừa tham gia');
+      }
+
       const subjectLabel = selectedSubject === 'MATH' ? 'Toán' : 'Tin Học';
       const iconType = selectedSubject === 'MATH' ? 'square_foot' : 'laptop_mac';
 
       const joinedClassItem: MyClassItem = {
-        id: result.class_id || `cls_joined_${Date.now()}`,
-        name: result.class_name ? `Lớp ${result.class_name}` : `Lớp ${code.split('-')[1] || 'Mới'}`,
+        id: result.class_id,
+        name: result.class_name
+          ? result.class_name.startsWith('Lớp')
+            ? result.class_name
+            : `Lớp ${result.class_name}`
+          : 'Lớp học',
         grade_level: result.grade_level ?? result.gradeLevel ?? 0,
         academic_year: result.academic_year ?? result.academicYear ?? '',
         school_name: result.school_name ?? result.schoolName ?? '',
@@ -137,8 +144,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
       };
 
       setClasses(prev => {
-        // Tránh trùng id nếu đã có
-        const exists = prev.some(c => c.name === joinedClassItem.name && c.subject_name === joinedClassItem.subject_name);
+        const exists = prev.some(c => c.id === joinedClassItem.id);
         if (exists) return prev;
         return [...prev, joinedClassItem];
       });
@@ -405,7 +411,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
                 style={styles.codeInput}
                 value={inviteCodeInput}
                 onChangeText={setInviteCodeInput}
-                placeholder="TCH-6A2-3047"
+                placeholder="Nhập mã mời do GVCN cung cấp"
                 placeholderTextColor="#A09DAE"
                 autoCapitalize="characters"
                 textAlign="center"

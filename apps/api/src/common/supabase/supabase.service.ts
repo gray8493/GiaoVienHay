@@ -901,6 +901,71 @@ export class SupabaseService implements OnModuleInit {
     return this.mapUser(updated);
   }
 
+  private parseAssignedInfo(raw: any): Record<string, any> {
+    if (raw === null || raw === undefined || raw === '') return {};
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return { ...parsed };
+        }
+      } catch {}
+      return { text: raw };
+    }
+    if (typeof raw === 'object' && !Array.isArray(raw)) {
+      return { ...raw };
+    }
+    return {};
+  }
+
+  async getUserAssignedInfo(id: string): Promise<Record<string, any>> {
+    const user = await this.getUserById(id);
+    return this.parseAssignedInfo(user?.assigned_info ?? user?.assignedInfo);
+  }
+
+  async mergeUserAssignedInfo(id: string, patch: Record<string, any>): Promise<Record<string, any> | null> {
+    const user = await this.getUserById(id);
+    if (!user) return null;
+
+    const info = this.parseAssignedInfo(user.assigned_info ?? user.assignedInfo);
+    for (const [key, value] of Object.entries(patch || {})) {
+      if (Array.isArray(value)) {
+        const current = Array.isArray(info[key]) ? info[key].map(String) : [];
+        const merged = [...current];
+        for (const item of value) {
+          if (item === null || item === undefined || item === '') continue;
+          if (!merged.includes(String(item))) merged.push(String(item));
+        }
+        info[key] = merged;
+      } else if (value !== undefined) {
+        info[key] = value;
+      }
+    }
+
+    const assignedInfoStored = JSON.stringify(info);
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('users')
+          .update({ assigned_info: assignedInfoStored, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] mergeUserAssignedInfo: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] mergeUserAssignedInfo error: ${err?.message}`);
+      }
+    }
+
+    const existing = this.memoryStore.users.get(id);
+    if (existing) {
+      existing.assigned_info = assignedInfoStored;
+      existing.assignedInfo = assignedInfoStored;
+      this.memoryStore.users.set(id, existing);
+    }
+    return info;
+  }
+
   async updateTeacherAiQuota(id: string, quota: number, tier: string = 'AUTO', usedToday?: number) {
     const updateData: Record<string, any> = {
       ai_daily_quota: quota,
@@ -1119,13 +1184,14 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async getClassByInviteCode(inviteCode: string) {
-    const cleanCode = (inviteCode || '').trim();
+    const cleanCode = (inviteCode || '').trim().toUpperCase();
+    if (!cleanCode) return null;
     if (this.supabase) {
       try {
         const { data, error } = await this.supabase
           .from('classes')
           .select('*')
-          .eq('invite_code', cleanCode)
+          .ilike('invite_code', cleanCode)
           .eq('is_deleted', false)
           .maybeSingle();
         if (!error && data) {
@@ -1136,7 +1202,7 @@ export class SupabaseService implements OnModuleInit {
       }
     }
     const mem = Array.from(this.memoryStore.classes.values()).find(
-      (c) => (c.invite_code || c.inviteCode) === cleanCode && !c.is_deleted && !c.isDeleted,
+      (c) => String(c.invite_code || c.inviteCode || '').toUpperCase() === cleanCode && !c.is_deleted && !c.isDeleted,
     );
     return mem ? this.mapClass(mem) : null;
   }
@@ -1167,6 +1233,31 @@ export class SupabaseService implements OnModuleInit {
 
     this.memoryStore.classes.set(classData.id, record);
     return this.mapClass(record);
+  }
+
+  async updateClassInviteCode(id: string, inviteCode: string) {
+    const normalized = String(inviteCode || '').trim().toUpperCase();
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('classes')
+          .update({ invite_code: normalized, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] updateClassInviteCode: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] updateClassInviteCode error: ${err?.message}`);
+      }
+    }
+
+    const existing = this.memoryStore.classes.get(id);
+    if (existing) {
+      existing.invite_code = normalized;
+      existing.inviteCode = normalized;
+      this.memoryStore.classes.set(id, existing);
+    }
+    return true;
   }
 
   async softDeleteClass(id: string) {
@@ -1242,17 +1333,34 @@ export class SupabaseService implements OnModuleInit {
 
   async getStudentById(id: string) {
     const cleanId = (id || '').trim();
+    if (!cleanId) return null;
     if (this.supabase) {
       try {
         const { data, error } = await this.supabase.from('students').select('*').eq('id', cleanId).maybeSingle();
         if (!error && data) {
           return this.mapStudent(data);
         }
+        if (!error) {
+          const byCode = await this.supabase
+            .from('students')
+            .select('*')
+            .ilike('student_code', cleanId)
+            .eq('is_deleted', false)
+            .maybeSingle();
+          if (!byCode.error && byCode.data) {
+            return this.mapStudent(byCode.data);
+          }
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] getStudentById fallback: ${err?.message}`);
       }
     }
-    const mem = this.memoryStore.students.get(cleanId);
+    const mem = this.memoryStore.students.get(cleanId) ||
+      Array.from(this.memoryStore.students.values()).find(
+        (s) =>
+          String(s.student_code || s.studentCode || '').toLowerCase() === cleanId.toLowerCase() &&
+          !(s.is_deleted ?? s.isDeleted),
+      );
     return mem ? this.mapStudent(mem) : null;
   }
 
@@ -1476,6 +1584,32 @@ export class SupabaseService implements OnModuleInit {
 
     return Array.from(this.memoryStore.scores.values())
       .filter((s) => (s.student_id || s.studentId) === studentId && (!term || s.term === term))
+      .map((s) => this.mapScore(s));
+  }
+
+  async listScoresByClass(classId: string, subject?: string, term?: number) {
+    if (this.supabase) {
+      try {
+        let q = this.supabase.from('scores').select('*').eq('class_id', classId).eq('is_deleted', false);
+        if (subject) q = q.eq('subject', subject);
+        if (term) q = q.eq('term', term);
+        const { data, error } = await q;
+        if (!error && data && data.length > 0) {
+          return data.map((s) => this.mapScore(s));
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] listScoresByClass fallback: ${err?.message}`);
+      }
+    }
+
+    return Array.from(this.memoryStore.scores.values())
+      .filter(
+        (s) =>
+          (s.class_id || s.classId) === classId &&
+          !(s.is_deleted ?? s.isDeleted) &&
+          (!subject || s.subject === subject) &&
+          (!term || (s.term ?? 1) === term),
+      )
       .map((s) => this.mapScore(s));
   }
 

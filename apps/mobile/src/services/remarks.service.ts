@@ -47,6 +47,16 @@ export interface CreateExamReminderPayload {
   message: string;
 }
 
+export interface RawRemarkRecord {
+  remark_id: string;
+  student_id: string;
+  student_name?: string;
+  subject_code: string;
+  content: string;
+  created_at: string;
+  parent_acknowledged?: boolean;
+}
+
 const SUBJECT_LABELS: Record<string, string> = {
   MATH: 'Toán',
   LIT: 'Ngữ văn',
@@ -81,6 +91,19 @@ const formatReminderCreatedAt = (value: any): string => {
   return `${dd}/${mm} ${hh}:${mi}`;
 };
 
+export const subjectLabel = (code: string | undefined | null): string =>
+  SUBJECT_LABELS[code || ''] ?? 'Toán học';
+
+const normalizeRemarkRecord = (raw: any): RawRemarkRecord => ({
+  remark_id: String(raw.remark_id ?? raw.id ?? ''),
+  student_id: String(raw.student_id ?? raw.studentId ?? ''),
+  student_name: raw.student_name ?? raw.studentName ?? '',
+  subject_code: String(raw.subject_code ?? raw.subjectCode ?? raw.subject ?? 'MATH'),
+  content: String(raw.content ?? ''),
+  created_at: String(raw.created_at ?? raw.createdAt ?? ''),
+  parent_acknowledged: raw.parent_acknowledged === true || raw.parentAcknowledged === true,
+});
+
 // Chuẩn hóa record từ backend (camelCase: classId/subject/examDate/title/note)
 // về shape ExamReminderItem dùng cho UI
 const normalizeExamReminder = (raw: any): ExamReminderItem => {
@@ -110,7 +133,7 @@ const normalizeExamReminder = (raw: any): ExamReminderItem => {
 };
 
 export const remarksService = {
-  async getClassRemarks(classId: string = ''): Promise<StudentRemarkItem[]> {
+  async getClassRemarks(classId: string = ''): Promise<RawRemarkRecord[]> {
     if (!classId || classId === 'cls_empty') return [];
     try {
       const authHeader = await authService.getAuthHeaderAsync();
@@ -120,12 +143,38 @@ export const remarksService = {
       if (response.ok) {
         const resJson = await response.json();
         const data = resJson.data !== undefined ? resJson.data : resJson;
-        if (Array.isArray(data)) {
-          return data;
-        }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+          ? data.items
+          : [];
+        return list.map(normalizeRemarkRecord);
       }
     } catch (e) {
       console.warn('Backend remarks not reachable:', e);
+    }
+    return [];
+  },
+
+  async getStudentRemarks(studentId: string = ''): Promise<RawRemarkRecord[]> {
+    if (!studentId) return [];
+    try {
+      const authHeader = await authService.getAuthHeaderAsync();
+      const response = await fetch(`${API_BASE_URL}/remarks/student/${studentId}`, {
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+      });
+      if (response.ok) {
+        const resJson = await response.json();
+        const data = resJson.data !== undefined ? resJson.data : resJson;
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+          ? data.items
+          : [];
+        return list.map(normalizeRemarkRecord);
+      }
+    } catch (e) {
+      console.warn('getStudentRemarks not reachable:', e);
     }
     return [];
   },

@@ -45,26 +45,69 @@ export interface ParentDashboardData {
   }>;
 }
 
+const toChildItem = (student: any): ChildItem => {
+  const fullName = student.full_name || student.fullName || 'Học sinh';
+  const initials = fullName
+    .split(' ')
+    .filter(Boolean)
+    .map((w: string) => w[0])
+    .slice(-2)
+    .join('')
+    .toUpperCase();
+  const rawClassName = student.class_name || student.className || '';
+  const classNameFormatted = rawClassName
+    ? rawClassName.startsWith('Lớp')
+      ? rawClassName
+      : `Lớp ${rawClassName}`
+    : 'Lớp học';
+
+  return {
+    id: student.id || student.student_id || '',
+    student_code: student.student_code || student.studentCode || '',
+    full_name: fullName,
+    avatar_letters: initials || 'HS',
+    class_name: classNameFormatted,
+    school_name: student.school_name || student.schoolName || '',
+    attendance_status: 'Có mặt',
+    attendance_note: 'Đúng giờ',
+  };
+};
+
 export const parentService = {
   async getLinkedChildren(): Promise<ChildItem[]> {
-    const user = authService.getUser();
-    const userId = user?.id || user?.phone || 'guest';
+    try {
+      const authHeader = await authService.getAuthHeaderAsync();
+      const meRes = await fetch(`${API_BASE_URL}/users/me`, {
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+      }).catch(() => null);
 
-    // 1. Đọc danh sách con đã liên kết từ Storage
-    let savedChildren: ChildItem[] = [];
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const stored = window.localStorage.getItem(`gvh_linked_children_${userId}`);
-        if (stored) savedChildren = JSON.parse(stored);
-      } catch (e) {}
+      if (!meRes || !meRes.ok) return [];
+
+      const meJson = await meRes.json();
+      const me = meJson.data || meJson;
+      const linkedIds: string[] = Array.isArray(me.linked_student_ids)
+        ? me.linked_student_ids.map(String)
+        : [];
+
+      if (linkedIds.length === 0) return [];
+
+      const children = await Promise.all(
+        linkedIds.map(async (studentId) => {
+          const res = await fetch(`${API_BASE_URL}/students/${encodeURIComponent(studentId)}`, {
+            headers: { 'Content-Type': 'application/json', ...authHeader },
+          }).catch(() => null);
+          if (!res || !res.ok) return null;
+          const json = await res.json();
+          const student = json.data || json;
+          return toChildItem(student);
+        }),
+      );
+
+      return children.filter((child): child is ChildItem => Boolean(child && child.id));
+    } catch (e) {
+      console.warn('getLinkedChildren failed:', e);
+      return [];
     }
-
-    if (savedChildren.length > 0) {
-      return savedChildren;
-    }
-
-    // Với tài khoản phụ huynh chưa liên kết con: hiển thị PAR-01.empty
-    return [];
   },
 
   async getChildDashboard(studentId: string): Promise<ParentDashboardData | null> {
@@ -243,85 +286,57 @@ export const parentService = {
     }
   },
 
-  async linkNewChild(studentCode: string): Promise<ChildItem> {
-    const user = authService.getUser();
-    const userId = user?.id || user?.phone || 'guest';
+  async linkNewChild(codeInput: string): Promise<ChildItem> {
+    const code = String(codeInput || '').trim().toUpperCase();
+    if (!code) {
+      throw new Error('Vui lòng nhập mã học sinh hoặc mã mời do giáo viên cung cấp');
+    }
+
     const authHeader = await authService.getAuthHeaderAsync();
 
-    // 1. Thử tra cứu hồ sơ học sinh trực tiếp qua ID hoặc mã học sinh
-    let foundStudent: any = null;
-    try {
-      const res = await fetch(`${API_BASE_URL}/students/${studentCode}`, {
+    const tryJoin = async (payload: Record<string, string>) => {
+      const res = await fetch(`${API_BASE_URL}/classes/join`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify(payload),
       }).catch(() => null);
-
-      if (res && res.ok) {
-        const resJson = await res.json();
-        foundStudent = resJson.data || resJson;
-      }
-    } catch (e) {}
-
-    // 2. Nếu không tìm thấy, thử qua mã mời lớp học
-    if (!foundStudent) {
-      try {
-        const joinRes = await fetch(`${API_BASE_URL}/classes/join`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader },
-          body: JSON.stringify({ invite_code: studentCode }),
-        }).catch(() => null);
-
-        if (joinRes && joinRes.ok) {
-          const joinJson = await joinRes.json();
-          const joinData = joinJson.data || joinJson;
-          foundStudent = {
-            id: joinData.student_id || `stu_${Date.now()}`,
-            student_code: studentCode,
-            full_name: joinData.full_name || 'Học sinh',
-            class_name: joinData.class_name || 'Lớp học',
-          };
-        }
-      } catch (e) {}
-    }
-
-    if (!foundStudent || !foundStudent.id) {
-      throw new Error(`Không tìm thấy học sinh với mã "${studentCode}". Vui lòng kiểm tra lại mã học sinh hoặc mã mời lớp học do giáo viên cung cấp.`);
-    }
-
-    const initials = (foundStudent.full_name || 'HS')
-      .split(' ')
-      .filter(Boolean)
-      .map((w: string) => w[0])
-      .slice(-2)
-      .join('')
-      .toUpperCase();
-
-    const classNameFormatted = foundStudent.class_name
-      ? (foundStudent.class_name.startsWith('Lớp') ? foundStudent.class_name : `Lớp ${foundStudent.class_name}`)
-      : 'Lớp học';
-
-    const childToReturn: ChildItem = {
-      id: foundStudent.id,
-      student_code: foundStudent.student_code || studentCode,
-      full_name: foundStudent.full_name,
-      avatar_letters: initials || 'HS',
-      class_name: classNameFormatted,
-      school_name: foundStudent.school_name || 'Trường học',
-      attendance_status: 'Có mặt',
-      attendance_note: 'Đúng giờ',
+      const json = res ? await res.json().catch(() => ({})) : {};
+      return { res, json };
     };
 
-    // Lưu vào LocalStorage của tài khoản phụ huynh hiện tại
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const key = `gvh_linked_children_${userId}`;
-        const existingStr = window.localStorage.getItem(key);
-        const existingList: ChildItem[] = existingStr ? JSON.parse(existingStr) : [];
-        const updatedList = [...existingList.filter(c => c.student_code !== childToReturn.student_code), childToReturn];
-        window.localStorage.setItem(key, JSON.stringify(updatedList));
-      } catch (e) {}
+    let attempt = await tryJoin({ invite_code: code });
+    if (attempt.res && !attempt.res.ok && [400, 404].includes(attempt.res.status)) {
+      const retry = await tryJoin({ student_code: code });
+      if (retry.res && retry.res.ok) {
+        attempt = retry;
+      }
     }
 
-    return childToReturn;
+    if (!attempt.res) {
+      throw new Error('Không thể kết nối máy chủ. Vui lòng thử lại.');
+    }
+
+    if (!attempt.res.ok) {
+      const message =
+        attempt.json?.message ||
+        'Không thể liên kết học sinh. Vui lòng kiểm tra lại mã đã nhập.';
+      throw new Error(message);
+    }
+
+    const json = attempt.json;
+    const data = json.data || json;
+    const firstStudent =
+      (Array.isArray(data.students) && data.students.length > 0 ? data.students[0] : null) ||
+      data.child;
+
+    if (!firstStudent) {
+      throw new Error('Không tìm thấy học sinh phù hợp với mã đã nhập.');
+    }
+
+    return toChildItem({
+      ...firstStudent,
+      class_name: firstStudent.class_name || data.class_name,
+    });
   },
 
   async getFullAcademicRecord(studentId: string) {

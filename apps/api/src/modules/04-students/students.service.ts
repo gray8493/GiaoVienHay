@@ -1,20 +1,41 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 
+function normalizePhone(value?: string | null): string {
+  if (!value) return '';
+  let digits = String(value).replace(/[^\d+]/g, '');
+  if (digits.startsWith('+84')) digits = `0${digits.slice(3)}`;
+  else if (digits.startsWith('84') && digits.length > 10) digits = `0${digits.slice(2)}`;
+  return digits;
+}
+
 @Injectable()
 export class StudentsService {
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
   ) {}
 
-  async getStudentProfile(studentId: string, parentUid?: string) {
-    const student = await this.findStudent(studentId, parentUid);
+  async getStudentProfile(studentId: string, parentPhone?: string) {
+    const student = await this.findStudent(studentId, parentPhone);
+    const classId = (student as any).class_id || (student as any).classId || '';
+    let className = (student as any).class_name || (student as any).className || '';
+    let schoolName = (student as any).school_name || (student as any).schoolName || '';
+
+    if (classId) {
+      const cls = await this.dataConnect.getClassById(classId).catch(() => null);
+      if (cls) {
+        className = className || cls.name || '';
+        schoolName = schoolName || cls.school_name || cls.schoolName || '';
+      }
+    }
+
     return {
       student_id: (student as any).id || (student as any).student_id || studentId,
       full_name: (student as any).full_name || (student as any).fullName,
       student_code: (student as any).student_code || (student as any).studentCode || '',
-      class_id: (student as any).class_id || (student as any).classId || '',
-      class_name: (student as any).class_name || (student as any).className || '',
+      class_id: classId,
+      class_name: className,
+      school_name: schoolName,
       dob: (student as any).dob || '',
       gender: (student as any).gender || '',
       avatar_url: (student as any).avatar_url || (student as any).avatarUrl || '',
@@ -22,7 +43,7 @@ export class StudentsService {
     };
   }
 
-  async getAcademicRecord(studentId: string, semester?: number, parentUid?: string) {
+  async getAcademicRecord(studentId: string, semester?: number, parentPhone?: string) {
     if (semester !== undefined && (isNaN(semester) || semester < 1 || semester > 2)) {
       throw new BadRequestException({
         error_code: 'COMMON_VALIDATION_ERROR',
@@ -30,17 +51,18 @@ export class StudentsService {
       });
     }
 
-    const student = await this.findStudent(studentId, parentUid);
+    const student = await this.findStudent(studentId, parentPhone);
+    const resolvedId = (student as any).id || studentId;
     let scoresList: any[] = [];
     try {
-      scoresList = await this.dataConnect.getScoresByStudent(studentId);
+      scoresList = await this.dataConnect.getScoresByStudent(resolvedId);
     } catch (e) {}
 
     if (!scoresList || scoresList.length === 0) {
       return {
         student_id: (student as any).id || studentId,
         full_name: (student as any).full_name || (student as any).fullName,
-        class_name: (student as any).class_name || (student as any).className || '1A',
+        class_name: (student as any).class_name || (student as any).className || '',
         semester: semester || 1,
         subjects: [],
       };
@@ -76,13 +98,13 @@ export class StudentsService {
     return {
       student_id: (student as any).id || studentId,
       full_name: (student as any).full_name || (student as any).fullName,
-      class_name: (student as any).class_name || (student as any).className || '1A',
+      class_name: (student as any).class_name || (student as any).className || '',
       semester: semester || 1,
       subjects: Array.from(subjectsMap.values()),
     };
   }
 
-  async getAttendanceHistory(studentId: string, month?: string, parentUid?: string) {
+  async getAttendanceHistory(studentId: string, month?: string, parentPhone?: string) {
     if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
       throw new BadRequestException({
         error_code: 'COMMON_VALIDATION_ERROR',
@@ -90,11 +112,12 @@ export class StudentsService {
       });
     }
 
-    const student = await this.findStudent(studentId, parentUid);
+    const student = await this.findStudent(studentId, parentPhone);
+    const resolvedId = (student as any).id || studentId;
 
     let records: any[] = [];
     try {
-      records = await this.dataConnect.getAttendanceByStudent(studentId);
+      records = await this.dataConnect.getAttendanceByStudent(resolvedId);
     } catch (e) {}
 
     const filteredRecords = month
@@ -140,12 +163,13 @@ export class StudentsService {
     };
   }
 
-  async getFeesInsuranceStatus(studentId: string, parentUid?: string) {
-    const student = await this.findStudent(studentId, parentUid);
+  async getFeesInsuranceStatus(studentId: string, parentPhone?: string) {
+    const student = await this.findStudent(studentId, parentPhone);
+    const resolvedId = (student as any).id || studentId;
 
     let fees: any[] = [];
     try {
-      fees = await this.dataConnect.getFeesByStudent(studentId);
+      fees = await this.dataConnect.getFeesByStudent(resolvedId);
     } catch (e) {}
 
     const insuranceRecord = fees.find((f) => f.fee_type === 'INSURANCE' || f.type === 'INSURANCE');
@@ -180,12 +204,13 @@ export class StudentsService {
     };
   }
 
-  async getRemarks(studentId: string, parentUid?: string) {
-    await this.findStudent(studentId, parentUid);
+  async getRemarks(studentId: string, parentPhone?: string) {
+    const student = await this.findStudent(studentId, parentPhone);
+    const resolvedId = (student as any).id || studentId;
 
     let sqlRemarks: any[] = [];
     try {
-      sqlRemarks = await this.dataConnect.getRemarksByStudent(studentId);
+      sqlRemarks = await this.dataConnect.getRemarksByStudent(resolvedId);
     } catch (e) {}
 
     if (!sqlRemarks || sqlRemarks.length === 0) {
@@ -203,8 +228,8 @@ export class StudentsService {
     }));
   }
 
-  async getExamReminders(studentId: string, parentUid?: string) {
-    const student = await this.findStudent(studentId, parentUid);
+  async getExamReminders(studentId: string, parentPhone?: string) {
+    const student = await this.findStudent(studentId, parentPhone);
     let list: any[] = [];
     if ((student as any)?.class_id && this.dataConnect?.getExamRemindersByClass) {
       try {
@@ -227,7 +252,7 @@ export class StudentsService {
     return list;
   }
 
-  private async findStudent(studentId: string, parentUid?: string) {
+  private async findStudent(studentId: string, parentPhone?: string) {
     if (!studentId || studentId.trim() === '') {
       throw new BadRequestException({
         error_code: 'COMMON_VALIDATION_ERROR',
@@ -244,9 +269,12 @@ export class StudentsService {
       });
     }
 
-    if (parentUid) {
-      const allowedParents = (student as any).parent_uids || (student as any).parentUids || [];
-      if (!allowedParents.includes(parentUid)) {
+    if (parentPhone) {
+      const expectedPhone = normalizePhone(parentPhone);
+      const studentPhone = normalizePhone(
+        (student as any).parent_phone || (student as any).parentPhone,
+      );
+      if (!expectedPhone || !studentPhone || expectedPhone !== studentPhone) {
         throw new ForbiddenException({
           error_code: 'FORBIDDEN_STUDENT_ACCESS',
           message: 'Bạn không có quyền truy cập hồ sơ học sinh này',

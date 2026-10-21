@@ -82,6 +82,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSavedRecords, setHasSavedRecords] = useState(false);
 
   useEffect(() => {
     loadClassStudents();
@@ -92,27 +93,50 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
     try {
       const detail = await classService.getClassDetail(classId);
       if (detail && detail.students && detail.students.length > 0) {
+        // Tải trạng thái điểm danh đã lưu hôm nay (nếu có) để mở lại màn hình vẫn đúng trạng thái
+        let savedMap = new Map<string, any>();
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const existingRes: any = await attendanceService.getClassAttendance(classId, today);
+          // Phòng hờ: service đã chuẩn hoá thành mảng, nhưng vẫn chấp nhận wrapper { records: [...] }
+          const existing = Array.isArray(existingRes) ? existingRes : existingRes?.records || [];
+          existing.forEach((r: any) => {
+            const sid = r.studentId || r.student_id;
+            if (sid) savedMap.set(String(sid), r);
+          });
+        } catch (e) {}
+        setHasSavedRecords(savedMap.size > 0);
+
         const mapped: StudentAttendance[] = detail.students.map((s, idx) => {
           const fullName = s.full_name || (s as any).name || '';
           const parts = fullName.trim().split(' ');
           const initials = parts.length > 1
             ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
             : (parts[0]?.substring(0, 2) || 'HS').toUpperCase();
+
+          const saved = savedMap.get(String(s.id));
+          const savedStatus = saved?.status;
+          const isAbsent = !!saved && savedStatus !== AttendanceStatus.PRESENT;
+
           return {
             id: idx + 1,
             student_id: s.id,
             code: s.student_code || `HS${String(idx + 1).padStart(4, '0')}`,
             name: fullName || 'Học sinh',
             initials,
-            status: 'present',
+            status: isAbsent ? 'absent' : 'present',
+            excused: isAbsent ? savedStatus === AttendanceStatus.ABSENT_EXCUSED : undefined,
+            reason: isAbsent ? saved?.note || '' : undefined,
           };
         });
         setStudents(mapped);
       } else {
         setStudents([]);
+        setHasSavedRecords(false);
       }
     } catch (e) {
       setStudents([]);
+      setHasSavedRecords(false);
     } finally {
       setIsLoading(false);
     }
@@ -173,13 +197,14 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
         note: s.reason || (s.excused ? 'Vắng có phép' : 'Vắng không phép'),
       }));
 
-      // Gọi API backend 05-attendance POST /attendance/submit
+      // Gọi API backend 05-attendance POST /attendance/submit (upsert: cho phép lưu lại để sửa)
       await attendanceService.submitAttendance({
         class_id: classId,
         attendance_date: new Date().toISOString().split('T')[0],
         period: DAILY_ATTENDANCE_PERIOD,
         records,
       });
+      setHasSavedRecords(true);
 
       const absentList = students
         .filter((s) => s.status === 'absent')
@@ -368,7 +393,9 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
                 <Line x1={12} y1={8} x2={12.01} y2={8} />
               </Svg>
               <Text style={styles.statsGuidanceText} numberOfLines={1}>
-                Cả lớp mặc định có mặt. Chạm để đổi vắng.
+                {hasSavedRecords
+                  ? 'Đã lưu hôm nay. Có thể chỉnh sửa rồi lưu lại.'
+                  : 'Cả lớp mặc định có mặt. Chạm để đổi vắng.'}
               </Text>
             </View>
           </View>
@@ -524,17 +551,18 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
                         </TouchableOpacity>
                       </View>
 
-                      {/* Reason Input Pill */}
-                      <View style={styles.reasonPillWrap}>
-                        <Text style={styles.reasonIconText}>💬</Text>
-                        <TextInput
-                          style={styles.reasonTextInput}
-                          placeholder="Lý do vắng (không bắt buộc)"
-                          placeholderTextColor="#94A3B8"
-                          value={student.reason}
-                          onChangeText={(text) => updateReason(student.id, text)}
-                        />
-                      </View>
+                      {/* Reason Input Pill: chỉ hiện khi vắng CÓ PHÉP */}
+                      {student.excused && (
+                        <View style={styles.reasonPillWrap}>
+                          <TextInput
+                            style={styles.reasonTextInput}
+                            placeholder="Lý do vắng (không bắt buộc)"
+                            placeholderTextColor="#94A3B8"
+                            value={student.reason}
+                            onChangeText={(text) => updateReason(student.id, text)}
+                          />
+                        </View>
+                      )}
                     </View>
                   </View>
                 );
@@ -566,7 +594,9 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Text style={styles.btnSaveAttendanceText}>Lưu & Báo Phụ Huynh</Text>
+                <Text style={styles.btnSaveAttendanceText}>
+                  {hasSavedRecords ? 'Cập nhật & Báo Phụ Huynh' : 'Lưu & Báo Phụ Huynh'}
+                </Text>
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2} style={styles.sendIcon}>
                   <Path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
@@ -1064,9 +1094,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: Platform.OS === 'ios' ? 6 : 4,
     gap: 6,
-  },
-  reasonIconText: {
-    fontSize: 11,
   },
   reasonTextInput: {
     flex: 1,

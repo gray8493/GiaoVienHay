@@ -32,6 +32,8 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [isSavingStudent, setIsSavingStudent] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<StudentItem | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -57,14 +59,19 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
       return;
     }
     const data = await classService.getClassDetail(classId);
-    setClassData(data);
+    // Tổng quan "học sinh" luôn tính từ danh sách thực tế trong response
+    // vì trường student_count cũ lưu trong DB có thể bị lệch (vd: 0)
+    setClassData({
+      ...data,
+      student_count: Array.isArray(data.students)
+        ? data.students.length
+        : data.student_count,
+    });
     if (data.invite_code) {
-      setParentInviteCode(data.invite_code.startsWith('INV-') ? data.invite_code.replace('INV-', 'PAR-') : data.invite_code);
-      const cleanName = (data.name || 'LOP').toUpperCase().replace(/\s+/g, '');
-      const suffix = data.invite_code.includes('-') ? data.invite_code.split('-').pop() : data.invite_code;
-      setTeacherInviteCode(`TCH-${cleanName}-${suffix}`);
-      setParentInviteCode(`PAR-${cleanName}-${suffix}`);
-      setCurrentInviteCode(`TCH-${cleanName}-${suffix}`);
+      const inviteCode = data.invite_code.trim().toUpperCase();
+      setTeacherInviteCode(inviteCode);
+      setParentInviteCode(inviteCode);
+      setCurrentInviteCode(inviteCode);
     }
   };
 
@@ -83,6 +90,36 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
     setShowDeleteDialog(true);
   };
 
+  const formatDobToDmy = (dob?: string) => {
+    if (!dob) return '';
+    const iso = dob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : dob;
+  };
+
+  const handleOpenAddModal = () => {
+    setEditingStudentId(null);
+    setFormName('');
+    setFormDob('');
+    setFormGender('FEMALE');
+    setFormPhone('');
+    setShowAddModal(true);
+  };
+
+  const handleOpenEditStudent = (student: StudentItem) => {
+    setActiveMenuStudentId(null);
+    setEditingStudentId(student.id);
+    setFormName(student.full_name || '');
+    setFormDob(formatDobToDmy(student.dob));
+    setFormGender(student.gender === 'MALE' ? 'MALE' : 'FEMALE');
+    setFormPhone(student.parent_phone || '');
+    setShowAddModal(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    setEditingStudentId(null);
+  };
+
   const handleConfirmDelete = async () => {
     if (!studentToDelete || !classData) return;
     try {
@@ -95,7 +132,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
       if (!prev) return null;
       return {
         ...prev,
-        student_count: Math.max(0, prev.student_count - 1),
+        student_count: Math.max(0, prev.students.length - 1),
         students: prev.students.filter(s => s.id !== studentToDelete.id),
       };
     });
@@ -104,73 +141,103 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
   };
 
   const handleSaveStudent = async () => {
-    if (!formName.trim() || !classData) {
+    if (isSavingStudent || !classData) return;
+    if (!formName.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập họ và tên học sinh');
       return;
     }
 
-    let dobIso: string | undefined;
     const dobRaw = formDob.trim();
-    if (dobRaw) {
-      const dobMatch = dobRaw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-      if (!dobMatch) {
-        Alert.alert('Thông báo', 'Ngày sinh cần định dạng DD/MM/YYYY, ví dụ 15/06/2014');
-        return;
-      }
-      const d = Number(dobMatch[1]);
-      const m = Number(dobMatch[2]);
-      const y = Number(dobMatch[3]);
-      const parsed = new Date(Date.UTC(y, m - 1, d));
-      const realDate =
-        parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m - 1 && parsed.getUTCDate() === d;
-      if (!realDate) {
-        Alert.alert('Thông báo', 'Ngày sinh không tồn tại trong lịch thực tế');
-        return;
-      }
-      dobIso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    if (!dobRaw) {
+      Alert.alert('Thông báo', 'Vui lòng nhập ngày sinh học sinh');
+      return;
     }
+    let dobIso = '';
+    const dobMatch = dobRaw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!dobMatch) {
+      Alert.alert('Thông báo', 'Ngày sinh cần định dạng DD/MM/YYYY, ví dụ 15/06/2014');
+      return;
+    }
+    const d = Number(dobMatch[1]);
+    const m = Number(dobMatch[2]);
+    const y = Number(dobMatch[3]);
+    const parsed = new Date(Date.UTC(y, m - 1, d));
+    const realDate =
+      parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m - 1 && parsed.getUTCDate() === d;
+    if (!realDate) {
+      Alert.alert('Thông báo', 'Ngày sinh không tồn tại trong lịch thực tế');
+      return;
+    }
+    dobIso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-    let newStudent: StudentItem;
-    try {
-      newStudent = await classService.addStudent(classId, {
-        full_name: formName.trim(),
-        dob: dobIso,
-        gender: formGender,
-        parent_phone: formPhone.trim(),
-      });
-    } catch (e: any) {
-      Alert.alert('Thông báo', e?.message || 'Không thể thêm học sinh. Vui lòng thử lại.');
+    const phoneValue = formPhone.trim();
+    if (!phoneValue) {
+      Alert.alert('Thông báo', 'Vui lòng nhập SĐT phụ huynh');
       return;
     }
 
-    setClassData(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        student_count: prev.student_count + 1,
-        students: [newStudent, ...prev.students],
+    setIsSavingStudent(true);
+    try {
+      const payload = {
+        full_name: formName.trim(),
+        dob: dobIso,
+        gender: formGender,
+        parent_phone: phoneValue,
       };
-    });
 
-    setShowAddModal(false);
-    // Reset form
-    setFormName('');
-    setFormPhone('');
+      if (editingStudentId) {
+        const editingStudent = classData.students.find(s => s.id === editingStudentId);
+        if (!editingStudent) {
+          throw new Error('Không tìm thấy học sinh cần chỉnh sửa');
+        }
+        const updated = await classService.updateStudent(classId, editingStudent, payload);
+        setClassData(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            students: prev.students.map(s => (s.id === editingStudent.id ? updated : s)),
+          };
+        });
+      } else {
+        const newStudent = await classService.addStudent(classId, payload);
+        setClassData(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            student_count: prev.students.length + 1,
+            students: [newStudent, ...prev.students],
+          };
+        });
+      }
+
+      setShowAddModal(false);
+      setEditingStudentId(null);
+      // Reset toàn bộ form để lần mở tiếp theo không dính dữ liệu học sinh cũ
+      setFormName('');
+      setFormDob('');
+      setFormGender('FEMALE');
+      setFormPhone('');
+    } catch (e: any) {
+      Alert.alert(
+        'Thông báo',
+        e?.message ||
+          (editingStudentId
+            ? 'Không thể cập nhật học sinh. Vui lòng thử lại.'
+            : 'Không thể thêm học sinh. Vui lòng thử lại.'),
+      );
+    } finally {
+      setIsSavingStudent(false);
+    }
   };
 
   const handleRefreshInviteCode = async () => {
     try {
       const res = await classService.generateInviteCode(classId);
-      const rawCode = res.invite_code || '';
+      const rawCode = (res.invite_code || '').trim().toUpperCase();
       if (!rawCode) throw new Error('Máy chủ không trả về mã mời');
-      const cleanClassName = (classData?.name || '').toUpperCase().replace(/\s+/g, '');
-      const suffix = rawCode.includes('-') ? rawCode.split('-').pop() : rawCode;
-
-      if (inviteRole === 'TEACHER') {
-        setTeacherInviteCode(`TCH-${cleanClassName}-${suffix}`);
-      } else {
-        setParentInviteCode(`PAR-${cleanClassName}-${suffix}`);
-      }
+      setTeacherInviteCode(rawCode);
+      setParentInviteCode(rawCode);
+      setCurrentInviteCode(rawCode);
     } catch (e: any) {
       Alert.alert('Thông báo', e?.message || 'Không thể tạo mã mời. Vui lòng thử lại.');
     }
@@ -373,7 +440,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
               ) : (
                 <TouchableOpacity
                   style={styles.studentEmptyAction}
-                  onPress={() => setShowAddModal(true)}
+                  onPress={handleOpenAddModal}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.studentEmptyActionText}>+ Thêm học sinh đầu tiên</Text>
@@ -384,6 +451,10 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
           {filteredStudents.map((student, idx) => {
             const isExpanded = expandedStudentId === student.id;
             const isMenuOpen = activeMenuStudentId === student.id;
+            // Khi một học sinh đang mở menu ba chấm hoặc đang bung chi tiết,
+            // các nút ba chấm của học sinh KHÁC bị khóa (không bấm được)
+            const focusStudentId = activeMenuStudentId || expandedStudentId;
+            const isOtherFocused = focusStudentId !== null && focusStudentId !== student.id;
             const colors = getAvatarColors(idx);
 
             return (
@@ -419,8 +490,9 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 
                   <View style={styles.rowRightActions}>
                     <TouchableOpacity
-                      style={styles.moreBtn}
+                      style={[styles.moreBtn, isOtherFocused && styles.moreBtnLocked]}
                       onPress={() => handleToggleMenu(student.id)}
+                      disabled={isOtherFocused}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
@@ -435,6 +507,22 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                 {/* Popover Action Menu */}
                 {isMenuOpen && (
                   <View style={styles.popoverMenu}>
+                    <TouchableOpacity
+                      style={styles.popoverItem}
+                      onPress={() => handleOpenEditStudent(student)}
+                    >
+                      <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                        <Path
+                          d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
+                          stroke="#F58F4C"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </Svg>
+                      <Text style={styles.popoverEditText}>Chỉnh sửa</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                       style={styles.popoverItem}
                       onPress={() => handleOpenDelete(student)}
@@ -462,12 +550,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                         <Path d="M16 2v4M8 2v4M3 10h18" stroke="#984704" strokeWidth={2} strokeLinecap="round" />
                       </Svg>
                       <Text style={styles.infoPillText}>
-                        {student.dob
-                          ? (() => {
-                              const iso = student.dob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-                              return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : student.dob;
-                            })()
-                          : '—'}
+                        {formatDobToDmy(student.dob) || '—'}
                       </Text>
                     </View>
 
@@ -513,7 +596,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
         {/* Primary Filled Pill: Thêm Học Sinh (~62%) */}
         <TouchableOpacity
           style={styles.addStudentBtn}
-          onPress={() => setShowAddModal(true)}
+          onPress={handleOpenAddModal}
           activeOpacity={0.88}
         >
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -530,13 +613,13 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
         visible={showAddModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
+        onRequestClose={handleCloseAddModal}
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.modalBackdropDismiss}
             activeOpacity={1}
-            onPress={() => setShowAddModal(false)}
+            onPress={handleCloseAddModal}
           />
 
           <View style={styles.addSheetContainer}>
@@ -545,7 +628,9 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 
             {/* Header with Title + 3D Graduation Cap Icon */}
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Thêm Học Sinh</Text>
+              <Text style={styles.sheetTitle}>
+                {editingStudentId ? 'Chỉnh Sửa Học Sinh' : 'Thêm Học Sinh'}
+              </Text>
               <View style={styles.capIconWrapper}>
                 <Svg width={36} height={36} viewBox="0 0 40 40" fill="none">
                   <Path
@@ -585,9 +670,11 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                 </View>
               </View>
 
-              {/* Field 2: Ngày sinh */}
+              {/* Field 2: Ngày sinh * */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Ngày sinh</Text>
+                <Text style={styles.formLabel}>
+                  Ngày sinh <Text style={{ color: '#BA1A1A' }}>*</Text>
+                </Text>
                 <View style={styles.inputBoxWithIcon}>
                   <TextInput
                     style={styles.inputText}
@@ -643,9 +730,11 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                 </View>
               </View>
 
-              {/* Field 4: SĐT phụ huynh */}
+              {/* Field 4: SĐT phụ huynh * */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>SĐT phụ huynh</Text>
+                <Text style={styles.formLabel}>
+                  SĐT phụ huynh <Text style={{ color: '#BA1A1A' }}>*</Text>
+                </Text>
                 <View style={styles.inputBoxWithIcon}>
                   <TextInput
                     style={styles.inputText}
@@ -670,17 +759,18 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
             <View style={styles.sheetActions}>
               <TouchableOpacity
                 style={styles.cancelSheetBtn}
-                onPress={() => setShowAddModal(false)}
+                onPress={handleCloseAddModal}
               >
                 <Text style={styles.cancelSheetBtnText}>Hủy</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.saveSheetBtn}
+                style={[styles.saveSheetBtn, isSavingStudent && { opacity: 0.6 }]}
                 onPress={handleSaveStudent}
                 activeOpacity={0.88}
+                disabled={isSavingStudent}
               >
-                <Text style={styles.saveSheetBtnText}>Lưu</Text>
+                <Text style={styles.saveSheetBtnText}>{isSavingStudent ? 'Đang lưu...' : 'Lưu'}</Text>
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                   <Path d="M5 13l4 4L19 7" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
@@ -1218,11 +1308,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  moreBtnLocked: {
+    opacity: 0.35,
+  },
   popoverMenu: {
     position: 'absolute',
     right: 0,
     top: 38,
-    width: 105,
+    width: 118,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 4,
@@ -1247,6 +1340,11 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '600',
     color: '#BA1A1A',
+  },
+  popoverEditText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#F58F4C',
   },
   expandedDetailsRow: {
     flexDirection: 'row',

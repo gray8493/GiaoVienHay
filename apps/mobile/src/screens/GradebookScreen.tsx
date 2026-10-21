@@ -11,6 +11,7 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, {
@@ -47,18 +48,63 @@ const buildSubjectOptions = (codes: string[]) => {
   return unique.map((code) => ({ code, label: SUBJECT_LABELS[code] || code }));
 };
 
+// Bề rộng ô điểm: tính sao cho cả 5 cột (Miệng/15p/1 Tiết/Thi GK/Thi CK) khít 1 hàng
+// 56 = padding màn hình + padding card, 32 = 4 gap giữa 5 ô
+const SCORE_BOX_W = (Dimensions.get('window').width - 56 - 32) / 5;
+
+// 5 cột điểm chuẩn backend (key FE field + score_type API + nhãn hiển thị)
+const SCORE_COLUMNS = [
+  { key: 'oral', type: 'ORAL_TEST', label: 'Miệng' },
+  { key: 'test15p', type: 'TEST_15P', label: '15 phút' },
+  { key: 'test1p', type: 'TEST_1P', label: '1 Tiết' },
+  { key: 'midTerm', type: 'MID_TERM', label: 'Thi GK' },
+  { key: 'final', type: 'FINAL', label: 'Thi CK' },
+] as const;
+
+type ScoreColKey = (typeof SCORE_COLUMNS)[number]['key'];
+
+// Hệ số nhân để tính điểm trung bình tổng (công thức phổ thông: TX 1 / 15p 2 / 1 tiết 3 / GK 2 / CK 3)
+const SCORE_WEIGHTS: Record<ScoreColKey, number> = {
+  oral: 1,
+  test15p: 2,
+  test1p: 3,
+  midTerm: 2,
+  final: 3,
+};
+
+// Tính điểm TB tổng của học sinh theo trọng số, chỉ tính các cột đã có điểm
+const computeStudentAverage = (s: StudentGrade | null): number | null => {
+  if (!s) return null;
+  let scoreSum = 0;
+  let weightSum = 0;
+  for (const col of SCORE_COLUMNS) {
+    const v = s[col.key];
+    if (v === null || v === undefined) continue;
+    scoreSum += v * SCORE_WEIGHTS[col.key];
+    weightSum += SCORE_WEIGHTS[col.key];
+  }
+  return weightSum > 0 ? scoreSum / weightSum : null;
+};
+
+// Xếp hạng theo đúng điểm TB (có trọng số) hiển thị trên badge:
+// Giỏi >= 8.0, Khá >= 6.5, còn lại (hoặc chưa có điểm) -> Trung Bình
+const classifyStudent = (s: StudentGrade): 'good' | 'fair' | 'avg' => {
+  const avg = computeStudentAverage(s);
+  if (avg === null) return 'avg';
+  if (avg >= 8.0) return 'good';
+  if (avg >= 6.5) return 'fair';
+  return 'avg';
+};
+
 interface StudentGrade {
   id: string;
   rank: number;
   name: string;
-  avatar: string;
   oral: number | null;
   test15p: number | null;
   test1p: number | null;
   midTerm: number | null;
   final?: number | null;
-  stars: number;
-  comment: string;
 }
 
 interface GradebookScreenProps {
@@ -125,29 +171,56 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
       }
 
       if (classDetail && classDetail.students && classDetail.students.length > 0) {
+        // API trả về các dòng điểm phẳng: { studentId/student_id, scoreType/score_type, scoreValue/score_value, term }
+        // Nhóm theo học sinh + lọc học kỳ, rồi map sang các trường hiển thị
+        const scoreRows: any[] = Array.isArray(gradesRes) ? gradesRes : [];
+        const scoresByStudent = new Map<string, any[]>();
+        for (const row of scoreRows) {
+          const sid = row.student_id ?? row.studentId;
+          if (!sid) continue;
+          if (!scoresByStudent.has(sid)) scoresByStudent.set(sid, []);
+          scoresByStudent.get(sid)!.push(row);
+        }
+        const pickValue = (rows: any[], scoreType: string): number | null => {
+          let latest: any = null;
+          for (const sc of rows) {
+            const type = String(sc.scoreType ?? sc.score_type ?? '');
+            if (type !== scoreType) continue;
+            // Nếu có nhiều bản ghi cùng loại, ưu tiên bản ghi mới nhất (lần chấm sau thắng)
+            if (
+              latest === null ||
+              String(sc.createdAt ?? sc.created_at ?? '') >
+                String(latest.createdAt ?? latest.created_at ?? '')
+            ) {
+              latest = sc;
+            }
+          }
+          if (!latest) return null;
+          const raw = latest.scoreValue ?? latest.score_value;
+          const num = Number(raw);
+          if (raw === null || raw === undefined || isNaN(num)) return null;
+          return num;
+        };
+
         const mapped: StudentGrade[] = classDetail.students.map((s: any, idx: number) => {
-          const studentScores = Array.isArray(gradesRes)
-            ? gradesRes.find((g: any) => g.student_id === s.id)?.scores || []
-            : [];
-          const oral = studentScores.find((sc: any) => sc.type === 'ORAL_TEST')?.value ?? null;
-          const test15p = studentScores.find((sc: any) => sc.type === 'TEST_15P')?.value ?? null;
-          const test1p = studentScores.find((sc: any) => sc.type === 'TEST_1P')?.value ?? null;
-          const midTerm = studentScores.find((sc: any) => sc.type === 'MID_TERM')?.value ?? null;
-          const finalScore = studentScores.find((sc: any) => sc.type === 'FINAL')?.value ?? null;
-          const comment = studentScores[0]?.comment || 'Chăm ngoan';
+          const studentScores = (scoresByStudent.get(s.id) || []).filter(
+            (r: any) => !r.term || Number(r.term) === selectedSemester,
+          );
+          const oral = pickValue(studentScores, 'ORAL_TEST');
+          const test15p = pickValue(studentScores, 'TEST_15P');
+          const test1p = pickValue(studentScores, 'TEST_1P');
+          const midTerm = pickValue(studentScores, 'MID_TERM');
+          const finalScore = pickValue(studentScores, 'FINAL');
 
           return {
             id: s.id,
             rank: idx + 1,
             name: s.full_name || s.name || `Học sinh ${idx + 1}`,
-            avatar: `https://api.dicebear.com/7.x/bottts/png?seed=${s.id}`,
             oral,
             test15p,
             test1p,
             midTerm,
             final: finalScore,
-            stars: 10 + (idx % 5) * 5,
-            comment,
           };
         });
         setStudents(mapped);
@@ -168,9 +241,11 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
   // Modal 1: Nhập điểm (TEA-06b)
   const [scoreModalVisible, setScoreModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentGrade | null>(null);
-  const [activeScoreType, setActiveScoreType] = useState<'oral' | 'test15p' | 'test1p' | 'midTerm' | 'final'>('test1p');
+  const [activeScoreType, setActiveScoreType] = useState<ScoreColKey>('test1p');
   const [inputScore, setInputScore] = useState('');
-  const [teacherComment, setTeacherComment] = useState('');
+  // Bản nháp các cột đã gõ trong phiên mở modal (chưa lưu API): đổi qua đổi lại cột không mất số
+  const [draftScores, setDraftScores] = useState<Partial<Record<ScoreColKey, string>>>({});
+  const [isSavingScore, setIsSavingScore] = useState(false);
 
   // Modal 2: Gửi sổ liên lạc (TEA-06c)
   const [sendModalVisible, setSendModalVisible] = useState(false);
@@ -189,122 +264,165 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
     setPickerView(null);
   };
 
+  // Định dạng điểm hiển thị trên pill cột điểm
+  const formatScorePill = (v: number | null | undefined) =>
+    v !== null && v !== undefined ? v.toFixed(1) : '--';
+
+  // Giá trị hiển thị trên pill: ưu tiên bản nháp đang gõ, sau đó mới đến điểm đã lưu
+  const getPillScoreText = (colKey: ScoreColKey) => {
+    const draft = draftScores[colKey];
+    if (draft !== undefined && draft.trim() !== '') {
+      const num = parseFloat(draft);
+      return isNaN(num) ? '--' : num.toFixed(1);
+    }
+    return formatScorePill(selectedStudent?.[colKey]);
+  };
+
   // Mở modal nhập điểm cho học sinh (chỉ cho phép khi không ở chế độ Read-only)
-  const handleOpenScoreModal = (student: StudentGrade, scoreType?: 'oral' | 'test15p' | 'test1p' | 'midTerm') => {
+  const handleOpenScoreModal = (student: StudentGrade, scoreType?: ScoreColKey) => {
     if (isReadOnly) return;
     setSelectedStudent(student);
+    setDraftScores({});
     if (scoreType) {
       setActiveScoreType(scoreType);
       const val = student[scoreType];
-      setInputScore(val !== null ? val.toFixed(1) : '');
+      setInputScore(val !== null && val !== undefined ? val.toFixed(1) : '');
     } else {
       setActiveScoreType('test1p');
-      setInputScore(student.test1p !== null ? student.test1p.toFixed(1) : '9.0');
+      setInputScore(student.test1p !== null ? student.test1p.toFixed(1) : '');
     }
-    setTeacherComment(student.comment || '');
     setScoreModalVisible(true);
+  };
+
+  // Đổi cột điểm: ưu tiên bản nháp vừa gõ ở cột đó, không có mới nạp điểm đã lưu
+  const switchScoreType = (type: ScoreColKey) => {
+    setActiveScoreType(type);
+    const draft = draftScores[type];
+    if (draft !== undefined) {
+      setInputScore(draft);
+      return;
+    }
+    const val = selectedStudent ? selectedStudent[type] : null;
+    setInputScore(val !== null && val !== undefined ? val.toFixed(1) : '');
+  };
+
+  // Ghi luôn số đang gõ vào bản nháp của cột hiện tại
+  const setCurrentInputValue = (value: string) => {
+    setInputScore(value);
+    setDraftScores((prev) => ({ ...prev, [activeScoreType]: value }));
   };
 
   // Nhập số trên keypad
   const handleKeypadPress = (val: string) => {
     if (val === 'DEL') {
-      setInputScore((prev) => (prev.length > 0 ? prev.slice(0, -1) : ''));
+      if (inputScore.length > 0) {
+        setCurrentInputValue(inputScore.slice(0, -1));
+      }
     } else if (val === '.') {
       if (!inputScore.includes('.')) {
-        setInputScore((prev) => (prev.length === 0 ? '0.' : prev + '.'));
+        setCurrentInputValue(inputScore.length === 0 ? '0.' : inputScore + '.');
       }
     } else {
       if (inputScore.length < 4) {
         const nextVal = inputScore + val;
         const num = parseFloat(nextVal);
         if (!isNaN(num) && num <= 10) {
-          setInputScore(nextVal);
+          setCurrentInputValue(nextVal);
         }
       }
     }
   };
 
-  // Lưu điểm học sinh và chuyển học sinh kế tiếp
-  const handleSaveScoreAndNext = async () => {
-    if (!selectedStudent) return;
-    const num = parseFloat(inputScore);
-    if (isNaN(num) || num < 0 || num > 10) {
-      Alert.alert('Thông báo', 'Vui lòng nhập điểm hợp lệ trong khoảng 0 đến 10');
+  // Lưu TOÀN BỘ cột đã gõ (bản nháp) cho học sinh này, lưu xong đóng modal
+  // (không tự nhảy sang học sinh khác — giáo viên tự bấm ô điểm của học sinh tiếp theo)
+  const handleSaveScore = async () => {
+    if (!selectedStudent || isSavingScore) return;
+    const entries: Array<{ colKey: ScoreColKey; value: number }> = [];
+    for (const col of SCORE_COLUMNS) {
+      const raw = (draftScores[col.key] ?? '').trim();
+      if (raw === '') continue;
+      const num = parseFloat(raw);
+      if (isNaN(num) || num < 0 || num > 10) {
+        Alert.alert('Thông báo', `Điểm cột ${col.label} không hợp lệ. Vui lòng nhập giá trị từ 0 đến 10.`);
+        return;
+      }
+      entries.push({ colKey: col.key, value: num });
+    }
+    if (entries.length === 0) {
+      Alert.alert('Thông báo', 'Bạn chưa nhập điểm nào cho học sinh này');
       return;
     }
-    const validScore = num;
+    setIsSavingScore(true);
 
     // Gọi backend API trước, chỉ cập nhật state khi lưu thành công
     try {
-      const typeMap: Record<string, 'ORAL_TEST' | 'TEST_15P' | 'TEST_1P' | 'MID_TERM' | 'FINAL'> = {
-        oral: 'ORAL_TEST',
-        test15p: 'TEST_15P',
-        test1p: 'TEST_1P',
-        midTerm: 'MID_TERM',
-        final: 'FINAL',
-      };
-      await gradesService.batchInputScores({
-        class_id: currentClassId,
-        subject_code: selectedSubject,
-        score_type: typeMap[activeScoreType] || 'TEST_1P',
-        semester: selectedSemester,
-        scores: [
-          {
-            student_id: selectedStudent.id,
-            score_value: validScore,
-            teacher_comment: teacherComment,
-          },
-        ],
-      });
+      for (const entry of entries) {
+        const col = SCORE_COLUMNS.find((c) => c.key === entry.colKey)!;
+        await gradesService.batchInputScores({
+          class_id: currentClassId,
+          subject_code: selectedSubject,
+          score_type: col.type,
+          semester: selectedSemester,
+          scores: [
+            {
+              student_id: selectedStudent.id,
+              score_value: entry.value,
+            },
+          ],
+        });
+      }
     } catch (e: any) {
+      setIsSavingScore(false);
       Alert.alert('Lỗi', e.message || 'Không thể lưu điểm');
       return;
     }
 
-    // Cập nhật state học sinh
+    // Cập nhật state học sinh rồi đóng modal để giáo viên tự bấm ô của học sinh khác
     setStudents((prev) =>
       prev.map((s) => {
-        if (s.id === selectedStudent.id) {
-          return {
-            ...s,
-            [activeScoreType]: validScore,
-            comment: teacherComment,
-          };
+        if (s.id !== selectedStudent.id) return s;
+        const next = { ...s };
+        for (const entry of entries) {
+          (next as any)[entry.colKey] = entry.value;
         }
-        return s;
+        return next;
       })
     );
-
-    // Tìm học sinh tiếp theo
-    const currentIndex = students.findIndex((s) => s.id === selectedStudent.id);
-    if (currentIndex >= 0 && currentIndex < students.length - 1) {
-      const nextStudent = students[currentIndex + 1];
-      setSelectedStudent(nextStudent);
-      const scoreVal = activeScoreType === 'final' ? null : nextStudent[activeScoreType];
-      setInputScore(scoreVal !== null && scoreVal !== undefined ? scoreVal.toFixed(1) : '');
-      setTeacherComment(nextStudent.comment || '');
-    } else {
-      setScoreModalVisible(false);
-    }
+    setIsSavingScore(false);
+    setScoreModalVisible(false);
   };
 
-  // Xác nhận gửi sổ liên lạc
+  // Cột điểm đã có dữ liệu / chưa có dữ liệu (tính từ bảng điểm hiện tại)
+  const filledCols = SCORE_COLUMNS.filter((c) =>
+    students.some((s) => s[c.key] !== null && s[c.key] !== undefined)
+  );
+  const missingCols = SCORE_COLUMNS.filter(
+    (c) => !filledCols.includes(c)
+  );
+
+  // Đã gõ điểm nào trong modal (bản nháp + ô hiện tại) để sáng nút Lưu
+  const hasDraftScores =
+    Object.values(draftScores).some((v) => (v ?? '').trim() !== '') ||
+    inputScore.trim() !== '';
+
+  // Xác nhận gửi sổ liên lạc: chỉ công bố các cột ĐÃ CÓ điểm, bỏ qua cột trống
+  // (tránh lỗi backend NO_SCORES_TO_PUBLISH khi cột active chưa nhập điểm nào)
   const handleConfirmSendGradebook = async () => {
+    if (isSending) return;
+    if (filledCols.length === 0) {
+      Alert.alert('Thông báo', 'Chưa có cột điểm nào có dữ liệu. Vui lòng nhập điểm trước khi gửi sổ liên lạc.');
+      return;
+    }
     setIsSending(true);
     try {
-      const typeMap: Record<string, 'ORAL_TEST' | 'TEST_15P' | 'TEST_1P' | 'MID_TERM' | 'FINAL'> = {
-        oral: 'ORAL_TEST',
-        test15p: 'TEST_15P',
-        test1p: 'TEST_1P',
-        midTerm: 'MID_TERM',
-        final: 'FINAL',
-      };
-      await gradesService.publishScores({
-        class_id: currentClassId,
-        subject_code: selectedSubject,
-        score_type: typeMap[activeScoreType] || 'TEST_1P',
-        semester: selectedSemester,
-      });
+      for (const col of filledCols) {
+        await gradesService.publishScores({
+          class_id: currentClassId,
+          subject_code: selectedSubject,
+          score_type: col.type,
+          semester: selectedSemester,
+        });
+      }
     } catch (e: any) {
       setIsSending(false);
       Alert.alert('Lỗi', e.message || 'Không thể công bố sổ điểm');
@@ -317,16 +435,6 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
       setShowSuccessScreen(true);
     }, 800);
   };
-
-  // Học sinh kế tiếp trong danh sách sau hiện tại (hiển thị ở footer modal)
-  const nextStudentAfter = (() => {
-    if (!selectedStudent) return null;
-    const idx = students.findIndex((s) => s.id === selectedStudent.id);
-    return idx >= 0 && idx < students.length - 1 ? students[idx + 1] : null;
-  })();
-  const selectedOrder = selectedStudent
-    ? students.findIndex((s) => s.id === selectedStudent.id) + 1
-    : 0;
 
   // ====================== MÀN HÌNH THÀNH CÔNG (TEA-06d) ======================
   if (showSuccessScreen) {
@@ -738,7 +846,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             >
               <View style={styles.grayBullet} />
               <Text style={[styles.segmentText, selectedSegment === 'good' && styles.segmentTextActive]}>
-                Giỏi ({students.filter(s => (s.test15p || s.oral || s.test1p || 0) >= 8.0).length})
+                Giỏi ({students.filter(s => classifyStudent(s) === 'good').length})
               </Text>
             </TouchableOpacity>
 
@@ -749,7 +857,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             >
               <View style={styles.grayBullet} />
               <Text style={[styles.segmentText, selectedSegment === 'fair' && styles.segmentTextActive]}>
-                Khá ({students.filter(s => { const a = (s.test15p || s.oral || s.test1p || 0); return a >= 6.5 && a < 8.0; }).length})
+                Khá ({students.filter(s => classifyStudent(s) === 'fair').length})
               </Text>
             </TouchableOpacity>
 
@@ -760,7 +868,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             >
               <View style={styles.grayBullet} />
               <Text style={[styles.segmentText, selectedSegment === 'need_effort' && styles.segmentTextActive]}>
-                Cần cố gắng ({students.filter(s => (s.test15p || s.oral || s.test1p || 0) < 6.5).length})
+                Trung Bình ({students.filter(s => classifyStudent(s) === 'avg').length})
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -778,29 +886,42 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
               </View>
             ) : (
               (selectedSegment === 'good'
-                ? students.filter(s => (s.test15p || s.oral || s.test1p || 0) >= 8.0)
+                ? students.filter(s => classifyStudent(s) === 'good')
                 : selectedSegment === 'fair'
-                ? students.filter(s => { const a = (s.test15p || s.oral || s.test1p || 0); return a >= 6.5 && a < 8.0; })
+                ? students.filter(s => classifyStudent(s) === 'fair')
                 : selectedSegment === 'need_effort'
-                ? students.filter(s => (s.test15p || s.oral || s.test1p || 0) < 6.5)
+                ? students.filter(s => classifyStudent(s) === 'avg')
                 : students
               )
                 .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((student) => (
+                .map((student) => {
+                const avgScore = computeStudentAverage(student);
+                return (
               <View key={student.id} style={styles.studentGradeCard}>
-                {/* Header row: rank & avatar & name */}
+                {/* Header row: rank & avatar & name & điểm TB tổng */}
                 <View style={styles.studentCardHeader}>
                   <View style={styles.studentCardHeaderLeft}>
                     <View style={styles.rankBadgePill}>
                       <Text style={styles.rankBadgePillText}>#{student.rank}</Text>
                     </View>
-                    <Image source={{ uri: student.avatar }} style={styles.studentAvatarCircle} />
                     <Text style={styles.studentCardName} numberOfLines={1}>{student.name}</Text>
+                  </View>
+
+                  <View style={styles.avgBadge}>
+                    <Text style={styles.avgBadgeLabel}>TB</Text>
+                    <Text style={[styles.avgBadgeValue, avgScore === null && styles.avgBadgeEmpty]}>
+                      {avgScore !== null ? avgScore.toFixed(1) : '--'}
+                    </Text>
                   </View>
                 </View>
 
-                {/* 4 Score Columns */}
-                <View style={styles.fourScoreCols}>
+                {/* Score Columns: 5 cột khít 1 hàng (ScrollView ngang dự phòng cho máy hẹp) */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled
+                  contentContainerStyle={styles.scoreColsRow}
+                >
                   {/* Miệng */}
                   <TouchableOpacity
                     style={styles.scoreBox}
@@ -858,19 +979,22 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                       {student.midTerm !== null ? student.midTerm.toFixed(1) : '--'}
                     </Text>
                   </TouchableOpacity>
-                </View>
 
-                {/* Footer: Stars/Comment & Nút Vào điểm (ẩn nút Vào điểm khi ở chế độ Read-only) */}
+                  {/* Thi CK */}
+                  <TouchableOpacity
+                    style={styles.scoreBox}
+                    onPress={() => handleOpenScoreModal(student, 'final')}
+                    activeOpacity={isReadOnly ? 1 : 0.7}
+                  >
+                    <Text style={styles.scoreTypeLabel}>Thi CK</Text>
+                    <Text style={student.final !== null && student.final !== undefined ? styles.scoreValueBig : styles.scoreValuePlaceholder}>
+                      {student.final !== null && student.final !== undefined ? student.final.toFixed(1) : '--'}
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
+
+                {/* Footer: Nút Vào điểm (ẩn nút Vào điểm khi ở chế độ Read-only) */}
                 <View style={styles.cardFooterRow}>
-                  <View style={[styles.starsCommentPill, isReadOnly && styles.starsCommentPillFull]}>
-                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="#F58F4C" style={{ marginRight: 2 }}>
-                      <Path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                    </Svg>
-                    <Text style={styles.starCountBold}>+{student.stars} sao</Text>
-                    <Text style={styles.dotSep}>•</Text>
-                    <Text style={styles.commentShort} numberOfLines={1}>{student.comment}</Text>
-                  </View>
-
                   {!isReadOnly && (
                     <TouchableOpacity
                       style={styles.btnVaoDiem}
@@ -886,7 +1010,9 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                   )}
                 </View>
               </View>
-            )))}
+                );
+                }))
+              }
           </View>
         </ScrollView>
 
@@ -1089,43 +1215,56 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scoreTypePillsRow}>
                 <TouchableOpacity
                   style={[styles.scoreTypePill, activeScoreType === 'oral' && styles.scoreTypePillActive]}
-                  onPress={() => setActiveScoreType('oral')}
+                  onPress={() => switchScoreType('oral')}
                 >
-                  <Text style={styles.scoreTypePillText}>⭐ Miệng: 9.0</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.scoreTypePill, activeScoreType === 'test15p' && styles.scoreTypePillActive]}
-                  onPress={() => setActiveScoreType('test15p')}
-                >
-                  <Text style={styles.scoreTypePillText}>📝 15 Phút: 9.5</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.scoreTypePill, activeScoreType === 'test1p' && styles.scoreTypePillActive]}
-                  onPress={() => setActiveScoreType('test1p')}
-                >
-                  <Text style={[styles.scoreTypePillText, activeScoreType === 'test1p' && { color: '#F58F4C', fontWeight: '800' }]}>
-                    🎯 1 Tiết
+                  <Text style={[styles.scoreTypePillText, activeScoreType === 'oral' && { color: '#F58F4C', fontWeight: '800' }]}>
+                    Miệng: {getPillScoreText('oral')}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.scoreTypePillDashed}
-                  onPress={() => setActiveScoreType('midTerm')}
+                  style={[styles.scoreTypePill, activeScoreType === 'test15p' && styles.scoreTypePillActive]}
+                  onPress={() => switchScoreType('test15p')}
                 >
-                  <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600' }}>Giữa Kỳ</Text>
+                  <Text style={[styles.scoreTypePillText, activeScoreType === 'test15p' && { color: '#F58F4C', fontWeight: '800' }]}>
+                    15 Phút: {getPillScoreText('test15p')}
+                  </Text>
                 </TouchableOpacity>
 
-                <View style={styles.scoreTypePillLocked}>
-                  <Text style={{ color: '#9CA3AF', fontSize: 11, fontWeight: '600' }}>🔒 Cuối Kỳ</Text>
-                </View>
+                <TouchableOpacity
+                  style={[styles.scoreTypePill, activeScoreType === 'test1p' && styles.scoreTypePillActive]}
+                  onPress={() => switchScoreType('test1p')}
+                >
+                  <Text style={[styles.scoreTypePillText, activeScoreType === 'test1p' && { color: '#F58F4C', fontWeight: '800' }]}>
+                    1 Tiết: {getPillScoreText('test1p')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.scoreTypePillDashed, activeScoreType === 'midTerm' && styles.scoreTypePillActive]}
+                  onPress={() => switchScoreType('midTerm')}
+                >
+                  <Text style={[{ color: '#94A3B8', fontSize: 11, fontWeight: '600' }, activeScoreType === 'midTerm' && { color: '#F58F4C', fontWeight: '800' }]}>
+                    Giữa Kỳ: {getPillScoreText('midTerm')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.scoreTypePillDashed, activeScoreType === 'final' && styles.scoreTypePillActive]}
+                  onPress={() => switchScoreType('final')}
+                >
+                  <Text style={[{ color: '#94A3B8', fontSize: 11, fontWeight: '600' }, activeScoreType === 'final' && { color: '#F58F4C', fontWeight: '800' }]}>
+                    Cuối Kỳ: {getPillScoreText('final')}
+                  </Text>
+                </TouchableOpacity>
               </ScrollView>
 
               {/* Big Score Display */}
               <View style={styles.bigScoreCard}>
                 <View style={styles.bigScoreLeft}>
-                  <Text style={styles.bigScoreDigits}>{inputScore || '0'}</Text>
+                  <Text style={[styles.bigScoreDigits, inputScore === '' && { color: '#C7C9D1' }]}>
+                    {inputScore !== '' ? inputScore : '--'}
+                  </Text>
                   <View style={styles.cursorBlinkPill} />
                   <Text style={styles.bigScoreTotal}>/10</Text>
                 </View>
@@ -1136,39 +1275,6 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                   </View>
                   <Text style={styles.factorLabel}>Hệ số 2</Text>
                 </View>
-              </View>
-
-              {/* Quick Preset Pills */}
-              <View style={styles.presetPillsRow}>
-                <TouchableOpacity style={styles.presetBtn} onPress={() => setInputScore((prev) => (Math.min(10, (parseFloat(prev) || 0) + 0.5)).toFixed(1))}>
-                  <Text style={styles.presetBtnText}>+0.5</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.presetBtn} onPress={() => setInputScore((prev) => (Math.min(10, (parseFloat(prev) || 0) + 1.0)).toFixed(1))}>
-                  <Text style={styles.presetBtnText}>+1.0</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.presetBtn} onPress={() => setInputScore('10.0')}>
-                  <Text style={styles.presetBtnText}>Điểm 10</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.presetBtn} onPress={() => setInputScore('9.0')}>
-                  <Text style={styles.presetBtnText}>Điểm 9</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.presetBtn} onPress={() => setInputScore('8.0')}>
-                  <Text style={styles.presetBtnText}>Điểm 8</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Comment Field */}
-              <View style={styles.commentBox}>
-                <View style={styles.commentBoxHeader}>
-                  <Text style={styles.commentBoxLabel}>NHẬN XÉT GỬI PHỤ HUYNH</Text>
-                  <Text style={styles.aiSuggestText}>Gợi ý AI ✨</Text>
-                </View>
-                <TextInput
-                  style={styles.commentInput}
-                  value={teacherComment}
-                  onChangeText={setTeacherComment}
-                  placeholder="Nhập nhận xét..."
-                />
               </View>
 
               {/* Numeric Keypad Grid */}
@@ -1189,26 +1295,18 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
 
               {/* Footer Actions */}
               <View style={styles.modalFooterActions}>
-                <Text style={styles.nextStudentCaption}>
-                  Tiếp theo: <Text style={{ fontWeight: '800', color: '#1E1B2E' }}>{nextStudentAfter?.name || '—'}</Text> • {selectedOrder || '—'}/{students.length || '—'}
-                </Text>
-                <View style={styles.dualModalButtons}>
-                  <TouchableOpacity
-                    style={styles.btnLuuNhap}
-                    onPress={() => setScoreModalVisible(false)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.btnLuuNhapText}>Lưu nháp</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.btnLuuTiepTheo}
-                    onPress={handleSaveScoreAndNext}
-                    activeOpacity={0.88}
-                  >
-                    <Text style={styles.btnLuuTiepTheoText}>Lưu & Tiếp Theo →</Text>
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                  style={[styles.btnLuuDiem, !hasDraftScores && { opacity: 0.5 }]}
+                  onPress={handleSaveScore}
+                  activeOpacity={0.88}
+                  disabled={isSavingScore}
+                >
+                  {isSavingScore ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.btnLuuTiepTheoText}>Lưu Điểm</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -1254,17 +1352,32 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                 {students.length} phụ huynh {className || 'lớp học'} sẽ nhận thông báo điểm {getSubjectDisplayName()} • Học kỳ {selectedSemester}.
               </Text>
 
-              {/* Summary Info Card */}
+              {/* Summary Info Card (tính động theo dữ liệu thật) */}
               <View style={styles.sendSummaryBox}>
                 <View style={styles.sendSummaryRow}>
-                  <Text style={styles.checkIconGreen}>✓</Text>
-                  <Text style={styles.sendSummaryTextReady}>Đã có điểm: Miệng, 15 phút, 1 Tiết</Text>
+                  <Text style={filledCols.length > 0 ? styles.checkIconGreen : styles.minusIconGray}>
+                    {filledCols.length > 0 ? '✓' : '−'}
+                  </Text>
+                  <Text
+                    style={filledCols.length > 0 ? styles.sendSummaryTextReady : styles.sendSummaryTextPending}
+                    numberOfLines={2}
+                  >
+                    {filledCols.length > 0
+                      ? `Sẽ gửi điểm: ${filledCols.map((c) => c.label).join(', ')}`
+                      : 'Chưa có cột điểm nào có dữ liệu'}
+                  </Text>
                 </View>
-                <View style={styles.summaryHDivider} />
-                <View style={styles.sendSummaryRow}>
-                  <Text style={styles.minusIconGray}>−</Text>
-                  <Text style={styles.sendSummaryTextPending}>Chưa có điểm: Thi GK, Thi CK</Text>
-                </View>
+                {missingCols.length > 0 && (
+                  <React.Fragment>
+                    <View style={styles.summaryHDivider} />
+                    <View style={styles.sendSummaryRow}>
+                      <Text style={styles.minusIconGray}>−</Text>
+                      <Text style={styles.sendSummaryTextPending} numberOfLines={2}>
+                        Bỏ qua (chưa có điểm): {missingCols.map((c) => c.label).join(', ')}
+                      </Text>
+                    </View>
+                  </React.Fragment>
+                )}
               </View>
 
               {/* Actions */}
@@ -1748,6 +1861,31 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
+  avgBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  avgBadgeLabel: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
+    color: '#F58F4C',
+  },
+  avgBadgeValue: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  avgBadgeEmpty: {
+    color: '#C7C9D1',
+  },
   rankBadgePill: {
     backgroundColor: '#FFF1E6',
     paddingHorizontal: 7,
@@ -1760,11 +1898,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1E1B2E',
   },
-  studentAvatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
   studentCardName: {
     fontSize: 14,
     lineHeight: 18,
@@ -1772,12 +1905,12 @@ const styles = StyleSheet.create({
     color: '#1E1B2E',
     flex: 1,
   },
-  fourScoreCols: {
+  scoreColsRow: {
     flexDirection: 'row',
     gap: 8,
   },
   scoreBox: {
-    flex: 1,
+    width: SCORE_BOX_W,
     backgroundColor: '#FFF1E6',
     borderRadius: 12,
     paddingVertical: 6,
@@ -1785,7 +1918,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scoreBoxDashed: {
-    flex: 1,
+    width: SCORE_BOX_W,
     backgroundColor: '#FFF1E6',
     borderRadius: 12,
     paddingVertical: 6,
@@ -1833,39 +1966,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 2,
-  },
-  starsCommentPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF1E6',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    flex: 1,
-    marginRight: 8,
-  },
-  starsCommentPillFull: {
-    marginRight: 0,
-  },
-  starSymbol: {
-    fontSize: 11,
-  },
-  starCountBold: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '700',
-    color: '#1E1B2E',
-  },
-  dotSep: {
-    fontSize: 10,
-    color: '#6B6880',
-  },
-  commentShort: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: '#6B6880',
-    flex: 1,
   },
   btnVaoDiem: {
     flexDirection: 'row',
@@ -2106,14 +2206,6 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: '#CBD5E1',
   },
-  scoreTypePillLocked: {
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
 
   bigScoreCard: {
     backgroundColor: '#FFF1E6',
@@ -2174,55 +2266,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  presetPillsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  presetBtn: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    paddingVertical: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  presetBtnText: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '700',
-    color: '#1E1B2E',
-  },
-
-  commentBox: {
-    backgroundColor: 'rgba(248, 250, 252, 0.8)',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 8,
-  },
-  commentBoxHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  commentBoxLabel: {
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '800',
-    color: '#6B6880',
-  },
-  aiSuggestText: {
-    fontSize: 10,
-    color: '#94A3B8',
-  },
-  commentInput: {
-    fontSize: 12.5,
-    lineHeight: 16,
-    color: '#1E1B2E',
-    paddingVertical: 2,
-  },
-
   /* Keypad */
   keypadGrid: {
     flexDirection: 'row',
@@ -2268,38 +2311,11 @@ const styles = StyleSheet.create({
   modalFooterActions: {
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-    paddingTop: 8,
+    paddingTop: 10,
   },
-  nextStudentCaption: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: '#6B6880',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  dualModalButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  btnLuuNhap: {
-    width: 90,
-    height: 44,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#F58F4C',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnLuuNhapText: {
-    fontSize: 13,
-    lineHeight: 16,
-    fontWeight: '700',
-    color: '#F58F4C',
-  },
-  btnLuuTiepTheo: {
-    flex: 1,
-    height: 44,
+  btnLuuDiem: {
+    width: '100%',
+    height: 46,
     borderRadius: 999,
     backgroundColor: '#F58F4C',
     alignItems: 'center',

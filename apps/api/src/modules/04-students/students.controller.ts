@@ -24,8 +24,8 @@ export class StudentsController {
     @Param('id') studentId: string,
     @CurrentUser() user: any,
   ) {
-    const parentUid = user?.role === 'PARENT' ? user?.sub : undefined;
-    return this.studentsService.getStudentProfile(studentId, parentUid);
+    const parentPhone = user?.role === 'PARENT' ? user?.phone : undefined;
+    return this.studentsService.getStudentProfile(studentId, parentPhone);
   }
 
   @Get(':id/academic')
@@ -36,11 +36,11 @@ export class StudentsController {
     @Query('semester') semester?: any,
     @CurrentUser() user?: any,
   ) {
-    const parentUid = user?.role === 'PARENT' ? user?.sub : undefined;
+    const parentPhone = user?.role === 'PARENT' ? user?.phone : undefined;
     return this.studentsService.getAcademicRecord(
       studentId,
       semester !== undefined ? Number(semester) : undefined,
-      parentUid,
+      parentPhone,
     );
   }
 
@@ -52,8 +52,8 @@ export class StudentsController {
     @Query('month') month?: string,
     @CurrentUser() user?: any,
   ) {
-    const parentUid = user?.role === 'PARENT' ? user?.sub : undefined;
-    return this.studentsService.getAttendanceHistory(studentId, month, parentUid);
+    const parentPhone = user?.role === 'PARENT' ? user?.phone : undefined;
+    return this.studentsService.getAttendanceHistory(studentId, month, parentPhone);
   }
 
   @Get(':id/fees-insurance')
@@ -63,8 +63,8 @@ export class StudentsController {
     @Param('id') studentId: string,
     @CurrentUser() user?: any,
   ) {
-    const parentUid = user?.role === 'PARENT' ? user?.sub : undefined;
-    return this.studentsService.getFeesInsuranceStatus(studentId, parentUid);
+    const parentPhone = user?.role === 'PARENT' ? user?.phone : undefined;
+    return this.studentsService.getFeesInsuranceStatus(studentId, parentPhone);
   }
 
   @Get(':id/remarks')
@@ -75,8 +75,8 @@ export class StudentsController {
     @Query('semester') semester?: any,
     @CurrentUser() user?: any,
   ) {
-    const parentUid = user?.role === 'PARENT' ? user?.sub : undefined;
-    const remarks = await this.studentsService.getRemarks(studentId, parentUid);
+    const parentPhone = user?.role === 'PARENT' ? user?.phone : undefined;
+    const remarks = await this.studentsService.getRemarks(studentId, parentPhone);
     return {
       student_id: studentId,
       semester: semester !== undefined ? Number(semester) : 1,
@@ -91,7 +91,7 @@ export class StudentsController {
     @Param('id') studentId: string,
     @CurrentUser() user?: any,
   ) {
-    const parentUid = user?.role === 'PARENT' ? user?.sub : undefined;
-    return this.studentsService.getExamReminders(studentId, parentUid);
+    const parentPhone = user?.role === 'PARENT' ? user?.phone : undefined;
+    return this.studentsService.getExamReminders(studentId, parentPhone);
   }
 }

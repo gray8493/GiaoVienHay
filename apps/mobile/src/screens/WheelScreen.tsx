@@ -28,8 +28,9 @@ import Svg, {
   G,
   ClipPath,
 } from 'react-native-svg';
-import { quizService, ORAL_SCORE_QUIZ_ID } from '../services/quiz.service';
 import { attendanceService } from '../services/attendance.service';
+import { classService } from '../services/class.service';
+import { gradesService } from '../services/grades.service';
 
 interface WheelScreenProps {
   currentClassId?: string;
@@ -38,6 +39,18 @@ interface WheelScreenProps {
   onBack?: () => void;
   onGoHome?: () => void;
 }
+
+const SUBJECT_LABELS: Record<string, string> = {
+  MATH: 'Toán',
+  LIT: 'Ngữ văn',
+  LITERATURE: 'Ngữ văn',
+  ENG: 'Tiếng Anh',
+  ENGLISH: 'Tiếng Anh',
+  CS: 'Tin học',
+  INFORMATICS: 'Tin học',
+  SCIENCE: 'Khoa học',
+  ETHICS: 'Đạo đức',
+};
 
 interface StudentCandidate {
   id: string;
@@ -59,6 +72,8 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   const [selectedStudent, setSelectedStudent] = useState<StudentCandidate | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [presentCount, setPresentCount] = useState<number>(0);
+  // Môn học đang dạy của giáo viên trong lớp hiện hành (từ API my-subject có sẵn)
+  const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>('MATH');
 
   useEffect(() => {
     loadPresentStudents();
@@ -66,7 +81,12 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
   const loadPresentStudents = async () => {
     try {
-      const res = await attendanceService.getTodayPresentStudents(currentClassId);
+      const [res, mySubject] = await Promise.all([
+        attendanceService.getTodayPresentStudents(currentClassId),
+        classService.getMySubject(currentClassId),
+      ]);
+      const firstSubject = (mySubject.teaching_subjects || [])[0];
+      setSelectedSubjectCode(firstSubject ? String(firstSubject) : 'MATH');
       const formatted: StudentCandidate[] = (res?.present_students || []).map((s, idx) => {
         const parts = s.full_name.trim().split(' ');
         const shortName = parts[parts.length - 1] || s.full_name;
@@ -138,20 +158,55 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
     setSelectedStudent(students[nextIndex]);
   };
 
+  // Gõ điểm tay: chỉ nhận số và tối đa 1 dấu chấm thập phân, giá trị ≤ 10
+  const handleScoreTextChange = (text: string) => {
+    const cleaned = text.replace(/[^\d.]/g, '');
+    if (!cleaned) {
+      setInputScore('');
+      return;
+    }
+    const dotCount = (cleaned.match(/\./g) || []).length;
+    if (dotCount > 1) return;
+    const [intPart, decPart, extraPart] = cleaned.split('.');
+    if (extraPart !== undefined) return;
+    if (decPart !== undefined) {
+      if (decPart.length > 1) return;
+      if (!intPart) return;
+      const joined = `${intPart}.${decPart}`;
+      if (Number(joined) > 10) return;
+      setInputScore(joined);
+      return;
+    }
+    if (Number(cleaned) > 10) return;
+    setInputScore(cleaned);
+  };
+
   const handleSaveScore = async () => {
     if (!selectedStudent) return;
+    if (!currentClassId) {
+      Alert.alert('Thông báo', 'Chưa xác định được lớp học. Vui lòng chọn lớp trước khi chấm điểm.');
+      return;
+    }
     const score = parseFloat(inputScore);
     if (isNaN(score) || score < 0 || score > 10) {
       Alert.alert('Thông báo', 'Vui lòng nhập điểm hợp lệ trong khoảng 0 đến 10');
       return;
     }
     try {
-      await quizService.recordInClassScore(ORAL_SCORE_QUIZ_ID, {
-        student_id: selectedStudent.id,
-        score,
-        teacher_note: teacherComment,
-        mode_played: 'GOLDEN_BELL',
-        sync_to_scores_table: true,
+      // Lưu thẳng vào cột Điểm miệng (ORAL_TEST) của môn đang dạy trong lớp hiện hành,
+      // dùng API Sổ điểm có sẵn: POST /grades/batch (cùng bảng scores với màn Sổ Điểm)
+      await gradesService.batchInputScores({
+        class_id: currentClassId,
+        subject_code: selectedSubjectCode || 'MATH',
+        score_type: 'ORAL_TEST',
+        semester: 1,
+        scores: [
+          {
+            student_id: selectedStudent.id,
+            score_value: score,
+            teacher_comment: teacherComment,
+          },
+        ],
       });
 
       setScoreModalVisible(false);
@@ -160,6 +215,10 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
       Alert.alert('Thông báo', e.message || 'Không thể lưu điểm');
     }
   };
+
+  // Tên môn hiển thị = môn thật sẽ lưu (theo my-subject), fallback theo prop
+  const subjectLabel =
+    SUBJECT_LABELS[selectedSubjectCode] || selectedSubjectCode || subjectName || 'Toán';
 
   const spinInterpolate = spinValue.interpolate({
     inputRange: [0, 360],
@@ -235,8 +294,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
             {/* Title */}
             <Text style={styles.successTitle}>Đã lưu điểm miệng!</Text>
             <Text style={styles.successSubtitle}>
-              {subjectName ? `${subjectName} • ` : ''}
-              {className}
+              {subjectLabel} • {className}
             </Text>
 
             {/* White Summary Card */}
@@ -350,7 +408,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
             <View style={styles.headerTitleWrap}>
               <Text style={styles.screenTitle}>Dò Bài Cũ</Text>
               <Text style={styles.screenSubtitle}>
-                {[subjectName, className].filter(Boolean).join(' • ')}
+                {[subjectLabel, className].filter(Boolean).join(' • ')}
               </Text>
               <View style={styles.attendancePill}>
                 <View style={styles.onlineDot} />
@@ -535,29 +593,20 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
                 </View>
               </View>
 
-              {/* Điểm miệng */}
+              {/* Điểm miệng — nhập tay tự do */}
               <Text style={[styles.modalSectionLabel, { marginTop: 12 }]}>Điểm miệng</Text>
               <View style={styles.modalScoreBox}>
-                <View style={styles.modalScoreDisplayRow}>
-                  <Text style={styles.modalScoreDisplayText}>{inputScore}</Text>
-                  <View style={styles.cursorBlink} />
-                </View>
+                <TextInput
+                  style={styles.modalScoreInput}
+                  value={inputScore}
+                  onChangeText={handleScoreTextChange}
+                  placeholder="0.0"
+                  placeholderTextColor="#E8C4A8"
+                  keyboardType="numeric"
+                  textAlign="center"
+                  maxLength={4}
+                />
                 <Text style={styles.modalScoreScale}>Thang 0.0 - 10.0</Text>
-
-                {/* Quick-pick chips */}
-                <View style={styles.quickPickRow}>
-                  {['7.0', '8.0', '8.5', '9.0', '10'].map((sc) => (
-                    <TouchableOpacity
-                      key={sc}
-                      style={[styles.quickPickBtn, inputScore === sc && styles.quickPickBtnActive]}
-                      onPress={() => setInputScore(sc)}
-                    >
-                      <Text style={[styles.quickPickBtnText, inputScore === sc && styles.quickPickBtnTextActive]}>
-                        {sc}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
               </View>
 
               {/* Nhận xét */}
@@ -573,7 +622,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
               </View>
 
               <Text style={styles.modalSyncNote}>
-                Ghi vào cột điểm miệng{subjectName ? ` • ${subjectName}` : ''}
+                Ghi vào cột điểm miệng • {subjectLabel}
               </Text>
 
               <TouchableOpacity
@@ -935,21 +984,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FDE6D2',
   },
-  modalScoreDisplayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  modalScoreDisplayText: {
+  modalScoreInput: {
     fontSize: 32,
     lineHeight: 38,
     fontWeight: '900',
     color: '#F58F4C',
-  },
-  cursorBlink: {
-    width: 2,
-    height: 28,
-    backgroundColor: '#F58F4C',
+    padding: 0,
+    minWidth: 90,
   },
   modalScoreScale: {
     fontSize: 11,
@@ -957,32 +998,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B6880',
     marginTop: 2,
-  },
-  quickPickRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
-  quickPickBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-  },
-  quickPickBtnActive: {
-    backgroundColor: '#F58F4C',
-    borderColor: '#F58F4C',
-  },
-  quickPickBtnText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    color: '#1E1B2E',
-  },
-  quickPickBtnTextActive: {
-    color: '#FFFFFF',
   },
   commentInputBox: {
     borderRadius: 14,
