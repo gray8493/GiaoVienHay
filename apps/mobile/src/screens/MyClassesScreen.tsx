@@ -57,8 +57,9 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
 
   // Form State "Tạo Lớp Mới" (TEA-11.3)
   const [classNameInput, setClassNameInput] = useState('');
-  const [selectedGrade, setSelectedGrade] = useState<number>(6);
-  const [academicYear, setAcademicYear] = useState('2026–2027');
+  const [selectedLevel, setSelectedLevel] = useState<1 | 2>(1);
+  const [selectedGrade, setSelectedGrade] = useState<number>(1);
+  const [academicYear, setAcademicYear] = useState('2026-2027');
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
   // Form State "Vào Lớp Bằng Mã" (TEA-11.4)
@@ -124,6 +125,13 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
       return;
     }
 
+    // Niên khóa: chuẩn hóa dấu gạch (– — → -) và kiểm định dạng YYYY-YYYY
+    const normalizedYear = academicYear.trim().replace(/[–—]/g, '-');
+    if (!/^\d{4}-\d{4}$/.test(normalizedYear)) {
+      Alert.alert('Thông báo', 'Niên khóa cần định dạng YYYY-YYYY, ví dụ 2026-2027');
+      return;
+    }
+
     setIsSubmittingCreate(true);
     try {
       const payloadName = classNameInput.trim().startsWith('Lớp')
@@ -133,14 +141,14 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
       const newClassRes = await classService.createClass({
         name: payloadName,
         grade_level: selectedGrade,
-        academic_year: academicYear,
+        academic_year: normalizedYear,
       });
 
       const newClassItem: MyClassItem = {
         id: newClassRes.id || `cls_${Date.now()}`,
         name: newClassRes.name || payloadName,
         grade_level: selectedGrade,
-        academic_year: newClassRes.academic_year || academicYear,
+        academic_year: newClassRes.academic_year || normalizedYear,
         school_name: newClassRes.school_name || newClassRes.schoolName || '',
         student_count: 0,
         role_type: 'HOMEROOM',
@@ -328,11 +336,45 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
               </View>
             </View>
 
-            {/* Item 2: Grade Level Segmented Pills */}
+            {/* Item 2: School Level (Cấp 1 / Cấp 2) */}
+            <View style={styles.formItem}>
+              <Text style={styles.fieldLabel}>Cấp học</Text>
+              <View style={styles.gradeGrid}>
+                {([1, 2] as const).map((lv) => {
+                  const isSelected = selectedLevel === lv;
+                  return (
+                    <TouchableOpacity
+                      key={lv}
+                      style={[
+                        styles.levelPill,
+                        isSelected ? styles.gradePillActive : styles.gradePillInactive,
+                      ]}
+                      onPress={() => {
+                        setSelectedLevel(lv);
+                        // Đổi cấp → đưa khối về đầu dải tương ứng (1 hoặc 6)
+                        setSelectedGrade(lv === 1 ? 1 : 6);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.gradePillText,
+                          isSelected ? styles.gradePillTextActive : styles.gradePillTextInactive,
+                        ]}
+                      >
+                        {lv === 1 ? 'Cấp 1 (Tiểu học)' : 'Cấp 2 (THCS)'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Item 3: Grade Level Segmented Pills */}
             <View style={styles.formItem}>
               <Text style={styles.fieldLabel}>Khối</Text>
               <View style={styles.gradeGrid}>
-                {[6, 7, 8, 9].map((g) => {
+                {(selectedLevel === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9]).map((g) => {
                   const isSelected = selectedGrade === g;
                   return (
                     <TouchableOpacity
@@ -358,7 +400,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
               </View>
             </View>
 
-            {/* Item 3: School Year Input */}
+            {/* Item 4: School Year Input (nhập được, mặc định năm học hiện tại) */}
             <View style={styles.formItem}>
               <Text style={styles.fieldLabel}>Niên khóa</Text>
               <View style={styles.schoolYearBox}>
@@ -366,7 +408,15 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
                   <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                   <Path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
                 </Svg>
-                <Text style={styles.schoolYearText}>{academicYear}</Text>
+                <TextInput
+                  style={styles.schoolYearText}
+                  placeholder="2026-2027"
+                  placeholderTextColor="#DBC1B4"
+                  value={academicYear}
+                  onChangeText={setAcademicYear}
+                  maxLength={9}
+                  autoCapitalize="none"
+                />
               </View>
             </View>
           </View>
@@ -1244,6 +1294,14 @@ const styles = StyleSheet.create({
   gradeGrid: {
     flexDirection: 'row',
     gap: 10,
+  },
+  levelPill: {
+    flex: 1,
+    height: 44,
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
   },
   gradePill: {
     flex: 1,
