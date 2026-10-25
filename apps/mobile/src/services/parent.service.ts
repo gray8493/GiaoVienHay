@@ -1,6 +1,11 @@
 import { api, apiFetch } from './http';
 import { authService } from './auth.service';
-import { EXAM_TYPE_LABELS, WEEKDAY_FULL_LABELS, WEEKDAY_SHORT_LABELS } from '../constants/academic';
+import {
+  EXAM_TYPE_LABELS,
+  SUBJECT_LABELS,
+  WEEKDAY_FULL_LABELS,
+  WEEKDAY_SHORT_LABELS,
+} from '../constants/academic';
 
 export const PARENT_SCORE_COLUMNS: Array<{
   key: string;
@@ -72,6 +77,10 @@ const getSubjectDisplay = (value: any): { name: string; color: string } => {
   const key = canonicalSubjectKey(raw);
   const info = SUBJECT_DISPLAY_INFO[key];
   if (info) return info;
+  // Mã môn chuẩn của backend (HIST, GEO, PHYSICS, CHEM...) → nhãn tiếng Việt
+  // — trước đây rơi xuống hiển thị nguyên mã
+  const knownLabel = SUBJECT_LABELS[raw.toUpperCase()];
+  if (knownLabel) return { name: knownLabel, color: '#F58F4C' };
   return {
     name: raw.replace(/\s*học$/i, '').trim() || 'Môn học',
     color: '#F58F4C',
