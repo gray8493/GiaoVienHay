@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   StyleSheet,
   View,
@@ -134,6 +135,13 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
   useEffect(() => {
     loadGradebookData();
   }, [currentClassId, selectedSubject, selectedSemester]);
+
+  // Ghi nhớ môn Sổ điểm đang mở theo lớp — Vòng quay chấm miệng sẽ dùng đúng môn này
+  useEffect(() => {
+    if (currentClassId && currentClassId !== 'cls_empty') {
+      AsyncStorage.setItem(`gvh_gb_subject_${currentClassId}`, selectedSubject).catch(() => null);
+    }
+  }, [currentClassId, selectedSubject]);
 
   const loadGradebookData = async () => {
     setIsLoading(true);

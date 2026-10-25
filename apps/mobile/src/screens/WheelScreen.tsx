@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   StyleSheet,
   View,
@@ -99,12 +100,17 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
   const loadPresentStudents = async () => {
     try {
-      const [res, mySubject] = await Promise.all([
+      const [res, mySubject, storedSubject] = await Promise.all([
         attendanceService.getTodayPresentStudents(currentClassId),
         classService.getMySubject(currentClassId),
+        // Ưu tiên môn Sổ điểm đang mở lần gần nhất của lớp này — để điểm miệng
+        // chấm qua Vòng quay rơi đúng cột giáo viên đang nhìn (tránh lệch môn)
+        AsyncStorage.getItem(`gvh_gb_subject_${currentClassId}`).catch(() => null),
       ]);
-      const firstSubject = (mySubject.teaching_subjects || [])[0];
-      setSelectedSubjectCode(firstSubject ? String(firstSubject) : 'MATH');
+      const firstSubject =
+        storedSubject || (mySubject.teaching_subjects || [])[0];
+      const subject = firstSubject ? String(firstSubject) : 'MATH';
+      setSelectedSubjectCode(subject);
       const formatted: StudentCandidate[] = (res?.present_students || []).map((s, idx) => {
         const parts = s.full_name.trim().split(' ');
         const shortName = parts[parts.length - 1] || s.full_name;
@@ -121,9 +127,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
       setSelectedStudent(formatted[0] ?? null);
       setPresentCount(res?.total_present ?? formatted.length);
 
-      // Tải điểm miệng hiện có của môn đang dạy để hỏi xác nhận khi ghi đè
+      // Tải điểm miệng hiện có của môn sẽ lưu (dùng biến local — state chưa kịp cập nhật)
       try {
-        const grades: any = await gradesService.getClassGrades(currentClassId, selectedSubjectCode, 1);
+        const grades: any = await gradesService.getClassGrades(currentClassId, subject, 1);
         const rows = Array.isArray(grades) ? grades : grades?.rows || [];
         const map = new Map<string, number>();
         for (const r of rows) {
