@@ -11,6 +11,8 @@ export interface BatchScoresPayload {
   subject_code: string;
   semester?: number;
   score_type: 'ORAL_TEST' | 'TEST_15P' | 'TEST_1P' | 'MID_TERM' | 'FINAL';
+  /** Cờ đính chính: bắt buộc true khi cập nhật cột đã công bố cho phụ huynh */
+  is_correction?: boolean;
   scores: ScoreItem[];
 }
 

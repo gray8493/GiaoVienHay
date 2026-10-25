@@ -188,6 +188,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
         subject_code: selectedSubjectCode || 'MATH',
         score_type: 'ORAL_TEST',
         semester: 1,
+        // Chấm bài cũ tại lớp là hành động chấm có chủ ý của giáo viên — luôn
+        // đánh dấu is_correction để không bị chặn khi cột đã công bố cho PH
+        is_correction: true,
         scores: [
           {
             student_id: selectedStudent.id,
