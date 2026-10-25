@@ -304,7 +304,7 @@ export const parentService = {
         if (firstSubj.scores && firstSubj.scores.length > 0) {
           const lastScore = firstSubj.scores[firstSubj.scores.length - 1];
           dashboardData.latest_grade = {
-            subject: firstSubj.subject_name?.replace(' học', '') || 'Môn học',
+            subject: getSubjectDisplay(firstSubj.subject_name || firstSubj.subject).name,
             score: lastScore.value !== undefined ? Number(lastScore.value) : 0,
             // Map mã score_type (ORAL_TEST, TEST_15P...) sang nhãn ngắn tiếng Việt thay vì hiện mã gốc
             test_type:
@@ -361,7 +361,8 @@ export const parentService = {
         if (firstExam) {
           const d = firstExam._d;
           dashboardData.upcoming_exam = {
-            subject: firstExam.subject_name?.replace(' học', '') || 'Môn học',
+            // 'MATH'/'Toán học' → 'Toán' (backend trả lẫn mã lẫn tên)
+            subject: getSubjectDisplay(firstExam.subject_name || firstExam.subject).name,
             // Định dạng DD/MM (trước đây substring(5) ra MM/DD bị ngược)
             exam_date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
           };
