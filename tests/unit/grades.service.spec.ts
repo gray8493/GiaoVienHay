@@ -15,6 +15,7 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
     mockDataConnect = {
       recordScore: jest.fn().mockResolvedValue(true),
       createNotification: jest.fn().mockResolvedValue(true),
+      markScoresPublished: jest.fn().mockResolvedValue(1),
       execute: jest.fn().mockImplementation((query: string, vars: any) => {
         if (vars?.classId?.includes('empty') || vars?.classId === 'cls_new_empty' || vars?.classId === 'cls_1a_no_scores') {
           return Promise.resolve({ data: { scores: [] } });
@@ -22,10 +23,11 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
         return Promise.resolve({
           data: {
             scores: [
-              { id: 'sc_01', studentId: 'stu_01', scoreType: 'TEST_15P', scoreValue: 10.0 },
-              { id: 'sc_02', studentId: 'stu_01', scoreType: 'FINAL', scoreValue: 10.0 },
-              { id: 'sc_03', studentId: 'stu_02', scoreType: 'FINAL', scoreValue: 10.0 },
-              { id: 'sc_04', studentId: 'stu_03', scoreType: 'FINAL', scoreValue: 9.5 },
+              // is_published: false = vừa nhập/sửa, CHƯA gửi PH (delta publishing)
+              { id: 'sc_01', studentId: 'stu_01', scoreType: 'TEST_15P', scoreValue: 10.0, is_published: false },
+              { id: 'sc_02', studentId: 'stu_01', scoreType: 'FINAL', scoreValue: 10.0, is_published: false },
+              { id: 'sc_03', studentId: 'stu_02', scoreType: 'FINAL', scoreValue: 10.0, is_published: false },
+              { id: 'sc_04', studentId: 'stu_03', scoreType: 'FINAL', scoreValue: 9.5, is_published: false },
             ],
           },
         });
@@ -102,22 +104,87 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
   });
 
   describe('UT06_Grades_TC03: Phê duyệt công bố điểm cho phụ huynh và phát sự kiện fan-out thông báo', () => {
-    it('công bố điểm và phát event grades.published cho 3 học sinh có điểm', async () => {
+    it('chỉ công bố cho học sinh CÓ ĐIỂM trong cột được công bố (delta publishing)', async () => {
       const res = await service.publishScores('usr_teacher_01', {
         class_id: 'cls_1a_2026',
         subject_code: 'MATH',
         score_type: GradeType.TEST_15P,
         semester: 1,
       });
-      expect(res.notified_parents_count).toBe(3);
+      // Chỉ stu_01 có điểm TEST_15P — stu_02/stu_03 chỉ có FINAL nên không bị spam
+      expect(res.notified_parents_count).toBe(1);
+      expect(res.no_changes).toBe(false);
+      expect(mockDataConnect.markScoresPublished).toHaveBeenCalledWith(['sc_01']);
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('grades.published', expect.objectContaining({
         classId: 'cls_1a_2026',
         subjectCode: 'MATH',
-        students: expect.arrayContaining([
-          expect.objectContaining({ studentId: 'stu_01' }),
-          expect.objectContaining({ studentId: 'stu_02' }),
-          expect.objectContaining({ studentId: 'stu_03' }),
-        ]),
+        students: [
+          expect.objectContaining({
+            studentId: 'stu_01',
+            isCorrection: false,
+            changed: [expect.objectContaining({ type: 'TEST_15P', value: 10 })],
+          }),
+        ],
+      }));
+    });
+  });
+
+  describe('UT06_Grades_TC03b: Gửi lại khi KHÔNG có thay đổi mới → không gửi gì', () => {
+    it('trả no_changes và không phát sự kiện khi mọi ô đã gửi', async () => {
+      mockDataConnect.execute.mockImplementationOnce(() =>
+        Promise.resolve({
+          data: {
+            scores: [
+              // toàn bộ đã gửi (is_published = true) → không còn gì mới
+              { id: 'sc_01', studentId: 'stu_01', scoreType: 'TEST_15P', scoreValue: 10.0, is_published: true, published_once: true },
+            ],
+          },
+        }),
+      );
+      mockEventEmitter.emit.mockClear();
+      mockDataConnect.markScoresPublished.mockClear();
+
+      const res: any = await service.publishScores('usr_teacher_01', {
+        class_id: 'cls_1a_2026',
+        subject_code: 'MATH',
+        score_type: GradeType.TEST_15P,
+        semester: 1,
+      });
+      expect(res.no_changes).toBe(true);
+      expect(res.notified_parents_count).toBe(0);
+      expect(mockEventEmitter.emit).not.toHaveBeenCalled();
+      expect(mockDataConnect.markScoresPublished).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('UT06_Grades_TC03c: sửa điểm đã gửi → loại thông báo Đính chính (GRADE_CORRECTED)', () => {
+    it('đánh dấu isCorrection cho học sinh đã từng nhận cột này', async () => {
+      mockDataConnect.execute.mockImplementationOnce(() =>
+        Promise.resolve({
+          data: {
+            scores: [
+              // stu_01 từng nhận (published_once) nhưng vừa sửa điểm (is_published=false)
+              { id: 'sc_01', studentId: 'stu_01', scoreType: 'TEST_15P', scoreValue: 8.5, is_published: false, published_once: true },
+              // stu_02 lần đầu có điểm cột này
+              { id: 'sc_05', studentId: 'stu_02', scoreType: 'TEST_15P', scoreValue: 9.0, is_published: false, published_once: false },
+            ],
+          },
+        }),
+      );
+      mockEventEmitter.emit.mockClear();
+
+      const res: any = await service.publishScores('usr_teacher_01', {
+        class_id: 'cls_1a_2026',
+        subject_code: 'MATH',
+        score_type: GradeType.TEST_15P,
+        semester: 1,
+      });
+      expect(res.notified_parents_count).toBe(2);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('grades.published', expect.objectContaining({
+        students: [
+          expect.objectContaining({ studentId: 'stu_01', isCorrection: true }),
+          expect.objectContaining({ studentId: 'stu_02', isCorrection: false }),
+        ],
       }));
     });
   });
@@ -331,7 +398,8 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
         subject_code: 'MATH',
         score_type: GradeType.TEST_15P,
       });
-      expect(res.notified_parents_count).toBe(3);
+      // Delta: chỉ học sinh có ô chưa gửi trong cột được công bố
+      expect(res.notified_parents_count).toBe(1);
     });
   });
 

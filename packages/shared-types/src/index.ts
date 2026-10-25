@@ -77,6 +77,8 @@ export enum NotificationType {
   ATTENDANCE_LATE = 'ATTENDANCE_LATE',
   ATTENDANCE_PRESENT = 'ATTENDANCE_PRESENT',
   GRADE_PUBLISHED = 'GRADE_PUBLISHED',
+  /** Đính chính điểm đã công bố trước đó — gửi lại cho PH khi có thay đổi */
+  GRADE_CORRECTED = 'GRADE_CORRECTED',
   REMARK_NEW = 'REMARK_NEW',
   EXAM_REMINDER = 'EXAM_REMINDER',
   FEE_REMINDER = 'FEE_REMINDER',

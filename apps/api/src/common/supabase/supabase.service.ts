@@ -184,6 +184,11 @@ export interface DataConnectScoreRecord {
   term: number;
   academicYear: string;
   academic_year?: string;
+  /** Đã gửi cho phụ huynh qua Gửi sổ liên lạc chưa (delta publishing) */
+  isPublished?: boolean;
+  is_published?: boolean;
+  /** ĐÃ TỪNG gửi ít nhất 1 lần — giữ dấu khi is_published reset sau khi sửa */
+  published_once?: boolean;
   createdAt: string;
   created_at?: string;
 }
@@ -1662,6 +1667,7 @@ export class SupabaseService implements OnModuleInit {
       scoreValue: Number(s.score_value ?? s.scoreValue ?? 0),
       term: s.term ?? 1,
       academicYear: s.academic_year ?? s.academicYear ?? '2024-2025',
+      isPublished: (s.is_published ?? s.isPublished) === true,
       createdAt: s.created_at ?? s.createdAt ?? new Date().toISOString(),
     };
   }
@@ -1723,6 +1729,10 @@ export class SupabaseService implements OnModuleInit {
       score_value: score.score_value ?? score.scoreValue,
       term: score.term,
       academic_year: score.academic_year || score.academicYear,
+      // Điểm vừa nhập = chưa gửi cho PH; Gửi sổ liên lạc mới đánh dấu true
+      // published_once: giữ dấu "đã từng gửi" để lần gửi kế tiếp dùng loại Đính chính
+      is_published: (score.is_published ?? score.isPublished) === true,
+      published_once: (score.published_once ?? false) === true,
       is_deleted: false,
     };
 
@@ -1736,6 +1746,34 @@ export class SupabaseService implements OnModuleInit {
 
     this.memoryStore.scores.set(score.id, record);
     return this.mapScore(record);
+  }
+
+  /**
+   * Đánh dấu các ô điểm đã được gửi cho phụ huynh (sau khi publish fan-out)
+   */
+  async markScoresPublished(ids: string[]) {
+    if (!ids || ids.length === 0) return 0;
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('scores')
+          .update({ is_published: true })
+          .in('id', ids);
+        if (error) {
+          this.logger.debug(`[Supabase] markScoresPublished error: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] markScoresPublished error: ${err?.message}`);
+      }
+    }
+    for (const id of ids) {
+      const mem = this.memoryStore.scores.get(id);
+      if (mem) {
+        (mem as any).is_published = true;
+        this.memoryStore.scores.set(id, mem);
+      }
+    }
+    return ids.length;
   }
 
   // =========================================================================

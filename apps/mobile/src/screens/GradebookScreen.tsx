@@ -256,6 +256,8 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
 
   // Screen 4: Thành công (TEA-06d)
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  // Số học sinh có thay đổi được thông báo trong lần gửi vừa rồi (từ backend)
+  const [publishNotifiedCount, setPublishNotifiedCount] = useState(0);
 
   const getSubjectDisplayName = () => {
     return SUBJECT_LABELS[selectedSubject] || selectedSubject;
@@ -418,15 +420,25 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
     }
     setIsSending(true);
     try {
-      // MỘT lần gọi cho toàn bộ các cột có điểm — backend gom thành
-      // MỘT thông báo/học sinh thay vì mỗi cột một thông báo
-      await gradesService.publishScores({
+      // MỘT lần gọi cho toàn bộ các cột có điểm — backend chỉ gửi thông báo
+      // cho học sinh CÓ THAY ĐỔI chưa gửi (delta), gom 1 thông báo/học sinh
+      const res: any = await gradesService.publishScores({
         class_id: currentClassId,
         subject_code: selectedSubject,
         score_type: filledCols[0].type,
         semester: selectedSemester,
         score_types: filledCols.map((c) => c.type),
       });
+      const result = res?.data || res;
+
+      if (result?.no_changes) {
+        setIsSending(false);
+        setSendModalVisible(false);
+        Alert.alert('Thông báo', 'Không có thay đổi mới để gửi cho phụ huynh. Điểm của các em đã được gửi ở lần trước.');
+        return;
+      }
+
+      setPublishNotifiedCount(Number(result?.notified_parents_count ?? 0));
     } catch (e: any) {
       setIsSending(false);
       Alert.alert('Lỗi', e.message || 'Không thể công bố sổ điểm');
@@ -538,8 +550,8 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             <Text style={styles.successHeadline}>Đã gửi sổ liên lạc!</Text>
               <Text style={styles.successSubtitle}>{className || 'Lớp học'} • {getSubjectDisplayName()} • Học kỳ {selectedSemester}</Text>
 
-            {/* Bento Stats Card — số liệu thật: tổng HS của lớp, số HS có điểm
-                trong các cột vừa công bố, số HS chưa có điểm nào */}
+            {/* Bento Stats Card — số liệu thật từ backend: tổng HS của lớp,
+                số HS CÓ THAY ĐỔI được thông báo lần này, số HS không có gì mới */}
             <View style={styles.successBentoCard}>
               <View style={styles.successStatCol}>
                 <Text style={styles.successStatNumDark}>{students.length}</Text>
@@ -548,18 +560,16 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
 
               <View style={styles.successStatColMiddle}>
                 <View style={styles.successColDividerLeft} />
-                <Text style={styles.successStatNumGreen}>
-                  {students.filter((s) => filledCols.some((c) => s[c.key] !== null && s[c.key] !== undefined)).length}
-                </Text>
+                <Text style={styles.successStatNumGreen}>{publishNotifiedCount}</Text>
                 <Text style={styles.successStatLabelGreen}>Đã gửi</Text>
                 <View style={styles.successColDividerRight} />
               </View>
 
               <View style={styles.successStatCol}>
                 <Text style={styles.successStatNumGray}>
-                  {students.filter((s) => !filledCols.some((c) => s[c.key] !== null && s[c.key] !== undefined)).length}
+                  {Math.max(0, students.length - publishNotifiedCount)}
                 </Text>
-                <Text style={styles.successStatLabel}>Chưa gửi</Text>
+                <Text style={styles.successStatLabel}>Không mới</Text>
               </View>
             </View>
           </View>
