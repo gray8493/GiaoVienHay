@@ -348,11 +348,24 @@ export const parentService = {
       }
 
       if (Array.isArray(exams) && exams.length > 0) {
-        const firstExam = exams[0];
-        dashboardData.upcoming_exam = {
-          subject: firstExam.subject_name?.replace(' học', '') || 'Môn học',
-          exam_date: firstExam.exam_date ? firstExam.exam_date.substring(5).replace('-', '/') : '--/--',
-        };
+        // Chỉ nhận lịch kiểm tra CHƯA QUÁ KHỨ, lấy lịch gần nhất — trước đây
+        // lấy exams[0] (thứ tự chèn) nên tài khoản mới nhận lịch seed từ 2024
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const upcoming = exams
+          .map((e: any) => ({ ...e, _d: parseExamDate(e.exam_date) }))
+          .filter((e: any) => e._d && e._d.getTime() >= today.getTime())
+          .sort((a: any, b: any) => a._d.getTime() - b._d.getTime());
+
+        const firstExam = upcoming[0];
+        if (firstExam) {
+          const d = firstExam._d;
+          dashboardData.upcoming_exam = {
+            subject: firstExam.subject_name?.replace(' học', '') || 'Môn học',
+            // Định dạng DD/MM (trước đây substring(5) ra MM/DD bị ngược)
+            exam_date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+          };
+        }
       }
 
       return dashboardData;
