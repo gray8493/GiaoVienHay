@@ -12,8 +12,20 @@ export const SUBJECT_LABELS: Record<string, string> = {
   ENGLISH: 'Tiếng Anh',
   CS: 'Tin học',
   INFORMATICS: 'Tin học',
-  SCIENCE: 'Khoa học',
+  SCIENCE: 'Khoa học tự nhiên',
+  PHYSICS: 'Vật lý',
+  CHEM: 'Hóa học',
+  BIO: 'Sinh học',
+  HIST: 'Lịch sử',
+  HISTORY: 'Lịch sử',
+  GEO: 'Địa lý',
+  GEOGRAPHY: 'Địa lý',
+  GDCD: 'GDCD',
   ETHICS: 'Đạo đức',
+  TECH: 'Công nghệ',
+  MUSIC: 'Âm nhạc',
+  ART: 'Mỹ thuật',
+  PE: 'Giáo dục thể chất',
 };
 
 export const subjectLabel = (subjectCode?: string): string =>

@@ -330,10 +330,17 @@ export const parentService = {
         };
       }
 
-      if (Array.isArray(remarks) && remarks.length > 0) {
-        const latestRmk = remarks[remarks.length - 1];
+      // API nhận xét trả wrapper { remarks: [...] } — hoặc mảng trực tiếp
+      const remarkRows: any[] = Array.isArray(remarks)
+        ? remarks
+        : Array.isArray(remarks?.remarks)
+        ? remarks.remarks
+        : [];
+
+      if (remarkRows.length > 0) {
+        const latestRmk = remarkRows[remarkRows.length - 1];
         dashboardData.latest_remark = {
-          count_label: `${remarks.length} lời mới`,
+          count_label: `${remarkRows.length} lời mới`,
           status_label: 'Đã nhận',
           teacher_name: latestRmk.teacher_name || 'Giáo viên bộ môn',
           content: latestRmk.content || 'Đã gửi nhận xét rèn luyện',
@@ -517,7 +524,7 @@ export const parentService = {
     if (!studentId) return { exams: [], remarks: [] };
 
     try {
-      const [remarks, exams] = await Promise.all([
+      const [remarksData, examsData] = await Promise.all([
         api<any>(`/students/${studentId}/remarks`).catch(() => null),
         api<any>(`/students/${studentId}/exam-reminders`).catch(() => null),
       ]);
@@ -525,22 +532,35 @@ export const parentService = {
       let remarksList: any[] = [];
       let examsList: any[] = [];
 
-      if (Array.isArray(remarks)) {
-        remarksList = remarks.map((r: any) => ({
+      // API trả wrapper { student_id, semester, remarks: [...] } — hoặc mảng trực tiếp
+      const remarkRows: any[] = Array.isArray(remarksData)
+        ? remarksData
+        : Array.isArray(remarksData?.remarks)
+        ? remarksData.remarks
+        : [];
+
+      if (remarkRows.length > 0) {
+        remarksList = remarkRows.map((r: any) => ({
           id: r.remark_id || r.id,
-          teacher_title: `${r.teacher_name || 'Giáo viên'} • ${r.subject || 'Rèn luyện'}`,
+          teacher_title: `${r.teacher_name || 'Giáo viên'} • ${r.subject_name || r.subject || 'Rèn luyện'}`,
           date_str: r.created_at ? r.created_at.substring(5, 10).replace('-', '/') : 'Gần đây',
           content: r.content,
           is_read: r.parent_acknowledged === true,
         }));
       }
 
-      if (Array.isArray(exams)) {
+      const examRows: any[] = Array.isArray(examsData)
+        ? examsData
+        : Array.isArray(examsData?.reminders)
+        ? examsData.reminders
+        : [];
+
+      if (examRows.length > 0) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const seen = new Set<string>();
 
-        examsList = exams
+        examsList = examRows
           .map((e: any) => {
             const title = String(e.title || '').trim();
             const date = parseExamDate(e.exam_date ?? e.examDate ?? e.date);
