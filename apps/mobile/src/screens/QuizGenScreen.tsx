@@ -32,6 +32,7 @@ import {
 } from '../services/quiz.service';
 import { classService } from '../services/class.service';
 import { authService } from '../services/auth.service';
+import { SCHOOL_SUBJECTS, SUBJECT_LABELS } from '../constants/academic';
 
 interface QuizGenScreenProps {
   onBack?: () => void;
@@ -78,7 +79,9 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
     setSelectedClass(className);
   }, [className]);
 
-  // Xác định danh sách môn giáo viên dạy trong lớp (từ dữ liệu lớp theo DB)
+  // Xác định danh sách môn giáo viên dạy trong lớp (từ dữ liệu lớp theo DB):
+  // GVCN (vd cấp 1 tự dạy nhiều môn) → môn trong hồ sơ ∪ môn có phân công trong lớp;
+  // GVBM → đúng môn được phân công (phân công → my-subject → hồ sơ)
   useEffect(() => {
     if (!classId || classId === 'cls_empty') return;
     let cancelled = false;
@@ -86,11 +89,32 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
       .getMyRoleInClass(classId)
       .then((role) => {
         if (cancelled) return;
-        const codes = role.myAssignedCodes;
+        let codes: string[];
+        if (role.isHomeroom) {
+          codes = [
+            ...new Set([
+              ...role.profileSubjectCodes,
+              ...role.allAssignedCodes,
+              ...role.apiSubjectCodes,
+            ]),
+          ];
+          // GVCN chưa khai môn nào ở đâu cả → cho đủ danh sách môn của trường
+          if (codes.length === 0) codes = [...SCHOOL_SUBJECTS];
+        } else {
+          codes =
+            role.myAssignedCodes.length > 0
+              ? role.myAssignedCodes
+              : role.apiSubjectCodes.length > 0
+              ? role.apiSubjectCodes
+              : role.profileSubjectCodes;
+        }
         if (codes.length > 0) {
           const opts = Array.from(new Set(codes)).map((code) => ({
             code,
-            label: SUBJECT_OPTIONS.find((s) => s.code === code)?.label || code,
+            label:
+              SUBJECT_OPTIONS.find((s) => s.code === code)?.label ||
+              SUBJECT_LABELS[code] ||
+              code,
           }));
           setSubjectOptions(opts);
           setSelectedSubjectCode((prev) =>
