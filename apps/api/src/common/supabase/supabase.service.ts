@@ -14,6 +14,7 @@ export const CANON_SUBJECT_CODES = [
 const SUBJECT_ALIASES: Record<string, string> = {
   LITERATURE: 'LIT',
   VN: 'LIT',
+  ENGLISH: 'ENG',
   INFORMATICS: 'CS',
   INF: 'CS',
   TECH: 'CS',
@@ -22,10 +23,13 @@ const SUBJECT_ALIASES: Record<string, string> = {
   NAT_SOC: 'SCIENCE',
   PHYSICS: 'SCIENCE',
   CHEMISTRY: 'SCIENCE',
+  CHEM: 'SCIENCE',
   BIOLOGY: 'SCIENCE',
+  BIO: 'SCIENCE',
   HIST: 'HISTORY',
   GEO: 'GEOGRAPHY',
   CIVICS: 'ETHICS',
+  GDCD: 'ETHICS',
   ETH: 'ETHICS',
   GD: 'ETHICS',
   AMH: 'ART',
@@ -191,6 +195,11 @@ export interface DataConnectScoreRecord {
   published_once?: boolean;
   createdAt: string;
   created_at?: string;
+  /** Giáo viên nhập/sửa ô điểm này gần nhất (khi GVBM bị đổi người) */
+  updatedByTeacherId?: string | null;
+  updated_by_teacher_id?: string | null;
+  updatedAt?: string | null;
+  updated_at?: string | null;
 }
 
 export interface DataConnectQuizRecord {
@@ -210,6 +219,10 @@ export interface DataConnectRemarkRecord {
   date: string;
   content: string;
   category: string;
+  subjectCode?: string;
+  subject_code?: string;
+  teacherName?: string;
+  teacher_name?: string;
   createdAt: string;
 }
 
@@ -1715,7 +1728,10 @@ export class SupabaseService implements OnModuleInit {
       term: s.term ?? 1,
       academicYear: s.academic_year ?? s.academicYear ?? '2024-2025',
       isPublished: (s.is_published ?? s.isPublished) === true,
+      published_once: (s.published_once ?? s.publishedOnce) === true,
       createdAt: s.created_at ?? s.createdAt ?? new Date().toISOString(),
+      updatedByTeacherId: s.updated_by_teacher_id ?? s.updatedByTeacherId ?? null,
+      updatedAt: s.updated_at ?? s.updatedAt ?? null,
     };
   }
 
@@ -1767,6 +1783,7 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async recordScore(score: any) {
+    const nowIso = new Date().toISOString();
     const record = {
       id: score.id,
       student_id: score.student_id || score.studentId,
@@ -1779,23 +1796,37 @@ export class SupabaseService implements OnModuleInit {
       // Điểm vừa nhập = chưa gửi cho PH; Gửi sổ liên lạc mới đánh dấu true
       // published_once: giữ dấu "đã từng gửi" để lần gửi kế tiếp dùng loại Đính chính
       is_published: (score.is_published ?? score.isPublished) === true,
-      published_once: (score.published_once ?? false) === true,
+      published_once: (score.published_once ?? score.publishedOnce ?? false) === true,
+      // Ô điểm ghi đè khi GVBM cũ bị gỡ và cô mới vào chấm tiếp — lưu ai sửa lần cuối
+      updated_by_teacher_id: score.updated_by_teacher_id || score.updatedByTeacherId || null,
+      updated_at: score.updated_at || score.updatedAt || nowIso,
       is_deleted: false,
     };
 
     if (this.supabase) {
+      let firstError: any = null;
       try {
-        await this.supabase.from('scores').upsert(record);
+        const first = await this.supabase.from('scores').upsert(record);
+        firstError = first?.error || null;
       } catch (err: any) {
-        // Migration 003 chưa chạy (thiếu cột is_published/published_once)?
-        // Thử lại chỉ với các cột legacy để việc LƯU ĐIỂM không bao giờ
-        // thất bại âm thầm — tính năng delta publishing chờ migration.
+        firstError = err;
+      }
+      if (firstError) {
+        // Migration 003/004 chưa chạy (thiếu cột mới)? Thử lại chỉ với cột legacy
+        // để việc LƯU ĐIỂM không bao giờ thất bại âm thầm — audit chờ migration.
         this.logger.warn(
-          `[Supabase] recordScore full-record failed (${err?.message}) — retrying legacy columns`,
+          `[Supabase] recordScore full-record failed (${firstError?.message}) — retrying legacy columns`,
         );
+        const {
+          is_published: _ip,
+          published_once: _po,
+          updated_by_teacher_id: _ub,
+          updated_at: _ua,
+          ...legacy
+        } = record;
         try {
-          const { is_published: _ip, published_once: _po, ...legacy } = record;
-          await this.supabase.from('scores').upsert(legacy);
+          const retry = await this.supabase.from('scores').upsert(legacy);
+          if (retry?.error) throw retry.error;
         } catch (retryErr: any) {
           this.logger.error(`[Supabase] recordScore legacy retry also failed: ${retryErr?.message}`);
           throw new Error(`Không thể lưu điểm vào cơ sở dữ liệu: ${retryErr?.message}`);
@@ -1936,6 +1967,8 @@ export class SupabaseService implements OnModuleInit {
       date: r.date,
       content: r.content,
       category: r.category,
+      subjectCode: r.subject_code ?? r.subjectCode ?? '',
+      teacherName: r.teacher_name ?? r.teacherName ?? '',
       createdAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
     };
   }
@@ -1970,6 +2003,8 @@ export class SupabaseService implements OnModuleInit {
       date: remark.date,
       content: remark.content,
       category: remark.category,
+      subject_code: remark.subject_code || null,
+      teacher_name: remark.teacher_name || null,
       is_deleted: false,
     };
 
@@ -1977,7 +2012,18 @@ export class SupabaseService implements OnModuleInit {
       try {
         await this.supabase.from('remarks').upsert(record);
       } catch (err: any) {
-        this.logger.debug(`[Supabase] createRemark error: ${err?.message}`);
+        // Migration 004 chưa chạy (thiếu cột subject_code/teacher_name)?
+        // Retry legacy columns để nhận xét vẫn lưu, không fail âm thầm.
+        this.logger.warn(
+          `[Supabase] createRemark full-record failed (${err?.message}) — retrying legacy columns`,
+        );
+        try {
+          const { subject_code: _sc, teacher_name: _tn, ...legacy } = record;
+          await this.supabase.from('remarks').upsert(legacy);
+        } catch (retryErr: any) {
+          this.logger.error(`[Supabase] createRemark legacy retry failed: ${retryErr?.message}`);
+          throw new Error(`Không thể lưu nhận xét vào cơ sở dữ liệu: ${retryErr?.message}`);
+        }
       }
     }
 

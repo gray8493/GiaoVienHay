@@ -231,7 +231,11 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
     setShowRemarkModal(true);
   };
 
+  // Chống bấm đúp — trước đây 2 lần nhấn tạo 2 nhận xét trùng nhau
+  const [isSendingRemark, setIsSendingRemark] = useState(false);
+
   const handleSaveRemark = async () => {
+    if (isSendingRemark) return;
     if (!targetStudent || !remarkContent.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập nội dung nhận xét');
       return;
@@ -242,6 +246,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       return;
     }
 
+    setIsSendingRemark(true);
     try {
       await remarksService.createRemark({
         student_id: targetStudent.student_id,
@@ -251,6 +256,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       });
     } catch (e: any) {
       Alert.alert('Thông báo', e?.message || 'Không thể gửi nhận xét. Vui lòng thử lại.');
+      setIsSendingRemark(false);
       return;
     }
 
@@ -270,6 +276,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
     );
 
     setShowRemarkModal(false);
+    setIsSendingRemark(false);
     Alert.alert('Thành công! ✨', `Đã gửi lời nhận xét cho học sinh ${targetStudent.student_name}.`);
   };
 
@@ -783,6 +790,10 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                   ))}
                 </View>
               )}
+              {/* Cơ chế quyền: GVCN tự do môn, GVBM theo phân công (backend chặn 403) */}
+              <Text style={{ fontSize: 11.5, color: '#9E9BB2', marginTop: 8 }}>
+                GVCN có thể nhận xét mọi môn học • Giáo viên bộ môn: các môn được phân công
+              </Text>
             </View>
 
             {/* Field 2: Nhận xét Text Area Module */}

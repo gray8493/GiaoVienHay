@@ -123,6 +123,16 @@ export class RemarksService {
     const remarkId = 'rmk_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
     const now = new Date().toISOString();
 
+    // Tên giáo viên THẬT từ tài khoản — trước đây hardcode 'Giáo viên phụ trách'
+    // khiến PH không biết ai nhận xét (DB cũng không có cột để lưu)
+    let teacherName = 'Giáo viên phụ trách';
+    try {
+      if (typeof (this.dataConnect as any).getUserById === 'function') {
+        const teacher = await (this.dataConnect as any).getUserById(teacherId);
+        teacherName = teacher?.full_name || teacher?.fullName || teacherName;
+      }
+    } catch {}
+
     const remarkData = {
       id: remarkId,
       student_id: dto.student_id,
@@ -132,7 +142,7 @@ export class RemarksService {
       subject_code: dto.subject_code || null,
       teacher_id: teacherId,
       teacherId: teacherId,
-      teacher_name: 'Giáo viên phụ trách',
+      teacher_name: teacherName,
       date: now.split('T')[0],
       content: dto.content,
       category: 'GENERAL',
@@ -163,6 +173,7 @@ export class RemarksService {
         subjectCode: dto.subject_code,
         remarkId,
         classId: dto.class_id,
+        teacherName,
       });
       if (fanout.sent === 0) {
         fcmDelivered = false;
@@ -235,7 +246,9 @@ export class RemarksService {
     const items = (remarks || []).map((r: any) => ({
       remark_id: r.remark_id || r.id,
       student_id: studentId,
-      subject_code: r.subject_code || r.subject || 'MATH',
+      subject_code: r.subject_code || r.subject || null,
+      subject_name: subjectLabel(r.subject_code || r.subject) || null,
+      teacher_name: r.teacher_name || '',
       content: r.content,
       created_at: r.created_at || r.createdAt || new Date().toISOString(),
     }));
@@ -263,7 +276,7 @@ export class RemarksService {
   private async triggerRemarkFCM(
     studentId: string,
     content: string,
-    options?: { subjectCode?: string; remarkId?: string; classId?: string },
+    options?: { subjectCode?: string; remarkId?: string; classId?: string; teacherName?: string },
   ) {
     let student: any = null;
     if (typeof this.dataConnect.getStudentById === 'function') {
@@ -272,11 +285,17 @@ export class RemarksService {
       } catch (e) {}
     }
     const studentName = student?.full_name || student?.fullName || 'Học sinh';
-    const subjectPart = options?.subjectCode ? ` (môn ${subjectLabel(options.subjectCode)})` : '';
+    const teacherName = options?.teacherName || 'Giáo viên';
+    const subjectName = options?.subjectCode ? subjectLabel(options.subjectCode) : '';
+    const title = options?.subjectCode
+      ? `Nhận xét môn ${subjectName} - Em ${studentName}`
+      : `Nhận xét mới - Em ${studentName}`;
+    // Thông báo gọn: tên GV + môn + nội dung cô viết — không bọc khung dài dòng
+    const body = `${teacherName} vừa gửi nhận xét${subjectName ? ` môn ${subjectName}` : ''}: "${content}". Phụ huynh vui lòng xem chi tiết trong Sổ liên lạc.`;
 
     return await this.notificationsService.dispatchToParentsOfStudent(student, {
-      title: `Lời nhận xét mới từ giáo viên${subjectPart} - Em ${studentName}`,
-      body: `Kính gửi Phụ huynh em ${studentName}, giáo viên vừa gửi nhận xét về tình hình học tập và rèn luyện của em: "${content}". Kính mời phụ huynh vào xem chi tiết trong Sổ liên lạc.`,
+      title,
+      body,
       type: NotificationType.REMARK_NEW,
       metadata: {
         screen: 'Remarks',
