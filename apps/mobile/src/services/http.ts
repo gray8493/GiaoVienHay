@@ -85,12 +85,16 @@ export async function apiFetch(path: string, opts: ApiOptions = {}): Promise<Res
 
   const buildRequest = (extraHeaders: Record<string, string> = {}): RequestInit => {
     const headers: Record<string, string> = { ...extraHeaders };
+    let requestBody = body;
     if (body instanceof FormData) {
       // để browser/RN tự set boundary multipart
     } else if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
+      // fetch không tự serialize object — phải stringify, nếu không backend
+      // nhận chuỗi "[object Object]" và mọi trường bắt buộc sẽ báo thiếu
+      requestBody = JSON.stringify(body);
     }
-    return { method, headers, body };
+    return { method, headers, body: requestBody };
   };
 
   const doFetch = async (headers: Record<string, string>): Promise<Response> => {
