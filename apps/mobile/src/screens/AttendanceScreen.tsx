@@ -156,9 +156,13 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
               reason: s.reason || '',
             };
           } else {
+            // Quay lại Có mặt phải XÓA lý do vắng cũ — không thì submit
+            // sẽ gửi PRESENT kèm note 'Vắng không phép' (mâu thuẫn)
             return {
               ...s,
               status: 'present',
+              excused: undefined,
+              reason: undefined,
             };
           }
         }
@@ -192,7 +196,12 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
             : s.excused
             ? AttendanceStatus.ABSENT_EXCUSED
             : AttendanceStatus.ABSENT_UNEXCUSED,
-        note: s.reason || (s.excused ? 'Vắng có phép' : 'Vắng không phép'),
+        // Học sinh CÓ MẶT không được gắn lý do vắng — trước đây builder bịa
+        // 'Vắng không phép' cho cả HS present khiến DB mâu thuẫn status/note
+        note:
+          s.status === 'present'
+            ? undefined
+            : s.reason || (s.excused ? 'Vắng có phép' : 'Vắng không phép'),
       }));
 
       // Gọi API backend 05-attendance POST /attendance/submit (upsert: cho phép lưu lại để sửa)

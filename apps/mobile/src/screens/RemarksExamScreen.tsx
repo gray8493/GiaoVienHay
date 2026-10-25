@@ -273,12 +273,17 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
     Alert.alert('Thành công! ✨', `Đã gửi lời nhận xét cho học sinh ${targetStudent.student_name}.`);
   };
 
+  // Chống bấm đúp — trước đây 2 lần nhấn tạo 2 lịch kiểm tra trùng nhau
+  const [isCreatingExam, setIsCreatingExam] = useState(false);
+
   const handleCreateExam = async () => {
+    if (isCreatingExam) return;
     if (!examMessage.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập lời dặn dò kiểm tra');
       return;
     }
 
+    setIsCreatingExam(true);
     try {
       await remarksService.createExamReminder({
         class_id: classId,
@@ -289,12 +294,14 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       });
     } catch (e: any) {
       Alert.alert('Thông báo', e?.message || 'Không thể tạo lịch kiểm tra. Vui lòng thử lại.');
+      setIsCreatingExam(false);
       return;
     }
 
     const exams = await remarksService.getClassExamReminders(classId);
     setExamsList(exams);
     setShowExamModal(false);
+    setIsCreatingExam(false);
     Alert.alert('Đã gửi thông báo! 📢', `Lịch kiểm tra ${examSubjectLabel} (${examType}) đã được gửi tới phụ huynh trong lớp.`);
   };
 
@@ -923,8 +930,9 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
 
             {/* Primary Action Button */}
             <TouchableOpacity
-              style={styles.broadcastExamBtn}
+              style={[styles.broadcastExamBtn, isCreatingExam && { opacity: 0.6 }]}
               onPress={handleCreateExam}
+              disabled={isCreatingExam}
               activeOpacity={0.88}
             >
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -938,7 +946,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               </Svg>
               <Text style={styles.broadcastExamBtnText}>Gửi Thông Báo</Text>
               <View style={styles.broadcastBadge}>
-                <Text style={styles.broadcastBadgeText}>38</Text>
+                <Text style={styles.broadcastBadgeText}>{remarksList.length}</Text>
               </View>
             </TouchableOpacity>
           </View>
