@@ -28,7 +28,9 @@ class FCMService {
         if (permission === 'granted') {
           const messaging = getMessaging(app);
           try {
-            const token = await getToken(messaging);
+            // Web push cần VAPID key (đặt trong .env); native không cần
+            const vapidKey = process.env.EXPO_PUBLIC_FCM_VAPID_KEY;
+            const token = await getToken(messaging, vapidKey ? { vapidKey } : undefined);
             if (token) {
               this.deviceToken = token;
             }
