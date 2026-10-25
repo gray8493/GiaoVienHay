@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as DocumentPicker from 'expo-document-picker';
 import Svg, {
   Path,
   Rect,
@@ -23,7 +24,12 @@ import Svg, {
   Stop,
   G,
 } from 'react-native-svg';
-import { quizService, QuizQuestion, DifficultyLevel } from '../services/quiz.service';
+import {
+  quizService,
+  QuizQuestion,
+  DifficultyLevel,
+  QuizUploadFile,
+} from '../services/quiz.service';
 import { classService } from '../services/class.service';
 import { authService } from '../services/auth.service';
 
@@ -44,6 +50,15 @@ const SUBJECT_OPTIONS: { code: string; label: string }[] = [
   { code: 'GEOGRAPHY', label: 'Địa lí' },
   { code: 'ETHICS', label: 'Đạo đức' },
 ];
+
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
+const SUPPORTED_FILE_EXTENSIONS = ['pdf', 'docx', 'txt'];
+
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) return 'Không rõ dung lượng';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
   onBack,
@@ -68,18 +83,12 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
     if (!classId || classId === 'cls_empty') return;
     let cancelled = false;
     classService
-      .getClassDetail(classId)
-      .then((cls: any) => {
+      .getMyRoleInClass(classId)
+      .then((role) => {
         if (cancelled) return;
-        const myId = authService.getUser()?.id || '';
-        const assigned = (cls?.subject_teachers || []).filter(
-          (st: any) => (st.teacher_id || st.teacherId) === myId
-        );
-        const codes = assigned
-          .map((st: any) => st.subject_code || st.subjectCode)
-          .filter(Boolean);
+        const codes = role.myAssignedCodes;
         if (codes.length > 0) {
-          const opts = Array.from(new Set(codes as string[])).map((code) => ({
+          const opts = Array.from(new Set(codes)).map((code) => ({
             code,
             label: SUBJECT_OPTIONS.find((s) => s.code === code)?.label || code,
           }));
@@ -100,9 +109,10 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
   }, [classId]);
 
   // File giáo án
-  const [hasFile, setHasFile] = useState(false);
-  const [fileName, setFileName] = useState('');
-  const [fileSize, setFileSize] = useState('');
+  const [pickedFile, setPickedFile] = useState<QuizUploadFile | null>(null);
+  const hasFile = pickedFile !== null;
+  const fileName = pickedFile?.name || '';
+  const fileSize = pickedFile ? formatFileSize(pickedFile.size) : '';
 
   // Tùy chỉnh đề
   const [questionCount, setQuestionCount] = useState<number>(5);
@@ -122,6 +132,14 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
   const [editOptions, setEditOptions] = useState<string[]>(['', '', '', '']);
   const [editCorrectAnswer, setEditCorrectAnswer] = useState('A');
   const [editExplanation, setEditExplanation] = useState('');
+  // Số câu hỏi đang chờ API (lưu/tạo lại) để khóa nút và hiện trạng thái
+  const [busyQuestionIndex, setBusyQuestionIndex] = useState<number | null>(null);
+
+  // Backend trả options dạng [{key,text}] hoặc string[] — chuẩn hóa về string[]
+  const normalizeOptions = (raw: any): string[] =>
+    Array.isArray(raw)
+      ? raw.map((o: any) => (typeof o === 'string' ? o : String(o?.text ?? '')))
+      : [];
 
   // Bắt đầu chỉnh sửa một câu hỏi
   const startEditQuestion = (q: QuizQuestion) => {
@@ -132,48 +150,102 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
     setEditExplanation(q.explanation);
   };
 
-  // Lưu chỉnh sửa câu hỏi
-  const saveEditQuestion = () => {
-    if (editingIndex === null) return;
-    setQuestions((prev) =>
-      prev.map((q) =>
-        q.question_index === editingIndex
-          ? {
-              ...q,
-              content: editContent,
-              options: editOptions,
-              correct_answer: editCorrectAnswer,
-              explanation: editExplanation,
-            }
-          : q,
-      ),
-    );
-    setEditingIndex(null);
+  // Lưu chỉnh sửa câu hỏi — PUT /quizzes/:id/questions/:n (lưu DB khi đã có quizId)
+  const saveEditQuestion = async () => {
+    if (editingIndex === null || busyQuestionIndex !== null) return;
+
+    const applyLocal = () => {
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.question_index === editingIndex
+            ? {
+                ...q,
+                content: editContent,
+                options: editOptions,
+                correct_answer: editCorrectAnswer,
+                explanation: editExplanation,
+              }
+            : q,
+        ),
+      );
+      setEditingIndex(null);
+    };
+
+    if (!generatedQuizId) {
+      applyLocal();
+      return;
+    }
+
+    setBusyQuestionIndex(editingIndex);
+    try {
+      await quizService.updateQuestion(generatedQuizId, editingIndex, {
+        content: editContent,
+        options: editOptions,
+        correct_answer: editCorrectAnswer,
+        explanation: editExplanation,
+      });
+      applyLocal();
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể lưu chỉnh sửa câu hỏi');
+    } finally {
+      setBusyQuestionIndex(null);
+    }
   };
 
-  // Xóa một câu hỏi
-  const deleteQuestion = (index: number) => {
-    setQuestions((prev) => prev.filter((q) => q.question_index !== index));
+  // Xóa một câu hỏi — DELETE /quizzes/:id/questions/:n (lưu DB khi đã có quizId)
+  const deleteQuestion = async (index: number) => {
+    if (busyQuestionIndex !== null) return;
+
+    const applyLocal = () => {
+      setQuestions((prev) => prev.filter((q) => q.question_index !== index));
+    };
+
+    if (!generatedQuizId) {
+      applyLocal();
+      return;
+    }
+
+    setBusyQuestionIndex(index);
+    try {
+      await quizService.deleteQuestion(generatedQuizId, index);
+      applyLocal();
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể xóa câu hỏi');
+    } finally {
+      setBusyQuestionIndex(null);
+    }
   };
 
-  // Tạo lại 1 câu hỏi cụ thể bằng AI
-  const regenerateSingleQuestion = (index: number) => {
-    Alert.alert('Gemini AI', `Đang tạo lại câu hỏi số ${index}...`);
-    setTimeout(() => {
+  // Tạo lại 1 câu hỏi cụ thể bằng AI — POST /quizzes/:id/questions/:n/regenerate
+  const regenerateSingleQuestion = async (index: number) => {
+    if (busyQuestionIndex !== null) return;
+    if (!generatedQuizId) {
+      Alert.alert('Thông báo', 'Chưa lưu bộ đề. Vui lòng tạo đề bằng AI trước khi tạo lại câu hỏi.');
+      return;
+    }
+
+    setBusyQuestionIndex(index);
+    try {
+      const updated: any = await quizService.regenerateQuestion(generatedQuizId, index, difficulty);
+      const data = updated?.data || updated;
       setQuestions((prev) =>
         prev.map((q) =>
           q.question_index === index
             ? {
                 ...q,
-                content: 'Hai góc kề bù có tổng số đo bằng bao nhiêu độ?',
-                options: ['90°', '180°', '360°', '45°'],
-                correct_answer: 'B',
-                explanation: 'Hai góc vừa kề nhau vừa bù nhau có tổng số đo bằng 180°.',
+                content: data?.content ?? q.content,
+                options: normalizeOptions(data?.options).length > 0 ? normalizeOptions(data?.options) : q.options,
+                correct_answer: data?.correct_answer ?? q.correct_answer,
+                explanation: data?.explanation ?? q.explanation,
               }
             : q,
         ),
       );
-    }, 600);
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể tạo lại câu hỏi bằng AI');
+    } finally {
+      setBusyQuestionIndex(null);
+    }
   };
 
   // Chọn môn học: đổi môn -> xóa đề cũ của môn trước
@@ -189,7 +261,54 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
     setSubjectMenuVisible(false);
   };
 
-  // Gọi Gemini AI tạo đề toàn diện
+  // Chọn tệp giáo án thật từ thiết bị
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+        ],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      const extension = (asset.name || '').split('.').pop()?.toLowerCase() || '';
+
+      if (!SUPPORTED_FILE_EXTENSIONS.includes(extension)) {
+        Alert.alert('Tệp không được hỗ trợ', 'Chỉ hỗ trợ tệp .pdf, .docx hoặc .txt.');
+        return;
+      }
+
+      if (asset.size && asset.size > MAX_FILE_SIZE_BYTES) {
+        Alert.alert('Tệp quá lớn', 'Giáo án tối đa 15 MB. Vui lòng chọn tệp nhỏ hơn.');
+        return;
+      }
+
+      setPickedFile({
+        uri: asset.uri,
+        name: asset.name || `giao_an.${extension}`,
+        size: asset.size,
+        mimeType: asset.mimeType,
+      });
+      setQuestions([]);
+      setGeneratedQuizId('');
+    } catch {
+      Alert.alert('Không thể chọn tệp', 'Vui lòng thử lại hoặc kiểm tra quyền truy cập tệp.');
+    }
+  };
+
+  const handleRemoveDocument = () => {
+    setPickedFile(null);
+    setQuestions([]);
+    setGeneratedQuizId('');
+  };
+
+  // Gọi AI tạo đề toàn diện
   const handleGenerateQuestions = async () => {
     if (!classId || classId === 'cls_empty') {
       Alert.alert('Thông báo', 'Vui lòng chọn lớp học trước khi soạn đề');
@@ -202,13 +321,16 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
     const timer2 = setTimeout(() => setProgressPercent(90), 1200);
 
     try {
-      const resJson: any = await quizService.generateQuizFromAi({
-        subject_code: selectedSubjectCode,
-        class_id: classId,
-        title: `Kiểm tra ${selectedSubject} - ${selectedClass}`,
-        num_questions: questionCount,
-        difficulty_level: difficulty,
-      });
+      const resJson: any = await quizService.generateQuizFromAi(
+        {
+          subject_code: selectedSubjectCode,
+          class_id: classId,
+          title: `Kiểm tra ${selectedSubject} - ${selectedClass}`,
+          num_questions: questionCount,
+          difficulty_level: difficulty,
+        },
+        pickedFile || undefined,
+      );
       const data = resJson?.data || resJson;
 
       setTimeout(() => {
@@ -361,13 +483,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
                 <View style={styles.fileActionsRow}>
                   <TouchableOpacity
                     style={styles.changeFileBtn}
-                    onPress={() => {
-                      setHasFile(false);
-                      setFileName('');
-                      setFileSize('');
-                      setQuestions([]);
-                      setGeneratedQuizId('');
-                    }}
+                    onPress={handlePickDocument}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.changeFileBtnText}>Đổi file</Text>
@@ -375,7 +491,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
 
                   <TouchableOpacity
                     style={styles.deleteFileBtn}
-                    onPress={() => setHasFile(false)}
+                    onPress={handleRemoveDocument}
                     activeOpacity={0.8}
                     accessibilityLabel="Xóa file"
                   >
@@ -392,15 +508,10 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
             ) : (
               <TouchableOpacity
                 style={[styles.dashedFileBox, { justifyContent: 'center', paddingVertical: 18 }]}
-                onPress={() =>
-                  Alert.alert(
-                    'Tính năng chuẩn bị ra mắt',
-                    'Đính kèm tệp giáo án đang được cập nhật. Bạn vẫn có thể soạn đề theo chương trình chuẩn bằng AI.'
-                  )
-                }
+                onPress={handlePickDocument}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.changeFileBtnText, { fontSize: 14 }]}>+ Tải lên giáo án (.docx, .pdf)</Text>
+                <Text style={[styles.changeFileBtnText, { fontSize: 14 }]}>+ Tải lên giáo án (.pdf, .docx, .txt)</Text>
               </TouchableOpacity>
             )}
 
@@ -412,7 +523,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
                   clipRule="evenodd"
                 />
               </Svg>
-              <Text style={styles.fileHintText}>Hỗ trợ .docx, .pdf • tối đa 15 MB</Text>
+              <Text style={styles.fileHintText}>Hỗ trợ .pdf, .docx, .txt • tối đa 15 MB</Text>
             </View>
           </View>
 
@@ -595,8 +706,9 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
                   <View style={styles.questionActions}>
                     {/* Sửa câu hỏi */}
                     <TouchableOpacity
-                      style={styles.actionCircleBtn}
+                      style={[styles.actionCircleBtn, busyQuestionIndex === q.question_index && { opacity: 0.5 }]}
                       onPress={() => startEditQuestion(q)}
+                      disabled={busyQuestionIndex === q.question_index}
                       accessibilityLabel="Sửa câu hỏi"
                     >
                       <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth={2}>
@@ -606,8 +718,9 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
 
                     {/* Tạo lại câu hỏi */}
                     <TouchableOpacity
-                      style={styles.actionCircleBtn}
+                      style={[styles.actionCircleBtn, busyQuestionIndex === q.question_index && { opacity: 0.5 }]}
                       onPress={() => regenerateSingleQuestion(q.question_index)}
+                      disabled={busyQuestionIndex === q.question_index}
                       accessibilityLabel="Tạo lại câu hỏi"
                     >
                       <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth={2}>
@@ -617,8 +730,9 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
 
                     {/* Xóa câu hỏi */}
                     <TouchableOpacity
-                      style={styles.actionCircleBtn}
+                      style={[styles.actionCircleBtn, busyQuestionIndex === q.question_index && { opacity: 0.5 }]}
                       onPress={() => deleteQuestion(q.question_index)}
+                      disabled={busyQuestionIndex === q.question_index}
                       accessibilityLabel="Xóa câu hỏi"
                     >
                       <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth={2}>

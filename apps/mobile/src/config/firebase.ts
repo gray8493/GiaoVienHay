@@ -2,13 +2,11 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyClBuj8koEYV2e57OrTyGdx6hrarrrwLNo",
-  authDomain: "giaovienhay-511009.firebaseapp.com",
-  projectId: "giaovienhay-511009",
-  storageBucket: "giaovienhay-511009.firebasestorage.app",
-  messagingSenderId: "114953235019",
-  appId: "1:114953235019:web:6bcaefc200c07075d7bbce",
-  measurementId: "G-HW2MXTX6VY",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyClBuj8koSyClBuj8ko6",
+  projectId: "giaovienhay-fcm",
+  storageBucket: "giaovienhay-fcm.firebasestorage.app",
+  messagingSenderId: "108576935685937885482",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:108576935685937885482:web:giaovienhay",
 };
 
 // Initialize Firebase for Client App (Auth only - Database is SQL Data Connect)

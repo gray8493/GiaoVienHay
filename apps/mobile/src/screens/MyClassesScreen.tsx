@@ -14,12 +14,31 @@ import {
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Ellipse } from 'react-native-svg';
 import { classService, MyClassItem } from '../services/class.service';
+import { authService } from '../services/auth.service';
+
+interface SubjectOptionItem {
+  code: string;
+  name: string;
+}
+
+const AVAILABLE_SUBJECTS: SubjectOptionItem[] = [
+  { code: 'MATH', name: 'Toán' },
+  { code: 'LIT', name: 'Ngữ Văn' },
+  { code: 'ENG', name: 'Tiếng Anh' },
+  { code: 'CS', name: 'Tin Học' },
+  { code: 'PHYSICS', name: 'Vật Lý' },
+  { code: 'CHEM', name: 'Hóa Học' },
+  { code: 'BIO', name: 'Sinh Học' },
+  { code: 'HIST', name: 'Lịch Sử' },
+  { code: 'GEO', name: 'Địa Lý' },
+  { code: 'GDCD', name: 'GDCD' },
+];
 
 const { width } = Dimensions.get('window');
 
 interface MyClassesScreenProps {
   onBack?: () => void;
-  onSelectClass?: (classId: string) => void;
+  onSelectClass?: (classId: string, classData?: MyClassItem) => void;
 }
 
 type ScreenView = 'MY_CLASSES' | 'CREATE_CLASS' | 'JOIN_BY_CODE';
@@ -30,7 +49,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
 }) => {
   const [currentView, setCurrentView] = useState<ScreenView>('MY_CLASSES');
   const [classes, setClasses] = useState<MyClassItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Bottom Sheet "Thêm Lớp" (TEA-11.BS)
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -44,12 +63,43 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
 
   // Form State "Vào Lớp Bằng Mã" (TEA-11.4)
   const [inviteCodeInput, setInviteCodeInput] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState<'MATH' | 'CS'>('MATH'); // 'MATH' (Toán) | 'CS' (Tin Học)
+  const [selectedSubject, setSelectedSubject] = useState<string>('MATH');
+  const [profileSubjects, setProfileSubjects] = useState<string[]>([]);
   const [isSubmittingJoin, setIsSubmittingJoin] = useState(false);
 
   useEffect(() => {
     loadClasses();
+    initTeacherProfileSubjects();
   }, []);
+
+  const initTeacherProfileSubjects = () => {
+    try {
+      const user = authService.getUser();
+      const rawSubjects = user?.teaching_subjects || (user as any)?.subjects || [];
+      if (Array.isArray(rawSubjects) && rawSubjects.length > 0) {
+        const normalized = rawSubjects.map((s: string) => {
+          const str = String(s).trim().toUpperCase();
+          if (str.includes('VĂN') || str.includes('VAN') || str === 'LIT' || str === 'LITERATURE') return 'LIT';
+          if (str.includes('TOÁN') || str.includes('TOAN') || str === 'MATH') return 'MATH';
+          if (str.includes('ANH') || str === 'ENG' || str === 'ENGLISH') return 'ENG';
+          if (str.includes('TIN') || str === 'CS' || str === 'INFORMATICS') return 'CS';
+          if (str.includes('LÝ') || str.includes('LY') || str === 'PHYSICS') return 'PHYSICS';
+          if (str.includes('HÓA') || str.includes('HOA') || str === 'CHEM') return 'CHEM';
+          if (str.includes('SINH') || str === 'BIO') return 'BIO';
+          if (str.includes('SỬ') || str.includes('SU') || str === 'HIST') return 'HIST';
+          if (str.includes('ĐỊA') || str.includes('DIA') || str === 'GEO') return 'GEO';
+          if (str.includes('GDCD') || str.includes('ĐẠO') || str === 'GDCD') return 'GDCD';
+          return str;
+        });
+        setProfileSubjects(normalized);
+        if (normalized[0]) {
+          setSelectedSubject(normalized[0]);
+        }
+      }
+    } catch (e) {
+      console.warn('initTeacherProfileSubjects error:', e);
+    }
+  };
 
   const loadClasses = async () => {
     setLoading(true);
@@ -118,14 +168,15 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
 
     setIsSubmittingJoin(true);
     try {
-      const result = await classService.joinClass(code);
+      const result = await classService.joinClass(code, selectedSubject);
 
       if (!result?.class_id) {
         throw new Error('Không thể xác định lớp học vừa tham gia');
       }
 
-      const subjectLabel = selectedSubject === 'MATH' ? 'Toán' : 'Tin Học';
-      const iconType = selectedSubject === 'MATH' ? 'square_foot' : 'laptop_mac';
+      const matchedSub = AVAILABLE_SUBJECTS.find(s => s.code === selectedSubject);
+      const subjectLabel = matchedSub?.name || selectedSubject;
+      const iconType = selectedSubject === 'MATH' ? 'square_foot' : selectedSubject === 'CS' ? 'laptop_mac' : 'school';
 
       const joinedClassItem: MyClassItem = {
         id: result.class_id,
@@ -140,16 +191,20 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
         student_count: result.student_count ?? result.studentCount ?? 0,
         role_type: 'SUBJECT',
         subject_name: subjectLabel,
+        subject_names: [subjectLabel],
         icon_name: iconType,
       };
 
       setClasses(prev => {
-        const exists = prev.some(c => c.id === joinedClassItem.id);
-        if (exists) return prev;
-        return [...prev, joinedClassItem];
+        const filtered = prev.filter(c => c.id !== joinedClassItem.id);
+        return [...filtered, joinedClassItem];
       });
 
+      // Tải lại danh sách đầy đủ từ server để đồng bộ
+      loadClasses();
+
       Alert.alert('Thành công', `Đã tham gia lớp với vai trò Giáo viên bộ môn ${subjectLabel}!`);
+      setInviteCodeInput('');
       setCurrentView('MY_CLASSES');
     } catch (err: any) {
       Alert.alert('Thông báo', err.message || 'Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn');
@@ -418,55 +473,45 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
               />
             </View>
 
-            {/* Subject Pill Selection Module */}
+            {/* Dynamic Subject Pill Selection Module */}
             <View style={styles.subjectModule}>
-              <Text style={styles.fieldLabel}>Môn dạy</Text>
-              <View style={styles.subjectRow}>
-                {/* Chip: Toán */}
-                <TouchableOpacity
-                  style={[
-                    styles.subjectChip,
-                    selectedSubject === 'MATH' ? styles.subjectChipActive : styles.subjectChipInactive,
-                  ]}
-                  onPress={() => setSelectedSubject('MATH')}
-                  activeOpacity={0.8}
-                >
-                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={selectedSubject === 'MATH' ? '#F58F4C' : '#887367'} strokeWidth={2}>
-                    <Rect x="4" y="2" width="16" height="20" rx="2" />
-                    <Path d="M8 6h8M8 10h8M8 14h2M14 14h2M8 18h2M14 18h2" strokeLinecap="round" />
-                  </Svg>
-                  <Text
-                    style={[
-                      styles.subjectChipText,
-                      selectedSubject === 'MATH' ? styles.subjectChipTextActive : styles.subjectChipTextInactive,
-                    ]}
-                  >
-                    Toán
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.fieldLabel}>Môn học phụ trách</Text>
+                {profileSubjects.length > 0 && (
+                  <Text style={{ fontSize: 11, color: '#F58F4C', fontWeight: '600' }}>
+                    ★ Môn trong hồ sơ của bạn
                   </Text>
-                </TouchableOpacity>
-
-                {/* Chip: Tin Học */}
-                <TouchableOpacity
-                  style={[
-                    styles.subjectChip,
-                    selectedSubject === 'CS' ? styles.subjectChipActive : styles.subjectChipInactive,
-                  ]}
-                  onPress={() => setSelectedSubject('CS')}
-                  activeOpacity={0.8}
-                >
-                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={selectedSubject === 'CS' ? '#F58F4C' : '#887367'} strokeWidth={2}>
-                    <Rect x="2" y="3" width="20" height="14" rx="2" />
-                    <Path d="M8 21h8M12 17v4" strokeLinecap="round" />
-                  </Svg>
-                  <Text
-                    style={[
-                      styles.subjectChipText,
-                      selectedSubject === 'CS' ? styles.subjectChipTextActive : styles.subjectChipTextInactive,
-                    ]}
-                  >
-                    Tin Học
-                  </Text>
-                </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.subjectGridWrap}>
+                {AVAILABLE_SUBJECTS.map(subj => {
+                  const isSelected = selectedSubject === subj.code;
+                  const isProfileSubject = profileSubjects.includes(subj.code);
+                  return (
+                    <TouchableOpacity
+                      key={subj.code}
+                      style={[
+                        styles.subjectChip,
+                        isSelected ? styles.subjectChipActive : styles.subjectChipInactive,
+                        isProfileSubject && !isSelected && styles.subjectChipProfile,
+                      ]}
+                      onPress={() => setSelectedSubject(subj.code)}
+                      activeOpacity={0.8}
+                    >
+                      {isProfileSubject && (
+                        <View style={styles.profileBadgeDot} />
+                      )}
+                      <Text
+                        style={[
+                          styles.subjectChipText,
+                          isSelected ? styles.subjectChipTextActive : styles.subjectChipTextInactive,
+                        ]}
+                      >
+                        {subj.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -572,6 +617,19 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
             classes.map((cls, index) => {
               const isLast = index === classes.length - 1;
               const isHomeroom = cls.role_type === 'HOMEROOM';
+              const subjectLabels: string[] =
+                cls.subject_names && cls.subject_names.length > 0
+                  ? cls.subject_names
+                  : cls.subject_name
+                  ? [cls.subject_name]
+                  : [];
+              const roleText = isHomeroom
+                ? subjectLabels.length > 0
+                  ? `Chủ nhiệm · ${subjectLabels.join(', ')}`
+                  : 'Chủ nhiệm'
+                : subjectLabels.length > 0
+                ? `Bộ môn · ${subjectLabels.join(', ')}`
+                : 'Bộ môn';
 
               return (
                 <View key={cls.id || index}>
@@ -580,7 +638,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
                     activeOpacity={0.7}
                     onPress={() => {
                       if (onSelectClass) {
-                        onSelectClass(cls.id);
+                        onSelectClass(cls.id, cls);
                       }
                     }}
                   >
@@ -616,14 +674,12 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
                     <View style={styles.roleWrap}>
                       <View style={styles.rolePill}>
                         <Text style={styles.rolePillText} numberOfLines={1}>
-                          {isHomeroom ? 'Chủ nhiệm' : (cls.subject_name || 'Bộ môn')}
+                          {roleText}
                         </Text>
                       </View>
-                      {isHomeroom && (
-                        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#554339" strokeWidth={2.5}>
-                          <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                        </Svg>
-                      )}
+                      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#554339" strokeWidth={2.5}>
+                        <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
                     </View>
                   </TouchableOpacity>
 
@@ -919,6 +975,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flexShrink: 0,
+    maxWidth: 195,
   },
   rolePill: {
     paddingHorizontal: 12,
@@ -927,6 +984,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF1E6',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 1,
   },
   rolePillText: {
     fontSize: 11,
@@ -1269,6 +1327,22 @@ const styles = StyleSheet.create({
   },
   subjectModule: {
     gap: 8,
+  },
+  subjectGridWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  subjectChipProfile: {
+    borderColor: '#FDBA74',
+    backgroundColor: '#FFFBF7',
+  },
+  profileBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F58F4C',
+    marginRight: -2,
   },
   subjectRow: {
     flexDirection: 'row',

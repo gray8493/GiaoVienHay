@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Svg, Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
 import { parentService, ChildItem } from '../services/parent.service';
+import { getInitials } from '../utils/format';
 import { authService } from '../services/auth.service';
 
 interface ParentProfileScreenProps {
@@ -42,12 +43,6 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
     }
     const kids = await parentService.getLinkedChildren();
     setChildren(kids);
-  };
-
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-    return (name.slice(0, 2) || 'PH').toUpperCase();
   };
 
   return (
@@ -155,7 +150,7 @@ export const ParentProfileScreen: React.FC<ParentProfileScreenProps> = ({
           <TouchableOpacity
             style={styles.settingsRow}
             activeOpacity={0.8}
-            onPress={() => Alert.alert('Đổi mật khẩu', 'Vui lòng kiểm tra mã xác thực SMS gửi về 0912 345 678.')}
+            onPress={() => Alert.alert('Đổi mật khẩu', `Vui lòng kiểm tra mã xác thực SMS gửi về ${parentPhone || 'số điện thoại của bạn'}.`)}
           >
             <View style={styles.settingsLeft}>
               <View style={styles.settingsIconTile}>

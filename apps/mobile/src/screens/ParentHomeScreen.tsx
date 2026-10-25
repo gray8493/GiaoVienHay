@@ -37,7 +37,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
   const [childrenList, setChildrenList] = useState<ChildItem[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string>(initialChildId);
   const [dashboardData, setDashboardData] = useState<ParentDashboardData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Bottom Sheet "Chọn Con" (PAR-01.BS)
   const [isChildSheetVisible, setIsChildSheetVisible] = useState(false);
@@ -173,7 +173,14 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {childrenList.length === 0 ? (
+        {loading && childrenList.length === 0 ? (
+          <View style={{ paddingVertical: 60, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color="#F58F4C" />
+            <Text style={{ marginTop: 14, fontSize: 13, color: '#887367', fontWeight: '500' }}>
+              Đang tải thông tin học sinh...
+            </Text>
+          </View>
+        ) : childrenList.length === 0 ? (
           /* ================= PAR-01.empty: CHƯA CÓ HỌC SINH LIÊN KẾT ================= */
           <View style={styles.emptyContainer}>
             <View style={styles.emptyHeaderRow}>
@@ -419,38 +426,6 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* ================= 4. TIMELINE SECTION ================= */}
-            <View style={styles.timelineSection}>
-              <View style={styles.timelineHeader}>
-                <Text style={styles.timelineTitle}>Lịch học hôm nay</Text>
-                <View style={styles.pillCount}>
-                  <Text style={styles.pillCountText}>
-                    {dashboardData?.today_schedule?.length ? `${dashboardData.today_schedule.length} tiết` : '0 tiết'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.timelineCard}>
-                {dashboardData?.today_schedule && dashboardData.today_schedule.length > 0 ? (
-                  dashboardData.today_schedule.map((item, idx) => (
-                    <View key={idx} style={styles.timelineRow}>
-                      <View style={styles.timelineNodeCol}>
-                        <View style={idx === 0 ? styles.timelineDotActive : styles.timelineDotInactive} />
-                        {idx < (dashboardData.today_schedule?.length || 0) - 1 && <View style={styles.timelineLine} />}
-                      </View>
-                      <View style={styles.timelineContentWrap}>
-                        <Text style={styles.lessonTitle}>{item.period_title}</Text>
-                        <Text style={styles.lessonMeta}>{item.time_room}</Text>
-                      </View>
-                    </View>
-                  ))
-                ) : (
-                  <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 13, color: '#A06D53' }}>Hôm nay không có tiết học nào</Text>
-                  </View>
-                )}
-              </View>
-            </View>
           </>
         )}
       </ScrollView>

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { TeacherAvatar, ParentsAvatar } from '../components/RoleAvatars';
 
 interface RoleSelectionScreenProps {
   onBack?: () => void;
@@ -94,15 +95,9 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
                 </View>
               )}
 
-              {/* Glossy 3D Asset */}
+              {/* Glossy 3D Avatar (100% Vector SVG, No fake background) */}
               <View style={styles.avatarWrap}>
-                <Image
-                  source={{
-                    uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDKnD6PaCKtqHO-i7zjDhOiS3TihnCXa1HvFSlMAFuuCirfv-yjHAyMNW-A-YSnGLQyih76fiG9iyfKApcYLEvqYZPF-58J-PelTeWZcNAQNB2SFGF6mYicHode8vkTcW01q4CApUH5zonOXUdGt5F_zGNZ2gTEV9Jj2_yr4yTzaONQXz8HhPLc1wVS24VVqKUNQC0Jpf175j-bTFcAq95Wjs9OSPzyHxbHvDQ5l9UtJWUN5ktTVkx4Og',
-                  }}
-                  style={styles.avatarImage}
-                  resizeMode="cover"
-                />
+                <TeacherAvatar size={74} />
               </View>
 
               {/* Role Label */}
@@ -127,15 +122,9 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
                 </View>
               )}
 
-              {/* Glossy 3D Asset */}
+              {/* Glossy 3D Avatar (100% Vector SVG, No fake background) */}
               <View style={styles.avatarWrap}>
-                <Image
-                  source={{
-                    uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC8ITQ7bNz8ShhC8aAZImEkUocaZ7OOxwcZ0fa8Bo1071oSd_QvMwF9fAn0iVBgPS-o9eE3EFbmVBM0GWADFmAR9V-ZMmqypmXlcu7iHE4ec98Yj9cL7D5MK5Nvpmm0jk0W982aAM4ax_LJ9Tl4iC1kHf6s4GLRjWOVSsmiWycZyIW7SRCvi1tJE_7NGqt86dP30vWHQDkuktoi0B_Hh2RncKR_4ykEM-A2oCIFdHzahHhBKyrSUw_GoQ',
-                  }}
-                  style={styles.avatarImage}
-                  resizeMode="cover"
-                />
+                <ParentsAvatar size={74} />
               </View>
 
               {/* Role Label */}

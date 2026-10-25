@@ -30,6 +30,7 @@ import {
   AttendanceRecordItem,
 } from '../services/attendance.service';
 import { classService } from '../services/class.service';
+import { getInitials } from '../utils/format';
 
 export interface StudentAttendance {
   id: number;
@@ -109,10 +110,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
 
         const mapped: StudentAttendance[] = detail.students.map((s, idx) => {
           const fullName = s.full_name || (s as any).name || '';
-          const parts = fullName.trim().split(' ');
-          const initials = parts.length > 1
-            ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-            : (parts[0]?.substring(0, 2) || 'HS').toUpperCase();
+          const initials = getInitials(fullName);
 
           const saved = savedMap.get(String(s.id));
           const savedStatus = saved?.status;
@@ -444,7 +442,14 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
 
             {/* List of Students */}
             <View style={styles.studentsContainer}>
-              {filteredStudents.length === 0 ? (
+              {isLoading && students.length === 0 ? (
+                <View style={{ padding: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 }}>
+                  <ActivityIndicator size="large" color="#F58F4C" />
+                  <Text style={{ marginTop: 14, fontSize: 13, color: '#6B6880', fontWeight: '600' }}>
+                    Đang tải danh sách điểm danh...
+                  </Text>
+                </View>
+              ) : filteredStudents.length === 0 ? (
                 <View style={{ padding: 32, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E1B2E', marginBottom: 6 }}>
                     {searchQuery ? 'Không tìm thấy học sinh phù hợp' : 'Lớp chưa có học sinh'}
@@ -620,7 +625,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
                 <Line x1="8" y1="2" x2="8" y2="6" />
                 <Line x1="3" y1="10" x2="21" y2="10" />
               </Svg>
-              <Text style={styles.dockTabTextInactive}>Lịch dạy</Text>
+              <Text style={styles.dockTabTextInactive}>Trang chủ</Text>
             </TouchableOpacity>
 
             {/* Điểm danh (Active) */}

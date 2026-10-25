@@ -1,5 +1,4 @@
-import { API_BASE_URL } from '../config/api';
-import { authService } from './auth.service';
+import { api } from './http';
 import { fcmService } from './fcm.service';
 
 export interface NotificationItem {
@@ -19,26 +18,15 @@ export class NotificationService {
       // Tự động khởi tạo Firebase Cloud Messaging (FCM) ngầm
       fcmService.initFCM().catch(() => null);
 
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/notifications`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-      });
-
-      if (response.ok) {
-        const resJson = await response.json();
-        const data = resJson.data || resJson;
-        const items = (data.items || []).map((item: any) => ({
-          ...item,
-          timeAgo: this.formatTimeAgo(item.created_at),
-        }));
-        return {
-          items,
-          unreadCount: data.unread_count || 0,
-        };
-      }
+      const data = await api<any>('/notifications');
+      const items = (data?.items || []).map((item: any) => ({
+        ...item,
+        timeAgo: this.formatTimeAgo(item.created_at),
+      }));
+      return {
+        items,
+        unreadCount: data?.unread_count || 0,
+      };
     } catch (e) {
       console.warn('Backend not reachable:', e);
     }
@@ -48,15 +36,8 @@ export class NotificationService {
 
   async markAsRead(id: string): Promise<boolean> {
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-      });
-      return response.ok;
+      await api(`/notifications/${id}/read`, { method: 'PATCH' });
+      return true;
     } catch (e) {
       return false;
     }
@@ -64,15 +45,8 @@ export class NotificationService {
 
   async markAllAsRead(): Promise<boolean> {
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-      });
-      return response.ok;
+      await api('/notifications/read-all', { method: 'PATCH' });
+      return true;
     } catch (e) {
       return false;
     }

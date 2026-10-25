@@ -1,7 +1,7 @@
 import { Platform, Alert } from 'react-native';
 import { app } from '../config/firebase';
 import { authService } from './auth.service';
-import { API_BASE_URL } from '../config/api';
+import { api } from './http';
 
 type NotificationListener = (payload: any) => void;
 
@@ -67,23 +67,16 @@ class FCMService {
    */
   async registerDeviceTokenWithBackend(token: string): Promise<boolean> {
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/users/device-token`, {
+      await api('/users/device-token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-        body: JSON.stringify({
+        body: {
           device_token: token,
           device_type: Platform.OS.toUpperCase(),
-        }),
+        },
+        errorMessage: 'Không thể đăng ký thiết bị',
       });
-
-      if (response.ok) {
-        console.log('[FCM] Đã đăng ký Device Token với Backend thành công:', token);
-        return true;
-      }
+      console.log('[FCM] Đã đăng ký Device Token với Backend thành công:', token);
+      return true;
     } catch (err) {
       console.log('[FCM] Chưa kết nối được token với backend (offline/dev):', err);
     }

@@ -9,9 +9,11 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Line, Polyline } from 'react-native-svg';
-import { parentService } from '../services/parent.service';
+import { parentService, PARENT_SCORE_COLUMNS } from '../services/parent.service';
+import { remarksService } from '../services/remarks.service';
 
 interface ParentAcademicScreenProps {
   studentId?: string;
@@ -24,6 +26,22 @@ interface ParentAcademicScreenProps {
 
 type TabType = 'GRADES' | 'REMARKS' | 'ATTENDANCE';
 
+const pickScoreValue = (scores: any[], aliases: string[]): number | null => {
+  let latest: any = null;
+  for (const score of scores || []) {
+    if (!aliases.includes(String(score.type || ''))) continue;
+    if (
+      latest === null ||
+      String(score.created_at || '') > String(latest.created_at || '')
+    ) {
+      latest = score;
+    }
+  }
+  if (!latest || latest.value === '--') return null;
+  const value = Number(latest.value);
+  return isNaN(value) ? null : value;
+};
+
 export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
   studentId = '',
   studentName = 'Học sinh',
@@ -34,7 +52,22 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
 }) => {
   const [currentTab, setCurrentTab] = useState<TabType>('GRADES');
   const [semester, setSemester] = useState<'HK1' | 'HK2'>('HK1');
-  const [selectedMonth, setSelectedMonth] = useState('Tháng 10');
+
+  // Tháng chuyên cần: mặc định là tháng hiện tại (trước đây bị cứng '2026-10')
+  const buildMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const monthKeyLabel = (key: string) => {
+    const [y, m] = key.split('-');
+    const nowYear = String(new Date().getFullYear());
+    return y === nowYear ? `Tháng ${Number(m)}` : `Tháng ${Number(m)}/${y}`;
+  };
+  const [attendanceMonth, setAttendanceMonth] = useState(buildMonthKey(new Date()));
+  const [isMonthSheetVisible, setIsMonthSheetVisible] = useState(false);
+  const monthOptions = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    return buildMonthKey(d);
+  });
+  const [confirmingRemarkId, setConfirmingRemarkId] = useState<string | null>(null);
 
   // Dữ liệu Điểm số
   const [academicData, setAcademicData] = useState<any[]>([]);
@@ -47,11 +80,11 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, [currentTab, studentId]);
+  }, [currentTab, studentId, semester, attendanceMonth]);
 
   const loadData = async () => {
     if (!studentId) {
@@ -66,14 +99,14 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
     setLoading(true);
     try {
       if (currentTab === 'GRADES') {
-        const data = await parentService.getFullAcademicRecord(studentId);
+        const data = await parentService.getFullAcademicRecord(studentId, semester === 'HK1' ? 1 : 2);
         setAcademicData(data);
       } else if (currentTab === 'REMARKS') {
         const data = await parentService.getRemarksAndExams(studentId);
         setExamsList(data.exams);
         setRemarksList(data.remarks);
       } else {
-        const data = await parentService.getAttendanceDetails(studentId, '2026-10');
+        const data = await parentService.getAttendanceDetails(studentId, attendanceMonth);
         if (data.summary) setAttendanceSummary(data.summary);
         else setAttendanceSummary(null);
         if (data.logs) setAttendanceLogs(data.logs);
@@ -86,12 +119,21 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
     }
   };
 
-  // Xác nhận đã đọc nhận xét
-  const handleConfirmRemark = (remarkId: string) => {
-    setRemarksList(prev =>
-      prev.map(r => (r.id === remarkId ? { ...r, is_read: true } : r))
-    );
-    Alert.alert('Thành công', 'Đã xác nhận đã đọc nhận xét của giáo viên.');
+  // Xác nhận đã đọc nhận xét — PATCH /remarks/:id/acknowledge (lưu DB, GV thấy được)
+  const handleConfirmRemark = async (remarkId: string) => {
+    if (confirmingRemarkId) return;
+    setConfirmingRemarkId(remarkId);
+    try {
+      await remarksService.acknowledgeRemark(remarkId);
+      setRemarksList(prev =>
+        prev.map(r => (r.id === remarkId ? { ...r, is_read: true } : r))
+      );
+      Alert.alert('Thành công', 'Đã xác nhận đã đọc nhận xét của giáo viên.');
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể xác nhận đã đọc. Vui lòng thử lại.');
+    } finally {
+      setConfirmingRemarkId(null);
+    }
   };
 
   return (
@@ -148,8 +190,9 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
             <TouchableOpacity
               style={styles.filterPillButton}
               activeOpacity={0.8}
+              onPress={() => setIsMonthSheetVisible(true)}
             >
-              <Text style={styles.filterPillText} numberOfLines={1}>{selectedMonth}</Text>
+              <Text style={styles.filterPillText} numberOfLines={1}>{monthKeyLabel(attendanceMonth)}</Text>
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#554339" strokeWidth={2.5}>
                 <Path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
@@ -217,7 +260,14 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
         {/* ======================================================== */}
         {!loading && currentTab === 'GRADES' && (
           <View style={styles.tabContentWrap}>
-            {academicData.length === 0 ? (
+            {loading && academicData.length === 0 ? (
+              <View style={{ paddingVertical: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 20 }}>
+                <ActivityIndicator size="large" color="#F58F4C" />
+                <Text style={{ marginTop: 14, fontSize: 13, color: '#887367', fontWeight: '500' }}>
+                  Đang tải bảng điểm học tập...
+                </Text>
+              </View>
+            ) : academicData.length === 0 ? (
               <View style={styles.emptyTabCard}>
                 <Text style={styles.emptyTabTitle}>Chưa có điểm số</Text>
                 <Text style={styles.emptyTabSub}>Giáo viên bộ môn chưa cập nhật bảng điểm cho học kỳ này.</Text>
@@ -240,17 +290,20 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
                     </View>
                   </View>
 
-                  {/* 4 Score Columns Grid: FIX LỖI ĐÈ CHỮ */}
+                  {/* 5 cột điểm chuẩn theo sổ điểm giáo viên (chỉ xem) */}
                   <View style={styles.scoresGrid}>
-                    {item.scores?.map((score: any, idx: number) => {
-                      const isFaint = score.value === '--';
+                    {PARENT_SCORE_COLUMNS.map((col) => {
+                      const value = pickScoreValue(item.scores, col.aliases);
                       return (
-                        <View key={idx} style={[styles.scoreBox, isFaint && styles.scoreBoxFaint]}>
+                        <View key={col.key} style={styles.scoreBox}>
                           <Text style={styles.scoreTypeLabel} numberOfLines={1}>
-                            {score.label}
+                            {col.label}
                           </Text>
-                          <Text style={[styles.scoreValueText, isFaint && styles.scoreValueFaint]} numberOfLines={1}>
-                            {score.value}
+                          <Text
+                            style={value !== null ? styles.scoreValueText : styles.scoreValuePlaceholder}
+                            numberOfLines={1}
+                          >
+                            {value !== null ? value.toFixed(1) : '--'}
                           </Text>
                         </View>
                       );
@@ -270,41 +323,106 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
             {/* Card: Lịch Kiểm Tra */}
             <View style={styles.examSectionCard}>
               <View style={styles.examCardHeader}>
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                  <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <Line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" />
-                  <Line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
-                  <Line x1="3" y1="10" x2="21" y2="10" />
-                </Svg>
-                <Text style={styles.examCardTitle} numberOfLines={1}>Lịch Kiểm Tra</Text>
+                <View style={styles.examHeaderLeft}>
+                  <View style={styles.examHeaderIcon}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                      <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <Line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" />
+                      <Line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
+                      <Line x1="3" y1="10" x2="21" y2="10" />
+                    </Svg>
+                  </View>
+                  <View style={styles.examHeaderTextWrap}>
+                    <Text style={styles.examCardTitle} numberOfLines={1}>Lịch Kiểm Tra</Text>
+                    <Text style={styles.examCardSubtitle}>Các bài kiểm tra sắp tới của con</Text>
+                  </View>
+                </View>
+                {examsList.length > 0 && (
+                  <View style={styles.examCountPill}>
+                    <Text style={styles.examCountText}>{examsList.length} bài</Text>
+                  </View>
+                )}
               </View>
 
-              {examsList.map((exam, idx) => (
-                <View key={exam.id || idx}>
-                  <View style={styles.examRow}>
-                    <View style={styles.examRowLeft}>
-                      <View style={styles.examIconTile}>
-                        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                          {idx === 0 ? (
-                            <>
-                              <Rect x="3" y="4" width="18" height="18" rx="2" />
-                              <Path d="M16 2v4M8 2v4M3 10h18" />
-                            </>
-                          ) : (
-                            <>
-                              <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </>
-                          )}
-                        </Svg>
-                      </View>
-                      <Text style={styles.examTitleText} numberOfLines={1}>{exam.title}</Text>
-                    </View>
-                    <Text style={styles.examDateBadge} numberOfLines={1}>{exam.date_label}</Text>
+              {examsList.length === 0 ? (
+                <View style={styles.examEmptyWrap}>
+                  <View style={styles.examEmptyIcon}>
+                    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
+                      <Rect x="3" y="4" width="18" height="18" rx="3" />
+                      <Path d="M8 2v4M16 2v4M3 10h18" />
+                      <Path d="M9 15l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
                   </View>
-                  {idx < examsList.length - 1 && <View style={styles.hairlineDivider} />}
+                  <Text style={styles.examEmptyTitle}>Chưa có lịch kiểm tra sắp tới</Text>
+                  <Text style={styles.examEmptySub}>Lịch kiểm tra mới sẽ được giáo viên cập nhật tại đây.</Text>
                 </View>
-              ))}
+              ) : (
+                examsList.map((exam, idx) => (
+                  <View key={exam.id || idx}>
+                    <View style={styles.examItemRow}>
+                      <View style={[styles.examDateTile, exam.is_today && styles.examDateTileToday]}>
+                        <Text style={[styles.examWeekdayText, exam.is_today && styles.examDateTextToday]}>
+                          {exam.weekday_short || '--'}
+                        </Text>
+                        <Text style={[styles.examDayText, exam.is_today && styles.examDateTextToday]}>
+                          {exam.day_number || '--'}
+                        </Text>
+                        <Text style={[styles.examMonthText, exam.is_today && styles.examDateTextToday]}>
+                          {exam.month_label || exam.date_label}
+                        </Text>
+                      </View>
+
+                      <View style={styles.examInfoWrap}>
+                        <View style={styles.examBadgeRow}>
+                          <View style={styles.examTypeBadge}>
+                            <Text style={styles.examTypeBadgeText} numberOfLines={1}>
+                              {exam.exam_type_label}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.examCountdownPill,
+                              exam.is_today && styles.examCountdownPillToday,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.examCountdownText,
+                                exam.is_today && styles.examCountdownTextToday,
+                              ]}
+                            >
+                              {exam.countdown_label}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.examSubjectRow}>
+                          <View
+                            style={[
+                              styles.examSubjectDot,
+                              { backgroundColor: exam.subject_color || '#F58F4C' },
+                            ]}
+                          />
+                          <Text style={styles.examSubjectText} numberOfLines={1}>
+                            {exam.subject_name}
+                          </Text>
+                        </View>
+
+                        <Text style={styles.examDateText} numberOfLines={1}>
+                          {exam.weekday_label}, {exam.date_label}
+                        </Text>
+
+                        {exam.note ? (
+                          <Text style={styles.examNoteText} numberOfLines={2}>
+                            {exam.note}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    {idx < examsList.length - 1 && <View style={styles.hairlineDivider} />}
+                  </View>
+                ))
+              )}
             </View>
 
             {/* Các Card Nhận Xét: FIX LỖI RỚT NGÀY THÁNG */}
@@ -547,6 +665,46 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
           <Text style={styles.dockLabel}>Cá nhân</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ================= BOTTOM SHEET CHỌN THÁNG (Chuyên cần) ================= */}
+      <Modal
+        visible={isMonthSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsMonthSheetVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.monthSheetOverlay}
+          activeOpacity={1}
+          onPress={() => setIsMonthSheetVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.monthSheetCard}>
+            <Text style={styles.monthSheetTitle}>Chọn tháng cần xem</Text>
+            {monthOptions.map((key) => {
+              const isSelected = key === attendanceMonth;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.monthSheetItem, isSelected && styles.monthSheetItemActive]}
+                  onPress={() => {
+                    setAttendanceMonth(key);
+                    setIsMonthSheetVisible(false);
+                  }}
+                >
+                  <Text style={[styles.monthSheetItemText, isSelected && styles.monthSheetItemTextActive]}>
+                    {monthKeyLabel(key)}
+                  </Text>
+                  {isSelected && (
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={3}>
+                      <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -738,31 +896,35 @@ const styles = StyleSheet.create({
   scoreBox: {
     flex: 1,
     backgroundColor: '#FFF1E6',
-    borderRadius: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 56,
-  },
-  scoreBoxFaint: {
-    opacity: 0.65,
   },
   scoreTypeLabel: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#554339',
-    marginBottom: 3,
+    lineHeight: 14,
+    fontWeight: '500',
+    color: '#6B6880',
+    marginBottom: 2,
     textAlign: 'center',
   },
   scoreValueText: {
-    fontSize: 18,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: '800',
-    color: '#1C192C',
+    color: '#1E1B2E',
+    marginTop: 2,
     textAlign: 'center',
   },
-  scoreValueFaint: {
-    color: '#887367',
+  scoreValuePlaceholder: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: '#6B6880',
+    marginTop: 2,
+    textAlign: 'center',
   },
 
   /* PAR-02b Remarks & Exams */
@@ -779,46 +941,183 @@ const styles = StyleSheet.create({
   examCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 14,
+  },
+  examHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  examHeaderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  examHeaderTextWrap: {
+    flex: 1,
   },
   examCardTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1E1B2E',
   },
-  examRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
+  examCardSubtitle: {
+    fontSize: 11,
+    color: '#8A7B72',
+    marginTop: 2,
   },
-  examRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  examIconTile: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  examCountPill: {
     backgroundColor: '#FFF1E6',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    flexShrink: 0,
+  },
+  examCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B9671F',
+  },
+  examEmptyWrap: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  examEmptyIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#FFF4EA',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
   },
-  examTitleText: {
-    fontSize: 14,
-    fontWeight: '600',
+  examEmptyTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
     color: '#1E1B2E',
-    flex: 1,
   },
-  examDateBadge: {
-    fontSize: 12,
-    fontWeight: '600',
+  examEmptySub: {
+    fontSize: 11.5,
+    color: '#8A7B72',
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  examItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  examDateTile: {
+    width: 54,
+    borderRadius: 14,
+    backgroundColor: '#FFF4EA',
+    borderWidth: 1,
+    borderColor: '#FFE1CC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+  },
+  examDateTileToday: {
+    backgroundColor: '#F58F4C',
+    borderColor: '#F58F4C',
+  },
+  examWeekdayText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B4744B',
+    textTransform: 'uppercase',
+  },
+  examDayText: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    lineHeight: 25,
+    marginVertical: 1,
+  },
+  examMonthText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B4744B',
+  },
+  examDateTextToday: {
+    color: '#FFFFFF',
+  },
+  examInfoWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  examBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  examTypeBadge: {
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    flexShrink: 1,
+  },
+  examTypeBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#B9671F',
+  },
+  examCountdownPill: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    marginLeft: 'auto',
+  },
+  examCountdownPillToday: {
+    backgroundColor: '#FFE3D1',
+  },
+  examCountdownText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: '#6B6880',
-    flexShrink: 0,
-    marginLeft: 8,
+  },
+  examCountdownTextToday: {
+    color: '#C2410C',
+  },
+  examSubjectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  examSubjectDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  examSubjectText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    flexShrink: 1,
+  },
+  examDateText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#8A7B72',
+    marginTop: 3,
+  },
+  examNoteText: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: '#6B6880',
+    marginTop: 4,
   },
   hairlineDivider: {
     height: 1,
@@ -1178,5 +1477,45 @@ const styles = StyleSheet.create({
     color: '#6B6880',
     textAlign: 'center',
     lineHeight: 18,
+  },
+
+  monthSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 27, 46, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  monthSheetCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 28,
+  },
+  monthSheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E1B2E',
+    marginBottom: 12,
+  },
+  monthSheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  monthSheetItemActive: {
+    backgroundColor: '#FFF3E6',
+  },
+  monthSheetItemText: {
+    fontSize: 15,
+    color: '#3F3D56',
+    fontWeight: '500',
+  },
+  monthSheetItemTextActive: {
+    color: '#C2570F',
+    fontWeight: '700',
   },
 });

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../config/api';
+import { api } from './http';
 import { authService } from './auth.service';
 
 export interface UserProfile {
@@ -30,29 +30,17 @@ export interface ChangePasswordPayload {
 export const userService = {
   async getProfile(): Promise<UserProfile> {
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/users/me`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-      });
-
-      if (response.ok) {
-        const resJson = await response.json();
-        const user = resJson.data || resJson;
-        if (user && user.id) {
-          return {
-            id: user.id,
-            phone: user.phone || '',
-            full_name: user.full_name || 'Người dùng',
-            email: user.email || '',
-            role: user.role || 'TEACHER_HOMEROOM',
-            school_name: user.school_name || 'Chưa cập nhật',
-            teaching_subjects: user.teaching_subjects || [],
-          };
-        }
+      const user = await api<any>('/users/me');
+      if (user && user.id) {
+        return {
+          id: user.id,
+          phone: user.phone || '',
+          full_name: user.full_name || 'Người dùng',
+          email: user.email || '',
+          role: user.role || 'TEACHER_HOMEROOM',
+          school_name: user.school_name || 'Chưa cập nhật',
+          teaching_subjects: user.teaching_subjects || [],
+        };
       }
     } catch (error: any) {
       console.warn('Lỗi tải thông tin cá nhân:', error.message);
@@ -72,29 +60,13 @@ export const userService = {
   },
 
   async updateProfile(payload: UpdateProfilePayload): Promise<UserProfile> {
-    try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/users/profile`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Cập nhật hồ sơ thất bại');
-      }
-
-      const resJson = await response.json();
-      const updated = resJson.data || resJson;
-      authService.setUser({ ...authService.getUser(), ...updated });
-      return updated;
-    } catch (error: any) {
-      throw error;
-    }
+    const updated = await api<UserProfile>('/users/profile', {
+      method: 'PATCH',
+      body: payload,
+      errorMessage: 'Cập nhật hồ sơ thất bại',
+    });
+    authService.setUser({ ...authService.getUser(), ...updated } as any);
+    return updated;
   },
 
   async changePassword(payload: ChangePasswordPayload) {

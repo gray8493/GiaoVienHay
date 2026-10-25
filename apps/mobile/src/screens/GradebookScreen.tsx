@@ -29,23 +29,20 @@ import Svg, {
   G,
 } from 'react-native-svg';
 import { gradesService } from '../services/grades.service';
-import { authService } from '../services/auth.service';
-import { classService } from '../services/class.service';
-
-const SUBJECT_LABELS: Record<string, string> = {
-  MATH: 'Toán Học',
-  LIT: 'Ngữ Văn',
-  ENG: 'Tiếng Anh',
-  CS: 'Tin Học',
-  SCIENCE: 'Khoa học',
-  ETHICS: 'Đạo đức',
-  HISTORY: 'Lịch sử',
-  GEOGRAPHY: 'Địa lí',
-};
+import { classService, SUBJECT_LABELS, SCHOOL_SUBJECTS } from '../services/class.service';
+import { Crown3D, Trophy3D } from '../components/Podium3DAssets';
 
 const buildSubjectOptions = (codes: string[]) => {
   const unique = Array.from(new Set(codes.filter(Boolean)));
   return unique.map((code) => ({ code, label: SUBJECT_LABELS[code] || code }));
+};
+
+// Tuần hiện tại tính từ đầu năm học (tháng 9) để nhãn vinh danh luôn đúng thời điểm
+const getCurrentAcademicWeek = (date: Date = new Date()) => {
+  const startYear = date.getMonth() >= 8 ? date.getFullYear() : date.getFullYear() - 1;
+  const academicYearStart = new Date(startYear, 8, 1);
+  const days = Math.floor((date.getTime() - academicYearStart.getTime()) / 86400000);
+  return Math.max(1, Math.floor(days / 7) + 1);
 };
 
 // Bề rộng ô điểm: tính sao cho cả 5 cột (Miệng/15p/1 Tiết/Thi GK/Thi CK) khít 1 hàng
@@ -128,7 +125,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
 
   // Quản lý môn học & chế độ Xem (Visibility / Read-only) theo Backend & phân quyền
   const [selectedSubject, setSelectedSubject] = useState<string>('MATH');
-  const [subjectOptions, setSubjectOptions] = useState<{ code: string; label: string }[]>([{ code: 'MATH', label: 'Toán Học' }]);
+  const [subjectOptions, setSubjectOptions] = useState<{ code: string; label: string }[]>([{ code: 'MATH', label: 'Toán' }]);
   const [isClassHomeroom, setIsClassHomeroom] = useState<boolean>(false);
   const [selectedSemester, setSelectedSemester] = useState<number>(1);
   const [pickerView, setPickerView] = useState<'subject' | 'semester' | null>(null);
@@ -147,21 +144,27 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
         classService.getClassDetail(currentClassId).catch(() => null),
       ]);
 
-      // Xác định GVCN + danh sách môn userrights: GVCN xem đủ môn, GVBM chỉ môn được phân công
-      const clsAny = classDetail as any;
-      const myId = authService.getUser()?.id || '';
-      const homeroom = !!(clsAny && (clsAny.homeroom_teacher_id || clsAny.homeroomTeacherId) === myId);
-      setIsClassHomeroom(homeroom);
-      const sts: any[] = Array.isArray(clsAny?.subject_teachers) ? clsAny.subject_teachers : [];
-      const stCodes = sts.map((st: any) => st.subject_code || st.subjectCode).filter(Boolean);
-      if (homeroom || sts.length === 0) {
-        setSubjectOptions(buildSubjectOptions(['MATH', 'LIT', 'CS', ...stCodes]));
+      // Xác định GVCN + danh sách môn theo quyền: GVCN xem đủ môn của trường,
+      // GVBM chỉ đúng môn được phân công (chuỗi dữ liệu thật: phân công lớp → my-subject → hồ sơ)
+      const role = await classService
+        .getMyRoleInClass(currentClassId, classDetail)
+        .catch(() => ({
+          isHomeroom: false,
+          myAssignedCodes: [],
+          allAssignedCodes: [],
+          apiSubjectCodes: [],
+          profileSubjectCodes: [],
+        }));
+      setIsClassHomeroom(role.isHomeroom);
+      if (role.isHomeroom) {
+        setSubjectOptions(buildSubjectOptions([...role.allAssignedCodes, ...SCHOOL_SUBJECTS]));
       } else {
-        const mine = sts
-          .filter((st: any) => (st.teacher_id || st.teacherId) === myId)
-          .map((st: any) => st.subject_code || st.subjectCode)
-          .filter(Boolean);
-        setSubjectOptions(buildSubjectOptions(mine.length > 0 ? mine : ['MATH']));
+        const mine = role.myAssignedCodes.length > 0
+          ? role.myAssignedCodes
+          : role.apiSubjectCodes.length > 0
+          ? role.apiSubjectCodes
+          : role.profileSubjectCodes;
+        setSubjectOptions(buildSubjectOptions(mine));
       }
 
       if (lbRes && lbRes.top_students && lbRes.top_students.length > 0) {
@@ -591,40 +594,6 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
       />
 
       <SafeAreaView style={styles.safeArea}>
-        {/* Fixed Header: Profile & Notifications */}
-        <View style={styles.topHeader}>
-          <View style={styles.profileRow}>
-            <View style={styles.profileAvatarWrap}>
-              <Image
-                source={{
-                  uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD1T89ldUCu91qNyOe5l_mf-jHDD_MHVfYxPQX-5dugu0Zo_TnDF2SP7zhn6AbEreyWGcReZrQyjU7v6BJjnW5rb7Air4XhYqD_pdGsLiDyt7moEDkNBpUd_9Q_CLvtjTAViAM7yFTmidv8B7rIo1w1iyYt9-qGcowZ35Lj3m5k9B8a39cBy6Z7x3_i6vmHyMLpcvcJlPAzcHc6uhr3mjQW727psowj5Ae4TpVkjgLLVCjNopROlPL3fA',
-                }}
-                style={styles.profileAvatarImg}
-              />
-              <View style={styles.onlineBadgeGreen} />
-            </View>
-            <View>
-              <Text style={styles.greetingText}>Xin chào,</Text>
-              <Text style={styles.teacherNameText}>{authService.getUser()?.full_name || 'Thầy/Cô'}</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.notiCircleBtn}
-            activeOpacity={0.8}
-            accessibilityLabel="Thông báo"
-          >
-            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" strokeWidth={2}>
-              <Path
-                d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-            <View style={styles.redDot} />
-          </TouchableOpacity>
-        </View>
-
         {/* Scrollable Content */}
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
@@ -703,114 +672,129 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
           </View>
 
           {/* Hero Podium Bento Card (Weekly Honor) */}
-          <View style={styles.heroPodiumCard}>
-            {/* 3D Gold Trophy Icon Top Right */}
-            <View style={styles.podiumTrophyWrap}>
-              <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
+          <LinearGradient
+            colors={['#3B38A8', '#4F46E5', '#6D28D9']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroPodiumCard}
+          >
+            {/* Background 3D Ambient Aura & Sparkles */}
+            <View style={styles.podiumBgAura} pointerEvents="none">
+              <Svg width="100%" height="100%" viewBox="0 0 360 220" fill="none">
                 <Defs>
-                  <SvgLinearGradient id="trophyCup" x1="24" y1="16" x2="56" y2="52">
-                    <Stop offset="0%" stopColor="#FFFBF2" />
-                    <Stop offset="40%" stopColor="#FFE8B3" />
-                    <Stop offset="80%" stopColor="#FFD480" />
-                    <Stop offset="100%" stopColor="#F8BE54" />
-                  </SvgLinearGradient>
-                  <SvgLinearGradient id="glossHighlight" x1="28" y1="18" x2="38" y2="32">
-                    <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.9} />
-                    <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
-                  </SvgLinearGradient>
-                  <SvgLinearGradient id="pedestalGrad" x1="28" y1="56" x2="52" y2="70">
-                    <Stop offset="0%" stopColor="#FFFFFF" />
-                    <Stop offset="100%" stopColor="#EDE9FE" />
-                  </SvgLinearGradient>
+                  <SvgRadialGradient id="bgGlowRadial" cx="85%" cy="20%" r="55%">
+                    <Stop offset="0%" stopColor="#FBBF24" stopOpacity={0.35} />
+                    <Stop offset="50%" stopColor="#818CF8" stopOpacity={0.15} />
+                    <Stop offset="100%" stopColor="#4F46E5" stopOpacity={0} />
+                  </SvgRadialGradient>
+                  <SvgRadialGradient id="leftAmbient" cx="15%" cy="80%" r="45%">
+                    <Stop offset="0%" stopColor="#C084FC" stopOpacity={0.25} />
+                    <Stop offset="100%" stopColor="#4F46E5" stopOpacity={0} />
+                  </SvgRadialGradient>
                 </Defs>
-                <Ellipse cx="40" cy="66" rx="16" ry="4" fill="rgba(0,0,0,0.18)" />
-                <Rect x="28" y="58" width="24" height="8" rx="4" fill="url(#pedestalGrad)" />
-                <Rect x="36" y="46" width="8" height="13" rx="3" fill="url(#trophyCup)" />
-                <Path d="M24 16C24 16 23 38 40 38C57 38 56 16 56 16H24Z" fill="url(#trophyCup)" />
-                <Path d="M26 18C28 26 36 32 40 32C44 32 52 26 54 18" stroke="#FFFFFF" strokeWidth={1.5} strokeLinecap="round" opacity={0.4} />
-                <Ellipse cx="32" cy="24" rx="5" ry="7" fill="url(#glossHighlight)" />
-                <Path d="M24 20C17 20 14 26 14 31C14 37 19 40 25 40" stroke="url(#trophyCup)" strokeWidth={4.5} strokeLinecap="round" fill="none" />
-                <Path d="M56 20C63 20 66 26 66 31C66 37 61 40 55 40" stroke="url(#trophyCup)" strokeWidth={4.5} strokeLinecap="round" fill="none" />
-                <Path d="M40 22L41.8 26.2L46.2 26.6L42.8 29.5L43.8 33.9L40 31.6L36.2 33.9L37.2 29.5L33.8 26.6L38.2 26.2L40 22Z" fill="#FFFFFF" fillOpacity={0.9} />
+                <Rect x="0" y="0" width="360" height="220" fill="url(#bgGlowRadial)" />
+                <Rect x="0" y="0" width="360" height="220" fill="url(#leftAmbient)" />
+                {/* Sparkle stars */}
+                <Path d="M 24 28 Q 24 33 29 33 Q 24 33 24 38 Q 24 33 19 33 Q 24 33 24 28 Z" fill="#FDE047" opacity={0.6} />
+                <Path d="M 120 18 Q 120 21 123 21 Q 120 21 120 24 Q 120 21 117 21 Q 120 21 120 18 Z" fill="#FFFFFF" opacity={0.5} />
+                <Circle cx="70" cy="45" r="1.5" fill="#FEF08A" opacity={0.7} />
+                <Circle cx="150" cy="35" r="1.2" fill="#FFFFFF" opacity={0.5} />
               </Svg>
             </View>
 
+            {/* 3D Gold Trophy Icon Top Right */}
+            <View style={styles.podiumTrophyWrap}>
+              <Trophy3D size={84} />
+            </View>
+
             <View style={styles.podiumHeaderTexts}>
-              <Text style={styles.podiumSubBadge}>VINH DANH TUẦN 14</Text>
+              <View style={styles.podiumSubBadgeContainer}>
+                <Text style={styles.podiumSubBadgeDot}>✦</Text>
+                <Text style={styles.podiumSubBadge}>VINH DANH TUẦN {getCurrentAcademicWeek()}</Text>
+              </View>
               <Text style={styles.podiumTitle}>Top Học Sinh Xuất Sắc</Text>
             </View>
 
-            {/* 3 Pillars */}
-            {leaderboard.length >= 3 ? (
-              <View style={styles.podiumGrid}>
-                {/* Rank 2 */}
-                <View style={styles.podiumCol}>
-                  <View style={styles.podiumAvatarWrap}>
-                    <Image
-                      source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[1].student_name}` }}
-                      style={styles.podiumAvatarImgSmall}
-                    />
-                    <View style={styles.rankPillWhite}>
-                      <Text style={styles.rankPillText}>2</Text>
+            {/* 3 Pillars: chỉ hiển thị học sinh thật đã có điểm của lớp hiện tại */}
+            {leaderboard.length > 0 ? (
+              <View style={[styles.podiumGrid, leaderboard.length === 1 && { justifyContent: 'center' }]}>
+                {/* Hạng 2 */}
+                {leaderboard[1] && (
+                  <View style={styles.podiumCol}>
+                    <View style={styles.podiumAvatarWrap}>
+                      <View style={styles.silverAvatarRing}>
+                        <Image
+                          source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[1].student_name}` }}
+                          style={styles.podiumAvatarImgSmall}
+                        />
+                      </View>
+                      <View style={styles.rankPillSilver}>
+                        <Text style={styles.rankPillTextSilver}>2</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.podiumStudentName} numberOfLines={1}>{leaderboard[1].student_name}</Text>
+                    <Text style={styles.podiumStudentScore}>TB: {leaderboard[1].score}</Text>
+                    <View style={styles.podiumPillar2}>
+                      <Text style={styles.pillarRankLabel}>HẠNG 2</Text>
                     </View>
                   </View>
-                  <Text style={styles.podiumStudentName} numberOfLines={1}>{leaderboard[1].student_name}</Text>
-                  <Text style={styles.podiumStudentScore}>TB: {leaderboard[1].score}</Text>
-                  <View style={styles.podiumPillar2}>
-                    <Text style={styles.pillarRankLabel}>HẠNG 2</Text>
-                    <Text style={styles.medalEmoji}>🥈</Text>
-                  </View>
-                </View>
+                )}
 
-                {/* Rank 1: Quán Quân */}
+                {/* Hạng 1: Quán Quân */}
                 <View style={styles.podiumColCenter}>
                   <View style={styles.crownWrap}>
-                    <Text style={styles.crownEmoji}>👑</Text>
+                    <Crown3D size={32} />
                   </View>
                   <View style={styles.podiumAvatarWrap}>
-                    <Image
-                      source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[0].student_name}` }}
-                      style={styles.podiumAvatarImgLarge}
-                    />
-                    <View style={styles.rankPillOrange}>
-                      <Text style={styles.rankPillTextWhite}>1</Text>
+                    <View style={styles.goldAvatarRing}>
+                      <Image
+                        source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[0].student_name}` }}
+                        style={styles.podiumAvatarImgLarge}
+                      />
+                    </View>
+                    <View style={styles.rankPillGold}>
+                      <Text style={styles.rankPillTextGold}>1</Text>
                     </View>
                   </View>
-                  <Text style={styles.podiumStudentName} numberOfLines={1}>{leaderboard[0].student_name}</Text>
+                  <Text style={styles.podiumStudentNameCenter} numberOfLines={1}>{leaderboard[0].student_name}</Text>
                   <Text style={styles.podiumStudentScoreCenter}>TB: {leaderboard[0].score}</Text>
                   <View style={styles.podiumPillar1}>
-                    <Text style={styles.pillarRankLabelChampion}>QUÁN QUÂN</Text>
-                    <Text style={styles.starCluster}>⭐⭐⭐</Text>
+                    <View style={styles.championHeaderBadge}>
+                      <Text style={styles.pillarRankLabelChampion}>QUÁN QUÂN</Text>
+                    </View>
                   </View>
                 </View>
 
-                {/* Rank 3 */}
-                <View style={styles.podiumCol}>
-                  <View style={styles.podiumAvatarWrap}>
-                    <Image
-                      source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[2].student_name}` }}
-                      style={styles.podiumAvatarImgSmall}
-                    />
-                    <View style={styles.rankPillWhite}>
-                      <Text style={styles.rankPillText}>3</Text>
+                {/* Hạng 3 */}
+                {leaderboard[2] && (
+                  <View style={styles.podiumCol}>
+                    <View style={styles.podiumAvatarWrap}>
+                      <View style={styles.bronzeAvatarRing}>
+                        <Image
+                          source={{ uri: `https://api.dicebear.com/7.x/bottts/png?seed=${leaderboard[2].student_name}` }}
+                          style={styles.podiumAvatarImgSmall}
+                        />
+                      </View>
+                      <View style={styles.rankPillBronze}>
+                        <Text style={styles.rankPillTextBronze}>3</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.podiumStudentName} numberOfLines={1}>{leaderboard[2].student_name}</Text>
+                    <Text style={styles.podiumStudentScore}>TB: {leaderboard[2].score}</Text>
+                    <View style={styles.podiumPillar3}>
+                      <Text style={styles.pillarRankLabel}>HẠNG 3</Text>
                     </View>
                   </View>
-                  <Text style={styles.podiumStudentName} numberOfLines={1}>{leaderboard[2].student_name}</Text>
-                  <Text style={styles.podiumStudentScore}>TB: {leaderboard[2].score}</Text>
-                  <View style={styles.podiumPillar3}>
-                    <Text style={styles.pillarRankLabel}>HẠNG 3</Text>
-                    <Text style={styles.medalEmoji}>🥉</Text>
-                  </View>
-                </View>
+                )}
               </View>
             ) : (
-              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                 <Text style={{ fontSize: 13, color: '#FFFFFF', opacity: 0.9 }}>
-                  Chưa có dữ liệu vinh danh tuần này cho môn học.
+                  Chưa có dữ liệu điểm môn {getSubjectDisplayName()} của lớp để vinh danh.
                 </Text>
               </View>
             )}
-          </View>
+          </LinearGradient>
 
           {/* Search Bar */}
           <View style={styles.searchBarBox}>
@@ -875,7 +859,14 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
 
           {/* Student Grade Cards Feed */}
           <View style={styles.studentsGradeFeed}>
-            {students.length === 0 ? (
+            {isLoading && students.length === 0 ? (
+              <View style={{ padding: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 }}>
+                <ActivityIndicator size="large" color="#F58F4C" />
+                <Text style={{ marginTop: 14, fontSize: 13, color: '#6B6880', fontWeight: '600' }}>
+                  Đang tải bảng điểm học sinh...
+                </Text>
+              </View>
+            ) : students.length === 0 ? (
               <View style={{ padding: 32, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E1B2E', marginBottom: 6 }}>
                   {searchQuery ? 'Không tìm thấy học sinh phù hợp' : 'Chưa có dữ liệu sổ điểm'}
@@ -1048,7 +1039,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                 <Line x1="8" y1="2" x2="8" y2="6" />
                 <Line x1="3" y1="10" x2="21" y2="10" />
               </Svg>
-              <Text style={styles.dockTabTextInactive}>Lịch dạy</Text>
+              <Text style={styles.dockTabTextInactive}>Trang chủ</Text>
             </TouchableOpacity>
 
             {/* Điểm danh */}
@@ -1417,75 +1408,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 6,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  profileAvatarWrap: {
-    position: 'relative',
-    width: 40,
-    height: 40,
-  },
-  profileAvatarImg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  onlineBadgeGreen: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#10B981',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  greetingText: {
-    fontSize: 13,
-    lineHeight: 16,
-    color: '#6B6880',
-  },
-  teacherNameText: {
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: '800',
-    color: '#1E1B2E',
-  },
-  notiCircleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    position: 'relative',
-  },
-  redDot: {
-    position: 'absolute',
-    top: 7,
-    right: 7,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#EF4444',
-  },
-
   scrollContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -1596,181 +1518,277 @@ const styles = StyleSheet.create({
 
   /* Hero Podium Bento Card */
   heroPodiumCard: {
-    backgroundColor: '#5E5CE6',
-    borderRadius: 22,
-    padding: 14,
+    borderRadius: 24,
+    padding: 16,
+    paddingTop: 14,
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#5E5CE6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowColor: '#4338CA',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+  },
+  podiumBgAura: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   podiumTrophyWrap: {
     position: 'absolute',
-    top: -4,
-    right: 4,
+    top: 2,
+    right: 6,
+    zIndex: 1,
   },
   podiumHeaderTexts: {
-    marginBottom: 8,
+    marginBottom: 6,
+    zIndex: 2,
+  },
+  podiumSubBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
+  },
+  podiumSubBadgeDot: {
+    fontSize: 10,
+    color: '#FDE047',
   },
   podiumSubBadge: {
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.9)',
-    letterSpacing: 0.6,
+    color: '#FDE047',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   podiumTitle: {
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: '800',
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: '900',
     color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   podiumGrid: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingTop: 4,
-    gap: 6,
+    paddingTop: 8,
+    gap: 8,
+    zIndex: 2,
   },
   podiumCol: {
     flex: 1,
     alignItems: 'center',
   },
   podiumColCenter: {
-    flex: 1.1,
+    flex: 1.15,
     alignItems: 'center',
-    marginTop: -8,
+    marginTop: -10,
   },
   crownWrap: {
-    marginBottom: 2,
-  },
-  crownEmoji: {
-    fontSize: 16,
+    marginBottom: -2,
+    zIndex: 3,
   },
   podiumAvatarWrap: {
     position: 'relative',
-    marginBottom: 4,
+    marginBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goldAvatarRing: {
+    padding: 3,
+    borderRadius: 999,
+    backgroundColor: 'rgba(251, 191, 36, 0.35)',
+    borderWidth: 2,
+    borderColor: '#FDE047',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  silverAvatarRing: {
+    padding: 2.5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(226, 232, 240, 0.25)',
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+  },
+  bronzeAvatarRing: {
+    padding: 2.5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(249, 115, 22, 0.25)',
+    borderWidth: 2,
+    borderColor: '#FDBA74',
   },
   podiumAvatarImgSmall: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
   },
   podiumAvatarImgLarge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  rankPillWhite: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  rankPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#1E1B2E',
-  },
-  rankPillOrange: {
+  rankPillGold: {
     position: 'absolute',
-    bottom: -2,
+    bottom: -3,
     right: -2,
-    width: 19,
-    height: 19,
-    borderRadius: 9.5,
-    backgroundColor: '#F58F4C',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#D97706',
+    borderWidth: 1.5,
+    borderColor: '#FEF08A',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rankPillTextWhite: {
+  rankPillTextGold: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  rankPillSilver: {
+    position: 'absolute',
+    bottom: -3,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#475569',
+    borderWidth: 1.5,
+    borderColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankPillTextSilver: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  rankPillBronze: {
+    position: 'absolute',
+    bottom: -3,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#9A3412',
+    borderWidth: 1.5,
+    borderColor: '#FED7AA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankPillTextBronze: {
+    fontSize: 10,
+    fontWeight: '900',
     color: '#FFFFFF',
   },
   podiumStudentName: {
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 16,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
   },
+  podiumStudentNameCenter: {
+    fontSize: 13.5,
+    lineHeight: 17,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   podiumStudentScore: {
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.85)',
     marginTop: 1,
   },
   podiumStudentScoreCenter: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 11.5,
+    lineHeight: 15,
+    fontWeight: '800',
+    color: '#FEF08A',
     marginTop: 1,
   },
   podiumPillar1: {
     width: '100%',
-    height: 64,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    marginTop: 6,
+    height: 56,
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   podiumPillar2: {
     width: '100%',
-    height: 48,
+    height: 44,
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    marginTop: 6,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   podiumPillar3: {
     width: '100%',
-    height: 42,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    marginTop: 6,
+    height: 38,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  championHeaderBadge: {
+    backgroundColor: 'rgba(254, 240, 138, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(254, 240, 138, 0.6)',
   },
   pillarRankLabelChampion: {
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
+    fontWeight: '900',
+    color: '#FEF08A',
+    letterSpacing: 0.8,
   },
   pillarRankLabel: {
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  starCluster: {
-    fontSize: 10,
-    marginTop: 2,
-  },
-  medalEmoji: {
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 10.5,
+    lineHeight: 14,
+    fontWeight: '800',
+    color: 'rgba(255, 255, 255, 0.92)',
+    letterSpacing: 0.5,
   },
 
   /* Search Bar */

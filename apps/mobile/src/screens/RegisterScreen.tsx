@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { authService } from '../services/auth.service';
+import { Bell3D } from '../components/Bell3D';
 
 interface RegisterScreenProps {
   initialRole?: 'TEACHER' | 'PARENT';
@@ -172,13 +173,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
               </View>
 
               <View style={styles.headerImageWrap}>
-                <Image
-                  source={{
-                    uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBHapMgX3qy1dHYA-_eL84gCtaDIt24Q3VlJ43EgH147CRz-febHoUo7lciHHh-YVEjpE0L2XGn0BvaZSZfazNpFzbDEYN0uzYxkK4BaCldWlzv1ry-b-yWm3zAeL8z_OjsE6ANCNgBar47ljPIIkFhB6B5wPsfk-oQ2MuAUWvFCTRBV8TmJI6qkBr5qV8ZDCFZzGuniUntnbZCb6g5stgy7HsN-RJ7oyq-fZe570wgJgXqMo6NC1FLXw',
-                  }}
-                  style={styles.header3DAsset}
-                  resizeMode="contain"
-                />
+                <Bell3D size={52} tiltAngle={-6} animated={true} />
               </View>
             </View>
 

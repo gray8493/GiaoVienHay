@@ -67,13 +67,15 @@ const examCountdownLabel = (dateStr?: string) => {
 interface TeacherHomeScreenProps {
   currentClassId?: string;
   currentClassName?: string;
+  currentSubjectName?: string;
+  currentRoleType?: 'HOMEROOM' | 'SUBJECT';
   hasNoClass?: boolean;
   onSelectClass?: (classId: string, className?: string, subjectName?: string) => void;
   onEnterClassroom?: () => void;
   onOpenAIQuiz?: () => void;
   onOpenWheel?: () => void;
   onManageClass?: () => void;
-  onOpenHealthInsurance?: () => void;
+  onOpenHealthInsurance?: (classId?: string) => void;
   onOpenRemarksExam?: (initialTab?: 'REMARKS' | 'EXAMS') => void;
   onOpenNotifications?: () => void;
   onTabChange?: (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => void;
@@ -82,6 +84,8 @@ interface TeacherHomeScreenProps {
 export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   currentClassId = '',
   currentClassName = '',
+  currentSubjectName = '',
+  currentRoleType,
   hasNoClass = false,
   onSelectClass,
   onEnterClassroom,
@@ -128,8 +132,10 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       name: currentClassName || 'Chưa có lớp',
       studentsCount: 0,
       schoolName: '',
-      roleType: 'HOMEROOM' as const,
-      subjectBadge: '',
+      // Dùng vai trò/môn đích danh truyền từ màn Lớp Của Tôi để không nháy sai UI
+      // trong lúc chờ API danh sách lớp trả về
+      roleType: currentRoleType || 'HOMEROOM',
+      subjectBadge: currentRoleType === 'SUBJECT' ? currentSubjectName || 'Bộ môn' : 'Chủ nhiệm',
     };
   const isHomeroom = currentClass.roleType === 'HOMEROOM';
   const totalStudents = currentClass.studentsCount;
@@ -178,7 +184,14 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
             studentsCount: typeof c.student_count === 'number' ? c.student_count : 0,
             schoolName: c.school_name || '',
             roleType: c.role_type || 'SUBJECT',
-            subjectBadge: c.role_type === 'HOMEROOM' ? 'Chủ nhiệm' : c.subject_name || 'Bộ môn',
+            subjectBadge:
+              c.role_type === 'HOMEROOM'
+                ? c.subject_names && c.subject_names.length > 0
+                  ? `Chủ nhiệm · ${c.subject_names.join(', ')}`
+                  : 'Chủ nhiệm'
+                : c.subject_names && c.subject_names.length > 0
+                ? c.subject_names.join(', ')
+                : c.subject_name || 'Bộ môn',
           }));
           setClassesList(mapped);
           if (mapped[0] && (!currentClassId || currentClassId === 'cls_empty' || !mapped.some(m => m.id === currentClassId))) {
@@ -440,7 +453,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                     <Path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" strokeLinecap="round" strokeLinejoin="round" />
                   </Svg>
                 </View>
-                <Text style={styles.dockTabTextActive}>Lịch dạy</Text>
+                <Text style={styles.dockTabTextActive}>Trang chủ</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.dockTabItem} activeOpacity={0.8} onPress={() => handleTabPress('attendance')}>
@@ -898,7 +911,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                   {/* Card 4: BHYT Lớp CN */}
                   <TouchableOpacity
                     style={styles.bentoCard}
-                    onPress={onOpenHealthInsurance}
+                    onPress={() => onOpenHealthInsurance?.(currentClass.id)}
                     activeOpacity={0.88}
                   >
                     <View style={styles.bentoCardHeader}>
@@ -1219,7 +1232,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                   />
                 </Svg>
               </View>
-              <Text style={styles.dockTabTextActive}>Lịch dạy</Text>
+              <Text style={styles.dockTabTextActive}>Trang chủ</Text>
             </TouchableOpacity>
 
             {/* Tab 2: Điểm danh (GVCN) hoặc Dò bài (GVBM) */}

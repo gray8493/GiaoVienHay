@@ -1,5 +1,4 @@
-import { API_BASE_URL } from '../config/api';
-import { authService } from './auth.service';
+import { api, apiFetch } from './http';
 
 export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD' | 'MIXED';
 
@@ -20,6 +19,13 @@ export interface GenerateQuizPayload {
   difficulty_level: DifficultyLevel;
 }
 
+export interface QuizUploadFile {
+  uri: string;
+  name: string;
+  size?: number;
+  mimeType?: string;
+}
+
 export interface QuizDetail {
   quiz_id: string;
   title: string;
@@ -30,31 +36,38 @@ export interface QuizDetail {
   questions: QuizQuestion[];
 }
 
-// TODO(backend): hiện lưu điểm miệng ngoài Quiz vẫn phải gắn vào một quiz trên API
-// /quizzes/{quizId}/in-class-scores. Cần endpoint riêng để bỏ giá trị tạm này.
-export const ORAL_SCORE_QUIZ_ID = 'qz_88219';
+/** Chuỗi options['A','B',...] → mảng QuestionOptionDto của backend */
+const toOptionDto = (options: string[]) =>
+  options.map((text, idx) => ({ key: String.fromCharCode(65 + idx), text }));
 
 export const quizService = {
-  async generateQuizFromAi(payload: GenerateQuizPayload): Promise<QuizDetail> {
-    const authHeader = await authService.getAuthHeaderAsync();
+  async generateQuizFromAi(payload: GenerateQuizPayload, file?: QuizUploadFile): Promise<QuizDetail> {
     let response: Response;
     try {
-      response = await fetch(`${API_BASE_URL}/quizzes/generate-ai`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-        body: JSON.stringify({
-          subject_code: payload.subject_code,
-          class_id: payload.class_id,
-          title: payload.title,
-          num_questions: payload.num_questions,
-          difficulty_level: payload.difficulty_level,
-        }),
-      });
+      if (file) {
+        const formData = new FormData();
+        formData.append('subject_code', payload.subject_code);
+        if (payload.class_id) formData.append('class_id', payload.class_id);
+        formData.append('title', payload.title);
+        formData.append('num_questions', String(payload.num_questions));
+        formData.append('difficulty_level', payload.difficulty_level);
+        formData.append(
+          'file',
+          {
+            uri: file.uri,
+            name: file.name,
+            type: file.mimeType || 'application/octet-stream',
+          } as any,
+        );
+        response = await apiFetch('/quizzes/generate-ai', { method: 'POST', body: formData });
+      } else {
+        response = await apiFetch('/quizzes/generate-ai', {
+          method: 'POST',
+          body: payload,
+        });
+      }
     } catch (e: any) {
-      throw new Error('Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng.');
+      throw new Error(e?.message || 'Không thể tạo câu hỏi từ AI');
     }
 
     if (!response.ok) {
@@ -66,20 +79,10 @@ export const quizService = {
 
   async getMyQuizzes(classId?: string, subjectCode?: string) {
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
       const query = new URLSearchParams();
       if (classId) query.append('class_id', classId);
       if (subjectCode) query.append('subject_code', subjectCode);
-
-      const response = await fetch(`${API_BASE_URL}/quizzes?${query.toString()}`, {
-        method: 'GET',
-        headers: {
-          ...authHeader,
-        },
-      });
-
-      if (!response.ok) throw new Error('Lỗi tải danh sách quiz');
-      return await response.json();
+      return await api(`/quizzes?${query.toString()}`, { errorMessage: 'Lỗi tải danh sách quiz' });
     } catch (e) {
       return [];
     }
@@ -87,53 +90,46 @@ export const quizService = {
 
   async getWheelCandidates(quizId: string) {
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/quizzes/${quizId}/wheel-candidates`, {
-        method: 'GET',
-        headers: {
-          ...authHeader,
-        },
+      return await api(`/quizzes/${quizId}/wheel-candidates`, {
+        errorMessage: 'Lỗi tải danh sách quay',
       });
-
-      if (!response.ok) throw new Error('Lỗi tải danh sách quay');
-      return await response.json();
     } catch (e) {
       return [];
     }
   },
 
-  async recordInClassScore(
-    quizId: string = ORAL_SCORE_QUIZ_ID,
-    payload: {
-      student_id: string;
-      score: number;
-      teacher_note?: string;
-      mode_played?: string;
-      sync_to_scores_table?: boolean;
-    },
+  /** PUT /quizzes/:id/questions/:n — sửa nội dung một câu hỏi (lưu DB) */
+  async updateQuestion(
+    quizId: string,
+    questionNumber: number,
+    payload: { content: string; options: string[]; correct_answer: string; explanation?: string },
   ) {
-    const authHeader = await authService.getAuthHeaderAsync();
-    let response: Response;
-    try {
-      response = await fetch(`${API_BASE_URL}/quizzes/${quizId}/in-class-scores`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-        body: JSON.stringify({
-          ...payload,
-          sync_to_scores_table: true,
-        }),
-      });
-    } catch (e: any) {
-      throw new Error('Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng.');
-    }
+    return api(`/quizzes/${quizId}/questions/${questionNumber}`, {
+      method: 'PUT',
+      body: {
+        content: payload.content,
+        options: toOptionDto(payload.options),
+        correct_answer: payload.correct_answer,
+        explanation: payload.explanation,
+      },
+      errorMessage: 'Không thể lưu chỉnh sửa câu hỏi',
+    });
+  },
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || 'Không thể lưu điểm');
-    }
-    return await response.json();
+  /** DELETE /quizzes/:id/questions/:n — xóa một câu hỏi khỏi bộ đề (lưu DB) */
+  async deleteQuestion(quizId: string, questionNumber: number) {
+    return api(`/quizzes/${quizId}/questions/${questionNumber}`, {
+      method: 'DELETE',
+      errorMessage: 'Không thể xóa câu hỏi',
+    });
+  },
+
+  /** POST /quizzes/:id/questions/:n/regenerate — AI sinh lại một câu hỏi */
+  async regenerateQuestion(quizId: string, questionNumber: number, difficultyLevel?: DifficultyLevel) {
+    return api(`/quizzes/${quizId}/questions/${questionNumber}/regenerate`, {
+      method: 'POST',
+      body: difficultyLevel ? { difficulty_level: difficultyLevel } : {},
+      errorMessage: 'Không thể tạo lại câu hỏi bằng AI',
+    });
   },
 };

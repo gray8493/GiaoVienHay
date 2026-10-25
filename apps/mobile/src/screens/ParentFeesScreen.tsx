@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Line, Polyline } from 'react-native-svg';
 import { parentService } from '../services/parent.service';
+import { fcmService } from '../services/fcm.service';
 
 interface ParentFeesScreenProps {
   studentId?: string;
@@ -28,10 +29,15 @@ export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
   onNavigateToTab,
 }) => {
   const [feesData, setFeesData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadFeesData();
+    const unsubscribe = fcmService.onNotificationReceived((payload) => {
+      const type = String(payload?.data?.type || '').toUpperCase();
+      if (type.startsWith('FEE_')) loadFeesData();
+    });
+    return () => unsubscribe?.();
   }, [studentId]);
 
   const loadFeesData = async () => {

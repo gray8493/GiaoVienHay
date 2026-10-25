@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Line } from 'react-native-svg';
 import {
@@ -18,7 +19,8 @@ import {
   RawRemarkRecord,
   subjectLabel,
 } from '../services/remarks.service';
-import { classService, StudentItem } from '../services/class.service';
+import { getInitials } from '../utils/format';
+import { classService, SUBJECT_LABELS, SCHOOL_SUBJECTS, StudentItem } from '../services/class.service';
 import { getCurrentAcademicYear } from '../utils/academic';
 
 interface RemarksExamScreenProps {
@@ -50,7 +52,7 @@ const buildStudentRemarkRow = (
     student_id: student.id,
     student_code: student.student_code || '',
     student_name: student.full_name || '',
-    subject_code: remark?.subject_code || 'MATH',
+    subject_code: remark?.subject_code || '',
     subject_name: subject,
     content: hasContent ? remark!.content : null,
     status: hasContent ? (remark!.parent_acknowledged ? 'READ' : 'UNREAD') : 'NONE',
@@ -74,15 +76,20 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   const [remarkFilter, setRemarkFilter] = useState<RemarkFilter>('ALL');
   const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
 
-  // Modal TEA-09.2 Nhập nhận xét
+  // Modal TEA-09.2 Nhập nhận xét — môn làm việc bằng MÃ chuẩn, chọn theo môn giáo viên phụ trách
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [targetStudent, setTargetStudent] = useState<StudentRemarkItem | null>(null);
-  const [remarkSubject, setRemarkSubject] = useState('Toán học');
+  const [remarkSubjectCode, setRemarkSubjectCode] = useState('');
+  const [remarkSubjectOptions, setRemarkSubjectOptions] = useState<{ code: string; label: string }[]>([]);
+  const remarkSubjectLabel = SUBJECT_LABELS[remarkSubjectCode] || remarkSubjectCode || 'Môn học';
   const [remarkContent, setRemarkContent] = useState('Em tiếp thu bài nhanh, hăng hái phát biểu.');
 
   // Modal TEA-09.3 Tạo lịch kiểm tra
   const [showExamModal, setShowExamModal] = useState(false);
-  const [examSubject, setExamSubject] = useState('Toán học');
+  // Môn kiểm tra làm việc bằng MÃ CHUẨN (MATH/LIT/...) — danh sách theo phân công thật của lớp
+  const [examSubjectCode, setExamSubjectCode] = useState('');
+  const [examSubjectOptions, setExamSubjectOptions] = useState<{ code: string; label: string }[]>([]);
+  const examSubjectLabel = SUBJECT_LABELS[examSubjectCode] || examSubjectCode || 'Chọn môn';
   const [examDate, setExamDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
@@ -95,7 +102,54 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
 
   useEffect(() => {
     loadData();
+    loadAssignedSubjectOptions();
   }, [classId]);
+
+  // Môn nhận xét + Môn lịch kiểm tra lấy theo phân công thật trong lớp:
+  // GVCN → chính các môn cô dạy (hồ sơ) ∪ môn đã có phân công trong lớp
+  // GVBM → đúng môn được phân công (chuỗi: phân công lớp → my-subject → hồ sơ)
+  const loadAssignedSubjectOptions = async () => {
+    if (!classId) return;
+    try {
+      const cls: any = await classService.getClassDetail(classId).catch(() => null);
+      const role = await classService.getMyRoleInClass(classId, cls);
+      let codes: string[] = [];
+      if (role.isHomeroom) {
+        let profile = role.profileSubjectCodes;
+        if (profile.length === 0) profile = role.apiSubjectCodes;
+        if (profile.length === 0) profile = [...SCHOOL_SUBJECTS];
+        codes = [...new Set([...role.allAssignedCodes, ...profile])];
+      } else {
+        let mine = role.myAssignedCodes;
+        if (mine.length === 0) mine = role.apiSubjectCodes;
+        if (mine.length === 0) mine = role.profileSubjectCodes;
+        codes = [...new Set(mine)];
+      }
+      const opts = codes.map((code: string) => ({
+        code,
+        label: SUBJECT_LABELS[code] || code,
+      }));
+      if (opts.length > 0) {
+        setRemarkSubjectOptions(opts);
+        setRemarkSubjectCode(prev => (opts.some(o => o.code === prev) ? prev : opts[0].code));
+      }
+      // Môn lịch kiểm tra: GVCN có thể tạo cho mọi môn của trường, GVBM giới hạn theo phân công
+      const examCodes = role.isHomeroom
+        ? [...codes, ...SCHOOL_SUBJECTS]
+        : codes;
+      const examOpts = Array.from(new Set(examCodes)).map((code: string) => ({
+        code,
+        label: SUBJECT_LABELS[code] || code,
+      }));
+      setExamSubjectOptions(examOpts);
+      setExamSubjectCode(prev => (examOpts.some(o => o.code === prev) ? prev : examOpts[0]?.code || ''));
+    } catch (e) {
+      setRemarkSubjectOptions([]);
+      setRemarkSubjectCode('');
+      setExamSubjectOptions([]);
+      setExamSubjectCode('');
+    }
+  };
 
   const loadData = async () => {
     if (!classId || classId === 'cls_empty') {
@@ -151,7 +205,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               student_id: r.student_id,
               student_code: '',
               student_name: r.student_name || 'Học sinh',
-              subject_code: r.subject_code || 'MATH',
+              subject_code: r.subject_code || '',
               subject_name: subjectLabel(r.subject_code),
               content: r.content || null,
               status: r.parent_acknowledged ? 'READ' : 'UNREAD',
@@ -166,7 +220,13 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
 
   const handleOpenRemarkModal = (student: StudentRemarkItem) => {
     setTargetStudent(student);
-    setRemarkSubject(student.subject_name || 'Toán học');
+    // Giữ môn của nhận xét đã có; nhận xét mới thì mặc định chọn môn đang phụ trách
+    const rowCode = (student.subject_code || '').trim();
+    setRemarkSubjectCode(prevCore => {
+      const candidate = rowCode || prevCore;
+      if (candidate && remarkSubjectOptions.some(o => o.code === candidate)) return candidate;
+      return remarkSubjectOptions[0]?.code || rowCode || '';
+    });
     setRemarkContent(student.content || 'Em tiếp thu bài nhanh, hăng hái phát biểu.');
     setShowRemarkModal(true);
   };
@@ -177,11 +237,16 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       return;
     }
 
+    if (!remarkSubjectCode) {
+      Alert.alert('Thông báo', 'Chưa xác định được môn phụ trách của bạn. Vui lòng kiểm tra lại phân công giảng dạy.');
+      return;
+    }
+
     try {
       await remarksService.createRemark({
         student_id: targetStudent.student_id,
         class_id: classId,
-        subject_code: targetStudent.subject_code,
+        subject_code: remarkSubjectCode,
         content: remarkContent.trim(),
       });
     } catch (e: any) {
@@ -194,9 +259,11 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
         item.student_id === targetStudent.student_id
           ? {
               ...item,
+              subject_code: remarkSubjectCode,
+              subject_name: remarkSubjectLabel,
               content: remarkContent.trim(),
               status: 'UNREAD',
-              sent_date: `Gửi hôm nay • ${item.subject_name || remarkSubject}`,
+              sent_date: `Gửi hôm nay • ${remarkSubjectLabel}`,
             }
           : item,
       ),
@@ -215,7 +282,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
     try {
       await remarksService.createExamReminder({
         class_id: classId,
-        subject_code: examSubject === 'Toán học' ? 'MATH' : 'LIT',
+        subject_code: examSubjectCode,
         exam_type: examType,
         exam_date: examDate,
         message: examMessage.trim(),
@@ -228,7 +295,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
     const exams = await remarksService.getClassExamReminders(classId);
     setExamsList(exams);
     setShowExamModal(false);
-    Alert.alert('Đã gửi thông báo! 📢', `Lịch kiểm tra ${examSubject} (${examType}) đã được gửi tới phụ huynh trong lớp.`);
+    Alert.alert('Đã gửi thông báo! 📢', `Lịch kiểm tra ${examSubjectLabel} (${examType}) đã được gửi tới phụ huynh trong lớp.`);
   };
 
   const getAvatarColors = (index: number) => {
@@ -240,15 +307,6 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       { bg: '#CCFBF1', text: '#0F766E' },
     ];
     return palettes[index % palettes.length];
-  };
-
-  const getInitials = (name: string) => {
-    if (!name || !name.trim()) return 'HS';
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
   };
 
   const filteredRemarks = remarksList.filter(item => {
@@ -424,9 +482,12 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
 
             {/* Student List Bento Container */}
             <View style={styles.studentListCard}>
-              {remarksLoading && (
-                <View style={styles.listLoadingState}>
-                  <Text style={styles.listLoadingText}>Đang tải danh sách học sinh...</Text>
+              {remarksLoading && remarksList.length === 0 && (
+                <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator size="large" color="#F58F4C" />
+                  <Text style={{ marginTop: 12, fontSize: 13, color: '#887367', fontWeight: '600' }}>
+                    Đang tải danh sách nhận xét...
+                  </Text>
                 </View>
               )}
               {filteredRemarks.length === 0 && !remarksLoading && (
@@ -546,7 +607,14 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
         {/* ======================================================== */}
         {activeTab === 'EXAMS' && (
           <View style={styles.tabContentCol}>
-            {examsList.length === 0 && (
+            {remarksLoading && examsList.length === 0 ? (
+              <View style={[styles.studentListCard, { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color="#F58F4C" />
+                <Text style={{ marginTop: 12, fontSize: 13, color: '#887367', fontWeight: '600' }}>
+                  Đang tải lịch kiểm tra...
+                </Text>
+              </View>
+            ) : examsList.length === 0 ? (
               <View style={[styles.studentListCard, { paddingVertical: 10 }]}>
                 <View style={styles.listEmptyState}>
                   <View style={styles.emptyIconWrap}>
@@ -563,7 +631,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                   </Text>
                 </View>
               </View>
-            )}
+            ) : null}
             {examsList.map(exam => (
               <View key={exam.id} style={styles.examCard}>
                 {/* Left Date Block */}
@@ -679,15 +747,35 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Field 1: Môn học Dropdown Module */}
+            {/* Field 1: Môn học (chọn theo môn giáo viên phụ trách) */}
             <View style={styles.inputCard}>
               <Text style={styles.inputCardLabel}>MÔN HỌC</Text>
               <View style={styles.inputCardRow}>
-                <Text style={styles.inputCardValue}>{remarkSubject}</Text>
+                <Text style={styles.inputCardValue}>{remarkSubjectLabel}</Text>
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                   <Path d="M6 9l6 6 6-6" stroke="#6B7280" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
               </View>
+              {remarkSubjectOptions.length > 1 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                  {remarkSubjectOptions.map(opt => (
+                    <TouchableOpacity
+                      key={opt.code}
+                      style={[styles.examPillItem, remarkSubjectCode === opt.code && styles.examPillItemActive]}
+                      onPress={() => setRemarkSubjectCode(opt.code)}
+                    >
+                      <Text
+                        style={[
+                          styles.examPillItemText,
+                          remarkSubjectCode === opt.code && styles.examPillItemTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Field 2: Nhận xét Text Area Module */}
@@ -758,7 +846,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               <View style={styles.halfFieldBox}>
                 <Text style={styles.halfFieldLabel}>Môn học</Text>
                 <View style={styles.halfFieldBottom}>
-                  <Text style={styles.halfFieldValue}>{examSubject}</Text>
+                  <Text style={styles.halfFieldValue}>{examSubjectLabel}</Text>
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Path d="M6 9l6 6 6-6" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" />
                   </Svg>
@@ -780,6 +868,24 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                     <Path d="M16 2v4M8 2v4M3 10h18" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" />
                   </Svg>
                 </View>
+              </View>
+            </View>
+
+            {/* Form Section: Môn kiểm tra (theo phân công thật của lớp) */}
+            <View style={{ marginTop: 14 }}>
+              <Text style={styles.examPillsLabel}>Môn kiểm tra</Text>
+              <View style={styles.examPillsGrid}>
+                {examSubjectOptions.map(opt => (
+                  <TouchableOpacity
+                    key={opt.code}
+                    style={[styles.examPillItem, examSubjectCode === opt.code && styles.examPillItemActive]}
+                    onPress={() => setExamSubjectCode(opt.code)}
+                  >
+                    <Text style={[styles.examPillItemText, examSubjectCode === opt.code && styles.examPillItemTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 

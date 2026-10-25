@@ -10,9 +10,12 @@ import {
   Platform,
   Alert,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Ellipse } from 'react-native-svg';
 import { feesService, StudentFeeRecord, ClassFeesSummary, FeeType } from '../services/fees.service';
+import { getInitials } from '../utils/format';
+import { classService, MyClassItem } from '../services/class.service';
 
 interface FeesInsuranceScreenProps {
   onBack?: () => void;
@@ -26,8 +29,12 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   classId = '',
 }) => {
   const [feesSummary, setFeesSummary] = useState<ClassFeesSummary | null>(null);
+  const [activeClassId, setActiveClassId] = useState<string>(classId || '');
+  const [myClasses, setMyClasses] = useState<MyClassItem[]>([]);
+  const [showClassPicker, setShowClassPicker] = useState<boolean>(false);
   const [filterMode, setFilterMode] = useState<FilterMode>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Modal TEA-07.2 Cập nhật đóng tiền state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -43,16 +50,51 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   const [remindTone, setRemindTone] = useState<'POLITE' | 'EXPIRING' | 'TOMORROW'>('POLITE');
 
   useEffect(() => {
-    loadFeesData();
+    initClassData();
   }, [classId]);
 
-  const loadFeesData = async () => {
-    if (!classId || classId === 'cls_empty') {
+  const initClassData = async () => {
+    setIsLoading(true);
+    try {
+      const classes = await classService.getMyClasses();
+      setMyClasses(classes || []);
+      if (classId && classId !== 'cls_empty') {
+        setActiveClassId(classId);
+        await loadFeesData(classId);
+      } else {
+        const homeroom = classes.find(c => c.role_type === 'HOMEROOM') || classes[0];
+        if (homeroom) {
+          setActiveClassId(homeroom.id);
+          await loadFeesData(homeroom.id);
+        } else {
+          setFeesSummary(null);
+          setIsLoading(false);
+        }
+      }
+    } catch {
+      if (classId && classId !== 'cls_empty') {
+        setActiveClassId(classId);
+        await loadFeesData(classId);
+      } else {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const loadFeesData = async (targetId: string = activeClassId) => {
+    if (!targetId || targetId === 'cls_empty') {
       setFeesSummary(null);
+      setIsLoading(false);
       return;
     }
-    const data = await feesService.getClassFeesList(classId);
-    setFeesSummary(data);
+    try {
+      const data = await feesService.getClassFeesList(targetId);
+      setFeesSummary(data);
+    } catch (e) {
+      console.warn('loadFeesData error:', e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getTodayDateLabel = () => {
@@ -60,20 +102,59 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   };
 
-  const handleOpenEdit = (student: StudentFeeRecord, defaultType: FeeType = 'INSURANCE') => {
-    if (!student.record_id) {
-      Alert.alert(
-        'Thông báo',
-        `Học sinh ${student.student_name} chưa có hồ sơ thu nộp học phí/BHYT trên hệ thống.`
-      );
-      return;
+  const formatPaidDateDisplay = (rawDate?: string | null): string => {
+    if (!rawDate) return getTodayDateLabel();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) return rawDate;
+    const matchIso = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchIso) {
+      return `${matchIso[3]}/${matchIso[2]}/${matchIso[1]}`;
     }
-    setSelectedStudent(student);
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      return `${dd}/${mm}/${d.getFullYear()}`;
+    }
+    return rawDate;
+  };
+
+  const formatShortPaidDate = (rawDate?: string | null): string => {
+    if (!rawDate) return '';
+    const matchDmy = rawDate.match(/^(\d{2})\/(\d{2})/);
+    if (matchDmy) {
+      return `${matchDmy[1]}/${matchDmy[2]}`;
+    }
+    const matchIso = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchIso) {
+      return `${matchIso[3]}/${matchIso[2]}`;
+    }
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      return `${dd}/${mm}`;
+    }
+    return rawDate;
+  };
+
+  const toApiPaidDate = (dateLabel: string) => {
+    if (!dateLabel) return '';
+    const match = dateLabel.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+    const matchIso = dateLabel.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchIso) return `${matchIso[1]}-${matchIso[2]}-${matchIso[3]}`;
+    return dateLabel;
+  };
+
+  const handleOpenEdit = (student: StudentFeeRecord, defaultType: FeeType = 'INSURANCE') => {
+    const studentRecordId = student.record_id || `fee_${student.student_id}`;
+    const safeStudent: StudentFeeRecord = { ...student, record_id: studentRecordId };
+    setSelectedStudent(safeStudent);
     setEditFeeType(defaultType);
-    const targetStatus = defaultType === 'INSURANCE' ? student.insurance : student.tuition;
+    const targetStatus = defaultType === 'INSURANCE' ? safeStudent.insurance : safeStudent.tuition;
     setEditIsPaid(targetStatus.is_paid);
-    setEditPaidDate(targetStatus.paid_date || getTodayDateLabel());
-    setEditNote(student.note || '');
+    setEditPaidDate(formatPaidDateDisplay(targetStatus.paid_date));
+    setEditNote(safeStudent.note || '');
     setShowEditModal(true);
   };
 
@@ -82,7 +163,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
     setEditFeeType(type);
     const targetStatus = type === 'INSURANCE' ? selectedStudent.insurance : selectedStudent.tuition;
     setEditIsPaid(targetStatus.is_paid);
-    setEditPaidDate(targetStatus.paid_date || getTodayDateLabel());
+    setEditPaidDate(formatPaidDateDisplay(targetStatus.paid_date));
   };
 
   const handleSaveFeeStatus = async () => {
@@ -93,7 +174,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
         record_id: selectedStudent.record_id,
         fee_type: editFeeType,
         is_paid: editIsPaid,
-        paid_date: editPaidDate,
+        paid_date: toApiPaidDate(editPaidDate),
         note: editNote,
       });
     } catch (e: any) {
@@ -157,7 +238,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
 
     try {
       await feesService.sendFeeReminder({
-        class_id: classId,
+        class_id: activeClassId || classId,
         fee_type: remindCategory,
         custom_message: getPreviewMessage(),
       });
@@ -196,14 +277,6 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
     return palettes[index % palettes.length];
   };
 
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  };
-
   const filteredRecords = (feesSummary?.records || []).filter(r => {
     const matchQuery =
       r.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -215,7 +288,33 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
     return true;
   });
 
-  const totalUnpaid = (feesSummary?.insurance_unpaid_count || 0) + (feesSummary?.tuition_unpaid_count || 0);
+  // Số học sinh thực tế còn ít nhất 1 khoản chưa nộp (tối đa bằng sĩ số lớp)
+  const actualUnpaidStudents = (feesSummary?.records || []).filter(
+    r => !r.insurance?.is_paid || !r.tuition?.is_paid,
+  ).length;
+
+  const displayUnpaidCount =
+    filterMode === 'UNPAID_INSURANCE'
+      ? feesSummary?.insurance_unpaid_count || 0
+      : filterMode === 'UNPAID_TUITION'
+      ? feesSummary?.tuition_unpaid_count || 0
+      : actualUnpaidStudents;
+
+  const remindBtnLabel =
+    filterMode === 'UNPAID_INSURANCE'
+      ? 'Nhắc Nộp BHYT'
+      : filterMode === 'UNPAID_TUITION'
+      ? 'Nhắc Nộp Học Phí'
+      : 'Nhắc Phụ Huynh';
+
+  const handleOpenRemindModal = () => {
+    if (filterMode === 'UNPAID_TUITION') {
+      setRemindCategory('TUITION');
+    } else {
+      setRemindCategory('INSURANCE');
+    }
+    setShowRemindModal(true);
+  };
 
   return (
     <View style={styles.container}>
@@ -266,14 +365,18 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
 
             <View style={styles.headerTitleCol}>
               <Text style={styles.headerTitle}>Học Phí & BHYT</Text>
-              <View style={styles.classPillDropdown}>
+              <TouchableOpacity
+                style={styles.classPillDropdown}
+                onPress={() => setShowClassPicker(true)}
+                activeOpacity={0.75}
+              >
                 <Text style={styles.classPillDropdownText}>
                   {feesSummary?.class_name || 'Lớp học'}
                 </Text>
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                   <Path d="M6 9l6 6 6-6" stroke="#6B6880" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -432,7 +535,26 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
 
         {/* 5. Student Cards List */}
         <View style={styles.studentCardsCol}>
-          {filteredRecords.map((item, idx) => {
+          {isLoading && !feesSummary ? (
+            <View style={{ paddingVertical: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 20 }}>
+              <ActivityIndicator size="large" color="#F58F4C" />
+              <Text style={{ marginTop: 14, fontSize: 13, color: '#887367', fontWeight: '600' }}>
+                Đang tải dữ liệu thu phí & BHYT...
+              </Text>
+            </View>
+          ) : filteredRecords.length === 0 ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 20 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E1B2E', marginBottom: 6 }}>
+                {searchQuery.trim() ? 'Không tìm thấy học sinh' : 'Lớp chưa có dữ liệu thu phí'}
+              </Text>
+              <Text style={{ fontSize: 13, color: '#6B6880', textAlign: 'center' }}>
+                {searchQuery.trim()
+                  ? 'Không có học sinh nào khớp với từ khóa tìm kiếm.'
+                  : 'Chưa có khoản thu nào được ghi nhận cho lớp học này.'}
+              </Text>
+            </View>
+          ) : (
+            filteredRecords.map((item, idx) => {
             const colors = getAvatarColors(idx);
 
             return (
@@ -484,7 +606,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                           <Circle cx={12} cy={12} r={10} fill="#10B981" />
                           <Path d="M7 12l3 3 7-7" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
                         </Svg>
-                        <Text style={styles.paidBadgeText}>{item.insurance.paid_date || '18/09'}</Text>
+                        <Text style={styles.paidBadgeText}>{formatShortPaidDate(item.insurance.paid_date) || '18/09'}</Text>
                       </View>
                     ) : (
                       <View style={styles.unpaidBadge}>
@@ -509,7 +631,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                           <Circle cx={12} cy={12} r={10} fill="#10B981" />
                           <Path d="M7 12l3 3 7-7" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
                         </Svg>
-                        <Text style={styles.paidBadgeText}>{item.tuition.paid_date || '20/09'}</Text>
+                        <Text style={styles.paidBadgeText}>{formatShortPaidDate(item.tuition.paid_date) || '20/09'}</Text>
                       </View>
                     ) : (
                       <View style={styles.unpaidBadge}>
@@ -534,7 +656,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                 ) : null}
               </TouchableOpacity>
             );
-          })}
+          }))}
         </View>
 
         <View style={{ height: 110 }} />
@@ -544,7 +666,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
       <View style={styles.fixedBottomBar}>
         <TouchableOpacity
           style={styles.remindBtn}
-          onPress={() => setShowRemindModal(true)}
+          onPress={handleOpenRemindModal}
           activeOpacity={0.88}
         >
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -556,9 +678,9 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
               strokeLinejoin="round"
             />
           </Svg>
-          <Text style={styles.remindBtnText}>Nhắc Phụ Huynh</Text>
+          <Text style={styles.remindBtnText}>{remindBtnLabel}</Text>
           <View style={styles.remindBadge}>
-            <Text style={styles.remindBadgeText}>{totalUnpaid}</Text>
+            <Text style={styles.remindBadgeText}>{displayUnpaidCount} em</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -839,7 +961,12 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
 
               <Switch
                 value={editIsPaid}
-                onValueChange={setEditIsPaid}
+                onValueChange={(val) => {
+                  setEditIsPaid(val);
+                  if (val && !editPaidDate) {
+                    setEditPaidDate(getTodayDateLabel());
+                  }
+                }}
                 trackColor={{ false: '#E2E8F0', true: '#10B981' }}
                 thumbColor="#FFFFFF"
               />
@@ -891,6 +1018,109 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                 <Text style={styles.editSaveBtnText}>Lưu</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ======================================================== */}
+      {/* MODAL CHỌN LỚP HỌC (BOTTOM-SHEET) */}
+      {/* ======================================================== */}
+      <Modal
+        visible={showClassPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowClassPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdropDismiss}
+            activeOpacity={1}
+            onPress={() => setShowClassPicker(false)}
+          />
+
+          <View style={styles.sheetContainer}>
+            <View style={styles.dragHandle} />
+
+            <View style={styles.sheetHeaderRow}>
+              <View>
+                <Text style={styles.sheetTitle}>Chọn Lớp Học</Text>
+                <Text style={styles.sheetSubtitle}>Xem danh sách công nợ & BHYT theo từng lớp</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => setShowClassPicker(false)}
+              >
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                  <Path d="M18 6L6 18M6 6l12 12" stroke="#887367" strokeWidth={2} strokeLinecap="round" />
+                </Svg>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+              {myClasses.map((cls) => {
+                const isSelected = cls.id === (feesSummary?.class_id || activeClassId);
+                const isHomeroom = cls.role_type === 'HOMEROOM';
+                return (
+                  <TouchableOpacity
+                    key={cls.id}
+                    style={[
+                      styles.categoryCard,
+                      { marginBottom: 10, padding: 14 },
+                      isSelected && styles.categoryCardSelected,
+                    ]}
+                    onPress={() => {
+                      setActiveClassId(cls.id);
+                      loadFeesData(cls.id);
+                      setShowClassPicker(false);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <Text style={{ fontSize: 16, fontWeight: '700', color: '#2B1700' }}>
+                            {cls.name}
+                          </Text>
+                          <View
+                            style={{
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              borderRadius: 10,
+                              backgroundColor: isHomeroom ? '#ECFDF5' : '#FFF7ED',
+                              borderWidth: 1,
+                              borderColor: isHomeroom ? '#A7F3D0' : '#FFEDD5',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: '700',
+                                color: isHomeroom ? '#059669' : '#D97706',
+                              }}
+                            >
+                              {isHomeroom ? 'Chủ nhiệm' : 'Bộ môn'}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 13, color: '#887367' }}>
+                          Sĩ số: {cls.student_count || 0} học sinh {cls.academic_year ? `• ${cls.academic_year}` : ''}
+                        </Text>
+                      </View>
+
+                      {isSelected ? (
+                        <View style={[styles.catCheckCircle, styles.catCheckCircleActive]}>
+                          <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+                            <Path d="M5 13l4 4L19 7" stroke="#FFFFFF" strokeWidth={3} strokeLinecap="round" />
+                          </Svg>
+                        </View>
+                      ) : (
+                        <View style={[styles.catCheckCircle, styles.catCheckCircleInactive]} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1314,13 +1544,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   remindBadge: {
-    width: 22,
+    minWidth: 26,
     height: 22,
     borderRadius: 11,
+    paddingHorizontal: 7,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 2,
+    marginLeft: 4,
   },
   remindBadgeText: {
     fontSize: 12,

@@ -1,5 +1,4 @@
-import { API_BASE_URL } from '../config/api';
-import { authService } from './auth.service';
+import { api } from './http';
 
 export enum AttendanceStatus {
   PRESENT = 'PRESENT',
@@ -48,30 +47,13 @@ export class AttendanceService {
    */
   async submitAttendance(
     payload: SubmitAttendancePayload,
-    token?: string
+    _token?: string
   ): Promise<SubmitAttendanceResponse> {
-    try {
-      const authHeader = token ? { Authorization: `Bearer ${token}` } : await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/attendance/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Không thể lưu điểm danh');
-      }
-
-      const resJson = await response.json();
-      return resJson.data || resJson;
-    } catch (err: any) {
-      console.warn('[AttendanceService] submitAttendance failed:', err?.message);
-      throw err;
-    }
+    return api<SubmitAttendanceResponse>('/attendance/submit', {
+      method: 'POST',
+      body: payload,
+      errorMessage: 'Không thể lưu điểm danh',
+    });
   }
 
   /**
@@ -80,23 +62,12 @@ export class AttendanceService {
    */
   async getTodayPresentStudents(
     classId: string,
-    token?: string
+    _token?: string
   ): Promise<TodayPresentStudentsResponse> {
     try {
-      const authHeader = token ? { Authorization: `Bearer ${token}` } : await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/attendance/today/${classId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
+      return await api<TodayPresentStudentsResponse>(`/attendance/today/${classId}`, {
+        errorMessage: 'Lỗi tải danh sách có mặt',
       });
-
-      if (!response.ok) {
-        throw new Error('Lỗi tải danh sách có mặt');
-      }
-
-      const resJson = await response.json();
-      return resJson.data || resJson;
     } catch (err: any) {
       console.warn('[AttendanceService] getTodayPresentStudents failed:', err?.message);
       return {
@@ -117,30 +88,19 @@ export class AttendanceService {
     classId: string,
     date?: string,
     month?: string,
-    token?: string
+    _token?: string
   ) {
     try {
-      const authHeader = token ? { Authorization: `Bearer ${token}` } : await authService.getAuthHeaderAsync();
       const queryParams = new URLSearchParams();
       if (date) queryParams.append('date', date);
       if (month) queryParams.append('month', month);
 
-      const url = `${API_BASE_URL}/attendance/class/${classId}?${queryParams.toString()}`;
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Lỗi tải lịch sử điểm danh');
-      }
-
-      const resJson = await response.json();
+      const payload = await api<any>(
+        `/attendance/class/${classId}?${queryParams.toString()}`,
+        { errorMessage: 'Lỗi tải lịch sử điểm danh' },
+      );
       // API trả về dạng wrapper { class_id, date, total_records, records: [...] }
       // Chuẩn hoá luôn thành mảng bản ghi để caller không phải bóc wrapper
-      const payload = resJson?.data ?? resJson;
       if (Array.isArray(payload?.records)) return payload.records;
       return Array.isArray(payload) ? payload : [];
     } catch (err: any) {

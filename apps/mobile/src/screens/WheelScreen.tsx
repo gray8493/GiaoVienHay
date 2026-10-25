@@ -31,7 +31,7 @@ import Svg, {
 import { attendanceService } from '../services/attendance.service';
 import { classService } from '../services/class.service';
 import { gradesService } from '../services/grades.service';
-
+import { SUBJECT_LABELS } from '../constants/academic';
 interface WheelScreenProps {
   currentClassId?: string;
   className?: string;
@@ -39,18 +39,6 @@ interface WheelScreenProps {
   onBack?: () => void;
   onGoHome?: () => void;
 }
-
-const SUBJECT_LABELS: Record<string, string> = {
-  MATH: 'Toán',
-  LIT: 'Ngữ văn',
-  LITERATURE: 'Ngữ văn',
-  ENG: 'Tiếng Anh',
-  ENGLISH: 'Tiếng Anh',
-  CS: 'Tin học',
-  INFORMATICS: 'Tin học',
-  SCIENCE: 'Khoa học',
-  ETHICS: 'Đạo đức',
-};
 
 interface StudentCandidate {
   id: string;

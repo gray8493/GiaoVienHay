@@ -8,10 +8,12 @@ import {
   SafeAreaView,
   Platform,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Rect, Line, Circle } from 'react-native-svg';
 import { notificationService, NotificationItem } from '../services/notification.service';
+import { Bell3D } from '../components/Bell3D';
 
 interface NotificationScreenProps {
   onBack?: () => void;
@@ -116,15 +118,9 @@ export const NotificationScreen: React.FC<NotificationScreenProps> = ({ onBack }
               <Text style={styles.screenTitle}>Thông Báo</Text>
             </View>
 
-            {/* 3D Bell Illustration top-right */}
+            {/* 3D Bell Illustration top-right (100% Transparent Vector 3D) */}
             <View style={styles.bellImageWrap}>
-              <Image
-                source={{
-                  uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCX9z-bufXBmMTsNK7aMwuizwI-F2rkFD9U2ysJCGACC4QofpQPH4yzFZidsoQWwAAQhzJHy3sgweF2NtcQLFesAO84zq2l-HWkjNLY2kmASowf_4tLIFJkq8gmno-DliCdYQY1ezwIKi_9k8EqWPFG7MOMWcmYppjRJlw9aDn7uD_fZbotpSdYNjkkua8X3tfnhGEv2xsqKFwfeWcRzoekFxXMhVEXmgx0zzMr3pqKhUFCl3Yx2_gdsg',
-                }}
-                style={styles.bellImage}
-                resizeMode="contain"
-              />
+              <Bell3D size={76} tiltAngle={-6} animated={true} />
             </View>
           </View>
 
@@ -135,6 +131,14 @@ export const NotificationScreen: React.FC<NotificationScreenProps> = ({ onBack }
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.notificationsCard}>
+              {isLoading && notifications.length === 0 && (
+                <View style={{ alignItems: 'center', paddingVertical: 36, justifyContent: 'center' }}>
+                  <ActivityIndicator size="large" color="#F58F4C" />
+                  <Text style={{ marginTop: 12, fontSize: 13, color: '#887367', fontWeight: '500' }}>
+                    Đang tải thông báo...
+                  </Text>
+                </View>
+              )}
               {!isLoading && notifications.length === 0 && (
                 <View style={{ alignItems: 'center', paddingVertical: 30 }}>
                   <Text style={{ fontSize: 13, color: '#6B6880', textAlign: 'center' }}>

@@ -1,5 +1,4 @@
-import { API_BASE_URL } from '../config/api';
-import { authService } from './auth.service';
+import { api } from './http';
 import { classService } from './class.service';
 
 export type FeeType = 'TUITION' | 'INSURANCE';
@@ -86,19 +85,12 @@ export const feesService = {
     if (!classId || classId === 'cls_empty') return emptySummary;
 
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-
       // Lấy danh sách học sinh của lớp song song với dữ liệu thu nộp
-      const [classDetail, feeResponse] = await Promise.all([
+      const [classDetail, data] = await Promise.all([
         classService.getClassDetail(classId).catch(() => null),
-        fetch(`${API_BASE_URL}/fees-insurance/class/${classId}`, {
-          headers: { 'Content-Type': 'application/json', ...authHeader },
-        })
-          .then(res => (res.ok ? res.json() : null))
-          .catch(() => null),
+        api<any>(`/fees-insurance/class/${classId}`).catch(() => null),
       ]);
 
-      const data = feeResponse ? feeResponse.data || feeResponse : null;
       const rawFeeRows: any[] = data && Array.isArray(data.records) ? data.records : [];
 
       // Gom bản ghi phí theo student_id (hỗ trợ cả shape DB lẫn shape demo)
@@ -163,7 +155,7 @@ export const feesService = {
               const sid = String(s.id || s.student_id || '');
               const feeInfo = buildStudentFee(sid);
               return {
-                record_id: feeInfo.recordId,
+                record_id: feeInfo.recordId || `fee_${sid}`,
                 student_id: sid,
                 student_code: s.student_code || '',
                 student_name: s.full_name || s.name || 'Học sinh',
@@ -200,49 +192,27 @@ export const feesService = {
         records,
       };
     } catch (e) {
-      console.warn('Backend not reachable:', e);
+      console.warn('getClassFeesList failed:', e);
     }
 
     return emptySummary;
   },
 
   async toggleFeeStatus(payload: ToggleFeePayload): Promise<boolean> {
-    const authHeader = await authService.getAuthHeaderAsync();
-    let response: Response;
-    try {
-      response = await fetch(`${API_BASE_URL}/fees-insurance/toggle`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-        body: JSON.stringify(payload),
-      });
-    } catch (e: any) {
-      throw new Error('Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng.');
-    }
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || 'Không thể cập nhật trạng thái thu phí');
-    }
+    await api('/fees-insurance/toggle', {
+      method: 'PATCH',
+      body: payload,
+      errorMessage: 'Không thể cập nhật trạng thái thu phí',
+    });
     return true;
   },
 
   async sendFeeReminder(payload: RemindFeePayload): Promise<boolean> {
-    const authHeader = await authService.getAuthHeaderAsync();
-    let response: Response;
-    try {
-      response = await fetch(`${API_BASE_URL}/fees-insurance/remind`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-        body: JSON.stringify(payload),
-      });
-    } catch (e: any) {
-      throw new Error('Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng.');
-    }
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || 'Không thể gửi thông báo nhắc đóng phí');
-    }
+    await api('/fees-insurance/remind', {
+      method: 'POST',
+      body: payload,
+      errorMessage: 'Không thể gửi thông báo nhắc đóng phí',
+    });
     return true;
   },
 };

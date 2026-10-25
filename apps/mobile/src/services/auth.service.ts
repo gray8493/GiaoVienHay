@@ -144,6 +144,14 @@ export const authService = {
       const payload = decodeJwtPayload(token);
       activeExpiresAt = payload?.exp ? payload.exp * 1000 : null;
     }
+    if (token) {
+      persistAuthWrite([
+        [STORAGE_KEYS.token, token],
+        ...(activeExpiresAt ? [[STORAGE_KEYS.expiresAt, String(activeExpiresAt)] as [string, string]] : []),
+      ]);
+    } else {
+      persistAuthRemove([STORAGE_KEYS.token, STORAGE_KEYS.expiresAt]);
+    }
     if (typeof window !== 'undefined' && window.localStorage) {
       if (token) {
         window.localStorage.setItem('gvh_access_token', token);
@@ -171,6 +179,11 @@ export const authService = {
 
   setRefreshToken(token: string | null) {
     activeRefreshToken = token;
+    if (token) {
+      persistAuthWrite([[STORAGE_KEYS.refreshToken, token]]);
+    } else {
+      persistAuthRemove([STORAGE_KEYS.refreshToken]);
+    }
     if (typeof window !== 'undefined' && window.localStorage) {
       if (token) {
         window.localStorage.setItem('gvh_refresh_token', token);
@@ -187,6 +200,11 @@ export const authService = {
 
   setUser(user: UserProfile | null) {
     activeUser = user;
+    if (user) {
+      persistAuthWrite([[STORAGE_KEYS.user, JSON.stringify(user)]]);
+    } else {
+      persistAuthRemove([STORAGE_KEYS.user]);
+    }
     if (typeof window !== 'undefined' && window.localStorage) {
       if (user) {
         window.localStorage.setItem('gvh_user', JSON.stringify(user));
@@ -200,6 +218,7 @@ export const authService = {
    * Đảm bảo luôn có Access Token hợp lệ của tài khoản hiện tại
    */
   async ensureToken(): Promise<string | null> {
+    await hydrateAuth();
     const existing = this.getToken();
     if (existing && !this.isAccessTokenExpired()) return existing;
 
