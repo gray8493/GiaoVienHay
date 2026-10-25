@@ -97,13 +97,17 @@ export class QuizzesService {
     }
 
     let questions;
+    let aiSource = 'nvidia_ai';
     try {
-      questions = await this.nvidiaService.generateQuestionsFromLesson(
+      const result: any = await this.nvidiaService.generateQuestionsFromLesson(
         lessonContent,
         dto.subject_code,
         numQuestions,
         difficulty,
       );
+      // Tương thích 2 shape: service trả { questions, source }, mock/test trả mảng
+      questions = Array.isArray(result) ? result : result.questions;
+      aiSource = Array.isArray(result) ? 'nvidia_ai' : result.source || 'nvidia_ai';
     } catch (error) {
       await this.adminService?.recordActivity({
         category: 'AI_QUIZ',
@@ -151,6 +155,7 @@ export class QuizzesService {
         GameMode.MYSTERY_BOX,
       ],
       questions,
+      ai_source: aiSource,
       created_by: teacherId,
       is_deleted: false,
       deleted_at: null,
@@ -310,12 +315,13 @@ export class QuizzesService {
       : `Bài học môn ${quiz.subject_code}: ${quiz.title}`;
     const difficulty = data?.difficulty_level || DifficultyLevel.MEDIUM;
 
-    const generated = await this.nvidiaService.generateQuestionsFromLesson(
+    const result: any = await this.nvidiaService.generateQuestionsFromLesson(
       lessonContent,
       quiz.subject_code,
       1,
       difficulty,
     );
+    const generated = Array.isArray(result) ? result : result.questions;
     if (!generated || generated.length === 0) {
       throw new HttpException(
         {

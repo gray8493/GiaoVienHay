@@ -357,6 +357,14 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
       );
       const data = resJson?.data || resJson;
 
+      // Backend gắn nhãn nguồn: 'pedagogical_fallback' = AI lỗi/bận, dùng câu hỏi mẫu
+      if (data?.ai_source === 'pedagogical_fallback') {
+        Alert.alert(
+          'Lưu ý',
+          'AI đang bận nên hệ thống tạm dùng bộ câu hỏi mẫu theo môn (không dựa vào giáo án). Bạn có thể bấm "Tạo lại" từng câu hỏi sau ít phút.',
+        );
+      }
+
       setTimeout(() => {
         setGeneratedQuizId(data?.quiz_id || '');
         setQuestions(data?.questions || []);

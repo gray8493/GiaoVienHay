@@ -75,7 +75,7 @@ export class NvidiaService {
     subjectCode: string,
     numQuestions: number = 5,
     difficulty: DifficultyLevel = DifficultyLevel.MIXED,
-  ): Promise<GeneratedQuestion[]> {
+  ): Promise<{ questions: GeneratedQuestion[]; source: 'nvidia_ai' | 'pedagogical_fallback' }> {
     if (this.apiKey) {
       try {
         const prompt = `Bạn là chuyên gia sư phạm Việt Nam. Hãy đọc nội dung giáo án bài học môn ${subjectCode} sau đây và tạo chính xác ${numQuestions} câu hỏi trắc nghiệm kiểm tra bài cũ với độ khó ${difficulty}:
@@ -95,7 +95,7 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
         const text = await this.chatCompletion(prompt);
         const parsed = this.parseQuestions(text);
         if (parsed) {
-          return parsed;
+          return { questions: parsed, source: 'nvidia_ai' };
         }
         this.logger.warn('NVIDIA API returned an unparseable payload. Using pedagogical fallback.');
       } catch (err: any) {
@@ -105,7 +105,10 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
       }
     }
 
-    return this.generateMockPedagogicalQuestions(subjectCode, numQuestions, difficulty);
+    return {
+      questions: this.generateMockPedagogicalQuestions(subjectCode, numQuestions, difficulty),
+      source: 'pedagogical_fallback',
+    };
   }
 
   private async chatCompletion(prompt: string): Promise<string> {
@@ -125,6 +128,9 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
           temperature: 1,
           top_p: 0.95,
           max_tokens: 8192,
+          // gpt-oss là reasoning model: full reasoning có thể chạy 1-2 phút và
+          // nuốt sạch max_tokens khiến content=null. Giảm effort để trả lời nhanh.
+          reasoning_effort: 'low',
         }),
         signal: controller.signal,
       });
@@ -135,8 +141,13 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
       }
 
       const data: any = await response.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (typeof content !== 'string' || content.trim().length === 0) {
+      const message = data?.choices?.[0]?.message;
+      let content = typeof message?.content === 'string' ? message.content : '';
+      if (!content.trim()) {
+        // Model reasoning có thể nhả JSON trong reasoning khi content rỗng
+        content = String(message?.reasoning_content || message?.reasoning || '');
+      }
+      if (!content.trim()) {
         throw new Error('Empty response from NVIDIA API');
       }
       return content;
