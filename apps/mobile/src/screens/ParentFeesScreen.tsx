@@ -140,7 +140,9 @@ export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
                 <Text style={styles.summarySubtitle}>
                   {isInsPaid && isTuiPaid ? 'Đã hoàn tất tất cả khoản phí' : 'Cần hoàn thành sớm'}
                 </Text>
-                <Text style={styles.summaryTermText}>{feesData.term_label || 'Học kỳ 1 • 2026–2027'}</Text>
+                <Text style={styles.summaryTermText}>
+                  {feesData.term_label || 'Năm học hiện tại'}
+                </Text>
               </View>
             </View>
 
@@ -181,6 +183,9 @@ export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
                   <Text style={styles.feeMetaText}>
                     {feesData.insurance?.deadline || 'Chưa có hạn nộp'}
                   </Text>
+                  {isInsPaid && feesData.insurance?.payment_method ? (
+                    <Text style={styles.feeMetaText}>{feesData.insurance.payment_method}</Text>
+                  ) : null}
                 </View>
               </TouchableOpacity>
 
@@ -215,11 +220,14 @@ export const ParentFeesScreen: React.FC<ParentFeesScreenProps> = ({
                 </View>
 
                 <View style={styles.feeItemMeta}>
-                  {feesData.tuition?.paid_date && (
-                    <Text style={styles.feeMetaText}>{feesData.tuition.paid_date}</Text>
-                  )}
-                  {feesData.tuition?.payment_method && (
+                  {isTuiPaid && feesData.tuition?.paid_date ? (
+                    <Text style={styles.feeMetaText}>Nộp ngày {feesData.tuition.paid_date}</Text>
+                  ) : null}
+                  {isTuiPaid && feesData.tuition?.payment_method ? (
                     <Text style={styles.feeMetaText}>{feesData.tuition.payment_method}</Text>
+                  ) : null}
+                  {!isTuiPaid && (
+                    <Text style={styles.feeMetaText}>Giáo viên chưa ghi nhận nộp học phí</Text>
                   )}
                 </View>
               </View>

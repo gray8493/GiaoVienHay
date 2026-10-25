@@ -689,21 +689,23 @@ export const parentService = {
         student_id: studentId,
         completed_ratio: `${paidCount}/2`,
         remaining_count: remCount === 0 ? 'Đã hoàn tất' : `Còn ${remCount} khoản`,
-        term_label: data.term_name || 'Học kỳ 1',
+        // Không bịa mặc định ('Học kỳ 1', 'Đã đóng online'...) — chỉ hiện
+        // những gì backend thực sự có, UI tự ẩn khi trống
+        term_label: data.term_name || undefined,
         insurance: {
           type: 'BHYT',
           status: insPaid ? 'PAID' : 'UNPAID',
           status_label: insPaid ? 'Đã nộp' : 'Chưa nộp',
-          deadline: ins.deadline ? `Hạn ${ins.deadline}` : 'Hạn nộp đợt 1',
+          deadline: ins.deadline ? `Hạn nộp: ${ins.deadline}` : undefined,
           paid_date: ins.paid_date || undefined,
-          payment_method: ins.payment_method || 'Chuyển khoản / Tiền mặt',
+          payment_method: ins.payment_method || undefined,
         },
         tuition: {
           type: 'Học phí',
           status: tuiPaid ? 'PAID' : 'UNPAID',
           status_label: tuiPaid ? 'Đã nộp' : 'Chưa nộp',
           paid_date: tui.paid_date || undefined,
-          payment_method: tui.payment_method || 'Đã đóng online',
+          payment_method: tui.payment_method || undefined,
         },
       };
     } catch (e) {
