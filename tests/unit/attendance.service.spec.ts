@@ -44,7 +44,16 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
       emit: jest.fn(),
     };
 
-    service = new AttendanceService(mockDataConnect, mockCacheManager, mockEventEmitter);
+    const mockNotificationsService = {
+      dispatchNotification: jest.fn().mockResolvedValue({ saved: true, pushed: false }),
+    };
+
+    service = new AttendanceService(
+      mockDataConnect,
+      mockCacheManager,
+      mockEventEmitter,
+      mockNotificationsService as any,
+    );
   });
 
   // PHẦN I: Validation & Lỗi nghiệp vụ (TC01 - TC13)
@@ -162,19 +171,22 @@ describe('AttendanceService (Unit Tests UT05 - All 21 Cases)', () => {
     });
   });
 
-  describe('UT05_Attendance_TC09: Từ chối điểm danh trùng lặp khi buổi học đã được điểm danh trước đó (ATTEND_ALREADY_EXISTS)', () => {
-    it('ném ConflictException khi tiết học đã được điểm danh', async () => {
+  describe('UT05_Attendance_TC09: Cho phép chỉnh sửa (upsert) khi tiết học đã được điểm danh trước đó', () => {
+    it('ghi đè cập nhật thành công và trả về is_update = true thay vì chặn trùng lặp', async () => {
       mockDataConnect.getAttendanceByClassDate.mockResolvedValueOnce([
-        { id: 'att_01', student_id: 'stu_01', period: 1, status: AttendanceStatus.PRESENT },
+        { id: 'att_01', student_id: 'stu_01', period: 1, status: AttendanceStatus.ABSENT_UNEXCUSED },
       ]);
-      await expect(
-        service.submitAttendance('usr_teacher_01', {
-          class_id: 'cls_1a_2026',
-          attendance_date: '2026-09-23',
-          period: 1,
-          records: [{ student_id: 'stu_01', status: AttendanceStatus.PRESENT }],
-        })
-      ).rejects.toThrow(ConflictException);
+      const res = await service.submitAttendance('usr_teacher_01', {
+        class_id: 'cls_1a_2026',
+        attendance_date: '2026-09-23',
+        period: 1,
+        records: [{ student_id: 'stu_01', status: AttendanceStatus.PRESENT }],
+      });
+      expect(res.is_update).toBe(true);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'attendance.updated',
+        expect.objectContaining({ updatedStudentIds: ['stu_01'] }),
+      );
     });
   });
 

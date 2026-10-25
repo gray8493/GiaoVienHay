@@ -9,6 +9,7 @@ import {
 describe('NotificationsService (Unit Tests UT11 - All 20 Cases)', () => {
   let service: NotificationsService;
   let mockDataConnect: any;
+  let mockFirebaseAdmin: any;
 
   const mockNotifications = [
     {
@@ -65,7 +66,11 @@ describe('NotificationsService (Unit Tests UT11 - All 20 Cases)', () => {
       markNotificationRead: jest.fn().mockResolvedValue(true),
     };
 
-    service = new NotificationsService(mockDataConnect);
+    mockFirebaseAdmin = {
+      isReady: jest.fn().mockReturnValue(false),
+    };
+
+    service = new NotificationsService(mockDataConnect, mockFirebaseAdmin as any);
   });
 
   describe('UT11_Notifications_TC01: Lấy danh sách lịch sử thông báo của tài khoản', () => {
@@ -121,10 +126,11 @@ describe('NotificationsService (Unit Tests UT11 - All 20 Cases)', () => {
 
   describe('UT11_Notifications_TC06: Đánh dấu toàn bộ thông báo của tài khoản là đã đọc', () => {
     it('đánh dấu toàn bộ thông báo thành công và trả về updated_count', async () => {
-      const res = await service.markAllAsRead('usr_parent_01', { unreadCount: 5 });
+      const res = await service.markAllAsRead('usr_parent_01');
 
+      // Trong bộ dữ liệu mock có 3 thông báo chưa đọc (notif_01, notif_02, notif_remark_01)
       expect(res.success).toBe(true);
-      expect(res.data.updated_count).toBe(5);
+      expect(res.data.updated_count).toBe(3);
       expect(res.data.unread_count).toBe(0);
     });
   });
@@ -189,13 +195,13 @@ describe('NotificationsService (Unit Tests UT11 - All 20 Cases)', () => {
     });
   });
 
-  describe('UT11_Notifications_TC14: Truy xuất hộp thư khi học sinh đã liên kết và dữ liệu đã công bố nhưng người dùng vẫn không nhận được thông báo', () => {
-    it('trả về rỗng an toàn khi worker không tạo bản ghi', async () => {
+  describe('UT11_Notifications_TC14: Truy vấn hộp thư với tham số mở rộng không nằm trong hợp đồng API', () => {
+    it('không crash và trả về hộp thư đầy đủ khi có tham số lạ', async () => {
       const res = await service.getMyNotifications('usr_parent_01', { page: 1, limit: 20, noWorkerNotifs: true });
 
-      expect(res.unread_count).toBe(0);
-      expect(res.total).toBe(0);
-      expect(res.items).toEqual([]);
+      expect(res.total).toBe(15);
+      expect(res.items.length).toBe(15);
+      expect(res.unread_count).toBe(3);
     });
   });
 
@@ -215,8 +221,8 @@ describe('NotificationsService (Unit Tests UT11 - All 20 Cases)', () => {
     });
   });
 
-  describe('UT11_Notifications_TC17: Xử lý lỗi máy chủ cơ sở dữ liệu nội bộ Firestore', () => {
-    it('ném InternalServerErrorException SYS_INTERNAL_ERROR khi database ngắt kết nối', async () => {
+  describe('UT11_Notifications_TC17: Báo lỗi khi không thể đọc hộp thư từ cơ sở dữ liệu', () => {
+    it('không giả làm hộp thư rỗng khi database ngắt kết nối', async () => {
       mockDataConnect.getNotificationsByRecipient.mockRejectedValue(new Error('DEADLINE_EXCEEDED'));
 
       await expect(
@@ -233,24 +239,23 @@ describe('NotificationsService (Unit Tests UT11 - All 20 Cases)', () => {
     });
   });
 
-  describe('UT11_Notifications_TC19: Xử lý trạng thái rỗng an toàn khi lọc thông báo chưa đọc nhưng người dùng đã đọc hết', () => {
-    it('trả về unread_count=0 và items=[] khi đã đọc hết', async () => {
+  describe('UT11_Notifications_TC19: Lọc thông báo đã đọc trả về đúng số lượng đọc trong hộp thư', () => {
+    it('chỉ trả về 12 thông báo đã đọc khi is_read=true', async () => {
       const res = await service.getMyNotifications('usr_parent_01', {
-        is_read: false,
+        is_read: true,
         page: 1,
         limit: 20,
-        allRead: true,
       });
 
-      expect(res.unread_count).toBe(0);
-      expect(res.total).toBe(0);
-      expect(res.items).toEqual([]);
+      expect(res.items.every((n) => n.is_read === true)).toBe(true);
+      expect(res.total).toBe(12);
+      expect(res.items.length).toBe(12);
     });
   });
 
   describe('UT11_Notifications_TC20: Xử lý an toàn khi đánh dấu tất cả là đã đọc nhưng hộp thư rỗng hoặc không có thông báo chưa đọc', () => {
     it('trả về updated_count=0 khi không có thông báo nào chưa đọc', async () => {
-      const res = await service.markAllAsRead('usr_parent_01', { unreadCount: 0 });
+      const res = await service.markAllAsRead('usr_parent_empty_inbox');
 
       expect(res.success).toBe(true);
       expect(res.data.updated_count).toBe(0);

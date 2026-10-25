@@ -121,6 +121,12 @@ export class ClassesController {
     return this.classesService.generateInviteCode(classId, teacherId);
   }
 
+  @Get('preview-invite/:code')
+  @ApiOperation({ summary: 'Xem trước thông tin lớp học theo mã mời' })
+  async previewClassByInvite(@Param('code') code: string) {
+    return this.classesService.previewClassByInvite(code);
+  }
+
   @Post('join')
   @ApiOperation({ summary: 'Tham gia lớp học bằng mã mời' })
   async joinClassByInvite(
@@ -136,9 +142,10 @@ export class ClassesController {
   @ApiOperation({ summary: 'Thêm học sinh mới vào danh sách lớp' })
   async addStudent(
     @Param('id') classId: string,
+    @CurrentUser('sub') teacherId: string,
     @Body() dto: AddStudentToClassDto,
   ) {
-    return this.classesService.addStudent(classId, dto);
+    return this.classesService.addStudent(classId, dto, teacherId);
   }
 
   @Put(':id/subject-teachers')
@@ -158,8 +165,9 @@ export class ClassesController {
   async removeStudent(
     @Param('id') classId: string,
     @Param('studentId') studentId: string,
+    @CurrentUser('sub') teacherId: string,
   ) {
-    return this.classesService.removeStudent(classId, studentId);
+    return this.classesService.removeStudent(classId, studentId, teacherId);
   }
 }
 

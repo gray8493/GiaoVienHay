@@ -38,6 +38,16 @@ export class ClassStudentItemDto {
   @IsOptional()
   @IsString({ message: 'SĐT phụ huynh phải là chuỗi ký tự' })
   parent_phone?: string;
+  @ApiPropertyOptional({ example: 'Trần Văn Hùng', description: 'Họ tên phụ huynh' })
+  @IsOptional()
+  @IsString({ message: 'Họ tên phụ huynh phải là chuỗi ký tự' })
+  parent_name?: string;
+
+  @ApiPropertyOptional({ example: 'Bố', description: 'Mối quan hệ với học sinh' })
+  @IsOptional()
+  @IsString({ message: 'Mối quan hệ phải là chuỗi ký tự' })
+  parent_relationship?: string;
+
 }
 
 export class ClassSubjectTeacherItemDto {
@@ -118,6 +128,16 @@ export class AddStudentToClassDto {
   @IsOptional()
   @IsString()
   parent_phone?: string;
+  @ApiPropertyOptional({ example: 'Trần Văn Hùng', description: 'Họ tên phụ huynh' })
+  @IsOptional()
+  @IsString({ message: 'Họ tên phụ huynh phải là chuỗi ký tự' })
+  parent_name?: string;
+
+  @ApiPropertyOptional({ example: 'Bố', description: 'Mối quan hệ với học sinh' })
+  @IsOptional()
+  @IsString({ message: 'Mối quan hệ phải là chuỗi ký tự' })
+  parent_relationship?: string;
+
 }
 
 export { AddStudentToClassDto as AddStudentsToClassDto };
@@ -138,6 +158,31 @@ export class JoinClassDto {
   @IsOptional()
   @IsString({ message: 'Mã học sinh phải là chuỗi ký tự' })
   student_id?: string;
+
+  @ApiPropertyOptional({ example: 'MATH', description: 'Mã môn học giáo viên bộ môn giảng dạy tại lớp' })
+  @IsOptional()
+  @IsString({ message: 'Mã môn học phải là chuỗi ký tự' })
+  subject_code?: string;
+
+  @ApiPropertyOptional({ example: 'Trần Bảo Nam', description: 'Họ và tên con (dành cho phụ huynh nhập thông tin)' })
+  @IsOptional()
+  @IsString({ message: 'Họ và tên con phải là chuỗi ký tự' })
+  child_name?: string;
+
+  @ApiPropertyOptional({ example: '2018-05-15', description: 'Ngày sinh của con (YYYY-MM-DD hoặc DD/MM/YYYY)' })
+  @IsOptional()
+  @IsString({ message: 'Ngày sinh phải là chuỗi ký tự' })
+  dob?: string;
+
+  @ApiPropertyOptional({ example: 'MALE', enum: ['MALE', 'FEMALE'], description: 'Giới tính của con' })
+  @IsOptional()
+  @IsString({ message: 'Giới tính phải là chuỗi ký tự' })
+  gender?: string;
+
+  @ApiPropertyOptional({ example: 'Bố', enum: ['Bố', 'Mẹ', 'Người giám hộ'], description: 'Mối quan hệ với học sinh' })
+  @IsOptional()
+  @IsString({ message: 'Mối quan hệ phải là chuỗi ký tự' })
+  relationship?: string;
 }
 
 export class UpdateSubjectTeachersDto {

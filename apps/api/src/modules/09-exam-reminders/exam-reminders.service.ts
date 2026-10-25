@@ -8,31 +8,12 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import { examTypeLabel, subjectLabel } from '../../common/utils/labels';
+import { NotificationsService } from '../11-notifications/notifications.service';
 import { CreateExamReminderDto } from './dto/exam-reminders.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
 
 const ALLOWED_EXAM_TYPES = ['ORAL_TEST', 'QUIZ', 'TEST_15P', 'TEST_1P', 'MID_TERM', 'FINAL'];
-
-const SUBJECT_LABELS: Record<string, string> = {
-  MATH: 'Toán',
-  LIT: 'Ngữ văn',
-  LITERATURE: 'Ngữ văn',
-  ENG: 'Tiếng Anh',
-  ENGLISH: 'Tiếng Anh',
-  CS: 'Tin học',
-  INFORMATICS: 'Tin học',
-  SCIENCE: 'Khoa học',
-  ETHICS: 'Đạo đức',
-};
-
-const EXAM_TYPE_LABELS: Record<string, string> = {
-  ORAL_TEST: 'Kiểm tra miệng',
-  QUIZ: 'Kiểm tra',
-  TEST_15P: 'Kiểm tra 15 phút',
-  TEST_1P: 'Kiểm tra 1 tiết',
-  MID_TERM: 'Thi Giữa kỳ',
-  FINAL: 'Thi Cuối kỳ',
-};
 
 @Injectable()
 export class ExamRemindersService {
@@ -40,6 +21,7 @@ export class ExamRemindersService {
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createReminder(
@@ -220,6 +202,7 @@ export class ExamRemindersService {
 
     const reminderId = 'exm_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
     const now = new Date().toISOString();
+    let parentNotified = 0;
 
     const data = {
       id: reminderId,
@@ -230,8 +213,7 @@ export class ExamRemindersService {
       exam_type: dto.exam_type,
       exam_date: dto.exam_date,
       examDate: dto.exam_date,
-      title: `${EXAM_TYPE_LABELS[dto.exam_type] || dto.exam_type} - Môn ${SUBJECT_LABELS[dto.subject_code] || dto.subject_code}`,
-      note: dto.message,
+      title: `${examTypeLabel(dto.exam_type)} - Môn ${subjectLabel(dto.subject_code)}`,      note: dto.message,
       message: dto.message,
       created_by: teacherId,
       is_deleted: false,
@@ -241,7 +223,15 @@ export class ExamRemindersService {
 
     try {
       await this.dataConnect.createExamReminder(data);
-      await this.triggerExamReminderFCM(dto.class_id, dto.subject_code, dto.exam_date, dto.message);
+      const notified = await this.triggerExamReminderFanout(
+        teacherId,
+        reminderId,
+        dto.class_id,
+        dto.subject_code,
+        dto.exam_date,
+        dto.message,
+      );
+      parentNotified = notified;
     } catch (err: any) {
       throw new InternalServerErrorException({
         success: false,
@@ -256,7 +246,7 @@ export class ExamRemindersService {
       class_id: dto.class_id,
       subject_code: dto.subject_code,
       exam_date: dto.exam_date,
-      notified_parents: 36,
+      notified_parents: parentNotified,
       created_at: now,
     };
   }
@@ -422,17 +412,51 @@ export class ExamRemindersService {
     return Object.assign([], defaultEmpty);
   }
 
-  private async triggerExamReminderFCM(classId: string, subjectCode: string, date: string, msg: string) {
-    const notifId = 'notif_exam_' + Date.now();
-    const notifData = {
-      id: notifId,
-      recipientId: 'class_' + classId,
-      title: `Nhắc lịch kiểm tra môn ${SUBJECT_LABELS[subjectCode] || subjectCode}`,
-      body: msg,
-      type: NotificationType.EXAM_REMINDER,
-    };
+  /**
+   * Fan-out thông báo lịch kiểm tra tới phụ huynh TOÀN BỘ học sinh trong lớp
+   * (đích danh từng hộp thư PH + push FCM qua NotificationsService)
+   */
+  private async triggerExamReminderFanout(
+    teacherId: string,
+    reminderId: string,
+    classId: string,
+    subjectCode: string,
+    date: string,
+    msg: string,
+  ): Promise<number> {
+    // Lấy tên giáo viên tạo (GVCN hoặc GVBM) để mở đầu thông báo thân thiện
+    let teacherName = '';
+    if (teacherId && typeof (this.dataConnect as any).getUserById === 'function') {
+      try {
+        const teacher = await this.dataConnect.getUserById(teacherId);
+        teacherName = teacher?.full_name || teacher?.fullName || '';
+      } catch (e) {}
+    }
+    const teacherPrefix = teacherName
+      ? `Giáo viên ${teacherName} xin nhắc: `
+      : 'Kính nhắc phụ huynh: ';
 
-    await this.dataConnect.createNotification(notifData);
+    const res = await this.notificationsService.dispatchToParentsOfClass(classId, (stu) => {
+      const studentName = stu?.full_name || stu?.fullName || 'Học sinh';
+      return {
+        title: `Nhắc lịch kiểm tra môn ${subjectLabel(subjectCode || '')}`,
+        body: `Kính gửi Phụ huynh em ${studentName}, ${teacherPrefix}${msg} (Dự kiến: ${date} - ${subjectLabel(subjectCode || '')}).`,
+        type: NotificationType.EXAM_REMINDER,
+        metadata: {
+          screen: 'ExamReminders',
+          reminder_id: reminderId,
+          class_id: classId,
+          student_id: stu?.id ?? null,
+          exam_date: date,
+          subject_code: subjectCode ?? null,
+        },
+      };
+    });
+
+    this.logger.log(
+      `[ExamReminder] Đã fan-out lịch kiểm tra lớp ${classId}: ${res.sent}/${res.students} hộp thư phụ huynh`,
+    );
+    return res.sent;
   }
 }
 

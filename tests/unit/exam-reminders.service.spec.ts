@@ -11,6 +11,7 @@ import { GradeType } from '@giaovienhay/shared-types';
 describe('ExamRemindersService (Unit Tests UT09 - All 26 Cases)', () => {
   let service: ExamRemindersService;
   let mockDataConnect: any;
+  let mockNotificationsService: any;
 
   beforeEach(() => {
     mockDataConnect = {
@@ -80,7 +81,11 @@ describe('ExamRemindersService (Unit Tests UT09 - All 26 Cases)', () => {
       }),
     };
 
-    service = new ExamRemindersService(mockDataConnect);
+    mockNotificationsService = {
+      dispatchToParentsOfClass: jest.fn().mockResolvedValue({ sent: 1, failed: 0, students: 1 }),
+    };
+
+    service = new ExamRemindersService(mockDataConnect, mockNotificationsService as any);
   });
 
   describe('UT09_ExamReminders_TC01: Từ chối tạo lời nhắc khi không chọn hoặc để trống mã lớp học', () => {
@@ -327,7 +332,9 @@ describe('ExamRemindersService (Unit Tests UT09 - All 26 Cases)', () => {
       expect(res.reminder_id).toBeDefined();
       expect(res.class_id).toBe('cls_1a_2026');
       expect(res.subject_code).toBe('MATH');
-      expect(res.notified_parents).toBe(36);
+      expect(res.notified_parents).toBe(1);
+      expect(mockNotificationsService.dispatchToParentsOfClass).toHaveBeenCalled();
+      expect(mockNotificationsService.dispatchToParentsOfClass.mock.calls[0][0]).toBe('cls_1a_2026');
     });
   });
 
@@ -343,7 +350,7 @@ describe('ExamRemindersService (Unit Tests UT09 - All 26 Cases)', () => {
 
       expect(res.reminder_id).toBeDefined();
       expect(res.subject_code).toBe('ENG');
-      expect(res.notified_parents).toBe(36);
+      expect(res.notified_parents).toBe(1);
     });
   });
 
@@ -359,7 +366,7 @@ describe('ExamRemindersService (Unit Tests UT09 - All 26 Cases)', () => {
 
       expect(res.reminder_id).toBeDefined();
       expect(res.subject_code).toBe('LIT');
-      expect(res.notified_parents).toBe(36);
+      expect(res.notified_parents).toBe(1);
     });
   });
 

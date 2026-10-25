@@ -38,7 +38,11 @@ export class QuizzesController {
   @Post('generate-ai')
   @Roles('TEACHER_*', 'ADMIN')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 15 * 1024 * 1024 },
+    }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Upload giáo án, chọn số câu, độ khó -> NVIDIA AI sinh câu hỏi trắc nghiệm',
@@ -46,7 +50,7 @@ export class QuizzesController {
   })
   async generateQuizFromAi(
     @CurrentUser('sub') teacherId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
     @Body() dto: GenerateQuizAiDto,
   ) {
     return this.quizzesService.generateQuizFromAi(teacherId, file, dto);

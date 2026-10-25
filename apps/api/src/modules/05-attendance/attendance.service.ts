@@ -12,10 +12,18 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
 import { SubmitAttendanceDto } from './dto/attendance.dto';
 import { AttendanceStatus, NotificationType } from '@giaovienhay/shared-types';
+import { NotificationsService } from '../11-notifications/notifications.service';
+
+export interface AbsentStudentItem {
+  studentId: string;
+  status: AttendanceStatus;
+  note?: string | null;
+}
 
 export interface AbsentEventPayload {
   classId: string;
-  absentStudentIds: string[];
+  absentStudentIds?: string[];
+  absentStudents?: AbsentStudentItem[];
   date: string;
 }
 
@@ -61,6 +69,7 @@ export class AttendanceService {
     private readonly dataConnect: FirebaseDataConnectService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly eventEmitter: EventEmitter2,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async submitAttendance(teacherId: string, dto: SubmitAttendanceDto) {
@@ -156,7 +165,7 @@ export class AttendanceService {
 
     let presentCount = 0;
     let absentCount = 0;
-    const changedAbsentIds: string[] = [];
+    const changedAbsentList: AbsentStudentItem[] = [];
     const changedPresentIds: string[] = [];
     const now = new Date().toISOString();
 
@@ -171,10 +180,23 @@ export class AttendanceService {
       // Chỉ thông báo khi trạng thái vừa thay đổi so với lần lưu trước
       const oldStatus = oldStatusMap.get(record.student_id);
       if (oldStatus === undefined) {
-        if (isAbsent) changedAbsentIds.push(record.student_id);
+        if (isAbsent) {
+          changedAbsentList.push({
+            studentId: record.student_id,
+            status: record.status,
+            note: record.note,
+          });
+        }
       } else if (oldStatus !== record.status) {
-        if (isAbsent) changedAbsentIds.push(record.student_id);
-        else changedPresentIds.push(record.student_id);
+        if (isAbsent) {
+          changedAbsentList.push({
+            studentId: record.student_id,
+            status: record.status,
+            note: record.note,
+          });
+        } else {
+          changedPresentIds.push(record.student_id);
+        }
       }
 
       const docId = `att_${dto.class_id}_${record.student_id}_${dto.attendance_date}`;
@@ -202,12 +224,13 @@ export class AttendanceService {
     await this.cacheManager.del(cacheKey);
 
     // Bắn Event xử lý ngầm (Message Queue/Event-driven) cho Notifications:
-    // - HS mới bị đánh vắng (kể cả lần đầu lưu) -> cảnh báo vắng học
+    // - HS mới bị đánh vắng/đi muộn -> gửi thông báo chi tiết, ân cần tới phụ huynh
     // - HS được sửa từ vắng -> có mặt -> thông báo cập nhật điểm danh
-    if (changedAbsentIds.length > 0) {
+    if (changedAbsentList.length > 0) {
       this.eventEmitter.emit('attendance.absent', {
         classId: dto.class_id,
-        absentStudentIds: changedAbsentIds,
+        absentStudentIds: changedAbsentList.map((s) => s.studentId),
+        absentStudents: changedAbsentList,
         date: dto.attendance_date,
       } as AbsentEventPayload);
     }
@@ -224,7 +247,7 @@ export class AttendanceService {
       total_students: dto.records.length,
       present_count: presentCount,
       absent_count: absentCount,
-      notified_parents_queued: changedAbsentIds.length + changedPresentIds.length,
+      notified_parents_queued: changedAbsentList.length + changedPresentIds.length,
       is_update: oldStatusMap.size > 0,
     };
   }
@@ -279,6 +302,13 @@ export class AttendanceService {
           this.eventEmitter.emit('attendance.absent', {
             classId: existing.classId,
             absentStudentIds: [existing.studentId],
+            absentStudents: [
+              {
+                studentId: existing.studentId,
+                status,
+                note: note ?? existing.note,
+              },
+            ],
             date: existing.date,
           } as AbsentEventPayload);
         } else if (wasAbsent) {
@@ -368,30 +398,97 @@ export class AttendanceService {
   }
 
   /**
-   * Listener xử lý ngầm (Event-Driven Worker) khi có học sinh vắng
+   * Listener xử lý ngầm (Event-Driven Worker) khi có học sinh vắng / nghỉ học / đi muộn
+   * Gửi thông báo đẩy FCM tới phụ huynh + lưu vào cơ sở dữ liệu
    */
   @OnEvent('attendance.absent', { async: true })
   async handleAbsentNotificationEvent(payload: AbsentEventPayload) {
-    const { classId, absentStudentIds, date } = payload;
-    this.logger.log(`[Worker] Xử lý ngầm gửi thông báo cho ${absentStudentIds.length} học sinh vắng ngày ${date}`);
+    const { classId, date } = payload;
+    const studentsToNotify: AbsentStudentItem[] =
+      payload.absentStudents && payload.absentStudents.length > 0
+        ? payload.absentStudents
+        : (payload.absentStudentIds || []).map((id) => ({
+            studentId: id,
+            status: AttendanceStatus.ABSENT_EXCUSED,
+          }));
 
-    for (const stuId of absentStudentIds) {
-      const notifId = 'notif_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-      const notifData = {
-        id: notifId,
-        recipient_id: stuId,
-        recipientId: stuId,
-        title: 'Cảnh báo vắng học',
-        body: `Học sinh vắng mặt tại lớp ngày ${date}. Kính nhờ phụ huynh kiểm tra thông tin.`,
-        type: NotificationType.ATTENDANCE_ABSENT,
-        is_read: false,
-        metadata: { student_id: stuId, class_id: classId },
-        created_at: new Date().toISOString(),
-      };
+    this.logger.log(`[Worker] Xử lý gửi thông báo cho ${studentsToNotify.length} học sinh ngày ${date}`);
 
-      await this.dataConnect.createNotification(notifData);
+    let className = '';
+    try {
+      if (classId) {
+        const cls = await this.dataConnect.getClassById(classId);
+        if (cls) className = cls.name ? `${cls.name}` : '';
+      }
+    } catch {}
+
+    const classLabel = className ? ` (${className})` : '';
+
+    for (const item of studentsToNotify) {
+      const stuId = item.studentId;
+      let recipientUserId = stuId;
+      let studentName = 'Học sinh';
+
+      try {
+        const student = await this.dataConnect.getStudentById(stuId);
+        if (student) {
+          studentName = student.full_name || student.fullName || studentName;
+          const parentPhone = student.parent_phone || student.parentPhone;
+          if (parentPhone) {
+            const parentUser = await this.dataConnect.getUserByPhone(parentPhone);
+            if (parentUser) {
+              recipientUserId = parentUser.id;
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`[Worker] Không lấy được thông tin phụ huynh cho học sinh ${stuId}: ${err?.message}`);
+      }
+
+      let title = '';
+      let body = '';
+      const noteStr = item.note ? ` (Ghi chú: ${item.note})` : '';
+
+      // Tùy biến nội dung theo từng trạng thái cụ thể:
+      if (item.status === AttendanceStatus.ABSENT_EXCUSED) {
+        // Vắng có phép: trang trọng, ân cần xác nhận phép
+        title = `Thông báo nghỉ học (Có phép) - Em ${studentName}`;
+        body = `Kính gửi Phụ huynh em ${studentName}, nhà trường xác nhận em vắng mặt có phép trong buổi học ngày ${date}${classLabel}${noteStr}. Kính chúc em sớm khỏe và hẹn gặp lại em tại lớp!`;
+      } else if (item.status === AttendanceStatus.ABSENT_UNEXCUSED) {
+        // Vắng không phép: thông báo học sinh chưa đến lớp, đề nghị phụ huynh kiểm tra an toàn
+        title = `Thông báo điểm danh: Em ${studentName} chưa đến lớp`;
+        body = `Kính gửi Phụ huynh em ${studentName}, trong giờ điểm danh ngày ${date}, giáo viên ghi nhận em chưa có mặt tại lớp${classLabel} và chưa nhận được thông tin xin phép từ gia đình. Kính nhờ phụ huynh kiểm tra và liên hệ ngay với giáo viên chủ nhiệm để đảm bảo an toàn cho em.`;
+      } else if (item.status === AttendanceStatus.LATE) {
+        // Đi học muộn
+        title = `Thông báo đi học muộn - Em ${studentName}`;
+        body = `Kính gửi Phụ huynh em ${studentName}, em đã đến lớp muộn trong buổi học ngày ${date}${classLabel}${noteStr}. Nhà trường xin thông tin để gia đình cùng phối hợp nhắc nhở em đi học đúng giờ.`;
+      } else {
+        // Mặc định
+        title = `Thông tin điểm danh - Em ${studentName}`;
+        body = `Kính gửi Phụ huynh em ${studentName}, thông tin điểm danh của em trong buổi học ngày ${date}${classLabel} đã được ghi nhận vào hệ thống.`;
+      }
+
+      const absentType =
+        item.status === AttendanceStatus.LATE
+          ? NotificationType.ATTENDANCE_LATE
+          : NotificationType.ATTENDANCE_ABSENT;
+
+      await this.notificationsService.dispatchNotification({
+        recipientUserId,
+        title,
+        body,
+        type: absentType,
+        metadata: {
+          student_id: stuId,
+          student_name: studentName,
+          class_id: classId,
+          date,
+          status: item.status,
+          note: item.note,
+        },
+      });
     }
-    this.logger.log(`[Worker] Đã hoàn tất ghi thông báo vào SQL Data Connect.`);
+    this.logger.log(`[Worker] Đã hoàn tất gửi thông báo điểm danh cho ${studentsToNotify.length} học sinh.`);
   }
 
   /**
@@ -400,24 +497,46 @@ export class AttendanceService {
    */
   @OnEvent('attendance.updated', { async: true })
   async handleAttendanceUpdatedEvent(payload: AttendanceUpdatedPayload) {
-    const { updatedStudentIds, date } = payload;
+    const { updatedStudentIds, date, classId } = payload;
     this.logger.log(`[Worker] Thông báo cập nhật điểm danh cho ${updatedStudentIds.length} học sinh ngày ${date}`);
 
-    for (const stuId of updatedStudentIds) {
-      const notifId = 'notif_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-      const notifData = {
-        id: notifId,
-        recipient_id: stuId,
-        recipientId: stuId,
-        title: 'Điểm danh cập nhật',
-        body: `Điểm danh của học sinh đã được cập nhật thành CÓ MẶT ngày ${date}. Xin thông báo đến phụ huynh.`,
-        type: NotificationType.SYSTEM,
-        is_read: false,
-        metadata: { student_id: stuId, class_id: payload.classId, date },
-        created_at: new Date().toISOString(),
-      };
+    let className = '';
+    try {
+      if (classId) {
+        const cls = await this.dataConnect.getClassById(classId);
+        if (cls) className = cls.name ? `${cls.name}` : '';
+      }
+    } catch {}
 
-      await this.dataConnect.createNotification(notifData);
+    const classLabel = className ? ` (${className})` : '';
+
+    for (const stuId of updatedStudentIds) {
+      let recipientUserId = stuId;
+      let studentName = 'Học sinh';
+
+      try {
+        const student = await this.dataConnect.getStudentById(stuId);
+        if (student) {
+          studentName = student.full_name || student.fullName || studentName;
+          const parentPhone = student.parent_phone || student.parentPhone;
+          if (parentPhone) {
+            const parentUser = await this.dataConnect.getUserByPhone(parentPhone);
+            if (parentUser) {
+              recipientUserId = parentUser.id;
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`[Worker] Lỗi tra cứu học sinh ${stuId}: ${err?.message}`);
+      }
+
+      await this.notificationsService.dispatchNotification({
+        recipientUserId,
+        title: `Cập nhật điểm danh: Em ${studentName} đã có mặt`,
+        body: `Kính gửi Phụ huynh em ${studentName}, giáo viên đã cập nhật trạng thái điểm danh của em thành CÓ MẶT trong buổi học ngày ${date}${classLabel}. Trân trọng cảm ơn sự phối hợp của phụ huynh!`,
+        type: NotificationType.ATTENDANCE_PRESENT,
+        metadata: { student_id: stuId, student_name: studentName, class_id: classId, date },
+      });
     }
     this.logger.log(`[Worker] Đã hoàn tất ghi thông báo cập nhật điểm danh.`);
   }

@@ -107,6 +107,9 @@ describe('StudentsService (Unit Tests UT04 - All 15 Cases)', () => {
       expect(fees.student_id).toBe('stu_01');
       expect(fees.tuition).toBeDefined();
       expect(fees.insurance).toBeDefined();
+      expect(fees.tuition.is_paid).toBe(false);
+      expect(fees.insurance.is_paid).toBe(true);
+      expect(fees.insurance.paid_date).toBe('2026-09-10T08:30:00.000Z');
     });
   });
 

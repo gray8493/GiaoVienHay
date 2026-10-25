@@ -8,6 +8,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import { NotificationsService } from '../11-notifications/notifications.service';
 import { ToggleFeeDto, RemindFeesDto } from './dto/fees-insurance.dto';
 import { FeeType, NotificationType } from '@giaovienhay/shared-types';
 
@@ -17,6 +18,7 @@ export class FeesInsuranceService {
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getClassFeesList(
@@ -85,15 +87,9 @@ export class FeesInsuranceService {
       }
     } catch (e) {}
 
-    if (allRecords.length === 0) {
-      return {
-        class_id: classId,
-        total_students: 0,
-        unpaid_tuition_count: 0,
-        unpaid_insurance_count: 0,
-        records: [],
-      };
-    }
+    const totalStudents = allRecords.length;
+    const unpaidTuition = allRecords.filter((r) => !r.tuition?.is_paid).length;
+    const unpaidInsurance = allRecords.filter((r) => !r.insurance?.is_paid).length;
 
     let filteredRecords = allRecords;
 
@@ -108,6 +104,9 @@ export class FeesInsuranceService {
     return {
       class_id: classId,
       term_name: 'Học kỳ 1 năm học 2026-2027',
+      total_students: totalStudents,
+      unpaid_tuition_count: unpaidTuition,
+      unpaid_insurance_count: unpaidInsurance,
       records: filteredRecords,
     };
   }
@@ -117,6 +116,13 @@ export class FeesInsuranceService {
     dto: ToggleFeeDto,
     options?: { isHomeroom?: boolean; isLocked?: boolean },
   ) {
+    // The mobile form displays dates as DD/MM/YYYY. Normalize that format at
+    // the API boundary so validation and Supabase always receive YYYY-MM-DD.
+    const displayDate = dto.paid_date?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (displayDate) {
+      dto.paid_date = `${displayDate[3]}-${displayDate[2]}-${displayDate[1]}`;
+    }
+
     if (!teacherId) {
       throw new UnauthorizedException({
         success: false,
@@ -265,14 +271,84 @@ export class FeesInsuranceService {
     const paidDate = dto.is_paid ? dto.paid_date : null;
 
     try {
-      await this.dataConnect.updateFeeStatus(dto.record_id, dto.is_paid ? 'PAID' : 'PENDING');
-    } catch (e) {}
+      if (typeof (this.dataConnect as any).updateFeeRecord === 'function') {
+        await (this.dataConnect as any).updateFeeRecord(
+          dto.record_id,
+          dto.fee_type,
+          dto.is_paid,
+          paidDate,
+          dto.note,
+        );
+      } else {
+        await this.dataConnect.updateFeeStatus(dto.record_id, dto.is_paid ? 'PAID' : 'PENDING');
+      }
+    } catch (err: any) {
+      this.logger.error(`[Fees] Không lưu được trạng thái ${dto.record_id}: ${err?.message}`);
+      throw new InternalServerErrorException({
+        success: false,
+        status_code: 500,
+        error_code: 'FEE_UPDATE_PERSIST_FAILED',
+        message: 'Không thể lưu trạng thái thu phí vào cơ sở dữ liệu. Vui lòng thử lại.',
+      });
+    }
+
+    // Gửi một thông báo có thể tra cứu lại trong hộp thư sau khi DB đã xác nhận lưu.
+    // Nếu không tìm được phụ huynh hoặc không lưu được thông báo, báo lỗi rõ ràng
+    // thay vì trả kết quả như thể cả hai bước đều thành công.
+    let notifiedParentCount = 0;
+    if (typeof (this.dataConnect as any).getStudentById === 'function') {
+      const studentId = existingFeeRecord?.student_id || existingFeeRecord?.studentId;
+      const student = studentId ? await this.dataConnect.getStudentById(studentId) : null;
+      if (!student) {
+        throw new InternalServerErrorException({
+          success: false,
+          status_code: 500,
+          error_code: 'FEE_PARENT_NOTIFICATION_FAILED',
+          message: 'Đã lưu trạng thái khoản thu nhưng không tìm thấy hồ sơ học sinh để thông báo cho phụ huynh.',
+        });
+      }
+
+      const feeName = dto.fee_type === FeeType.INSURANCE ? 'BHYT' : 'học phí';
+      const studentName = student.full_name || student.fullName || existingFeeRecord.student_name || 'Học sinh';
+      const paymentStatus = dto.is_paid
+        ? `đã ghi nhận ${feeName} đã nộp ngày ${paidDate}`
+        : `${feeName} hiện được ghi nhận là chưa nộp`;
+      try {
+        const result = await this.notificationsService.dispatchToParentsOfStudent(student, {
+          title: `Cập nhật trạng thái ${feeName} - Em ${studentName}`,
+          body: `Kính gửi Phụ huynh em ${studentName}, giáo viên chủ nhiệm ${paymentStatus}.${dto.note ? ` Ghi chú: ${dto.note}` : ''}`,
+          type: NotificationType.FEE_STATUS_UPDATED,
+          metadata: {
+            screen: 'Fees',
+            student_id: studentId,
+            record_id: dto.record_id,
+            fee_type: dto.fee_type,
+            is_paid: dto.is_paid,
+            paid_date: paidDate,
+          },
+        }, { requirePersistence: true });
+        const parentCount = result.parentUserIds?.length || 0;
+        if (parentCount === 0 || result.failed > 0 || result.sent < parentCount) {
+          throw new Error(`Đã lưu cho ${result.sent} trên ${parentCount} hộp thư phụ huynh.`);
+        }
+        notifiedParentCount = result.sent;
+      } catch (err: any) {
+        this.logger.error(`[Fees] Không thể thông báo cập nhật khoản thu cho phụ huynh: ${err?.message}`);
+        throw new InternalServerErrorException({
+          success: false,
+          status_code: 500,
+          error_code: 'FEE_PARENT_NOTIFICATION_FAILED',
+          message: 'Đã lưu trạng thái khoản thu, nhưng chưa thể lưu thông báo cho phụ huynh. Vui lòng kiểm tra liên kết phụ huynh và thử gửi lại.',
+        });
+      }
+    }
 
     return {
       record_id: dto.record_id,
       fee_type: dto.fee_type,
       is_paid: dto.is_paid,
       paid_date: paidDate,
+      notified_parent_count: notifiedParentCount,
       updated_at: now,
     };
   }
@@ -406,35 +482,84 @@ export class FeesInsuranceService {
       };
     }
 
-    const feeName = dto.fee_type === FeeType.INSURANCE ? 'Bảo hiểm y tế (BHYT)' : 'Học phí';
-    const message = dto.custom_message || `Kính nhờ quý phụ huynh chưa hoàn thành ${feeName} vui lòng nộp cho cô Lan tại lớp.`;
-    const notifId = 'notif_fee_' + Date.now();
+    const feeName =
+      dto.fee_type === FeeType.INSURANCE
+        ? 'Bảo hiểm y tế (BHYT)'
+        : dto.fee_type === 'BOTH'
+          ? 'Học phí & BHYT'
+          : 'Học phí';
+    const message =
+      dto.custom_message ||
+      `Kính nhờ quý phụ huynh chưa hoàn thành ${feeName} vui lòng nộp sớm cho giáo viên chủ nhiệm.`;
 
-    const notifData = {
-      id: notifId,
-      recipientId: 'class_' + dto.class_id,
-      title: `Nhắc nhở hoàn thành ${feeName}`,
-      body: message,
-      type: NotificationType.FEE_REMINDER,
-    };
+    // Tên GVCN để mở đầu thông báo thân thiện (bỏ hardcode tên cố định)
+    let teacherName = '';
+    if (teacherId && typeof (this.dataConnect as any).getUserById === 'function') {
+      try {
+        const teacher = await this.dataConnect.getUserById(teacherId);
+        teacherName = teacher?.full_name || teacher?.fullName || '';
+      } catch (e) {}
+    }
 
-    try {
-      await this.dataConnect.createNotification(notifData);
-    } catch (err: any) {
+    // Fan-out riêng tư cho từng hộ gia đình CHƯA NỘP (không đại trà cho phụ huynh đã nộp)
+    let sentTotal = 0;
+    let failedTotal = 0;
+    let attempted = 0;
+    for (const record of unpaidRecords) {
+      const studentId = record.student_id || record.studentId;
+      let student: any = record.student_name
+        ? { ...record }
+        : { id: studentId, full_name: record.student_name ?? 'Học sinh' };
+
+      if (studentId && typeof (this.dataConnect as any).getStudentById === 'function') {
+        try {
+          const full = await this.dataConnect.getStudentById(studentId);
+          if (full) {
+            student = { ...student, ...full, id: student.id || studentId };
+          }
+        } catch (e) {}
+      }
+
+      const studentName = student.full_name || student.fullName || record.student_name || 'Học sinh';
+      const teacherPrefix = teacherName ? `${teacherName} gửi lời nhắc: ` : '';
+      const res = await this.notificationsService.dispatchToParentsOfStudent(student, {
+        title: `Nhắc nhở hoàn thành ${feeName} - Em ${studentName}`,
+        body: `Kính gửi Phụ huynh em ${studentName}, ${teacherPrefix}${message}`,
+        type: NotificationType.FEE_REMINDER,
+        metadata: {
+          screen: 'Fees',
+          class_id: dto.class_id,
+          fee_type: dto.fee_type,
+          student_id: studentId ?? null,
+          record_id: record.record_id || record.id || null,
+        },
+      }, { requirePersistence: true });
+      if (res.parentUserIds.length === 0) {
+        failedTotal++;
+        this.logger.warn(`[Fees] Không tìm thấy tài khoản phụ huynh đã liên kết cho học sinh ${studentId}`);
+      } else {
+        attempted++;
+      }
+      sentTotal += res.sent;
+      failedTotal += res.failed;
+    }
+
+    // Không trả thành công nếu thiếu liên kết phụ huynh hoặc hộp thư nào chưa lưu được.
+    if (failedTotal > 0 || (attempted > 0 && sentTotal === 0)) {
       throw new InternalServerErrorException({
         success: false,
         status_code: 500,
-        error_code: 'SYS_INTERNAL_ERROR',
-        message: 'Lỗi máy chủ nội bộ hoặc lỗi kết nối Firebase Cloud Messaging',
+        error_code: 'FEE_REMINDER_DELIVERY_FAILED',
+        message: `Đã lưu thông báo vào ${sentTotal} hộp thư; ${failedTotal} phụ huynh chưa nhận được thông báo. Kiểm tra liên kết phụ huynh và thử lại.`,
       });
     }
-
-    const count = unpaidRecords.length;
 
     return {
       class_id: dto.class_id,
       fee_type: dto.fee_type,
-      notified_parents_count: count,
+      notified_parents_count: unpaidRecords.length,
+      notified_inboxes: sentTotal,
+      failed_parent_inboxes: failedTotal,
       reminded_at: new Date().toISOString(),
     };
   }

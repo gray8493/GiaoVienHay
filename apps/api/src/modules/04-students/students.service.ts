@@ -9,6 +9,16 @@ function normalizePhone(value?: string | null): string {
   return digits;
 }
 
+// Nhãn tiếng Việt cho các mã score_type (thay vì hiện "Kiểm tra ORAL_TEST" cho phụ huynh)
+const SCORE_TYPE_LABELS: Record<string, string> = {
+  ORAL_TEST: 'Kiểm tra miệng',
+  QUIZ: 'Kiểm tra',
+  TEST_15P: 'Kiểm tra 15 phút',
+  TEST_1P: 'Kiểm tra 1 tiết',
+  MID_TERM: 'Thi giữa kỳ',
+  FINAL: 'Thi cuối kỳ',
+};
+
 @Injectable()
 export class StudentsService {
   constructor(
@@ -87,9 +97,10 @@ export class StudentsService {
         });
       }
 
+      const rawScoreType = String(score.scoreType || score.score_type || '');
       subjectsMap.get(subjectCode).scores.push({
-        type: score.scoreType || score.score_type,
-        label: 'Kiểm tra ' + (score.scoreType || score.score_type),
+        type: rawScoreType,
+        label: SCORE_TYPE_LABELS[rawScoreType.toUpperCase()] || 'Kiểm tra ' + rawScoreType,
         value: score.scoreValue !== undefined ? score.scoreValue : score.score_value,
         comment: score.comment || score.teacher_note,
       });
@@ -167,10 +178,7 @@ export class StudentsService {
     const student = await this.findStudent(studentId, parentPhone);
     const resolvedId = (student as any).id || studentId;
 
-    let fees: any[] = [];
-    try {
-      fees = await this.dataConnect.getFeesByStudent(resolvedId);
-    } catch (e) {}
+    const fees: any[] = await this.dataConnect.getFeesByStudent(resolvedId);
 
     const insuranceRecord = fees.find((f) => f.fee_type === 'INSURANCE' || f.type === 'INSURANCE');
     const tuitionRecord = fees.find((f) => f.fee_type === 'TUITION' || f.type === 'TUITION');
@@ -239,10 +247,11 @@ export class StudentsService {
             id: r.id || r.reminder_id || 'exm_rem_001',
             reminder_id: r.reminder_id || r.id || 'exm_rem_001',
             subject_name: r.subject || r.subject_name || 'Toán học',
-            exam_type: r.exam_type || 'TEST_15P',
-            exam_date: r.exam_date || r.examDate || '2026-10-02',
+            exam_type: r.exam_type || r.examType || '',
+            exam_date: r.exam_date || r.examDate || '',
+            title: r.title || '',
             instructions: r.instructions || '',
-            content_scope: r.content_scope || r.note || r.title || 'Phạm vi kiểm tra',
+            content_scope: r.content_scope || r.note || r.title || '',
             created_at: r.created_at || r.createdAt || new Date().toISOString(),
           }));
         }

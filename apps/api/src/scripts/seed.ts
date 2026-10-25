@@ -107,7 +107,7 @@ async function runSeed() {
       {
         id: 'usr_ph_01',
         code: 'PH-1001',
-        full_name: 'Bác Trần Văn Hùng',
+        full_name: 'Trần Văn Hùng',
         phone: '0977112233',
         email: 'hung.tran@gmail.com',
         role: 'PARENT',

@@ -12,6 +12,7 @@ import { FirebaseDataConnectService } from '../../common/supabase/supabase.servi
 import { NvidiaService } from '../../common/nvidia/nvidia.service';
 import { AttendanceService } from '../05-attendance/attendance.service';
 import { AdminService } from '../12-admin/admin.service';
+import { extractDocumentText } from '../../common/utils/document-text.extractor';
 import { GenerateQuizAiDto, InClassScoreInputDto } from './dto/quizzes.dto';
 import { DifficultyLevel, GameMode, GradeType } from '@giaovienhay/shared-types';
 
@@ -56,7 +57,10 @@ export class QuizzesService {
       }
     }
 
-    if (dto.file_size_bytes && dto.file_size_bytes > 15 * 1024 * 1024) {
+    if (
+      (dto.file_size_bytes && dto.file_size_bytes > 15 * 1024 * 1024) ||
+      (file && file.size > 15 * 1024 * 1024)
+    ) {
       throw new BadRequestException({
         error_code: 'QUIZ_FILE_TOO_LARGE',
         message: 'Tệp giáo án tải lên vượt quá dung lượng cho phép (tối đa 15MB).',
@@ -80,9 +84,17 @@ export class QuizzesService {
     const numQuestions = dto.num_questions ? Number(dto.num_questions) : 5;
     const difficulty = dto.difficulty_level || DifficultyLevel.MEDIUM;
 
-    const lessonContent = file
-      ? `Nội dung từ giáo án: ${file.originalname}`
-      : `Bài giảng môn ${dto.subject_code} lớp ${dto.class_id}: ${dto.title}`;
+    let lessonContent = `Bài giảng môn ${dto.subject_code} lớp ${dto.class_id}: ${dto.title}`;
+
+    if (file) {
+      const extracted = await extractDocumentText(file);
+      lessonContent = `Giáo án "${dto.title}" môn ${dto.subject_code}, lớp ${dto.class_id} (tệp ${extracted.fileName}):\n\n${extracted.text}`;
+      if (extracted.truncated) {
+        this.logger.warn(
+          `Giáo án ${extracted.fileName} dài hơn ${extracted.text.length} ký tự, đã cắt bớt trước khi gửi AI.`,
+        );
+      }
+    }
 
     let questions;
     try {
@@ -130,7 +142,8 @@ export class QuizzesService {
       teacherId: teacherId,
       difficulty_level: difficulty,
       total_questions: questions.length,
-      source_doc_url: file ? `https://storage.googleapis.com/giaovienhay-storage/${file.originalname}` : null,
+      source_doc_url: null,
+      source_doc_name: file ? file.originalname : null,
       available_modes: [
         GameMode.STANDARD_QUIZ,
         GameMode.GOLDEN_BELL,
@@ -234,11 +247,33 @@ export class QuizzesService {
       });
     }
 
+    const quiz = await this.getQuizDetail(quizId);
+    const questions: any[] = Array.isArray(quiz.questions) ? [...quiz.questions] : [];
+    const idx = questions.findIndex((q: any) => Number(q.question_index) === Number(questionNumber));
+    if (idx === -1) {
+      throw new NotFoundException({
+        error_code: 'QUIZ_QUESTION_NOT_FOUND',
+        message: `Không tìm thấy câu hỏi số ${questionNumber} trong bộ đề.`,
+      });
+    }
+
+    const original = questions[idx];
+    questions[idx] = {
+      ...original,
+      content: data.content,
+      options: Array.isArray(data.options)
+        ? data.options.map((o: any, i: number) => (typeof o === 'string' ? o : String(o?.text ?? '')))
+        : original.options,
+      correct_answer: String(data.correct_answer || original.correct_answer).toUpperCase(),
+      explanation: data.explanation ?? original.explanation,
+    };
+
+    await this.dataConnect.updateQuizQuestions(quizId, questions);
+
     return {
       quiz_id: quizId,
       question_number: questionNumber,
-      content: data.content,
-      correct_answer: data.correct_answer,
+      ...questions[idx],
       updated_at: new Date().toISOString(),
     };
   }
@@ -246,28 +281,121 @@ export class QuizzesService {
   async regenerateQuestion(quizId: string, questionNumber: number, data: any, teacherId?: string) {
     await this.verifyQuizOwner(quizId, teacherId);
 
+    // Hạn ngạch AI trong ngày
+    if (typeof (this.dataConnect as any).checkDailyAiQuota === 'function') {
+      const withinQuota = await (this.dataConnect as any).checkDailyAiQuota(teacherId);
+      if (!withinQuota) {
+        throw new HttpException(
+          {
+            error_code: 'QUIZ_DAILY_QUOTA_EXCEEDED',
+            message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI trong ngày. Vui lòng quay lại vào ngày mai hoặc liên hệ quản trị viên để nâng hạn mức.',
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+
+    const quiz = await this.getQuizDetail(quizId);
+    const questions: any[] = Array.isArray(quiz.questions) ? [...quiz.questions] : [];
+    const idx = questions.findIndex((q: any) => Number(q.question_index) === Number(questionNumber));
+    if (idx === -1) {
+      throw new NotFoundException({
+        error_code: 'QUIZ_QUESTION_NOT_FOUND',
+        message: `Không tìm thấy câu hỏi số ${questionNumber} trong bộ đề.`,
+      });
+    }
+
+    const lessonContent = data?.prompt_hint
+      ? `Bài học môn ${quiz.subject_code}: ${quiz.title}. Yêu cầu riêng: ${data.prompt_hint}`
+      : `Bài học môn ${quiz.subject_code}: ${quiz.title}`;
+    const difficulty = data?.difficulty_level || DifficultyLevel.MEDIUM;
+
+    const generated = await this.nvidiaService.generateQuestionsFromLesson(
+      lessonContent,
+      quiz.subject_code,
+      1,
+      difficulty,
+    );
+    if (!generated || generated.length === 0) {
+      throw new HttpException(
+        {
+          error_code: 'QUIZ_AI_GENERATION_FAILED',
+          message: 'AI không tạo được câu hỏi mới. Vui lòng thử lại.',
+        },
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    // Chuẩn hóa: AI có thể trả question_number — dùng duy nhất question_index chuẩn của bộ đề
+    const { question_number: _legacyNumber, ...generatedQuestion } = generated[0] as any;
+    questions[idx] = { ...generatedQuestion, question_index: questionNumber };
+    await this.dataConnect.updateQuizQuestions(quizId, questions);
+
+    if (typeof (this.dataConnect as any).syncAiUsageToday === 'function') {
+      await (this.dataConnect as any).syncAiUsageToday(teacherId);
+    }
+
+    await this.adminService?.recordActivity({
+      category: 'AI_QUIZ',
+      categoryLabel: 'NVIDIA AI',
+      action: 'Tạo lại 1 câu hỏi bằng NVIDIA AI',
+      target: quiz.title,
+      details: `Câu số ${questionNumber} · Lớp ${quiz.class_id} · Môn ${quiz.subject_code}`,
+      status: 'SUCCESS',
+      statusLabel: 'Hoàn tất',
+      metadata: { teacher_id: teacherId, class_id: quiz.class_id, question_number: questionNumber },
+    });
+
     return {
       quiz_id: quizId,
       question_number: questionNumber,
-      content: 'Một hình chữ nhật có chiều dài 3/5m và chiều rộng 1/5m. Nửa chu vi hình chữ nhật đó là bao nhiêu?',
-      correct_answer: 'A',
+      ...questions[idx],
+      regenerated_at: new Date().toISOString(),
     };
   }
 
   async addQuestion(quizId: string, data: any, teacherId?: string) {
     await this.verifyQuizOwner(quizId, teacherId);
 
+    const validChoices = ['A', 'B', 'C', 'D'];
+    if (data.correct_answer && !validChoices.includes(String(data.correct_answer).toUpperCase())) {
+      throw new BadRequestException({
+        error_code: 'QUIZ_INVALID_CORRECT_ANSWER',
+        message: 'Đáp án đúng phải thuộc danh sách các lựa chọn [A, B, C, D].',
+      });
+    }
+
+    const quiz = await this.getQuizDetail(quizId);
+    const questions: any[] = Array.isArray(quiz.questions) ? [...quiz.questions] : [];
+    const nextIndex = questions.reduce((max, q: any) => Math.max(max, Number(q.question_index) || 0), 0) + 1;
+
+    questions.push({
+      question_index: nextIndex,
+      content: data.content,
+      options: Array.isArray(data.options)
+        ? data.options.map((o: any, i: number) => (typeof o === 'string' ? o : String(o?.text ?? '')))
+        : [],
+      correct_answer: String(data.correct_answer || 'A').toUpperCase(),
+      explanation: data.explanation ?? '',
+      time_limit_seconds: data.time_limit_seconds ?? 30,
+    });
+
+    await this.dataConnect.updateQuizQuestions(quizId, questions);
+
     return {
       quiz_id: quizId,
-      question_number: 6,
-      total_questions: 6,
+      question_number: nextIndex,
+      total_questions: questions.length,
     };
   }
 
   async deleteQuestion(quizId: string, questionNumber: number, currentTotalQuestions?: number, teacherId?: string) {
     await this.verifyQuizOwner(quizId, teacherId);
 
-    const total = currentTotalQuestions !== undefined ? currentTotalQuestions : (questionNumber === 1 ? 1 : 6);
+    const quiz = await this.getQuizDetail(quizId);
+    const questions: any[] = Array.isArray(quiz.questions) ? [...quiz.questions] : [];
+    // Tổng thật của bộ đề; currentTotalQuestions chỉ là đường lùi cho caller cũ
+    const total = currentTotalQuestions !== undefined ? currentTotalQuestions : questions.length;
     if (total <= 1) {
       throw new BadRequestException({
         error_code: 'QUIZ_MIN_QUESTIONS_REACHED',
@@ -275,10 +403,22 @@ export class QuizzesService {
       });
     }
 
+    const remaining = questions.filter(
+      (q: any) => Number(q.question_index) !== Number(questionNumber),
+    );
+    if (remaining.length === questions.length) {
+      throw new NotFoundException({
+        error_code: 'QUIZ_QUESTION_NOT_FOUND',
+        message: `Không tìm thấy câu hỏi số ${questionNumber} trong bộ đề.`,
+      });
+    }
+
+    await this.dataConnect.updateQuizQuestions(quizId, remaining);
+
     return {
       quiz_id: quizId,
       deleted_question_number: questionNumber,
-      remaining_questions: total - 1,
+      remaining_questions: remaining.length,
     };
   }
 

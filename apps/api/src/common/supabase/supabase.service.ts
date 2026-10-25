@@ -144,6 +144,12 @@ export interface DataConnectStudentRecord {
   gender: string;
   parentPhone?: string | null;
   parent_phone?: string | null;
+  parentName?: string | null;
+  parent_name?: string | null;
+  parentRelationship?: string | null;
+  parent_relationship?: string | null;
+  isParentAppConnected?: boolean;
+  is_parent_app_connected?: boolean;
   parent_uids?: string[];
   isDeleted: boolean;
   is_deleted?: boolean;
@@ -215,6 +221,11 @@ export interface DataConnectExamReminderRecord {
 export interface DataConnectFeeRecord {
   id: string;
   studentId: string;
+  student_id?: string;
+  fee_type?: string;
+  type?: string;
+  is_paid?: boolean;
+  paid_date?: string | null;
   title: string;
   amount: number;
   status: string;
@@ -520,7 +531,7 @@ export class SupabaseService implements OnModuleInit {
     const ph1 = {
       id: 'usr_ph_01',
       code: 'PH-1001',
-      full_name: 'Bác Phạm Văn Hùng',
+      full_name: 'Phạm Văn Hùng',
       phone: '0987654321',
       email: 'hung.pham@gmail.com',
       role: 'PARENT',
@@ -551,6 +562,21 @@ export class SupabaseService implements OnModuleInit {
       ai_used_today: 0,
       ai_model_tier: 'AUTO',
     };
+    
+    const hangTeacher = {
+      id: 'usr_hang_lit_01',
+      code: 'GV-1008',
+      full_name: 'Cô Lê Thị Hằng',
+      phone: '0903888999',
+      email: 'hang.le@chuvanan.edu.vn',
+      role: 'TEACHER_SUBJECT',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      teaching_subjects: ['LIT'],
+      is_active: true,
+      is_deleted: false,
+    };
+    this.memoryStore.users.set(hangTeacher.id, hangTeacher);
+
     [adminUser, adminRoot, gv1, gv2, ph1, usr01].forEach((u) => {
       this.memoryStore.users.set(u.id, u);
     });
@@ -1169,23 +1195,34 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async getClassById(id: string) {
+    let result: any = null;
     if (this.supabase) {
       try {
         const { data, error } = await this.supabase.from('classes').select('*').eq('id', id).maybeSingle();
         if (!error && data) {
-          return this.mapClass(data);
+          result = this.mapClass(data);
         }
       } catch (err: any) {
         this.logger.debug(`[Supabase] getClassById fallback: ${err?.message}`);
       }
     }
-    const mem = this.memoryStore.classes.get(id);
-    return mem ? this.mapClass(mem) : null;
+    if (!result) {
+      const mem = this.memoryStore.classes.get(id);
+      result = mem ? this.mapClass(mem) : null;
+    }
+    if (result) {
+      const mem = this.memoryStore.classes.get(id);
+      if (mem && Array.isArray(mem.subject_teachers) && mem.subject_teachers.length > 0) {
+        result.subject_teachers = [...mem.subject_teachers];
+      }
+    }
+    return result;
   }
 
   async getClassByInviteCode(inviteCode: string) {
     const cleanCode = (inviteCode || '').trim().toUpperCase();
     if (!cleanCode) return null;
+    let result: any = null;
     if (this.supabase) {
       try {
         const { data, error } = await this.supabase
@@ -1195,16 +1232,26 @@ export class SupabaseService implements OnModuleInit {
           .eq('is_deleted', false)
           .maybeSingle();
         if (!error && data) {
-          return this.mapClass(data);
+          result = this.mapClass(data);
         }
       } catch (err: any) {
         this.logger.debug(`[Supabase] getClassByInviteCode fallback: ${err?.message}`);
       }
     }
-    const mem = Array.from(this.memoryStore.classes.values()).find(
-      (c) => String(c.invite_code || c.inviteCode || '').toUpperCase() === cleanCode && !c.is_deleted && !c.isDeleted,
-    );
-    return mem ? this.mapClass(mem) : null;
+    if (!result) {
+      const mem = Array.from(this.memoryStore.classes.values()).find(
+        (c) => String(c.invite_code || c.inviteCode || '').toUpperCase() === cleanCode && !c.is_deleted && !c.isDeleted,
+      );
+      result = mem ? this.mapClass(mem) : null;
+    }
+    if (result) {
+      const classId = result.id || result.class_id;
+      const mem = this.memoryStore.classes.get(classId);
+      if (mem && Array.isArray(mem.subject_teachers) && mem.subject_teachers.length > 0) {
+        result.subject_teachers = [...mem.subject_teachers];
+      }
+    }
+    return result;
   }
 
   async createClass(classData: any) {
@@ -1217,6 +1264,11 @@ export class SupabaseService implements OnModuleInit {
       homeroom_teacher_id: classData.homeroom_teacher_id || classData.homeroomTeacherId || null,
       invite_code: classData.invite_code || classData.inviteCode,
       student_count: classData.student_count || classData.studentCount || 0,
+      subject_teachers: Array.isArray(classData.subject_teachers)
+        ? classData.subject_teachers
+        : Array.isArray(classData.subjectTeachers)
+          ? classData.subjectTeachers
+          : [],
       is_deleted: false,
     };
 
@@ -1233,6 +1285,33 @@ export class SupabaseService implements OnModuleInit {
 
     this.memoryStore.classes.set(classData.id, record);
     return this.mapClass(record);
+  }
+
+  /**
+   * Ghi danh sách phân công GVBM vào bảng classes.subject_teachers (jsonb) trên Supabase.
+   * Lưu cả trong memory để đọc nhanh trong cùng tiến trình.
+   */
+  async updateClassSubjectTeachers(id: string, subjectTeachers: any[]) {
+    const list = Array.isArray(subjectTeachers) ? subjectTeachers : [];
+
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('classes')
+          .update({ subject_teachers: list, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] updateClassSubjectTeachers: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] updateClassSubjectTeachers error: ${err?.message}`);
+      }
+    }
+
+    const existing = this.memoryStore.classes.get(id) || { id };
+    existing.subject_teachers = list;
+    this.memoryStore.classes.set(id, existing);
+    return true;
   }
 
   async updateClassInviteCode(id: string, inviteCode: string) {
@@ -1301,6 +1380,12 @@ export class SupabaseService implements OnModuleInit {
       gender: s.gender ?? 'MALE',
       parentPhone: s.parent_phone ?? s.parentPhone ?? null,
       parent_phone: s.parent_phone ?? s.parentPhone ?? null,
+      parentName: s.parent_name ?? s.parentName ?? null,
+      parent_name: s.parent_name ?? s.parentName ?? null,
+      parentRelationship: s.parent_relationship ?? s.parentRelationship ?? null,
+      parent_relationship: s.parent_relationship ?? s.parentRelationship ?? null,
+      isParentAppConnected: s.is_parent_app_connected ?? s.isParentAppConnected ?? false,
+      is_parent_app_connected: s.is_parent_app_connected ?? s.isParentAppConnected ?? false,
       parent_uids: s.parent_uids ?? s.parentUids ?? [],
       isDeleted: s.is_deleted ?? s.isDeleted ?? false,
       is_deleted: s.is_deleted ?? s.isDeleted ?? false,
@@ -1373,12 +1458,25 @@ export class SupabaseService implements OnModuleInit {
       dob: student.dob || null,
       gender: student.gender,
       parent_phone: student.parent_phone || student.parentPhone || null,
+      parent_name: student.parent_name || student.parentName || null,
+      parent_relationship: student.parent_relationship || student.parentRelationship || 'Bố',
+      is_parent_app_connected: student.is_parent_app_connected || student.isParentAppConnected || false,
       is_deleted: false,
     };
 
     if (this.supabase) {
       try {
-        const { error } = await this.supabase.from('students').upsert(record);
+        const dbRecord = {
+          id: record.id,
+          class_id: record.class_id,
+          student_code: record.student_code,
+          full_name: record.full_name,
+          dob: record.dob,
+          gender: record.gender,
+          parent_phone: record.parent_phone,
+          is_deleted: false,
+        };
+        const { error } = await this.supabase.from('students').upsert(dbRecord);
         if (error) {
           this.logger.warn(`[Supabase] createStudent upsert: ${error.message}`);
         }
@@ -1388,6 +1486,8 @@ export class SupabaseService implements OnModuleInit {
     }
 
     this.memoryStore.students.set(student.id, record);
+    // Tự động khởi tạo ngay hồ sơ công nợ mặc định (BHYT, Học phí trạng thái Chưa nộp)
+    await this.ensureDefaultFeeRecordsForStudent(record).catch(() => null);
     return this.mapStudent(record);
   }
 
@@ -1700,6 +1800,33 @@ export class SupabaseService implements OnModuleInit {
     return this.mapQuiz(record);
   }
 
+  /**
+   * Cập nhật danh sách câu hỏi của một quiz (sửa/thêm/xóa/tạo lại câu hỏi).
+   * Lưu cả Supabase lẫn memory fallback, giống createQuiz.
+   */
+  async updateQuizQuestions(id: string, questions: any[]) {
+    const questionsJson = JSON.stringify(questions || []);
+
+    if (this.supabase) {
+      try {
+        await this.supabase
+          .from('quizzes')
+          .update({ questions_json: questionsJson })
+          .eq('id', id);
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] updateQuizQuestions error: ${err?.message}`);
+      }
+    }
+
+    const mem = this.memoryStore.quizzes.get(id);
+    if (mem) {
+      (mem as any).questionsJson = questionsJson;
+      (mem as any).questions_json = questionsJson;
+      this.memoryStore.quizzes.set(id, mem);
+    }
+    return this.getQuizById(id);
+  }
+
   // =========================================================================
   // 8. REMARK SQL METHODS
   // =========================================================================
@@ -1850,34 +1977,47 @@ export class SupabaseService implements OnModuleInit {
   // 10. FEE SQL METHODS
   // =========================================================================
 
+  private resolveFeeType(f: any): 'TUITION' | 'INSURANCE' | null {
+    const explicitType = String(f?.fee_type ?? f?.feeType ?? f?.type ?? '').toUpperCase();
+    if (explicitType === 'TUITION' || explicitType === 'FEE') return 'TUITION';
+    if (explicitType === 'INSURANCE' || explicitType === 'BHYT') return 'INSURANCE';
+
+    const title = String(f?.title ?? f?.name ?? '').toLowerCase();
+    if (title.includes('bảo hiểm') || title.includes('bhyt') || title.includes('insurance')) return 'INSURANCE';
+    if (title.includes('học phí') || title.includes('tuition')) return 'TUITION';
+    return null;
+  }
+
   private mapFee(f: any): DataConnectFeeRecord {
+    const feeType = this.resolveFeeType(f);
+    const isPaid = f.is_paid ?? f.isPaid ?? String(f.status || '').toUpperCase() === 'PAID';
+    const paidDate = f.paid_date ?? f.paid_at ?? f.paidAt ?? null;
     return {
       id: f.id,
       studentId: f.student_id ?? f.studentId,
+      student_id: f.student_id ?? f.studentId,
+      ...(feeType ? { fee_type: feeType, type: feeType } : {}),
+      is_paid: Boolean(isPaid),
+      paid_date: paidDate,
       title: f.title,
       amount: Number(f.amount ?? 0),
       status: f.status,
       dueDate: f.due_date ?? f.dueDate,
-      paidAt: f.paid_at ?? f.paidAt ?? null,
+      paidAt: paidDate,
       createdAt: f.created_at ?? f.createdAt ?? new Date().toISOString(),
     };
   }
 
   async getFeesByStudent(studentId: string) {
     if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('fees')
-          .select('*')
-          .eq('student_id', studentId)
-          .eq('is_deleted', false)
-          .order('due_date', { ascending: false });
-        if (!error && data && data.length > 0) {
-          return data.map((f) => this.mapFee(f));
-        }
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] getFeesByStudent fallback: ${err?.message}`);
-      }
+      const { data, error } = await this.supabase
+        .from('fees')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('is_deleted', false)
+        .order('due_date', { ascending: false });
+      if (error) throw new Error(`Không thể đọc trạng thái học phí từ Supabase: ${error.message}`);
+      return (data || []).map((f) => this.mapFee(f));
     }
 
     return Array.from(this.memoryStore.fees.values())
@@ -1908,25 +2048,159 @@ export class SupabaseService implements OnModuleInit {
     return this.mapFee(record);
   }
 
-  async getFeesByClass(classId: string) {
+  async ensureDefaultFeeRecordsForStudent(student: any) {
+    if (!student || !student.id) return null;
+    const studentId = student.id;
+    const classId = student.class_id || student.classId || '';
+    const studentName = student.full_name || student.fullName || 'Học sinh';
+    const studentCode = student.student_code || student.studentCode || '';
+    const feeRecordId = `fee_${studentId}`;
+
+    // Kiểm tra xem đã có bản ghi trong memoryStore chưa
+    let existingMem = this.memoryStore.fees.get(feeRecordId);
+    if (!existingMem) {
+      existingMem = Array.from(this.memoryStore.fees.values()).find(
+        (f: any) => (f.student_id || f.studentId) === studentId && !f.is_deleted,
+      );
+    }
+
+    if (!existingMem) {
+      const defaultRecord = {
+        record_id: feeRecordId,
+        id: feeRecordId,
+        class_id: classId,
+        student_id: studentId,
+        student_code: studentCode,
+        student_name: studentName,
+        tuition: { is_paid: false, paid_date: null },
+        insurance: { is_paid: false, paid_date: null },
+        note: null,
+        is_locked: false,
+        is_deleted: false,
+        status: 'PENDING',
+      };
+      this.memoryStore.fees.set(feeRecordId, defaultRecord);
+      existingMem = defaultRecord;
+    } else {
+      // Đảm bảo có đầy đủ class_id và student_name
+      if (!existingMem.class_id && classId) existingMem.class_id = classId;
+      if (!existingMem.student_name && studentName) existingMem.student_name = studentName;
+      if (!existingMem.student_code && studentCode) existingMem.student_code = studentCode;
+      this.memoryStore.fees.set(existingMem.id, existingMem);
+    }
+
+    // Nếu có Supabase kết nối, đồng bộ cả 2 khoản phí vào bảng fees
     if (this.supabase) {
       try {
-        const { data, error } = await this.supabase
+        const { data: existingDbFees, error: readError } = await this.supabase
           .from('fees')
-          .select('*')
-          .eq('class_id', classId)
+          .select('id, title')
+          .eq('student_id', studentId)
           .eq('is_deleted', false);
-        if (!error && data && data.length > 0) {
-          return data;
+        if (readError) throw new Error(`Không thể đọc khoản thu hiện có: ${readError.message}`);
+
+        const hasTuition = existingDbFees?.some((f: any) =>
+          String(f.title || '').toLowerCase().includes('học phí'),
+        );
+        const hasInsurance = existingDbFees?.some(
+          (f: any) =>
+            String(f.title || '').toLowerCase().includes('bảo hiểm') ||
+            String(f.title || '').toLowerCase().includes('bhyt'),
+        );
+
+        const newDbRows: any[] = [];
+        if (!hasTuition) {
+          newDbRows.push({
+            id: `fee_${studentId}_tuition`,
+            student_id: studentId,
+            title: 'Học phí HK1 2026-2027',
+            amount: 1500000,
+            status: 'PENDING',
+            due_date: '2026-11-30',
+            is_deleted: false,
+          });
+        }
+        if (!hasInsurance) {
+          newDbRows.push({
+            id: `fee_${studentId}_insurance`,
+            student_id: studentId,
+            title: 'Bảo hiểm y tế 2026-2027',
+            amount: 563220,
+            status: 'PENDING',
+            due_date: '2026-11-30',
+            is_deleted: false,
+          });
+        }
+
+        if (newDbRows.length > 0) {
+          const { error } = await this.supabase.from('fees').insert(newDbRows);
+          if (error) throw new Error(`Không thể tạo khoản thu mặc định: ${error.message}`);
         }
       } catch (err: any) {
-        this.logger.debug(`[Supabase] getFeesByClass fallback: ${err?.message}`);
+        this.logger.debug(`[Supabase] ensureDefaultFeeRecordsForStudent error: ${err?.message}`);
       }
     }
 
-    return Array.from(this.memoryStore.fees.values()).filter(
+    return existingMem;
+  }
+
+  async getFeesByClass(classId: string) {
+    // 1. Lấy toàn bộ học sinh trong lớp
+    const students = await this.listStudentsByClass(classId);
+
+    // 2. Với mỗi học sinh, đảm bảo đã có hồ sơ công nợ mặc định
+    for (const student of students) {
+      await this.ensureDefaultFeeRecordsForStudent(student).catch(() => null);
+    }
+
+    // Supabase chứa mỗi khoản thu thành một dòng riêng. Gom lại thành một hồ sơ
+    // theo học sinh, đồng thời luôn lấy trạng thái mới nhất từ DB.
+    const memoryRecords = Array.from(this.memoryStore.fees.values()).filter(
       (f: any) => (f.class_id || f.classId) === classId && !f.is_deleted,
     );
+
+    if (this.supabase && students.length > 0) {
+      const studentIds = students.map((student: any) => student.id).filter(Boolean);
+      const { data, error } = await this.supabase
+        .from('fees')
+        .select('*')
+        .in('student_id', studentIds)
+        .eq('is_deleted', false);
+      if (error) {
+        throw new Error(`Không thể đọc trạng thái khoản thu từ Supabase: ${error.message}`);
+      }
+
+      const byStudent = new Map<string, any>();
+      for (const student of students) {
+        byStudent.set(student.id, {
+          record_id: `fee_${student.id}`,
+          id: `fee_${student.id}`,
+          class_id: classId,
+          student_id: student.id,
+          student_code: student.student_code || student.studentCode || '',
+          student_name: student.full_name || student.fullName || 'Học sinh',
+          tuition: { is_paid: false, paid_date: null },
+          insurance: { is_paid: false, paid_date: null },
+          note: null,
+          is_locked: false,
+          is_deleted: false,
+        });
+      }
+
+      for (const row of data || []) {
+        const record = byStudent.get(row.student_id);
+        const fee = this.mapFee(row);
+        if (!record || !fee.fee_type) continue;
+        const key = fee.fee_type === 'TUITION' ? 'tuition' : 'insurance';
+        record[key] = { is_paid: fee.is_paid, paid_date: fee.paid_date };
+        record.note = row.note ?? record.note;
+        record.is_locked = Boolean(row.is_locked || row.term_locked || row.status === 'LOCKED');
+      }
+
+      return Array.from(byStudent.values());
+    }
+
+    return memoryRecords;
   }
 
   async getFeeById(id: string) {
@@ -1941,10 +2215,84 @@ export class SupabaseService implements OnModuleInit {
         this.logger.debug(`[Supabase] getFeeById error: ${err?.message}`);
       }
     }
-    const mem = this.memoryStore.fees.get(id);
+    let mem = this.memoryStore.fees.get(id);
+    if (!mem) {
+      // Fallback: Tìm theo student_id hoặc dạng fee_<studentId>
+      const cleanStudentId = id.replace(/^fee_/, '');
+      const student = await this.getStudentById(cleanStudentId);
+      if (student) {
+        mem = await this.ensureDefaultFeeRecordsForStudent(student);
+      }
+    }
     if (!mem) return null;
     const isLocked = Boolean(mem.is_locked || mem.term_locked || mem.status === 'LOCKED');
     return { ...this.mapFee(mem), ...mem, is_locked: isLocked, isLocked, term_locked: isLocked };
+  }
+
+  async updateFeeRecord(
+    recordId: string,
+    feeType: string,
+    isPaid: boolean,
+    paidDate: string | null,
+    note?: string,
+  ) {
+    let mem = this.memoryStore.fees.get(recordId);
+    if (!mem) {
+      const cleanStudentId = recordId.replace(/^fee_/, '');
+      const student = await this.getStudentById(cleanStudentId);
+      if (student) {
+        mem = await this.ensureDefaultFeeRecordsForStudent(student);
+      }
+    }
+
+    if (!mem) throw new Error(`Không tìm thấy hồ sơ học phí trong bộ nhớ: ${recordId}`);
+    if (!this.supabase) throw new Error('Supabase chưa được cấu hình; từ chối báo đã lưu trạng thái học phí.');
+
+    const { data: dbFees, error: readError } = await this.supabase
+      .from('fees')
+      .select('id, title')
+      .eq('student_id', mem.student_id)
+      .eq('is_deleted', false);
+    if (readError) throw new Error(`Không thể tìm khoản thu trong Supabase: ${readError.message}`);
+
+    const matchesFeeType = (title: unknown) => {
+      const normalizedTitle = String(title || '').toLocaleLowerCase('vi');
+      return feeType === 'TUITION'
+        ? normalizedTitle.includes('học phí')
+        : normalizedTitle.includes('bảo hiểm') || normalizedTitle.includes('bhyt');
+    };
+    const matchingFee = dbFees?.find((fee: any) => matchesFeeType(fee.title));
+
+    const update = {
+      status: isPaid ? 'PAID' : 'PENDING',
+      paid_at: isPaid ? (paidDate ? new Date(paidDate).toISOString() : new Date().toISOString()) : null,
+    };
+    if (matchingFee) {
+      const { error } = await this.supabase.from('fees').update(update).eq('id', matchingFee.id);
+      if (error) throw new Error(`Không thể lưu trạng thái khoản thu vào Supabase: ${error.message}`);
+    } else {
+      const { error } = await this.supabase.from('fees').insert({
+        id: `fee_${mem.student_id}_${feeType === 'TUITION' ? 'tuition' : 'insurance'}`,
+        student_id: mem.student_id,
+        title: feeType === 'TUITION' ? 'Học phí HK1 2026-2027' : 'Bảo hiểm y tế 2026-2027',
+        amount: feeType === 'TUITION' ? 1500000 : 563220,
+        status: isPaid ? 'PAID' : 'PENDING',
+        due_date: '2026-11-30',
+        paid_at: isPaid ? (paidDate ? new Date(paidDate).toISOString() : new Date().toISOString()) : null,
+        is_deleted: false,
+      });
+      if (error) throw new Error(`Không thể tạo khoản thu trong Supabase: ${error.message}`);
+    }
+
+    if (feeType === 'TUITION') {
+      mem.tuition = { is_paid: isPaid, paid_date: isPaid ? paidDate : null };
+    } else if (feeType === 'INSURANCE') {
+      mem.insurance = { is_paid: isPaid, paid_date: isPaid ? paidDate : null };
+    }
+    if (note !== undefined) mem.note = note;
+    this.memoryStore.fees.set(recordId, mem);
+
+    return mem;
   }
 
   async updateFeeStatus(id: string, status: string) {
@@ -1964,84 +2312,6 @@ export class SupabaseService implements OnModuleInit {
     return true;
   }
 
-  // =========================================================================
-  // 11. NOTIFICATION SQL METHODS
-  // =========================================================================
-
-  private mapNotification(n: any): DataConnectNotificationRecord {
-    return {
-      id: n.id,
-      recipientId: n.recipient_id ?? n.recipientId,
-      title: n.title,
-      body: n.body,
-      type: n.type,
-      isRead: n.is_read ?? n.isRead ?? false,
-      createdAt: n.created_at ?? n.createdAt ?? new Date().toISOString(),
-    };
-  }
-
-  async getNotificationsByRecipient(recipientId: string) {
-    if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('notifications')
-          .select('*')
-          .eq('recipient_id', recipientId)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          return data.map((n) => this.mapNotification(n));
-        }
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] getNotificationsByRecipient fallback: ${err?.message}`);
-      }
-    }
-
-    return Array.from(this.memoryStore.notifications.values())
-      .filter((n) => (n.recipient_id || n.recipientId) === recipientId)
-      .map((n) => this.mapNotification(n));
-  }
-
-  async createNotification(notif: any) {
-    const record = {
-      id: notif.id,
-      recipient_id: notif.recipient_id || notif.recipientId,
-      title: notif.title,
-      body: notif.body,
-      type: notif.type,
-      is_read: false,
-      is_deleted: false,
-    };
-
-    if (this.supabase) {
-      try {
-        await this.supabase.from('notifications').upsert(record);
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] createNotification error: ${err?.message}`);
-      }
-    }
-
-    this.memoryStore.notifications.set(notif.id, record);
-    return this.mapNotification(record);
-  }
-
-  async markNotificationRead(id: string) {
-    if (this.supabase) {
-      try {
-        await this.supabase.from('notifications').update({ is_read: true }).eq('id', id);
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] markNotificationRead error: ${err?.message}`);
-      }
-    }
-
-    const existing = this.memoryStore.notifications.get(id);
-    if (existing) {
-      existing.is_read = true;
-      existing.isRead = true;
-      this.memoryStore.notifications.set(id, existing);
-    }
-    return true;
-  }
 
   // =========================================================================
   // 12. SYSTEM LIMITS SQL METHODS
@@ -2140,6 +2410,20 @@ export class SupabaseService implements OnModuleInit {
     return this.mapScore(item);
   }
 
+  private mapNotification(n: any) {
+    return {
+      id: n.id,
+      recipient_user_id: n.recipient_user_id ?? n.recipient_id ?? n.recipientId ?? null,
+      title: n.title ?? '',
+      body: n.body ?? '',
+      type: n.type ?? 'SYSTEM',
+      is_read: n.is_read ?? false,
+      is_deleted: n.is_deleted ?? false,
+      metadata: n.metadata ?? null,
+      created_at: n.created_at ?? new Date().toISOString(),
+    };
+  }
+
   async getNotificationById(id: string) {
     if (this.supabase) {
       try {
@@ -2159,6 +2443,151 @@ export class SupabaseService implements OnModuleInit {
     const item = this.memoryStore.notifications.get(id);
     if (!item) return null;
     return this.mapNotification(item);
+  }
+
+  /**
+   * Lấy danh sách thông báo theo recipient_user_id (phụ huynh / giáo viên)
+   */
+  async getNotificationsByRecipient(userId: string): Promise<any[]> {
+    if (this.supabase) {
+      const { data, error } = await this.supabase
+        .from('notifications')
+        .select('*')
+        // DB hiện dùng recipient_id; API vẫn trả recipient_user_id qua mapNotification.
+        .eq('recipient_id', userId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw new Error(`Không thể đọc hộp thư từ Supabase: ${error.message}`);
+      return (data || []).map((n) => this.mapNotification(n));
+    }
+
+    // Fallback in-memory: lấy tất cả notif của user, sắp xếp mới nhất lên trước
+    return Array.from(this.memoryStore.notifications.values())
+      .filter((n: any) => {
+        const rid = n.recipient_user_id ?? n.recipient_id ?? n.recipientId;
+        return rid === userId && !n.is_deleted;
+      })
+      .sort((a: any, b: any) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      .map((n) => this.mapNotification(n));
+  }
+
+  /**
+   * Tạo thông báo mới — lưu vào Supabase DB và in-memory store
+   */
+  async createNotification(payload: {
+    id?: string;
+    recipient_user_id?: string;
+    recipient_id?: string;
+    recipientId?: string;
+    title: string;
+    body: string;
+    type: string;
+    is_read?: boolean;
+    metadata?: any;
+  }, options: { requirePersistence?: boolean } = {}): Promise<any> {
+    const id = payload.id || `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const recipientUserId =
+      payload.recipient_user_id ?? payload.recipient_id ?? payload.recipientId ?? null;
+
+    const record: any = {
+      id,
+      // Persist using the column name used by the existing Supabase schema.
+      recipient_id: recipientUserId,
+      title: payload.title,
+      body: payload.body,
+      type: payload.type,
+      is_read: payload.is_read ?? false,
+      is_deleted: false,
+      metadata: payload.metadata ?? null,
+      created_at: new Date().toISOString(),
+    };
+
+    let persisted = false;
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase.from('notifications').insert(record);
+        if (error) {
+          // Older production schemas may not have the optional metadata column yet.
+          // Retry with the legacy columns so the actual inbox notification is still persisted.
+          const metadataColumnMissing =
+            Boolean(record.metadata) &&
+            /metadata/i.test(error.message) &&
+            /(column|schema cache)/i.test(error.message);
+          if (!metadataColumnMissing) throw new Error(error.message);
+
+          const legacyRecord = { ...record };
+          delete legacyRecord.metadata;
+          const retry = await this.supabase.from('notifications').insert(legacyRecord);
+          if (retry.error) throw new Error(retry.error.message);
+          this.logger.warn(
+            '[Supabase] Notification persisted without optional metadata; apply migration 002 to store metadata too.',
+          );
+        }
+        persisted = true;
+        this.logger.debug(`[Supabase] createNotification OK: ${id} -> ${recipientUserId}`);
+      } catch (err: any) {
+        if (options.requirePersistence) {
+          throw new Error(`Không thể lưu thông báo vào Supabase: ${err?.message}`);
+        }
+        this.logger.debug(`[Supabase] createNotification fallback to memory: ${err?.message}`);
+      }
+    } else if (options.requirePersistence) {
+      throw new Error('Supabase chưa được cấu hình; không thể lưu thông báo bền vững.');
+    }
+
+    // Các luồng không yêu cầu DB bền vững vẫn giữ fallback cũ; luồng học phí
+    // chỉ tới đây sau khi Supabase đã xác nhận insert thành công.
+    this.memoryStore.notifications.set(id, record);
+    return this.mapNotification(record);
+  }
+
+  /**
+   * Đánh dấu thông báo đã đọc (is_read = true)
+   */
+  async markNotificationRead(notifId: string): Promise<void> {
+    if (this.supabase) {
+      try {
+        await this.supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('id', notifId);
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] markNotificationRead fallback: ${err?.message}`);
+      }
+    }
+
+    const item = this.memoryStore.notifications.get(notifId);
+    if (item) {
+      item.is_read = true;
+      this.memoryStore.notifications.set(notifId, item);
+    }
+  }
+
+  /**
+   * Xóa mềm thông báo (is_deleted = true) — giữ dữ liệu lịch sử cho báo cáo
+   */
+  async softDeleteNotification(notifId: string): Promise<void> {
+    const now = new Date().toISOString();
+    if (this.supabase) {
+      try {
+        await this.supabase
+          .from('notifications')
+          .update({ is_deleted: true, deleted_at: now })
+          .eq('id', notifId);
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] softDeleteNotification fallback: ${err?.message}`);
+      }
+    }
+
+    const item = this.memoryStore.notifications.get(notifId);
+    if (item) {
+      item.is_deleted = true;
+      item.deleted_at = now;
+      this.memoryStore.notifications.set(notifId, item);
+    }
   }
 
   private async resolveEffectiveAiQuota(teacherId: string): Promise<number> {

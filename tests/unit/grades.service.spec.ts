@@ -8,6 +8,8 @@ import { GradeType } from '@giaovienhay/shared-types';
 describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
   let service: GradesService;
   let mockDataConnect: any;
+  let mockEventEmitter: any;
+  let mockNotificationsService: any;
 
   beforeEach(() => {
     mockDataConnect = {
@@ -20,7 +22,7 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
         return Promise.resolve({
           data: {
             scores: [
-              { id: 'sc_01', studentId: 'stu_01', scoreType: 'TEST_15P', scoreValue: 9.0 },
+              { id: 'sc_01', studentId: 'stu_01', scoreType: 'TEST_15P', scoreValue: 10.0 },
               { id: 'sc_02', studentId: 'stu_01', scoreType: 'FINAL', scoreValue: 10.0 },
               { id: 'sc_03', studentId: 'stu_02', scoreType: 'FINAL', scoreValue: 10.0 },
               { id: 'sc_04', studentId: 'stu_03', scoreType: 'FINAL', scoreValue: 9.5 },
@@ -54,7 +56,21 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
       }),
     };
 
-    service = new GradesService(mockDataConnect);
+    mockEventEmitter = {
+      emit: jest.fn(),
+    };
+
+    mockNotificationsService = {
+      dispatchToParentsOfStudent: jest
+        .fn()
+        .mockResolvedValue({ sent: 1, failed: 0, parentUserIds: ['usr_parent_01'] }),
+    };
+
+    service = new GradesService(
+      mockDataConnect,
+      mockEventEmitter as any,
+      mockNotificationsService as any,
+    );
   });
 
   // PHẦN I: Validation & Lỗi Nghiệp Vụ (TC01 - TC21)
@@ -85,16 +101,24 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
     });
   });
 
-  describe('UT06_Grades_TC03: Phê duyệt công bố điểm cho phụ huynh và kích hoạt thông báo', () => {
-    it('công bố điểm và gửi thông báo tới phụ huynh', async () => {
+  describe('UT06_Grades_TC03: Phê duyệt công bố điểm cho phụ huynh và phát sự kiện fan-out thông báo', () => {
+    it('công bố điểm và phát event grades.published cho 3 học sinh có điểm', async () => {
       const res = await service.publishScores('usr_teacher_01', {
         class_id: 'cls_1a_2026',
         subject_code: 'MATH',
         score_type: GradeType.TEST_15P,
         semester: 1,
       });
-      expect(res.notified_parents_count).toBe(35);
-      expect(mockDataConnect.createNotification).toHaveBeenCalled();
+      expect(res.notified_parents_count).toBe(3);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('grades.published', expect.objectContaining({
+        classId: 'cls_1a_2026',
+        subjectCode: 'MATH',
+        students: expect.arrayContaining([
+          expect.objectContaining({ studentId: 'stu_01' }),
+          expect.objectContaining({ studentId: 'stu_02' }),
+          expect.objectContaining({ studentId: 'stu_03' }),
+        ]),
+      }));
     });
   });
 
@@ -301,14 +325,36 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
   });
 
   describe('UT06_Grades_TC21: Công bố điểm thành công với cơ chế chịu lỗi khi FCM gặp sự cố', () => {
-    it('không crash khi gửi thông báo và hoàn tất công bố điểm', async () => {
-      mockDataConnect.createNotification.mockResolvedValue(true);
+    it('không crash khi fan-out thông báo và hoàn tất công bố điểm', async () => {
       const res = await service.publishScores('usr_teacher_01', {
         class_id: 'cls_1a_2026',
         subject_code: 'MATH',
         score_type: GradeType.TEST_15P,
       });
-      expect(res.notified_parents_count).toBe(35);
+      expect(res.notified_parents_count).toBe(3);
+    });
+  });
+
+  describe('UT06_Grades_TC38: Worker nền fan-out thông báo công bố điểm tới phụ huynh từng học sinh', () => {
+    it('dispatch thông báo đích danh cho từng phụ huynh của 3 học sinh', async () => {
+      await service.handleGradesPublishedEvent({
+        classId: 'cls_1a_2026',
+        subjectCode: 'MATH',
+        scoreType: 'TEST_15P',
+        semester: 1,
+        teacherName: 'Nguyễn Thị Lan',
+        students: [
+          { studentId: 'stu_01', studentName: 'Trần Bảo Nam' },
+          { studentId: 'stu_02' },
+          { studentId: 'stu_03' },
+        ],
+      });
+
+      expect(mockNotificationsService.dispatchToParentsOfStudent).toHaveBeenCalledTimes(3);
+      const payload = mockNotificationsService.dispatchToParentsOfStudent.mock.calls[0][1];
+      expect(payload.title).toContain('Công bố điểm Toán');
+      expect(payload.type).toBe('GRADE_PUBLISHED');
+      expect(payload.metadata.screen).toBe('Grades');
     });
   });
 

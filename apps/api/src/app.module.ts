@@ -7,6 +7,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { SupabaseModule } from './common/supabase/supabase.module';
 import { NvidiaModule } from './common/nvidia/nvidia.module';
+import { FirebaseAdminModule } from './common/firebase/firebase-admin.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { TimingInterceptor } from './common/interceptors/timing.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -59,6 +60,7 @@ import { AdminModule } from './modules/12-admin/admin.module';
 
     SupabaseModule,
     NvidiaModule,
+    FirebaseAdminModule,
 
     // Core & Business Modules
     HealthModule,

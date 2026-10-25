@@ -8,6 +8,8 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import { subjectLabel } from '../../common/utils/labels';
+import { NotificationsService } from '../11-notifications/notifications.service';
 import { CreateRemarkDto } from './dto/remarks.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
 
@@ -17,6 +19,7 @@ export class RemarksService {
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createRemark(
@@ -152,11 +155,24 @@ export class RemarksService {
       });
     }
 
-    // Kích hoạt FCM thông báo phụ huynh (Fault-tolerant)
+    // Fan-out thông báo tới phụ huynh của học sinh (Fault-tolerant)
     let fcmStatus: 'DELIVERED' | 'QUEUED_FOR_RETRY' = 'DELIVERED';
     let fcmDelivered = true;
     try {
-      await this.triggerRemarkFCM(dto.student_id, dto.content);
+      const fanout = await this.triggerRemarkFCM(dto.student_id, dto.content, {
+        subjectCode: dto.subject_code,
+        remarkId,
+        classId: dto.class_id,
+      });
+      if (fanout.sent === 0) {
+        fcmDelivered = false;
+        if (fanout.failed > 0) {
+          fcmStatus = 'QUEUED_FOR_RETRY';
+        }
+        this.logger.warn(
+          `[Remark] Không gửi được thông báo nhận xét tới phụ huynh học sinh ${dto.student_id} (tra cứu hộ thư PH thất bại)`,
+        );
+      }
     } catch (err) {
       this.logger.warn(`FCM send failed, queuing for retry: ${err}`);
       fcmStatus = 'QUEUED_FOR_RETRY';
@@ -240,17 +256,37 @@ export class RemarksService {
     };
   }
 
-  private async triggerRemarkFCM(studentId: string, content: string) {
-    const notifId = 'notif_rmk_' + Date.now();
-    const notifData = {
-      id: notifId,
-      recipientId: studentId,
-      title: 'Lời nhận xét mới từ giáo viên',
-      body: content.length > 80 ? content.substring(0, 80) + '...' : content,
-      type: NotificationType.REMARK_NEW,
-    };
+  /**
+   * Fan-out thông báo nhậ xét mới tới TOÀN BỘ phụ huynh của học sinh
+   * (đích danh từng hộp thư PH + push FCM qua NotificationsService)
+   */
+  private async triggerRemarkFCM(
+    studentId: string,
+    content: string,
+    options?: { subjectCode?: string; remarkId?: string; classId?: string },
+  ) {
+    let student: any = null;
+    if (typeof this.dataConnect.getStudentById === 'function') {
+      try {
+        student = await this.dataConnect.getStudentById(studentId);
+      } catch (e) {}
+    }
+    const studentName = student?.full_name || student?.fullName || 'Học sinh';
+    const subjectPart = options?.subjectCode ? ` (môn ${subjectLabel(options.subjectCode)})` : '';
 
-    await this.dataConnect.createNotification(notifData);
+    return await this.notificationsService.dispatchToParentsOfStudent(student, {
+      title: `Lời nhận xét mới từ giáo viên${subjectPart} - Em ${studentName}`,
+      body: `Kính gửi Phụ huynh em ${studentName}, giáo viên vừa gửi nhận xét về tình hình học tập và rèn luyện của em: "${content}". Kính mời phụ huynh vào xem chi tiết trong Sổ liên lạc.`,
+      type: NotificationType.REMARK_NEW,
+      metadata: {
+        screen: 'Remarks',
+        remark_id: options?.remarkId ?? null,
+        student_id: studentId,
+        student_name: studentName,
+        class_id: options?.classId ?? student?.class_id ?? student?.classId ?? null,
+        subject_code: options?.subjectCode ?? null,
+      },
+    });
   }
 }
 
