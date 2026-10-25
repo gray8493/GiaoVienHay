@@ -72,6 +72,7 @@ export default function App() {
   const [currentStudentName, setCurrentStudentName] = useState<string>('');
   const [currentStudentClass, setCurrentStudentClass] = useState<string>('');
   const [remarksInitialTab, setRemarksInitialTab] = useState<'REMARKS' | 'EXAMS'>('REMARKS');
+  const [parentAcademicTab, setParentAcademicTab] = useState<'GRADES' | 'REMARKS' | 'ATTENDANCE'>('GRADES');
   const [selectedRole, setSelectedRole] = useState<'TEACHER' | 'PARENT'>('TEACHER');
   const [attendanceData, setAttendanceData] = useState<AttendanceSavedData | undefined>(undefined);
 
@@ -184,11 +185,18 @@ export default function App() {
               }}
               onOpenNotifications={() => setCurrentScreen('parent_notifications')}
               onNavigateToTab={(tabKey) => {
-                if (tabKey === 'academic') setCurrentScreen('parent_academic');
+                if (tabKey === 'academic') {
+                  setParentAcademicTab('GRADES');
+                  setCurrentScreen('parent_academic');
+                }
                 if (tabKey === 'fees') setCurrentScreen('parent_fees');
                 if (tabKey === 'profile') setCurrentScreen('parent_profile');
               }}
-              onNavigateToAcademic={() => setCurrentScreen('parent_academic')}
+              onNavigateToAcademic={(tab) => {
+                // Thẻ "Nhận xét"/"Kiểm tra" gửi 'REMARKS' — mở đúng tab luôn
+                setParentAcademicTab(tab || 'GRADES');
+                setCurrentScreen('parent_academic');
+              }}
               onNavigateToAddChild={() => setCurrentScreen('parent_join_code')}
               onLogout={() => setCurrentScreen('login')}
             />
@@ -198,6 +206,7 @@ export default function App() {
               studentId={currentStudentId}
               studentName={currentStudentName}
               className={currentStudentClass}
+              initialTab={parentAcademicTab}
               onBackToHome={() => setCurrentScreen('parent_home')}
               onNavigateToTab={(tabKey) => {
                 if (tabKey === 'home') setCurrentScreen('parent_home');

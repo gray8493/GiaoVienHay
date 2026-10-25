@@ -19,6 +19,8 @@ interface ParentAcademicScreenProps {
   studentId?: string;
   studentName?: string;
   className?: string;
+  /** Tab mở khi vào màn (vd bấm thẻ "Nhận xét"/"Kiểm tra" từ Trang chủ) */
+  initialTab?: 'GRADES' | 'REMARKS' | 'ATTENDANCE';
   onBackToHome?: () => void;
   onNavigateToTab?: (tabKey: 'home' | 'academic' | 'fees' | 'profile') => void;
   onOpenNotifications?: () => void;
@@ -46,11 +48,12 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
   studentId = '',
   studentName = 'Học sinh',
   className = '',
+  initialTab,
   onBackToHome,
   onNavigateToTab,
   onOpenNotifications,
 }) => {
-  const [currentTab, setCurrentTab] = useState<TabType>('GRADES');
+  const [currentTab, setCurrentTab] = useState<TabType>(initialTab ?? 'GRADES');
   const [semester, setSemester] = useState<'HK1' | 'HK2'>('HK1');
 
   // Tháng chuyên cần: mặc định là tháng hiện tại (trước đây bị cứng '2026-10')
