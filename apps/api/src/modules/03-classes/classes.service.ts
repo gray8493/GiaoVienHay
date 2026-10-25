@@ -526,39 +526,35 @@ export class ClassesService {
         return a.teacher_name.localeCompare(b.teacher_name);
       });
 
-      const KNOWN_PARENTS_BY_NAME: Record<
-        string,
-        { parent_name: string; parent_relationship: string; is_parent_app_connected: boolean }
-      > = {
-        'Lê Minh Khôi': { parent_name: 'Lê Văn Minh', parent_relationship: 'Bố', is_parent_app_connected: true },
-        'Trần Bảo Nam': { parent_name: 'Trần Văn Hùng', parent_relationship: 'Bố', is_parent_app_connected: true },
-        'Nguyễn Hoàng My': { parent_name: 'Hoàng Thị Thảo', parent_relationship: 'Mẹ', is_parent_app_connected: true },
-        'Nguyễn Văn An': { parent_name: 'Nguyễn Văn Tuấn', parent_relationship: 'Bố', is_parent_app_connected: true },
-        'Phạm Quỳnh Anh': { parent_name: 'Đặng Mai Phương', parent_relationship: 'Mẹ', is_parent_app_connected: false },
-        'Vũ Đức Trọng': { parent_name: 'Vũ Thành Đạt', parent_relationship: 'Bố', is_parent_app_connected: true },
-      };
+      // Phụ huynh THẬT: liên kết app ghi parent_phone = SĐT tài khoản PH,
+      // nên tra tài khoản PARENT theo SĐT để lấy đúng họ tên.
+      // (Trước đây khối này BỊA tên 'Nguyễn Văn Thắng' + map 6 phụ huynh mẫu)
+      const parentAccountsByPhone = new Map<string, { full_name: string; phone: string }>();
+      try {
+        if (typeof (this.dataConnect as any).listUsers === 'function') {
+          const parentUsers = await this.dataConnect.listUsers({ role: 'PARENT' });
+          for (const u of parentUsers || []) {
+            const phone = String(u.phone || '').trim();
+            if (phone) {
+              parentAccountsByPhone.set(phone, {
+                full_name: u.full_name || u.fullName || '',
+                phone,
+              });
+            }
+          }
+        }
+      } catch {}
 
       const enrichedStudents = visibleStudents.map((st: any) => {
-        const studentName = String(st.full_name || st.fullName || '').trim();
-        const known = KNOWN_PARENTS_BY_NAME[studentName];
-        const existingName = st.parent_name || st.parentName;
-        const existingRel = st.parent_relationship || st.parentRelationship;
-        const existingConnected = st.is_parent_app_connected ?? st.isParentAppConnected;
+        const rawPhone = String(st.parent_phone || st.parentPhone || '').replace(/\s+/g, '');
+        const account = rawPhone ? parentAccountsByPhone.get(rawPhone) : undefined;
 
-        let finalParentName = existingName || known?.parent_name;
-        let finalParentRel = existingRel || known?.parent_relationship || 'Bố';
-        let finalConnected = existingConnected ?? known?.is_parent_app_connected ?? false;
-
-        if (!finalParentName && studentName) {
-          const parts = studentName.split(/\s+/);
-          const lastName = parts[0] || 'Gia đình';
-          finalParentName = `${lastName} Văn Thắng`;
-          finalParentRel = 'Bố';
-        }
-
-        if (finalParentName) {
-          finalParentName = finalParentName.replace(/^(Bác|Cô|Chú|Anh|Chị|Ông|Bà)\s+/i, "").trim();
-        }
+        const finalParentName = (account?.full_name || '')
+          .replace(/^(Bác|Cô|Chú|Anh|Chị|Ông|Bà)\s+/i, '')
+          .trim();
+        const finalParentRel =
+          account ? 'Bố' : (st.parent_relationship || st.parentRelationship || 'Bố');
+        const finalConnected = !!account;
 
         return {
           ...st,
