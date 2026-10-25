@@ -130,7 +130,13 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const rawAccount = (dto.identifier || dto.phone || dto.email || '').trim();
+    // Bộ gõ tiếng Việt (Unikey/EVKey) có thể chèn ký tự zero-width vô hình vào ô
+    // nhập — mắt thấy đúng nhưng chuỗi tra cứu/hash sai. Rửa sạch trước khi xử lý.
+    const stripInvisible = (v: any) => String(v ?? '').replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '');
+    const rawAccount = stripInvisible(dto.identifier || dto.phone || dto.email)
+      .trim()
+      .replace(/\s+/g, '');
+    const password = stripInvisible(dto.password);
     if (!rawAccount) {
       throw new BadRequestException({
         message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
@@ -171,7 +177,7 @@ export class AuthService {
 
     let isMatch = false;
     if (user.password_hash) {
-      isMatch = await bcrypt.compare(dto.password, user.password_hash);
+      isMatch = await bcrypt.compare(password, user.password_hash);
     }
 
     if (!isMatch) {

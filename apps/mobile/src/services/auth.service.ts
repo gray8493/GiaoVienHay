@@ -256,6 +256,9 @@ export const authService = {
    * Đăng nhập chuẩn theo API Backend POST /api/v1/auth/login
    */
   async login(payload: LoginPayload) {
+    // Bộ gõ tiếng Việt (Unikey/EVKey) có thể chèn ký tự zero-width vô hình vào ô
+    // nhập — rửa sạch trước khi gửi để backend tra cứu đúng tài khoản
+    const stripInvisible = (v: string) => String(v ?? '').replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '');
     let response: Response;
     try {
       response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -264,8 +267,8 @@ export const authService = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          phone: payload.phone.trim(),
-          password: payload.password,
+          phone: stripInvisible(payload.phone).trim().replace(/\s+/g, ''),
+          password: stripInvisible(payload.password),
         }),
       });
     } catch (netErr: any) {
