@@ -537,22 +537,27 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
             <Text style={styles.successHeadline}>Đã gửi sổ liên lạc!</Text>
               <Text style={styles.successSubtitle}>{className || 'Lớp học'} • {getSubjectDisplayName()} • Học kỳ {selectedSemester}</Text>
 
-            {/* Bento Stats Card */}
+            {/* Bento Stats Card — số liệu thật: tổng HS của lớp, số HS có điểm
+                trong các cột vừa công bố, số HS chưa có điểm nào */}
             <View style={styles.successBentoCard}>
               <View style={styles.successStatCol}>
-                <Text style={styles.successStatNumDark}>40</Text>
+                <Text style={styles.successStatNumDark}>{students.length}</Text>
                 <Text style={styles.successStatLabel}>Học sinh</Text>
               </View>
 
               <View style={styles.successStatColMiddle}>
                 <View style={styles.successColDividerLeft} />
-                <Text style={styles.successStatNumGreen}>40</Text>
+                <Text style={styles.successStatNumGreen}>
+                  {students.filter((s) => filledCols.some((c) => s[c.key] !== null && s[c.key] !== undefined)).length}
+                </Text>
                 <Text style={styles.successStatLabelGreen}>Đã gửi</Text>
                 <View style={styles.successColDividerRight} />
               </View>
 
               <View style={styles.successStatCol}>
-                <Text style={styles.successStatNumGray}>0</Text>
+                <Text style={styles.successStatNumGray}>
+                  {students.filter((s) => !filledCols.some((c) => s[c.key] !== null && s[c.key] !== undefined)).length}
+                </Text>
                 <Text style={styles.successStatLabel}>Chưa gửi</Text>
               </View>
             </View>
