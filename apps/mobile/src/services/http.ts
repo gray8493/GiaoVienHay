@@ -9,15 +9,41 @@ import { authService } from './auth.service';
  * Mọi service nghiệp vụ nên đi qua đây thay vì tự viết fetch riêng.
  */
 
+export interface ApiErrorDetail {
+  field: string;
+  issue: string;
+}
+
+/** Message validation chung của backend khi không specialize lỗi theo trường */
+const GENERIC_VALIDATION_MESSAGE = 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng';
+
+const parseDetails = (payload: any): ApiErrorDetail[] =>
+  Array.isArray(payload?.details)
+    ? payload.details
+        .map((d: any) => ({
+          field: String(d?.field ?? ''),
+          issue: String(d?.issue ?? d?.message ?? 'Dữ liệu không hợp lệ'),
+        }))
+        .filter((d: ApiErrorDetail) => d.issue)
+    : [];
+
 export class ApiError extends Error {
   status: number;
   payload: any;
+  /** Chi tiết từng trường vi phạm từ backend (details[]) — để UI tô lỗi theo trường */
+  details: ApiErrorDetail[];
 
   constructor(message: string, status: number, payload?: any) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.payload = payload;
+    this.details = parseDetails(payload);
+  }
+
+  /** Ghép danh sách vi phạm thành bullet list cho Alert */
+  static buildDetailsMessage(details: ApiErrorDetail[]): string {
+    return details.map((d) => `• ${d.issue}`).join('\n');
   }
 }
 
@@ -36,6 +62,19 @@ const NETWORK_ERROR_MESSAGE =
 
 const extractErrorMessage = (json: any, fallback?: string): string =>
   json?.message || json?.error || fallback || 'Đã xảy ra lỗi. Vui lòng thử lại.';
+
+/**
+ * Chọn message hiển thị: nếu backend trả message chung chung kèm details[]
+ * thì mở rộng thành bullet list từng trường để người dùng biết sai chỗ nào.
+ */
+const buildUserMessage = (json: any, fallback?: string): string => {
+  const details = parseDetails(json);
+  const message = extractErrorMessage(json, fallback);
+  if (details.length > 0 && (!json?.message || json.message === GENERIC_VALIDATION_MESSAGE)) {
+    return ApiError.buildDetailsMessage(details);
+  }
+  return message;
+};
 
 /**
  * Gọi API trả về raw Response (cho các trường hợp cần đọc details[] như register,
@@ -88,7 +127,7 @@ export async function api<T = any>(path: string, opts: ApiOptions = {}): Promise
   const json = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(extractErrorMessage(json, opts.errorMessage), response.status, json);
+    throw new ApiError(buildUserMessage(json, opts.errorMessage), response.status, json);
   }
   return (json !== null && json !== undefined && json.data !== undefined ? json.data : json) as T;
 }

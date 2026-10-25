@@ -214,6 +214,15 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
+  // Lỗi theo từng trường của modal Thêm/Sửa học sinh — lấy từ details[] backend trả về
+  const [studentFieldErrors, setStudentFieldErrors] = useState<Record<string, string>>({});
+  const clearStudentFieldError = (field: string) =>
+    setStudentFieldErrors(prev => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<StudentItem | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -348,7 +357,8 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
     setFormGender('FEMALE');
     setFormPhone('');
     setFormParentName('');
-    setFormParentRelationship('Bố');
+      setFormParentRelationship('Bố');
+    setStudentFieldErrors({});
     setShowAddModal(true);
   };
 
@@ -369,6 +379,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
         ? student.parent_relationship
         : 'Bố') as any,
     );
+    setStudentFieldErrors({});
     setShowAddModal(true);
   };
 
@@ -478,14 +489,30 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
       setFormPhone('');
       setFormParentName('');
       setFormParentRelationship('Bố');
+      setStudentFieldErrors({});
     } catch (e: any) {
-      Alert.alert(
-        'Thông báo',
-        e?.message ||
-          (editingStudentId
-            ? 'Không thể cập nhật học sinh. Vui lòng thử lại.'
-            : 'Không thể thêm học sinh. Vui lòng thử lại.'),
-      );
+      const details: { field: string; issue: string }[] = e?.details || [];
+      if (details.length > 0) {
+        // Tô lỗi ngay dưới từng ô nhập theo field backend trả về
+        const errs: Record<string, string> = {};
+        const leftovers: string[] = [];
+        details.forEach((d) => {
+          if (d.field && d.field !== 'student_code') errs[d.field] = d.issue;
+          else leftovers.push(d.issue);
+        });
+        setStudentFieldErrors(errs);
+        if (leftovers.length > 0) {
+          Alert.alert('Thông báo', leftovers.join('\n'));
+        }
+      } else {
+        Alert.alert(
+          'Thông báo',
+          e?.message ||
+            (editingStudentId
+              ? 'Không thể cập nhật học sinh. Vui lòng thử lại.'
+              : 'Không thể thêm học sinh. Vui lòng thử lại.'),
+        );
+      }
     } finally {
       setIsSavingStudent(false);
     }
@@ -1520,15 +1547,18 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                 <Text style={styles.formLabel}>
                   Họ và tên <Text style={{ color: '#BA1A1A' }}>*</Text>
                 </Text>
-                <View style={styles.inputBox}>
+                <View style={[styles.inputBox, studentFieldErrors.full_name ? styles.inputBoxError : null]}>
                   <TextInput
                     style={styles.inputText}
                     placeholder="Nhập họ và tên học sinh"
                     placeholderTextColor="#A3A0B5"
                     value={formName}
-                    onChangeText={setFormName}
+                    onChangeText={(t) => { setFormName(t); clearStudentFieldError('full_name'); }}
                   />
                 </View>
+                {studentFieldErrors.full_name ? (
+                  <Text style={styles.formErrorText}>{studentFieldErrors.full_name}</Text>
+                ) : null}
               </View>
 
               {/* Field 2: Ngày sinh * */}
@@ -1536,19 +1566,22 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                 <Text style={styles.formLabel}>
                   Ngày sinh <Text style={{ color: '#BA1A1A' }}>*</Text>
                 </Text>
-                <View style={styles.inputBoxWithIcon}>
+                <View style={[styles.inputBoxWithIcon, studentFieldErrors.dob ? styles.inputBoxError : null]}>
                   <TextInput
                     style={styles.inputText}
                     placeholder="DD/MM/YYYY (VD: 15/06/2014)"
                     placeholderTextColor="#A3A0B5"
                     value={formDob}
-                    onChangeText={setFormDob}
+                    onChangeText={(t) => { setFormDob(t); clearStudentFieldError('dob'); }}
                   />
                   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
                     <Rect x={3} y={4} width={18} height={18} rx={2} stroke="#F58F4C" strokeWidth={2} />
                     <Path d="M16 2v4M8 2v4M3 10h18" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" />
                   </Svg>
                 </View>
+                {studentFieldErrors.dob ? (
+                  <Text style={styles.formErrorText}>{studentFieldErrors.dob}</Text>
+                ) : null}
               </View>
 
               {/* Field 3: Giới tính */}
@@ -1599,19 +1632,22 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
               {/* Field 4: Họ tên phụ huynh */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Họ tên phụ huynh (Bố / Mẹ)</Text>
-                <View style={styles.inputBoxWithIcon}>
+                <View style={[styles.inputBoxWithIcon, studentFieldErrors.parent_name ? styles.inputBoxError : null]}>
                   <TextInput
                     style={styles.inputText}
                     placeholder="VD: Trần Văn Hùng hoặc Hoàng Thị Thảo"
                     placeholderTextColor="#A3A0B5"
                     value={formParentName}
-                    onChangeText={setFormParentName}
+                    onChangeText={(t) => { setFormParentName(t); clearStudentFieldError('parent_name'); }}
                   />
                   <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                     <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" />
                     <Circle cx={12} cy={7} r={4} stroke="#F58F4C" strokeWidth={2} />
                   </Svg>
                 </View>
+                {studentFieldErrors.parent_name ? (
+                  <Text style={styles.formErrorText}>{studentFieldErrors.parent_name}</Text>
+                ) : null}
               </View>
 
               {/* Field 5: Mối quan hệ với học sinh */}
@@ -1645,14 +1681,14 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                 <Text style={styles.formLabel}>
                   SĐT phụ huynh <Text style={{ color: '#BA1A1A' }}>*</Text>
                 </Text>
-                <View style={styles.inputBoxWithIcon}>
+                <View style={[styles.inputBoxWithIcon, studentFieldErrors.parent_phone ? styles.inputBoxError : null]}>
                   <TextInput
                     style={styles.inputText}
                     placeholder="09xx xxx xxx"
                     placeholderTextColor="#A3A0B5"
                     keyboardType="phone-pad"
                     value={formPhone}
-                    onChangeText={setFormPhone}
+                    onChangeText={(t) => { setFormPhone(t); clearStudentFieldError('parent_phone'); }}
                   />
                   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
                     <Path
@@ -1662,6 +1698,9 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                     />
                   </Svg>
                 </View>
+                {studentFieldErrors.parent_phone ? (
+                  <Text style={styles.formErrorText}>{studentFieldErrors.parent_phone}</Text>
+                ) : null}
               </View>
             </ScrollView>
 
@@ -2847,6 +2886,16 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     paddingHorizontal: 14,
     paddingVertical: 10,
+  },
+  inputBoxError: {
+    borderColor: '#BA1A1A',
+    borderWidth: 1.5,
+  },
+  formErrorText: {
+    marginTop: 6,
+    fontSize: 12.5,
+    color: '#BA1A1A',
+    fontWeight: '500',
   },
   inputBoxWithIcon: {
     backgroundColor: '#FFFFFF',
