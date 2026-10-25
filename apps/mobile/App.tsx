@@ -203,6 +203,9 @@ export default function App() {
           )}
           {currentScreen === 'parent_academic' && (
             <ParentAcademicScreen
+              // key theo tab đích: bấm "Học tập" ở dock khi đang ở tab khác
+              // (vd Nhận xét) sẽ nạp lại màn hình và mở đúng tab Bảng điểm
+              key={`parent_academic_${parentAcademicTab}`}
               studentId={currentStudentId}
               studentName={currentStudentName}
               className={currentStudentClass}
