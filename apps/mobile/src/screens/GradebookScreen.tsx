@@ -418,14 +418,15 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
     }
     setIsSending(true);
     try {
-      for (const col of filledCols) {
-        await gradesService.publishScores({
-          class_id: currentClassId,
-          subject_code: selectedSubject,
-          score_type: col.type,
-          semester: selectedSemester,
-        });
-      }
+      // MỘT lần gọi cho toàn bộ các cột có điểm — backend gom thành
+      // MỘT thông báo/học sinh thay vì mỗi cột một thông báo
+      await gradesService.publishScores({
+        class_id: currentClassId,
+        subject_code: selectedSubject,
+        score_type: filledCols[0].type,
+        semester: selectedSemester,
+        score_types: filledCols.map((c) => c.type),
+      });
     } catch (e: any) {
       setIsSending(false);
       Alert.alert('Lỗi', e.message || 'Không thể công bố sổ điểm');

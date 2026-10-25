@@ -16,6 +16,8 @@ export interface GradesPublishedPayload {
   classId: string;
   subjectCode: string;
   scoreType: string;
+  /** Công bố nhiều cột cùng lúc — worker gom thành 1 thông báo/học sinh */
+  scoreTypes?: string[];
   semester?: number;
   teacherName?: string;
   students: Array<{ studentId: string; studentName?: string }>;
@@ -302,15 +304,36 @@ export class GradesService {
     };
   }
 
-  async publishScores(teacherId: string, dto: PublishScoresDto & { no_scores?: boolean; already_published?: boolean }) {
-    const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}_${dto.semester || 1}`;
-    const simpleKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}`;
+  async publishScores(
+    teacherId: string,
+    dto: PublishScoresDto & { no_scores?: boolean; already_published?: boolean; score_types?: string[] },
+  ) {
+    // score_types: công bố NHIỀU cột trong MỘT lần gọi — backend phát MỘT sự kiện,
+    // worker gom thành MỘT thông báo/học sinh thay vì mỗi cột một thông báo.
+    const requestedTypes = (Array.isArray(dto.score_types) && dto.score_types.length > 0
+      ? dto.score_types.filter(Boolean)
+      : [dto.score_type]
+    ).filter((t, i, a) => a.indexOf(t) === i);
+    const isBatch = Array.isArray(dto.score_types) && dto.score_types.length > 0;
 
-    if (dto.already_published || this.publishedColumns.has(colKey) || this.publishedColumns.has(simpleKey)) {
+    const now = new Date().toISOString();
+
+    // 1) Bỏ qua các cột đã công bố từ trước
+    const newTypes = requestedTypes.filter((t) => {
+      const colKey = `${dto.class_id}_${dto.subject_code}_${t}_${dto.semester || 1}`;
+      const simpleKey = `${dto.class_id}_${dto.subject_code}_${t}`;
+      return !(
+        dto.already_published ||
+        this.publishedColumns.has(colKey) ||
+        this.publishedColumns.has(simpleKey)
+      );
+    });
+
+    if (newTypes.length === 0) {
       const duplicateGuard = {
         already_published: true,
         notified_parents_count: 0,
-        published_at: new Date().toISOString(),
+        published_at: now,
       };
       return {
         message: 'Cột điểm này đã được công bố từ trước. Không có thông báo mới nào cần gửi thêm.',
@@ -332,6 +355,14 @@ export class GradesService {
     try {
       const currentScores = await this.getClassGrades(dto.class_id, dto.subject_code, dto.semester || 1, teacherId);
       if (currentScores && currentScores.length === 0) {
+        if (isBatch) {
+          return {
+            message: 'Không có cột điểm nào có dữ liệu để công bố.',
+            notified_parents_count: 0,
+            published_types: [],
+            published_at: now,
+          };
+        }
         throw new BadRequestException({
           success: false,
           status_code: 400,
@@ -344,12 +375,30 @@ export class GradesService {
       if (e instanceof BadRequestException) throw e;
     }
 
-    this.publishedColumns.add(colKey);
-    this.publishedColumns.add(simpleKey);
+    // 2) Batch: chỉ công bố những cột THỰC SỰ có điểm, bỏ qua cột trống
+    const typesWithData = isBatch
+      ? newTypes.filter((t) =>
+          scoresForFanout.some(
+            (row: any) => String(row.scoreType || row.score_type || '') === String(t),
+          ),
+        )
+      : newTypes;
 
-    const now = new Date().toISOString();
+    if (typesWithData.length === 0) {
+      return {
+        message: 'Không có cột điểm nào có dữ liệu để công bố.',
+        notified_parents_count: 0,
+        published_types: [],
+        published_at: now,
+      };
+    }
 
-    // Gom danh sách học sinh CÓ ĐIỂM trong cột này (đích danh từng em, đã loại trùng)
+    for (const t of typesWithData) {
+      this.publishedColumns.add(`${dto.class_id}_${dto.subject_code}_${t}_${dto.semester || 1}`);
+      this.publishedColumns.add(`${dto.class_id}_${dto.subject_code}_${t}`);
+    }
+
+    // Gom danh sách học sinh CÓ ĐIỂM (đích danh từng em, đã loại trùng)
     const studentsToNotify = this.extractUniqueStudents(scoresForFanout);
 
     // Phát sự kiện nền (Event-driven Worker) fan-out thông báo từng phụ huynh
@@ -365,7 +414,8 @@ export class GradesService {
     this.eventEmitter.emit('grades.published', {
       classId: dto.class_id,
       subjectCode: dto.subject_code,
-      scoreType: dto.score_type,
+      scoreType: typesWithData[0],
+      scoreTypes: typesWithData,
       semester: dto.semester || 1,
       teacherName,
       students: studentsToNotify,
@@ -374,6 +424,7 @@ export class GradesService {
     return {
       message: 'Đã công bố điểm cho phụ huynh thành công qua SQL Data Connect',
       notified_parents_count: studentsToNotify.length,
+      published_types: typesWithData,
       published_at: now,
     };
   }
@@ -396,8 +447,14 @@ export class GradesService {
    */
   @OnEvent('grades.published', { async: true })
   async handleGradesPublishedEvent(payload: GradesPublishedPayload) {
+    const types =
+      payload.scoreTypes && payload.scoreTypes.length > 0
+        ? payload.scoreTypes
+        : [payload.scoreType];
+    const isBatch = types.length > 1;
+    const subjectName = subjectLabel(payload.subjectCode);
     this.logger.log(
-      `[Worker] Công bố điểm ${payload.subjectCode}/${payload.scoreType} lớp ${payload.classId}: fan-out ${payload.students.length} phụ huynh`,
+      `[Worker] Công bố điểm ${payload.subjectCode}/${types.join('+')} lớp ${payload.classId}: fan-out ${payload.students.length} phụ huynh${isBatch ? ' (gom 1 thông báo/học sinh)' : ''}`,
     );
 
     for (const item of payload.students) {
@@ -411,16 +468,25 @@ export class GradesService {
       const studentName = student.full_name || item.studentName || 'Học sinh';
       const teacherPrefix = payload.teacherName ? `Giáo viên ${payload.teacherName} vừa cập nhật` : 'Giáo viên vừa cập nhật';
 
+      // Nhiều cột công bố cùng lúc → MỘT thông báo tóm tắt thay vì mỗi cột một thông báo
+      const title = isBatch
+        ? `Cập nhật điểm ${subjectName} - Em ${studentName}`
+        : `Công bố điểm ${subjectName} - Em ${studentName}`;
+      const detail = isBatch
+        ? `${teacherPrefix} ${types.length} cột điểm môn ${subjectName}: ${types.map((t) => scoreTypeLabel(t)).join(', ')} (học kỳ ${payload.semester || 1}).`
+        : `${teacherPrefix} điểm ${scoreTypeLabel(payload.scoreType)} môn ${subjectName} học kỳ ${payload.semester || 1} của em.`;
+
       await this.notificationsService.dispatchToParentsOfStudent(student, {
-        title: `Công bố điểm ${subjectLabel(payload.subjectCode)} - Em ${studentName}`,
-        body: `Kính gửi Phụ huynh em ${studentName}, ${teacherPrefix} điểm ${scoreTypeLabel(payload.scoreType)} môn ${subjectLabel(payload.subjectCode)} học kỳ ${payload.semester || 1} của em. Trân trọng thông báo để gia đình cùng đồng hành với con!`,
+        title,
+        body: `Kính gửi Phụ huynh em ${studentName}, ${detail} Trân trọng thông báo để gia đình cùng đồng hành với con!`,
         type: NotificationType.GRADE_PUBLISHED,
         metadata: {
           screen: 'Grades',
           class_id: payload.classId,
           student_id: item.studentId,
           subject_code: payload.subjectCode,
-          score_type: payload.scoreType,
+          score_type: types[0],
+          score_types: isBatch ? types : undefined,
           semester: payload.semester || 1,
         },
       });

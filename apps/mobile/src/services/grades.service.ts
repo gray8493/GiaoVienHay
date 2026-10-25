@@ -18,6 +18,8 @@ export interface PublishScoresPayload {
   class_id: string;
   subject_code: string;
   score_type: 'ORAL_TEST' | 'TEST_15P' | 'TEST_1P' | 'MID_TERM' | 'FINAL';
+  /** Công bố nhiều cột cùng lúc — backend gom thành 1 thông báo/học sinh */
+  score_types?: string[];
   semester?: number;
 }
 
