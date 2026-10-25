@@ -34,7 +34,7 @@ import Svg, {
 import { attendanceService } from '../services/attendance.service';
 import { classService } from '../services/class.service';
 import { gradesService } from '../services/grades.service';
-import { SUBJECT_LABELS } from '../constants/academic';
+import { SUBJECT_LABELS, SCHOOL_SUBJECTS } from '../constants/academic';
 
 interface WheelScreenProps {
   currentClassId?: string;
@@ -83,6 +83,8 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>('MATH');
   // Điểm miệng hiện có của từng học sinh (để hỏi xác nhận trước khi ghi đè)
   const [oralScoreMap, setOralScoreMap] = useState<Map<string, number>>(new Map());
+  // Danh sách môn giáo viên có thể ghi điểm trong lớp — chọn ngay trong modal
+  const [subjectOptions, setSubjectOptions] = useState<{ code: string; label: string }[]>([]);
 
   // Animation quay vòng bánh xe
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -97,6 +99,64 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   useEffect(() => {
     loadPresentStudents();
   }, [currentClassId]);
+
+  // Tải điểm miệng hiện có của một môn (dùng cho xác nhận ghi đè)
+  const loadOralScores = async (subject: string) => {
+    try {
+      const grades: any = await gradesService.getClassGrades(currentClassId, subject, 1);
+      const rows = Array.isArray(grades) ? grades : grades?.rows || [];
+      const map = new Map<string, number>();
+      for (const r of rows) {
+        if (String(r.scoreType || r.score_type || '') !== 'ORAL_TEST') continue;
+        const sid = String(r.studentId || r.student_id || '');
+        const v = Number(r.scoreValue ?? r.score_value);
+        if (sid && !isNaN(v)) map.set(sid, v);
+      }
+      setOralScoreMap(map);
+    } catch {
+      setOralScoreMap(new Map());
+    }
+  };
+
+  // Danh sách môn giáo viên được ghi điểm: GVCN → hồ sơ ∪ phân công (rỗng thì đủ môn trường);
+  // GVBM → phân công → my-subject → hồ sơ
+  const loadSubjectOptions = async () => {
+    if (!currentClassId || currentClassId === 'cls_empty') return;
+    try {
+      const role = await classService.getMyRoleInClass(currentClassId);
+      let codes: string[];
+      if (role.isHomeroom) {
+        codes = [
+          ...new Set([
+            ...role.profileSubjectCodes,
+            ...role.allAssignedCodes,
+            ...role.apiSubjectCodes,
+          ]),
+        ];
+        if (codes.length === 0) codes = [...SCHOOL_SUBJECTS];
+      } else {
+        codes =
+          role.myAssignedCodes.length > 0
+            ? role.myAssignedCodes
+            : role.apiSubjectCodes.length > 0
+            ? role.apiSubjectCodes
+            : role.profileSubjectCodes;
+      }
+      const opts = Array.from(new Set(codes)).map((code) => ({
+        code,
+        label: SUBJECT_LABELS[code] || code,
+      }));
+      if (opts.length > 0) setSubjectOptions(opts);
+    } catch {
+      // giữ danh sách rỗng — modal vẫn hiện nhãn môn hiện tại
+    }
+  };
+
+  const handlePickSubject = (code: string) => {
+    if (code === selectedSubjectCode) return;
+    setSelectedSubjectCode(code);
+    loadOralScores(code);
+  };
 
   const loadPresentStudents = async () => {
     try {
@@ -127,21 +187,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
       setSelectedStudent(formatted[0] ?? null);
       setPresentCount(res?.total_present ?? formatted.length);
 
-      // Tải điểm miệng hiện có của môn sẽ lưu (dùng biến local — state chưa kịp cập nhật)
-      try {
-        const grades: any = await gradesService.getClassGrades(currentClassId, subject, 1);
-        const rows = Array.isArray(grades) ? grades : grades?.rows || [];
-        const map = new Map<string, number>();
-        for (const r of rows) {
-          if (String(r.scoreType || r.score_type || '') !== 'ORAL_TEST') continue;
-          const sid = String(r.studentId || r.student_id || '');
-          const v = Number(r.scoreValue ?? r.score_value);
-          if (sid && !isNaN(v)) map.set(sid, v);
-        }
-        setOralScoreMap(map);
-      } catch {
-        setOralScoreMap(new Map());
-      }
+      // Tải điểm miệng của môn sẽ lưu (biến local — state chưa kịp cập nhật)
+      loadOralScores(subject);
+      loadSubjectOptions();
     } catch (e) {
       setStudents([]);
       setSelectedStudent(null);
@@ -1059,6 +1107,35 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
                 </View>
               </View>
 
+              {/* Môn ghi điểm — chọn được ngay tại đây để điểm rơi đúng cột */}
+              <Text style={styles.modalSectionLabel}>Môn ghi điểm</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.subjectPillRow}
+              >
+                {subjectOptions.map((opt) => {
+                  const isSelected = opt.code === selectedSubjectCode;
+                  return (
+                    <TouchableOpacity
+                      key={opt.code}
+                      style={[styles.subjectPill, isSelected && styles.subjectPillActive]}
+                      onPress={() => handlePickSubject(opt.code)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.subjectPillText,
+                          isSelected && styles.subjectPillTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
               {/* Thang điểm & Ô nhập điểm */}
               <Text style={styles.modalSectionLabel}>Điểm số (Thang 0 - 10)</Text>
               <View style={styles.modalScoreBox}>
@@ -1116,6 +1193,34 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
+  subjectPillRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  subjectPill: {
+    paddingHorizontal: 14,
+    height: 34,
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  subjectPillActive: {
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1.5,
+    borderColor: '#F58F4C',
+  },
+  subjectPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  subjectPillTextActive: {
+    color: '#C2570F',
+  },
   root: {
     flex: 1,
     position: 'relative',
