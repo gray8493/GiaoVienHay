@@ -997,6 +997,53 @@ export class SupabaseService implements OnModuleInit {
     return info;
   }
 
+  /**
+   * Gỡ hẳn một lớp khỏi phân công của giáo viên: xóa class_subjects[classId]
+   * và bỏ classId khỏi joined_class_ids. mergeUserAssignedInfo không làm được
+   * vì nó hợp nhất mảng (chỉ thêm, không xóa).
+   */
+  async removeUserClassAssignment(id: string, classId: string): Promise<Record<string, any> | null> {
+    const user = await this.getUserById(id);
+    if (!user) return null;
+
+    const info = this.parseAssignedInfo(user.assigned_info ?? user.assignedInfo);
+
+    const classSubjects = this.parseAssignedInfo(info.class_subjects);
+    delete classSubjects[classId];
+    if (Object.keys(classSubjects).length > 0) {
+      info.class_subjects = classSubjects;
+    } else {
+      delete info.class_subjects;
+    }
+
+    if (Array.isArray(info.joined_class_ids)) {
+      info.joined_class_ids = info.joined_class_ids.map(String).filter((c) => c !== classId);
+    }
+
+    const assignedInfoStored = JSON.stringify(info);
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('users')
+          .update({ assigned_info: assignedInfoStored, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] removeUserClassAssignment: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] removeUserClassAssignment error: ${err?.message}`);
+      }
+    }
+
+    const existing = this.memoryStore.users.get(id);
+    if (existing) {
+      existing.assigned_info = assignedInfoStored;
+      existing.assignedInfo = assignedInfoStored;
+      this.memoryStore.users.set(id, existing);
+    }
+    return info;
+  }
+
   async updateTeacherAiQuota(id: string, quota: number, tier: string = 'AUTO', usedToday?: number) {
     const updateData: Record<string, any> = {
       ai_daily_quota: quota,
@@ -1740,7 +1787,19 @@ export class SupabaseService implements OnModuleInit {
       try {
         await this.supabase.from('scores').upsert(record);
       } catch (err: any) {
-        this.logger.debug(`[Supabase] recordScore error: ${err?.message}`);
+        // Migration 003 chưa chạy (thiếu cột is_published/published_once)?
+        // Thử lại chỉ với các cột legacy để việc LƯU ĐIỂM không bao giờ
+        // thất bại âm thầm — tính năng delta publishing chờ migration.
+        this.logger.warn(
+          `[Supabase] recordScore full-record failed (${err?.message}) — retrying legacy columns`,
+        );
+        try {
+          const { is_published: _ip, published_once: _po, ...legacy } = record;
+          await this.supabase.from('scores').upsert(legacy);
+        } catch (retryErr: any) {
+          this.logger.error(`[Supabase] recordScore legacy retry also failed: ${retryErr?.message}`);
+          throw new Error(`Không thể lưu điểm vào cơ sở dữ liệu: ${retryErr?.message}`);
+        }
       }
     }
 
