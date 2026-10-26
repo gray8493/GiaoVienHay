@@ -23,35 +23,66 @@ import Svg, {
   G,
   Polyline,
 } from 'react-native-svg';
-import { classService, MyClassItem } from '../services/class.service';
+import {
+  classService,
+  MyClassItem,
+  JoinPreviewData,
+  JoinSubjectOption,
+  buildJoinSubjectOptions,
+} from '../services/class.service';
 import { attendanceService } from '../services/attendance.service';
 import { feesService, ClassFeesSummary } from '../services/fees.service';
 import { remarksService, ExamReminderItem, StudentRemarkItem } from '../services/remarks.service';
 import { authService } from '../services/auth.service';
+import { userService } from '../services/user.service';
+import { getCurrentAcademicYear } from '../utils/academic';
 
 export interface ClassOption {
   id: string;
   name: string;
   studentsCount: number;
-  room: string;
+  schoolName: string;
   roleType: 'HOMEROOM' | 'SUBJECT';
   subjectBadge: string;
-  nextLessonTitle: string;
-  nextLessonTime: string;
-  ctaText: string;
 }
 
-export const TEACHER_CLASSES: ClassOption[] = [];
+const formatExamDate = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+const daysUntilExam = (dateStr?: string): number | null => {
+  if (!dateStr) return null;
+  const target = new Date(`${dateStr.split('T')[0]}T00:00:00`);
+  if (isNaN(target.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+};
+
+const examCountdownLabel = (dateStr?: string) => {
+  const diff = daysUntilExam(dateStr);
+  if (diff === null) return 'Sắp tới';
+  if (diff === 0) return 'Hôm nay';
+  if (diff === 1) return 'Ngày mai';
+  if (diff > 1) return `Còn ${diff} ngày`;
+  return 'Đã qua';
+};
 
 interface TeacherHomeScreenProps {
   currentClassId?: string;
+  currentClassName?: string;
+  currentSubjectName?: string;
+  currentRoleType?: 'HOMEROOM' | 'SUBJECT';
   hasNoClass?: boolean;
-  onSelectClass?: (classId: string, className?: string) => void;
+  onSelectClass?: (classId: string, className?: string, subjectName?: string) => void;
   onEnterClassroom?: () => void;
   onOpenAIQuiz?: () => void;
   onOpenWheel?: () => void;
   onManageClass?: () => void;
-  onOpenHealthInsurance?: () => void;
+  onOpenHealthInsurance?: (classId?: string) => void;
   onOpenRemarksExam?: (initialTab?: 'REMARKS' | 'EXAMS') => void;
   onOpenNotifications?: () => void;
   onTabChange?: (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => void;
@@ -59,6 +90,9 @@ interface TeacherHomeScreenProps {
 
 export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   currentClassId = '',
+  currentClassName = '',
+  currentSubjectName = '',
+  currentRoleType,
   hasNoClass = false,
   onSelectClass,
   onEnterClassroom,
@@ -77,7 +111,10 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   // Dynamic Dashboard States from Backend
   const [teacherName, setTeacherName] = useState<string>(() => authService.getUser()?.full_name || 'Thầy/Cô');
   const [classesList, setClassesList] = useState<ClassOption[]>([]);
+  // Đánh dấu đã tải xong danh sách lớp để phân biệt "đang tải" với "chưa có lớp"
+  const [isClassesLoaded, setIsClassesLoaded] = useState(false);
   const [attendanceStats, setAttendanceStats] = useState<{ presentCount: number; totalCount: number }>({ presentCount: 0, totalCount: 0 });
+  const [isAttendedToday, setIsAttendedToday] = useState<boolean>(false);
   const [feesSummary, setFeesSummary] = useState<ClassFeesSummary | null>(null);
   const [examReminders, setExamReminders] = useState<ExamReminderItem[]>([]);
   const [remarksList, setRemarksList] = useState<StudentRemarkItem[]>([]);
@@ -87,26 +124,44 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   const [joinClassModalVisible, setJoinClassModalVisible] = useState(false);
   const [newClassName, setNewClassName] = useState('');
   const [newClassGrade, setNewClassGrade] = useState('6');
-  const [newClassYear, setNewClassYear] = useState('2026-2027');
+  const [newClassYear, setNewClassYear] = useState(getCurrentAcademicYear());
   const [joinInviteCode, setJoinInviteCode] = useState('');
+  const [joinPreview, setJoinPreview] = useState<JoinPreviewData | null>(null);
+  const [joinSubjectOptions, setJoinSubjectOptions] = useState<JoinSubjectOption[]>([]);
+  const [joinSelectedSubjects, setJoinSelectedSubjects] = useState<string[]>([]);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedClassId = internalClassId || currentClassId;
-  const isNoClassState = hasNoClass || selectedClassId === 'cls_empty' || (!selectedClassId && classesList.length === 0) || classesList.length === 0;
+  // Chỉ coi là "chưa có lớp" khi đã tải xong danh sách và xác nhận rỗng
+  // (tránh nháy trang rỗng mỗi lần mount trong khi API chưa trả kết quả)
+  const isNoClassState = hasNoClass || (isClassesLoaded && classesList.length === 0 && (!selectedClassId || selectedClassId === 'cls_empty'));
   const currentClass =
     classesList.find((c) => c.id === selectedClassId) ||
     classesList[0] || {
-      id: 'cls_empty',
-      name: 'Chưa có lớp',
+      id: selectedClassId || 'cls_empty',
+      name: currentClassName || 'Chưa có lớp',
       studentsCount: 0,
-      room: '',
-      roleType: 'HOMEROOM' as const,
-      subjectBadge: '',
-      nextLessonTitle: '',
-      nextLessonTime: '',
-      ctaText: 'Tạo Lớp',
+      schoolName: '',
+      // Dùng vai trò/môn đích danh truyền từ màn Lớp Của Tôi để không nháy sai UI
+      // trong lúc chờ API danh sách lớp trả về
+      roleType: currentRoleType || 'HOMEROOM',
+      subjectBadge: currentRoleType === 'SUBJECT' ? currentSubjectName || 'Bộ môn' : 'Chủ nhiệm',
     };
   const isHomeroom = currentClass.roleType === 'HOMEROOM';
+  const totalStudents = currentClass.studentsCount;
+  const presentCount = Math.min(
+    attendanceStats.presentCount,
+    totalStudents > 0 ? totalStudents : attendanceStats.presentCount
+  );
+  const absentCount = Math.max(totalStudents - presentCount, 0);
+  const heroCtaLabel = isHomeroom
+    ? isAttendedToday
+      ? 'Vào Lớp'
+      : 'Điểm danh ngay'
+    : isAttendedToday
+    ? 'Dò bài cũ'
+    : 'Vào Lớp';
 
   useEffect(() => {
     if (currentClassId && currentClassId !== 'cls_empty') {
@@ -122,7 +177,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
     if (selectedClassId && selectedClassId !== 'cls_empty') {
       loadClassDashboard(selectedClassId);
     }
-  }, [selectedClassId]);
+  }, [selectedClassId, classesList.length]);
 
   const loadClasses = async () => {
     try {
@@ -131,24 +186,40 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       if (user && user.full_name) {
         setTeacherName(user.full_name);
       }
+      // Tên hiển thị lấy lại từ DB mỗi lần vào trang chủ — session cũ (bản app trước)
+      // có thể đã cache tên bị lỗi font, không nên để nó "dính" mãi trên header.
+      userService
+        .getProfile()
+        .then((fresh) => {
+          if (fresh?.full_name) setTeacherName(fresh.full_name);
+        })
+        .catch(() => null);
       const cls = await classService.getMyClasses();
       if (Array.isArray(cls)) {
         if (cls.length > 0) {
-          const mapped: ClassOption[] = cls.map((c, idx) => ({
+          const mapped: ClassOption[] = cls.map((c) => ({
             id: c.id,
             name: c.name.startsWith('Lớp ') ? c.name : `Lớp ${c.name}`,
             studentsCount: typeof c.student_count === 'number' ? c.student_count : 0,
-            room: c.school_name ? c.school_name : (c.grade_level ? `Khối ${c.grade_level}` : ''),
-            roleType: c.role_type || (idx === 0 ? 'HOMEROOM' : 'SUBJECT'),
-            subjectBadge: c.subject_name || (c.role_type === 'HOMEROOM' ? 'Chủ nhiệm' : 'Bộ môn'),
-            nextLessonTitle: `${c.name} - Tiết ${idx + 1}`,
-            nextLessonTime: '08:00 – 08:45',
-            ctaText: c.role_type === 'HOMEROOM' ? 'Vào Lớp' : 'Dò Bài',
+            schoolName: c.school_name || '',
+            roleType: c.role_type || 'SUBJECT',
+            subjectBadge:
+              c.role_type === 'HOMEROOM'
+                ? c.subject_names && c.subject_names.length > 0
+                  ? `Chủ nhiệm · ${c.subject_names.join(', ')}`
+                  : 'Chủ nhiệm'
+                : c.subject_names && c.subject_names.length > 0
+                ? c.subject_names.join(', ')
+                : c.subject_name || 'Bộ môn',
           }));
           setClassesList(mapped);
-          if (mapped[0] && (!currentClassId || currentClassId === 'cls_empty' || currentClassId === 'cls_6a1' || !mapped.some(m => m.id === currentClassId))) {
+          if (mapped[0] && (!currentClassId || currentClassId === 'cls_empty' || !mapped.some(m => m.id === currentClassId))) {
             setInternalClassId(mapped[0].id);
-            onSelectClass?.(mapped[0].id, mapped[0].name);
+            onSelectClass?.(
+              mapped[0].id,
+              mapped[0].name,
+              mapped[0].roleType === 'SUBJECT' ? mapped[0].subjectBadge : ''
+            );
           }
         } else {
           setClassesList([]);
@@ -157,19 +228,27 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       }
     } catch (e) {
       console.warn('Error fetching classes:', e);
+    } finally {
+      setIsClassesLoaded(true);
     }
   };
 
   const loadClassDashboard = async (clsId: string) => {
+    const clsInfo = classesList.find((c) => c.id === clsId);
+    const clsTotal = clsInfo?.studentsCount || 0;
+
+    setAttendanceStats({ presentCount: 0, totalCount: clsTotal });
+    setIsAttendedToday(false);
+    setFeesSummary(null);
+    setExamReminders([]);
+    setRemarksList([]);
+
     try {
       attendanceService.getTodayPresentStudents(clsId).then((res: any) => {
         if (res) {
-          const tot = currentClass.studentsCount || (res.present_students?.length) || 0;
           const pres = typeof res.total_present === 'number' ? res.total_present : (res.present_students?.length || 0);
-          setAttendanceStats({
-            presentCount: Math.min(pres, tot > 0 ? tot : pres),
-            totalCount: tot,
-          });
+          setAttendanceStats({ presentCount: pres, totalCount: clsTotal });
+          setIsAttendedToday(res.is_attended_today === true || pres > 0);
         }
       }).catch(() => null);
 
@@ -178,7 +257,15 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       }).catch(() => null);
 
       remarksService.getClassExamReminders(clsId).then((res: any) => {
-        if (res && res.length > 0) setExamReminders(res);
+        if (res && res.length > 0) {
+          const upcoming = (res as ExamReminderItem[])
+            .filter((r) => {
+              const diff = daysUntilExam(r.exam_date);
+              return diff === null || diff >= 0;
+            })
+            .sort((a, b) => (a.exam_date || '').localeCompare(b.exam_date || ''));
+          setExamReminders(upcoming);
+        }
       }).catch(() => null);
 
       remarksService.getClassRemarks(clsId).then((res: any) => {
@@ -200,17 +287,30 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
 
   const handleChooseClass = (classItem: ClassOption) => {
     setInternalClassId(classItem.id);
-    onSelectClass?.(classItem.id, classItem.name);
+    onSelectClass?.(
+      classItem.id,
+      classItem.name,
+      classItem.roleType === 'SUBJECT' ? classItem.subjectBadge : ''
+    );
     setIsClassSheetVisible(false);
   };
 
   const handleHeroCta = () => {
     if (isHomeroom) {
+      if (!isAttendedToday) {
+        // GVCN chưa điểm danh hôm nay → mở thẳng màn hình Điểm danh 1-chạm
+        if (onTabChange) onTabChange('attendance');
+        else onEnterClassroom?.();
+        return;
+      }
       onEnterClassroom?.();
-    } else {
-      // GVBM: Vào lớp & dò bài cũ trực tiếp bằng Vòng quay gọi tên
-      onOpenWheel?.();
+      return;
     }
+
+    // GVBM: đã có danh sách hiện diện → dò bài cũ bằng Vòng quay gọi tên;
+    // GVCN chưa điểm danh → vào lớp trước
+    if (isAttendedToday) onOpenWheel?.();
+    else onEnterClassroom?.();
   };
 
   const handleCreateClassSubmit = async () => {
@@ -240,17 +340,81 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
     }
   };
 
+  /**
+   * Tra mã mời: server trả thông tin lớp + môn trong hồ sơ cô được phép nhận
+   * và môn đã có giáo viên khác phụ trách.
+   */
+  const handleJoinPreviewLookup = async () => {
+    if (!joinInviteCode.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mã mời tham gia lớp học');
+      return;
+    }
+    setIsLookingUp(true);
+    try {
+      const data = await classService.previewJoin(joinInviteCode.trim());
+      const options = buildJoinSubjectOptions(data);
+      setJoinPreview(data);
+      setJoinSubjectOptions(options);
+      setJoinSelectedSubjects(options.filter((o) => o.is_mine).map((o) => o.code));
+    } catch (err: any) {
+      setJoinPreview(null);
+      setJoinSubjectOptions([]);
+      setJoinSelectedSubjects([]);
+      Alert.alert('Lỗi', err.message || 'Mã mời không hợp lệ');
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const toggleJoinSubject = (code: string) => {
+    setJoinSelectedSubjects((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  };
+
+  const closeJoinModal = () => {
+    setJoinClassModalVisible(false);
+    setJoinPreview(null);
+    setJoinSubjectOptions([]);
+    setJoinSelectedSubjects([]);
+  };
+
   const handleJoinClassSubmit = async () => {
     if (!joinInviteCode.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập mã mời tham gia lớp học');
       return;
     }
+    if (!joinPreview) {
+      Alert.alert('Thông báo', 'Vui lòng bấm "Tra mã" để xem thông tin lớp và môn được nhận.');
+      return;
+    }
+    if (joinSubjectOptions.length === 0) {
+      Alert.alert(
+        'Chưa chọn được môn',
+        'Hồ sơ của bạn chưa có môn giảng dạy. Vui lòng cập nhật môn trong hồ sơ giáo viên trước khi vào lớp.',
+      );
+      return;
+    }
+    const selectableCodes = joinSubjectOptions.filter((o) => !o.taken_by).map((o) => o.code);
+    if (selectableCodes.length === 0) {
+      Alert.alert(
+        'Không còn môn nhận',
+        `Toàn bộ môn trong hồ sơ (${joinSubjectOptions.map((o) => o.label).join(', ')}) đang có giáo viên khác phụ trách.`,
+      );
+      return;
+    }
+    const selected = joinSelectedSubjects.filter((c) => selectableCodes.includes(c));
+    if (selected.length === 0) {
+      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một môn học phụ trách');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const res = await classService.joinClass(joinInviteCode.trim());
-      setJoinClassModalVisible(false);
+      const res = await classService.joinClass(joinInviteCode.trim(), selected);
+      closeJoinModal();
       setJoinInviteCode('');
-      Alert.alert('Thành công', 'Đã tham gia lớp học thành công!');
+      Alert.alert('Thành công', res?.message || 'Đã tham gia lớp học thành công!');
       await loadClasses();
     } catch (err: any) {
       Alert.alert('Lỗi', err.message || 'Mã mời không hợp lệ');
@@ -372,7 +536,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                     <Path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" strokeLinecap="round" strokeLinejoin="round" />
                   </Svg>
                 </View>
-                <Text style={styles.dockTabTextActive}>Lịch dạy</Text>
+                <Text style={styles.dockTabTextActive}>Trang chủ</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.dockTabItem} activeOpacity={0.8} onPress={() => handleTabPress('attendance')}>
@@ -429,7 +593,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                 />
                 <TextInput
                   style={styles.dialogInput}
-                  placeholder="Năm học (ví dụ: 2026-2027)"
+                  placeholder={`Năm học (ví dụ: ${getCurrentAcademicYear()})`}
                   placeholderTextColor="#9D9AA8"
                   value={newClassYear}
                   onChangeText={setNewClassYear}
@@ -452,24 +616,116 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
           visible={joinClassModalVisible}
           transparent
           animationType="slide"
-          onRequestClose={() => setJoinClassModalVisible(false)}
+          onRequestClose={closeJoinModal}
         >
           <View style={styles.sheetOverlay}>
-            <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setJoinClassModalVisible(false)} />
+            <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeJoinModal} />
             <View style={styles.dialogSheetBox}>
               <View style={styles.dragHandle} />
               <Text style={styles.dialogSheetTitle}>Vào Lớp Bằng Mã</Text>
               <Text style={styles.dialogSheetSubtitle}>Nhập mã mời được cung cấp bởi Giáo viên chủ nhiệm</Text>
-              <TextInput
-                style={[styles.dialogInput, { marginBottom: 16 }]}
-                placeholder="Mã mời (ví dụ: INV-6A1-9821 hoặc TCH-6A1-4417)"
-                placeholderTextColor="#9D9AA8"
-                autoCapitalize="characters"
-                value={joinInviteCode}
-                onChangeText={setJoinInviteCode}
-              />
+              <View style={styles.joinCodeRow}>
+                <TextInput
+                  style={[styles.dialogInput, { flex: 1 }]}
+                  placeholder="Nhập mã mời do GVCN cung cấp"
+                  placeholderTextColor="#9D9AA8"
+                  autoCapitalize="characters"
+                  value={joinInviteCode}
+                  onChangeText={(v) => {
+                    setJoinInviteCode(v);
+                    if (joinPreview) {
+                      setJoinPreview(null);
+                      setJoinSubjectOptions([]);
+                      setJoinSelectedSubjects([]);
+                    }
+                  }}
+                  onSubmitEditing={handleJoinPreviewLookup}
+                />
+                <TouchableOpacity
+                  style={styles.joinLookupBtn}
+                  onPress={handleJoinPreviewLookup}
+                  disabled={isLookingUp}
+                >
+                  <Text style={styles.joinLookupBtnText}>{isLookingUp ? 'Đang tra…' : 'Tra mã'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                style={styles.joinSheetScroll}
+                contentContainerStyle={styles.joinSheetScrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {joinPreview ? (
+                  <View style={styles.joinClassCard}>
+                    <Text style={styles.joinClassName}>{joinPreview.name || 'Lớp học'}</Text>
+                    <Text style={styles.joinClassMeta}>
+                      GVCN: {joinPreview.homeroom_teacher || 'Chưa cập nhật'}
+                      {joinPreview.student_count ? ` • ${joinPreview.student_count} học sinh` : ''}
+                    </Text>
+                    {joinPreview.is_homeroom && (
+                      <Text style={styles.joinClassNote}>
+                        Bạn là chủ nhiệm lớp này — vào mã chỉ để nhận thêm môn bộ môn.
+                      </Text>
+                    )}
+                  </View>
+                ) : (
+                  <Text style={styles.joinClassMeta}>
+                    Bấm “Tra mã” để xem thông tin lớp và các môn trong hồ sơ bạn được phép nhận.
+                  </Text>
+                )}
+
+                {joinPreview ? (
+                  <View style={{ gap: 8 }}>
+                    <Text style={styles.joinSectionLabel}>Môn phụ trách (chọn được nhiều môn)</Text>
+                    {joinSubjectOptions.length === 0 ? (
+                      <Text style={styles.joinClassNote}>
+                        Hồ sơ của bạn chưa có môn giảng dạy. Vui lòng cập nhật môn trong hồ sơ giáo viên
+                        trước khi vào lớp bằng mã.
+                      </Text>
+                    ) : (
+                      <View style={styles.joinChipRow}>
+                        {joinSubjectOptions.map((subj) => {
+                          const isSelected = joinSelectedSubjects.includes(subj.code);
+                          const isLocked = Boolean(subj.taken_by) || Boolean(subj.is_mine);
+                          return (
+                            <TouchableOpacity
+                              key={subj.code}
+                              style={[
+                                styles.joinChip,
+                                isSelected ? styles.joinChipActive : null,
+                                isLocked ? styles.joinChipLocked : null,
+                              ]}
+                              onPress={() => !isLocked && toggleJoinSubject(subj.code)}
+                              disabled={isLocked}
+                              activeOpacity={0.8}
+                            >
+                              <Text
+                                style={[
+                                  styles.joinChipText,
+                                  isSelected ? styles.joinChipTextActive : null,
+                                  subj.taken_by ? styles.joinChipTextStruck : null,
+                                ]}
+                              >
+                                {subj.label}
+                              </Text>
+                              {subj.taken_by ? (
+                                <Text style={styles.joinChipSub}>{subj.taken_by} đang phụ trách</Text>
+                              ) : null}
+                              {subj.is_mine ? (
+                                <Text style={styles.joinChipSub}>Bạn đang phụ trách</Text>
+                              ) : null}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+              </ScrollView>
+
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity style={styles.dialogCancelBtn} onPress={() => setJoinClassModalVisible(false)}>
+                <TouchableOpacity style={styles.dialogCancelBtn} onPress={closeJoinModal}>
                   <Text style={styles.dialogCancelBtnText}>Hủy</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.dialogPrimaryBtn} onPress={handleJoinClassSubmit} disabled={isSubmitting}>
@@ -631,29 +887,69 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
             {/* Hero Content */}
             <View style={styles.heroContent}>
               <View style={styles.heroTagPill}>
-                <Text style={styles.heroTagText}>TIẾT DẠY TIẾP THEO</Text>
+                <Text style={styles.heroTagText}>
+                  {isHomeroom ? 'ĐIỂM DANH ĐẦU NGÀY' : 'TIẾT DẠY BỘ MÔN'}
+                </Text>
               </View>
 
               <Text style={styles.heroTitle} numberOfLines={2}>
-                {currentClass.nextLessonTitle}
+                {isHomeroom ? currentClass.name : `${currentClass.name} • ${currentClass.subjectBadge}`}
               </Text>
+
+              {/* Attendance Status Badge */}
+              <View style={styles.heroStatusRow}>
+                <View
+                  style={[
+                    styles.heroStatusPill,
+                    {
+                      backgroundColor: isAttendedToday ? 'rgba(16,185,129,0.18)' : 'rgba(251,191,36,0.18)',
+                      borderColor: isAttendedToday ? 'rgba(52,211,153,0.55)' : 'rgba(251,191,36,0.55)',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.heroStatusDot,
+                      { backgroundColor: isAttendedToday ? '#34D399' : '#FBBF24' },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.heroStatusText,
+                      { color: isAttendedToday ? '#6EE7B7' : '#FCD34D' },
+                    ]}
+                  >
+                    {isAttendedToday ? 'ĐÃ ĐIỂM DANH' : 'CHƯA ĐIỂM DANH'}
+                  </Text>
+                </View>
+              </View>
 
               <View style={styles.heroMetaRow}>
                 <View style={styles.heroMetaItem}>
                   <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={2}>
-                    <Circle cx={12} cy={12} r={10} />
-                    <Path d="M12 6v6l4 2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Circle cx={9} cy={7} r={4} strokeLinecap="round" strokeLinejoin="round" />
                   </Svg>
-                  <Text style={styles.heroMetaText}>{currentClass.nextLessonTime}</Text>
+                  <Text style={styles.heroMetaText}>
+                    {isHomeroom
+                      ? isAttendedToday
+                        ? `Có mặt ${presentCount}/${totalStudents} học sinh`
+                        : `Sĩ số: ${totalStudents} học sinh`
+                      : isAttendedToday
+                      ? `Hiện diện ${presentCount}/${totalStudents} em`
+                      : `Sĩ số: ${totalStudents} em`}
+                  </Text>
                 </View>
                 <Text style={styles.heroMetaSeparator}>•</Text>
-                <View style={styles.heroMetaItem}>
-                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={2}>
-                    <Path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeLinecap="round" strokeLinejoin="round" />
-                    <Path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                  <Text style={styles.heroMetaText}>{currentClass.room}</Text>
-                </View>
+                <Text style={styles.heroMetaText}>
+                  {isHomeroom
+                    ? isAttendedToday
+                      ? `Vắng ${absentCount} em`
+                      : 'Hôm nay chưa điểm danh'
+                    : isAttendedToday
+                    ? 'Sẵn sàng vào tiết'
+                    : 'Chờ GVCN điểm danh'}
+                </Text>
               </View>
 
               {/* Quick Action CTA Button */}
@@ -662,7 +958,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                 onPress={handleHeroCta}
                 activeOpacity={0.85}
               >
-                <Text style={styles.heroCtaBtnText}>{currentClass.ctaText}</Text>
+                <Text style={styles.heroCtaBtnText}>{heroCtaLabel}</Text>
                 <View style={styles.heroCtaArrowCircle}>
                   <Text style={styles.heroCtaArrowText}>→</Text>
                 </View>
@@ -694,14 +990,33 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
 
                     <View>
                       <Text style={styles.bentoPrimaryValue}>
-                        {attendanceStats.totalCount > 0 ? `${attendanceStats.presentCount}/${attendanceStats.totalCount}` : '0/0'}
+                        {isAttendedToday ? `${presentCount}/${totalStudents}` : `${totalStudents}`}
                       </Text>
                       <View style={styles.bentoTagWrapper}>
-                        <View style={[styles.statusBadge, { backgroundColor: '#ECFDF5', borderColor: '#D1FAE5' }]}>
-                          <View style={styles.pulsingGreenDot} />
-                          <Text style={[styles.statusBadgeText, { color: '#059669' }]}>
-                            {attendanceStats.totalCount > 0
-                              ? `Có mặt ${Math.round((attendanceStats.presentCount / attendanceStats.totalCount) * 100)}%`
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            isAttendedToday
+                              ? { backgroundColor: '#ECFDF5', borderColor: '#D1FAE5' }
+                              : { backgroundColor: '#FFF7ED', borderColor: '#FFEDD5' },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.pulsingGreenDot,
+                              { backgroundColor: isAttendedToday ? '#10B981' : '#F59E0B' },
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.statusBadgeText,
+                              { color: isAttendedToday ? '#059669' : '#B45309' },
+                            ]}
+                          >
+                            {isAttendedToday
+                              ? `Có mặt ${totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0}%`
+                              : totalStudents > 0
+                              ? 'Chưa điểm danh'
                               : 'Chưa có HS'}
                           </Text>
                         </View>
@@ -732,7 +1047,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <Text style={styles.bentoSubtitleText} numberOfLines={1}>Soạn đề bài mới</Text>
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#EEF2FF', borderColor: '#E0E7FF' }]}>
-                          <Text style={[styles.statusBadgeText, { color: '#5E5CE6' }]}>Tạo nhanh ✨</Text>
+                          <Text style={[styles.statusBadgeText, { color: '#5E5CE6' }]}>Tạo nhanh</Text>
                         </View>
                       </View>
                     </View>
@@ -762,7 +1077,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <Text style={styles.bentoSubtitleText} numberOfLines={1}>Vòng quay gọi tên</Text>
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
-                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>Ngẫu nhiên 🎲</Text>
+                          <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>Ngẫu nhiên</Text>
                         </View>
                       </View>
                     </View>
@@ -771,7 +1086,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                   {/* Card 4: BHYT Lớp CN */}
                   <TouchableOpacity
                     style={styles.bentoCard}
-                    onPress={onOpenHealthInsurance}
+                    onPress={() => onOpenHealthInsurance?.(currentClass.id)}
                     activeOpacity={0.88}
                   >
                     <View style={styles.bentoCardHeader}>
@@ -828,7 +1143,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <View style={styles.bentoTagWrapper}>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF1E6', borderColor: '#FFEDD5' }]}>
                           <Text style={[styles.statusBadgeText, { color: '#6B6880' }]}>
-                            {remarksList.length > 0 ? `${remarksList.length} lời nhắn 💬` : 'Chưa có lời nhắn 💬'}
+                            {remarksList.length > 0 ? `${remarksList.length} lời nhắn` : 'Chưa có lời nhắn'}
                           </Text>
                         </View>
                       </View>
@@ -861,13 +1176,13 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                               ? (() => {
                                   try {
                                     const parts = examReminders[0].exam_date.split('-');
-                                    if (parts.length === 3) return `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)} 📅`;
+                                    if (parts.length === 3) return `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)}`;
                                   } catch (e) {}
-                                  return `${examReminders[0].exam_date} 📅`;
+                                  return `${examReminders[0].exam_date}`;
                                 })()
                               : examReminders.length > 0
-                              ? `${examReminders.length} sắp tới 📅`
-                              : 'Chưa có lịch 📅'}
+                              ? `${examReminders.length} sắp tới`
+                              : 'Chưa có lịch'}
                           </Text>
                         </View>
                       </View>
@@ -1007,87 +1322,65 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
             )}
           </View>
 
-          {/* ================= 4. DAILY TIMELINE SECTION ================= */}
+          {/* ================= 4. EXAM REMINDERS TIMELINE ================= */}
           <View style={styles.timelineSection}>
             <View style={styles.timelineHeader}>
-              <Text style={styles.timelineTitleText}>Lịch dạy còn lại hôm nay</Text>
+              <Text style={styles.timelineTitleText}>Lịch kiểm tra & nhắc hẹn</Text>
               <View style={styles.timelineCountBadge}>
-                <Text style={styles.timelineCountBadgeText}>
-                  {classesList.filter((c) => c.id !== selectedClassId).length > 0
-                    ? `${classesList.filter((c) => c.id !== selectedClassId).length} tiết`
-                    : '1 tiết'}
-                </Text>
+                <Text style={styles.timelineCountBadgeText}>{`${examReminders.length} mục`}</Text>
               </View>
             </View>
 
-            {/* Vertical Timeline Items matching Stitch AI */}
             <View style={styles.timelineList}>
               <View style={styles.timelineVerticalLine} />
 
-              {classesList.filter((c) => c.id !== selectedClassId).length > 0 ? (
-                classesList
-                  .filter((c) => c.id !== selectedClassId)
-                  .map((clsItem, idx) => (
-                    <TouchableOpacity
-                      key={clsItem.id}
-                      style={styles.timelineItem}
-                      activeOpacity={0.88}
-                      onPress={() => handleChooseClass(clsItem)}
-                    >
-                      <View style={idx === 0 ? styles.indicatorDotUpcoming : styles.indicatorDotPending} />
-                      <View style={styles.timelineCard}>
-                        <View style={styles.timelineCardContent}>
-                          <Text style={styles.timelineLessonTitle}>
-                            Tiết {idx + 3}: {clsItem.subjectBadge} – {clsItem.name.replace('Lớp ', '')}
-                          </Text>
-                          <View style={styles.timelineMetaRow}>
-                            <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
-                              <Circle cx={12} cy={12} r={10} />
-                              <Path d="M12 6v6l3 2" />
-                            </Svg>
-                            <Text style={styles.timelineMetaText}>
-                              {idx === 0 ? '09:15 – 10:00' : '10:15 – 11:00'}
-                            </Text>
-                            <Text style={styles.timelineMetaDot}>•</Text>
-                            <Text style={styles.timelineMetaText}>
-                              {clsItem.room}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={idx === 0 ? styles.upcomingBadge : styles.pendingBadge}>
-                          <Text style={idx === 0 ? styles.upcomingBadgeText : styles.pendingBadgeText}>
-                            {idx === 0 ? 'Sắp tới' : 'Chưa dạy'}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))
-              ) : (
-                <View style={styles.timelineItem}>
-                  <View style={styles.indicatorDotUpcoming} />
-                  <View style={styles.timelineCard}>
-                    <View style={styles.timelineCardContent}>
-                      <Text style={styles.timelineLessonTitle}>
-                        {examReminders[0]?.exam_type
-                          ? `${examReminders[0].exam_type} – ${examReminders[0].subject_name}`
-                          : `${currentClass.name} – Ôn tập kiến thức`}
-                      </Text>
-                      <View style={styles.timelineMetaRow}>
-                        <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
-                          <Circle cx={12} cy={12} r={10} />
-                          <Path d="M12 6v6l3 2" />
-                        </Svg>
-                        <Text style={styles.timelineMetaText}>
-                          {examReminders[0]?.exam_date ? `Ngày ${examReminders[0].exam_date}` : '09:15 – 10:00'}
+              {examReminders.length > 0 ? (
+                examReminders.map((rem, idx) => (
+                  <View key={rem.id || `${rem.exam_date}-${idx}`} style={styles.timelineItem}>
+                    <View style={idx === 0 ? styles.indicatorDotUpcoming : styles.indicatorDotPending} />
+                    <View style={styles.timelineCard}>
+                      <View style={styles.timelineCardContent}>
+                        <Text style={styles.timelineLessonTitle} numberOfLines={2}>
+                          {rem.exam_type
+                            ? `${rem.exam_type} – Môn ${rem.subject_name}`
+                            : rem.title || `Kiểm tra – Môn ${rem.subject_name}`}
                         </Text>
-                        <Text style={styles.timelineMetaDot}>•</Text>
-                        <Text style={styles.timelineMetaText}>
-                          {currentClass.room}
+                        <View style={styles.timelineMetaRow}>
+                          <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}>
+                            <Rect x={3} y={4} width={18} height={18} rx={2} />
+                            <Path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" strokeLinejoin="round" />
+                          </Svg>
+                          <Text style={styles.timelineMetaText}>{`Ngày ${formatExamDate(rem.exam_date)}`}</Text>
+                          {rem.day_of_week ? (
+                            <>
+                              <Text style={styles.timelineMetaDot}>•</Text>
+                              <Text style={styles.timelineMetaText}>{rem.day_of_week}</Text>
+                            </>
+                          ) : null}
+                        </View>
+                        {rem.message ? (
+                          <Text style={styles.timelineMessageText} numberOfLines={2}>
+                            {rem.message}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={idx === 0 ? styles.upcomingBadge : styles.pendingBadge}>
+                        <Text style={idx === 0 ? styles.upcomingBadgeText : styles.pendingBadgeText}>
+                          {examCountdownLabel(rem.exam_date)}
                         </Text>
                       </View>
                     </View>
-                    <View style={styles.upcomingBadge}>
-                      <Text style={styles.upcomingBadgeText}>Sắp tới</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.timelineItem}>
+                  <View style={styles.indicatorDotPending} />
+                  <View style={styles.timelineCard}>
+                    <View style={styles.timelineCardContent}>
+                      <Text style={styles.timelineLessonTitle}>Hôm nay không có lịch kiểm tra</Text>
+                      <View style={styles.timelineMetaRow}>
+                        <Text style={styles.timelineMetaText}>Lớp học đang diễn ra bình thường</Text>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -1114,7 +1407,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                   />
                 </Svg>
               </View>
-              <Text style={styles.dockTabTextActive}>Lịch dạy</Text>
+              <Text style={styles.dockTabTextActive}>Trang chủ</Text>
             </TouchableOpacity>
 
             {/* Tab 2: Điểm danh (GVCN) hoặc Dò bài (GVBM) */}
@@ -1281,7 +1574,7 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
                       <View style={styles.classInfoTextWrap}>
                         <Text style={styles.classNameText}>{item.name}</Text>
                         <Text style={styles.classSubMetaText}>
-                          {item.studentsCount} học sinh{item.room ? ` • ${item.room}` : ''}
+                          {item.studentsCount} học sinh{item.schoolName ? ` • ${item.schoolName}` : ''}
                         </Text>
                       </View>
                     </View>
@@ -1565,6 +1858,31 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 6,
   },
+  heroStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  heroStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  heroStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  heroStatusText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
   heroMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1846,6 +2164,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#9CA3AF',
   },
+  timelineMessageText: {
+    fontSize: 11.5,
+    lineHeight: 15,
+    fontWeight: '500',
+    color: '#8A8798',
+    marginTop: 3,
+    fontStyle: 'italic',
+  },
   upcomingBadge: {
     backgroundColor: '#FFF1E6',
     borderWidth: 1,
@@ -1858,7 +2184,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '700',
-    color: '#6B6880',
+    color: '#F58F4C',
   },
   pendingBadge: {
     backgroundColor: '#FFF1E6',
@@ -2273,5 +2599,103 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  joinCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  joinLookupBtn: {
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinLookupBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  joinSheetScroll: {
+    flexGrow: 0,
+    maxHeight: 260,
+    marginBottom: 14,
+  },
+  joinSheetScrollContent: {
+    gap: 14,
+  },
+  joinClassCard: {
+    backgroundColor: '#FFF7F0',
+    borderRadius: 16,
+    padding: 12,
+    gap: 4,
+  },
+  joinClassName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  joinClassMeta: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B6880',
+    lineHeight: 18,
+  },
+  joinClassNote: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#984704',
+    lineHeight: 17,
+  },
+  joinSectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E1B2E',
+  },
+  joinChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  joinChip: {
+    minWidth: 110,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+  },
+  joinChipActive: {
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1.5,
+    borderColor: '#F58F4C',
+  },
+  joinChipLocked: {
+    opacity: 0.6,
+    backgroundColor: '#F6F5F8',
+  },
+  joinChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E1B2E',
+  },
+  joinChipTextActive: {
+    fontWeight: '800',
+    color: '#F58F4C',
+  },
+  joinChipTextStruck: {
+    textDecorationLine: 'line-through',
+  },
+  joinChipSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#984704',
   },
 });

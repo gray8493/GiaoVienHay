@@ -8,6 +8,8 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import { subjectLabel } from '../../common/utils/labels';
+import { NotificationsService } from '../11-notifications/notifications.service';
 import { CreateRemarkDto } from './dto/remarks.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
 
@@ -17,6 +19,7 @@ export class RemarksService {
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createRemark(
@@ -120,6 +123,16 @@ export class RemarksService {
     const remarkId = 'rmk_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
     const now = new Date().toISOString();
 
+    // Tên giáo viên THẬT từ tài khoản — trước đây hardcode 'Giáo viên phụ trách'
+    // khiến PH không biết ai nhận xét (DB cũng không có cột để lưu)
+    let teacherName = 'Giáo viên phụ trách';
+    try {
+      if (typeof (this.dataConnect as any).getUserById === 'function') {
+        const teacher = await (this.dataConnect as any).getUserById(teacherId);
+        teacherName = teacher?.full_name || teacher?.fullName || teacherName;
+      }
+    } catch {}
+
     const remarkData = {
       id: remarkId,
       student_id: dto.student_id,
@@ -129,12 +142,10 @@ export class RemarksService {
       subject_code: dto.subject_code || null,
       teacher_id: teacherId,
       teacherId: teacherId,
-      teacher_name: 'Giáo viên phụ trách',
+      teacher_name: teacherName,
       date: now.split('T')[0],
       content: dto.content,
       category: 'GENERAL',
-      parent_acknowledged: false,
-      acknowledged_at: null,
       is_deleted: false,
       deleted_at: null,
       created_at: now,
@@ -152,11 +163,25 @@ export class RemarksService {
       });
     }
 
-    // Kích hoạt FCM thông báo phụ huynh (Fault-tolerant)
+    // Fan-out thông báo tới phụ huynh của học sinh (Fault-tolerant)
     let fcmStatus: 'DELIVERED' | 'QUEUED_FOR_RETRY' = 'DELIVERED';
     let fcmDelivered = true;
     try {
-      await this.triggerRemarkFCM(dto.student_id, dto.content);
+      const fanout = await this.triggerRemarkFCM(dto.student_id, dto.content, {
+        subjectCode: dto.subject_code,
+        remarkId,
+        classId: dto.class_id,
+        teacherName,
+      });
+      if (fanout.sent === 0) {
+        fcmDelivered = false;
+        if (fanout.failed > 0) {
+          fcmStatus = 'QUEUED_FOR_RETRY';
+        }
+        this.logger.warn(
+          `[Remark] Không gửi được thông báo nhận xét tới phụ huynh học sinh ${dto.student_id} (tra cứu hộ thư PH thất bại)`,
+        );
+      }
     } catch (err) {
       this.logger.warn(`FCM send failed, queuing for retry: ${err}`);
       fcmStatus = 'QUEUED_FOR_RETRY';
@@ -189,17 +214,25 @@ export class RemarksService {
     };
   }
 
-  async getClassRemarks(classId: string, limit: number = 20, studentId?: string) {
+  async getClassRemarks(classId: string, limit: number = 200, studentId?: string) {
     let remarks: any[] = [];
-    if ((this.dataConnect as any).getClassRemarks) {
-      try {
-        remarks = await (this.dataConnect as any).getClassRemarks(classId, limit, studentId);
-      } catch (e) {}
-    }
+    try {
+      remarks = await this.dataConnect.getRemarksByClass(classId, limit);
+    } catch (e) {}
 
     const items = (remarks || [])
       .filter((item) => !studentId || item.student_id === studentId)
-      .slice(0, Math.max(0, limit));
+      .slice(0, Math.max(0, limit))
+      .map((r: any) => ({
+        remark_id: r.remark_id || r.id,
+        student_id: r.student_id || r.studentId,
+        student_name: r.student_name || '',
+        subject_code: r.subject_code || r.subjectCode || null,
+        subject_name: subjectLabel(r.subject_code || r.subjectCode) || null,
+        teacher_name: r.teacher_name || r.teacherName || '',
+        content: r.content,
+        created_at: r.created_at || r.createdAt || '',
+      }));
 
     return {
       class_id: classId,
@@ -219,9 +252,12 @@ export class RemarksService {
     const items = (remarks || []).map((r: any) => ({
       remark_id: r.remark_id || r.id,
       student_id: studentId,
-      subject_code: r.subject_code || r.subject || 'MATH',
+      subject_code: r.subject_code || r.subjectCode || r.subject || null,
+      subject_name:
+        subjectLabel(r.subject_code || r.subjectCode || r.subject) || null,
+      teacher_name: r.teacher_name || r.teacherName || '',
       content: r.content,
-      created_at: r.created_at || r.createdAt || new Date().toISOString(),
+      created_at: r.created_at || r.createdAt || '',
     }));
 
     return {
@@ -231,26 +267,43 @@ export class RemarksService {
     };
   }
 
-  async acknowledgeRemark(remarkId: string, parentId: string) {
-    const now = new Date().toISOString();
-    return {
-      remark_id: remarkId,
-      parent_acknowledged: true,
-      acknowledged_at: now,
-    };
-  }
+  /**
+   * Fan-out thông báo nhậ xét mới tới TOÀN BỘ phụ huynh của học sinh
+   * (đích danh từng hộp thư PH + push FCM qua NotificationsService)
+   */
+  private async triggerRemarkFCM(
+    studentId: string,
+    content: string,
+    options?: { subjectCode?: string; remarkId?: string; classId?: string; teacherName?: string },
+  ) {
+    let student: any = null;
+    if (typeof this.dataConnect.getStudentById === 'function') {
+      try {
+        student = await this.dataConnect.getStudentById(studentId);
+      } catch (e) {}
+    }
+    const studentName = student?.full_name || student?.fullName || 'Học sinh';
+    const teacherName = options?.teacherName || 'Giáo viên';
+    const subjectName = options?.subjectCode ? subjectLabel(options.subjectCode) : '';
+    const title = options?.subjectCode
+      ? `Nhận xét môn ${subjectName} - Em ${studentName}`
+      : `Nhận xét mới - Em ${studentName}`;
+    // Thông báo gọn: tên GV + môn + nội dung cô viết — không bọc khung dài dòng
+    const body = `${teacherName} vừa gửi nhận xét${subjectName ? ` môn ${subjectName}` : ''}: "${content}". Phụ huynh vui lòng xem chi tiết trong Sổ liên lạc.`;
 
-  private async triggerRemarkFCM(studentId: string, content: string) {
-    const notifId = 'notif_rmk_' + Date.now();
-    const notifData = {
-      id: notifId,
-      recipientId: studentId,
-      title: 'Lời nhận xét mới từ giáo viên',
-      body: content.length > 80 ? content.substring(0, 80) + '...' : content,
+    return await this.notificationsService.dispatchToParentsOfStudent(student, {
+      title,
+      body,
       type: NotificationType.REMARK_NEW,
-    };
-
-    await this.dataConnect.createNotification(notifData);
+      metadata: {
+        screen: 'Remarks',
+        remark_id: options?.remarkId ?? null,
+        student_id: studentId,
+        student_name: studentName,
+        class_id: options?.classId ?? student?.class_id ?? student?.classId ?? null,
+        subject_code: options?.subjectCode ?? null,
+      },
+    });
   }
 }
 

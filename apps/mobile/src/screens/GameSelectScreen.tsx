@@ -21,6 +21,12 @@ import Svg, {
 
 export type GameModeKey = 'GOLDEN_BELL' | 'RACING' | 'MYSTERY_BOX';
 
+export const GAME_MODE_LABELS: Record<GameModeKey, string> = {
+  GOLDEN_BELL: 'Rung Chuông Vàng',
+  RACING: 'Đua Xe Vượt Chướng Ngại Vật',
+  MYSTERY_BOX: 'Hộp Quà May Mắn',
+};
+
 interface GameItem {
   key: GameModeKey;
   title: string;
@@ -57,12 +63,18 @@ interface GameSelectScreenProps {
 }
 
 export const GameSelectScreen: React.FC<GameSelectScreenProps> = ({
-  quizTitle = 'Hình học Chương 2',
-  totalQuestions = 5,
+  quizTitle,
+  totalQuestions,
   onBack,
   onStartGame,
 }) => {
   const [selectedGame, setSelectedGame] = useState<GameModeKey>('GOLDEN_BELL');
+  const quizInfoText = [
+    quizTitle?.trim() || null,
+    totalQuestions && totalQuestions > 0 ? `${totalQuestions} câu` : null,
+  ]
+    .filter(Boolean)
+    .join(' • ');
 
   const handleStart = () => {
     const game = GAME_LIST.find((g) => g.key === selectedGame);
@@ -103,11 +115,11 @@ export const GameSelectScreen: React.FC<GameSelectScreenProps> = ({
 
             <View style={styles.headerTitleWrap}>
               <Text style={styles.screenTitle}>Chọn Trò Chơi</Text>
-              <View style={styles.quizInfoBadge}>
-                <Text style={styles.quizInfoBadgeText}>
-                  {quizTitle} • {totalQuestions} câu
-                </Text>
-              </View>
+              {!!quizInfoText && (
+                <View style={styles.quizInfoBadge}>
+                  <Text style={styles.quizInfoBadgeText}>{quizInfoText}</Text>
+                </View>
+              )}
             </View>
           </View>
 

@@ -1,10 +1,4 @@
-import { Platform } from 'react-native';
-import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
+import { api } from './http';
 
 export interface ScoreItem {
   student_id: string;
@@ -17,6 +11,8 @@ export interface BatchScoresPayload {
   subject_code: string;
   semester?: number;
   score_type: 'ORAL_TEST' | 'TEST_15P' | 'TEST_1P' | 'MID_TERM' | 'FINAL';
+  /** Cờ đính chính: bắt buộc true khi cập nhật cột đã công bố cho phụ huynh */
+  is_correction?: boolean;
   scores: ScoreItem[];
 }
 
@@ -24,85 +20,50 @@ export interface PublishScoresPayload {
   class_id: string;
   subject_code: string;
   score_type: 'ORAL_TEST' | 'TEST_15P' | 'TEST_1P' | 'MID_TERM' | 'FINAL';
+  /** Công bố nhiều cột cùng lúc — backend gom thành 1 thông báo/học sinh */
+  score_types?: string[];
   semester?: number;
 }
 
 export const gradesService = {
-  async getClassGrades(classId: string = 'cls_1a_2026', subjectCode: string = 'MATH', semester: number = 1) {
+  async getClassGrades(classId: string, subjectCode: string, semester: number = 1) {
+    if (!classId) return null;
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(
-        `${API_BASE_URL}/grades/class/${classId}?subject_code=${subjectCode}&semester=${semester}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeader,
-          },
-        }
-      );
-      if (!response.ok) throw new Error('Không thể tải sổ điểm');
-      return await response.json();
+      return await api(`/grades/class/${classId}?subject_code=${subjectCode}&semester=${semester}`, {
+        errorMessage: 'Không thể tải sổ điểm',
+      });
     } catch (error: any) {
-      console.warn('Backend grades notice (offline fallback):', error.message);
+      console.warn('getClassGrades failed:', error.message);
       return null;
     }
   },
 
-  async getLeaderboard(classId: string = 'cls_1a_2026', subjectCode: string = 'MATH', semester: number = 1, limit: number = 5) {
+  async getLeaderboard(classId: string, subjectCode: string, semester: number = 1, limit: number = 5) {
+    if (!classId) return null;
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(
-        `${API_BASE_URL}/grades/leaderboard/${classId}?subject_code=${subjectCode}&semester=${semester}&limit=${limit}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeader,
-          },
-        }
+      return await api(
+        `/grades/leaderboard/${classId}?subject_code=${subjectCode}&semester=${semester}&limit=${limit}`,
+        { errorMessage: 'Không thể tải bảng vinh danh' },
       );
-      if (!response.ok) throw new Error('Không thể tải bảng vinh danh');
-      return await response.json();
     } catch (error: any) {
-      console.warn('Backend leaderboard notice (offline fallback):', error.message);
+      console.warn('getLeaderboard failed:', error.message);
       return null;
     }
   },
 
   async batchInputScores(payload: BatchScoresPayload) {
-    try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/grades/batch`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error('Không thể lưu điểm');
-      return await response.json();
-    } catch (error: any) {
-      console.warn('Backend save scores notice (offline fallback):', error.message);
-      return { success: true, message: 'Đã lưu điểm thành công (chế độ demo)' };
-    }
+    return api('/grades/batch', {
+      method: 'POST',
+      body: payload,
+      errorMessage: 'Không thể lưu điểm',
+    });
   },
 
   async publishScores(payload: PublishScoresPayload) {
-    try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/grades/publish`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error('Không thể công bố sổ điểm');
-      return await response.json();
-    } catch (error: any) {
-      console.warn('Backend publish scores notice (offline fallback):', error.message);
-      return { success: true, message: 'Đã công bố điểm cho phụ huynh (chế độ demo)' };
-    }
+    return api('/grades/publish', {
+      method: 'POST',
+      body: payload,
+      errorMessage: 'Không thể công bố sổ điểm',
+    });
   },
 };

@@ -1,9 +1,5 @@
-import { Platform } from 'react-native';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
+import { API_BASE_URL } from '../config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface LoginPayload {
   phone: string;
@@ -34,46 +30,160 @@ export interface UserProfile {
 let activeToken: string | null = null;
 let activeRefreshToken: string | null = null;
 let activeUser: UserProfile | null = null;
+let activeExpiresAt: number | null = null;
 
-// Khởi tạo khôi phục trạng thái từ Storage (Web localStorage)
 const loadPersistedAuth = () => {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const savedToken = window.localStorage.getItem('gvh_access_token');
       const savedRefreshToken = window.localStorage.getItem('gvh_refresh_token');
       const savedUserStr = window.localStorage.getItem('gvh_user');
-      if (savedToken) activeToken = savedToken;
-      if (savedRefreshToken) activeRefreshToken = savedRefreshToken;
-      if (savedUserStr) activeUser = JSON.parse(savedUserStr);
+      if (savedToken && !activeToken) activeToken = savedToken;
+      if (savedRefreshToken && !activeRefreshToken) activeRefreshToken = savedRefreshToken;
+      if (savedUserStr && !activeUser) activeUser = JSON.parse(savedUserStr);
     } catch (e) {}
   }
 };
 loadPersistedAuth();
 
+const decodeJwtPayload = (token: string): any => {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let bits = 0;
+    let value = 0;
+    let out = '';
+    for (let i = 0; i < base64.length; i++) {
+      const c = base64[i];
+      if (c === '=') break;
+      const idx = chars.indexOf(c);
+      if (idx === -1) return null;
+      value = (value << 6) | idx;
+      bits += 6;
+      if (bits >= 8) {
+        bits -= 8;
+        out += String.fromCharCode((value >> bits) & 0xff);
+      }
+    }
+    return JSON.parse(out);
+  } catch (e) {
+    return null;
+  }
+};
+
+// Khóa lưu trữ phiên đăng nhập (AsyncStorage hoạt động trên cả native và web)
+const STORAGE_KEYS = {
+  token: 'gvh_access_token',
+  refreshToken: 'gvh_refresh_token',
+  user: 'gvh_user',
+  expiresAt: 'gvh_token_expires_at',
+};
+
+const persistAuthWrite = (entries: [string, string][]) => {
+  if (entries.length === 0) return;
+  AsyncStorage.multiSet(entries).catch(() => null);
+};
+
+const persistAuthRemove = (keys: string[]) => {
+  if (keys.length === 0) return;
+  AsyncStorage.multiRemove(keys).catch(() => null);
+};
+
+let hydratedAuthPromise: Promise<void> | null = null;
+
+// Khôi phục trạng thái phiên đăng nhập từ AsyncStorage (gọi 1 lần khi app khởi động)
+const hydrateAuth = (): Promise<void> => {
+  if (!hydratedAuthPromise) {
+    hydratedAuthPromise = (async () => {
+      try {
+        const pairs = await AsyncStorage.multiGet([
+          STORAGE_KEYS.token,
+          STORAGE_KEYS.refreshToken,
+          STORAGE_KEYS.user,
+          STORAGE_KEYS.expiresAt,
+        ]);
+        const map = new Map(pairs);
+        const savedToken = map.get(STORAGE_KEYS.token);
+        const savedRefreshToken = map.get(STORAGE_KEYS.refreshToken);
+        const savedUserStr = map.get(STORAGE_KEYS.user);
+        const savedExpiresAt = map.get(STORAGE_KEYS.expiresAt);
+        if (savedToken && !activeToken) activeToken = savedToken;
+        if (savedRefreshToken && !activeRefreshToken) activeRefreshToken = savedRefreshToken;
+        if (savedUserStr && !activeUser) {
+          try {
+            activeUser = JSON.parse(savedUserStr);
+          } catch (e) {}
+        }
+        if (savedExpiresAt && !activeExpiresAt) activeExpiresAt = Number(savedExpiresAt) || null;
+      } catch (e) {}
+    })();
+  }
+  return hydratedAuthPromise;
+};
+
 export const authService = {
+  hydrateAuth,
+
   getToken(): string | null {
-    if (!activeToken) loadPersistedAuth();
     return activeToken;
   },
 
   getRefreshToken(): string | null {
-    if (!activeRefreshToken) loadPersistedAuth();
     return activeRefreshToken;
   },
 
-  setToken(token: string | null) {
+  setToken(token: string | null, expiresInSeconds?: number) {
     activeToken = token;
+    if (!token) {
+      activeExpiresAt = null;
+    } else if (expiresInSeconds && expiresInSeconds > 0) {
+      activeExpiresAt = Date.now() + expiresInSeconds * 1000;
+    } else {
+      const payload = decodeJwtPayload(token);
+      activeExpiresAt = payload?.exp ? payload.exp * 1000 : null;
+    }
+    if (token) {
+      persistAuthWrite([
+        [STORAGE_KEYS.token, token],
+        ...(activeExpiresAt ? [[STORAGE_KEYS.expiresAt, String(activeExpiresAt)] as [string, string]] : []),
+      ]);
+    } else {
+      persistAuthRemove([STORAGE_KEYS.token, STORAGE_KEYS.expiresAt]);
+    }
     if (typeof window !== 'undefined' && window.localStorage) {
       if (token) {
         window.localStorage.setItem('gvh_access_token', token);
+        if (activeExpiresAt) {
+          window.localStorage.setItem('gvh_token_expires_at', String(activeExpiresAt));
+        } else {
+          window.localStorage.removeItem('gvh_token_expires_at');
+        }
       } else {
         window.localStorage.removeItem('gvh_access_token');
+        window.localStorage.removeItem('gvh_token_expires_at');
       }
     }
   },
 
+  isAccessTokenExpired(skewMs: number = 60000): boolean {
+    if (!activeToken) return true;
+    if (!activeExpiresAt) {
+      const payload = decodeJwtPayload(activeToken);
+      if (payload?.exp) activeExpiresAt = payload.exp * 1000;
+    }
+    if (!activeExpiresAt) return false;
+    return Date.now() >= activeExpiresAt - skewMs;
+  },
+
   setRefreshToken(token: string | null) {
     activeRefreshToken = token;
+    if (token) {
+      persistAuthWrite([[STORAGE_KEYS.refreshToken, token]]);
+    } else {
+      persistAuthRemove([STORAGE_KEYS.refreshToken]);
+    }
     if (typeof window !== 'undefined' && window.localStorage) {
       if (token) {
         window.localStorage.setItem('gvh_refresh_token', token);
@@ -90,6 +200,11 @@ export const authService = {
 
   setUser(user: UserProfile | null) {
     activeUser = user;
+    if (user) {
+      persistAuthWrite([[STORAGE_KEYS.user, JSON.stringify(user)]]);
+    } else {
+      persistAuthRemove([STORAGE_KEYS.user]);
+    }
     if (typeof window !== 'undefined' && window.localStorage) {
       if (user) {
         window.localStorage.setItem('gvh_user', JSON.stringify(user));
@@ -103,16 +218,18 @@ export const authService = {
    * Đảm bảo luôn có Access Token hợp lệ của tài khoản hiện tại
    */
   async ensureToken(): Promise<string | null> {
+    await hydrateAuth();
     const existing = this.getToken();
-    if (existing) return existing;
+    if (existing && !this.isAccessTokenExpired()) return existing;
 
-    // Nếu có refresh token thì thử refresh
+    // Nếu token hết hạn (hoặc chưa có) thì thử refresh
     const refreshToken = this.getRefreshToken();
     if (refreshToken) {
       const newToken = await this.refreshToken();
       if (newToken) return newToken;
     }
 
+    if (existing) this.setToken(null);
     return null;
   },
 
@@ -139,6 +256,9 @@ export const authService = {
    * Đăng nhập chuẩn theo API Backend POST /api/v1/auth/login
    */
   async login(payload: LoginPayload) {
+    // Bộ gõ tiếng Việt (Unikey/EVKey) có thể chèn ký tự zero-width vô hình vào ô
+    // nhập — rửa sạch trước khi gửi để backend tra cứu đúng tài khoản
+    const stripInvisible = (v: string) => String(v ?? '').replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '');
     let response: Response;
     try {
       response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -147,8 +267,8 @@ export const authService = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          phone: payload.phone.trim(),
-          password: payload.password,
+          phone: stripInvisible(payload.phone).trim().replace(/\s+/g, ''),
+          password: stripInvisible(payload.password),
         }),
       });
     } catch (netErr: any) {
@@ -165,7 +285,7 @@ export const authService = {
     const data = resJson.data || resJson;
     const token = data.access_token;
     if (token) {
-      this.setToken(token);
+      this.setToken(token, data.expires_in);
     }
     if (data.refresh_token) {
       this.setRefreshToken(data.refresh_token);
@@ -200,14 +320,22 @@ export const authService = {
     const resJson = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      const msg = resJson.message || 'Đăng ký không thành công';
-      throw new Error(msg);
+      // Backend trả details[] mô tả từng trường vi phạm => hiển thị rõ cho người dùng
+      const details = Array.isArray(resJson.details) ? resJson.details : [];
+      if (details.length > 0) {
+        throw new Error(
+          details
+            .map((d: any) => '• ' + (d.issue || d.message || 'Trường dữ liệu không hợp lệ'))
+            .join('\n'),
+        );
+      }
+      throw new Error(resJson.message || 'Đăng ký không thành công');
     }
 
     const data = resJson.data || resJson;
     const token = data.access_token;
     if (token) {
-      this.setToken(token);
+      this.setToken(token, data.expires_in);
     }
     if (data.refresh_token) {
       this.setRefreshToken(data.refresh_token);
@@ -240,7 +368,7 @@ export const authService = {
         const resJson = await response.json();
         const data = resJson.data || resJson;
         if (data.access_token) {
-          this.setToken(data.access_token);
+          this.setToken(data.access_token, data.expires_in);
           if (data.refresh_token) this.setRefreshToken(data.refresh_token);
           return data.access_token;
         }

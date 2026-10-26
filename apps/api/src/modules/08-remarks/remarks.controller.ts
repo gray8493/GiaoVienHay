@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Post,
-  Patch,
   Body,
   Param,
   Query,
@@ -58,16 +57,6 @@ export class RemarksController {
     @Query('student_id') studentId?: string,
     @Query('limit') limit?: number,
   ) {
-    return this.remarksService.getClassRemarks(classId, limit ? Number(limit) : 20, studentId);
-  }
-
-  @Patch(':id/acknowledge')
-  @Roles('PARENT')
-  @ApiOperation({ summary: 'Phụ huynh bấm "Xác nhận đã đọc" nhận xét của giáo viên' })
-  async acknowledgeRemark(
-    @Param('id') remarkId: string,
-    @CurrentUser('sub') parentId: string,
-  ) {
-    return this.remarksService.acknowledgeRemark(remarkId, parentId);
+    return this.remarksService.getClassRemarks(classId, limit ? Number(limit) : 200, studentId);
   }
 }

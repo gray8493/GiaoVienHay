@@ -89,6 +89,15 @@ export class PublishScoresDto {
   @IsEnum(GradeType)
   score_type: GradeType;
 
+  @ApiPropertyOptional({
+    type: [String],
+    enum: GradeType,
+    description: 'Công bố nhiều cột điểm trong một lần gọi — gom thành 1 thông báo/học sinh',
+  })
+  @IsOptional()
+  @IsArray()
+  score_types?: GradeType[];
+
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsInt()

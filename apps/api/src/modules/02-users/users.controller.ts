@@ -5,6 +5,7 @@ import {
   Post,
   Delete,
   Param,
+  Query,
   Body,
   UseGuards,
   HttpCode,
@@ -27,6 +28,15 @@ export class UsersController {
   @ApiOperation({ summary: 'Lấy thông tin cá nhân của tài khoản đang đăng nhập' })
   async getMe(@CurrentUser('sub') userId: string) {
     return this.usersService.getMe(userId);
+  }
+
+  @Get('teachers/search')
+  @ApiOperation({ summary: 'Tìm kiếm giáo viên trong hệ thống theo tên hoặc số điện thoại' })
+  async searchTeachers(
+    @Query('q') query?: string,
+    @Query('subject_code') subjectCode?: string,
+  ) {
+    return this.usersService.searchTeachers(query, subjectCode);
   }
 
   @Get(':id')

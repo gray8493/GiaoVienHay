@@ -13,6 +13,7 @@ import { CreateRemarkDto } from '../../apps/api/src/modules/08-remarks/dto/remar
 describe('RemarksService (Unit Tests UT08 - All 16 Cases)', () => {
   let service: RemarksService;
   let mockDataConnect: any;
+  let mockNotificationsService: any;
 
   beforeEach(() => {
     mockDataConnect = {
@@ -21,9 +22,9 @@ describe('RemarksService (Unit Tests UT08 - All 16 Cases)', () => {
       createNotification: jest.fn().mockResolvedValue(true),
       getStudentById: jest.fn().mockImplementation(async (id: string) => {
         if (!id || id === 'stu_nonexistent_9999') return null;
-        return { id, class_id: 'cls_1a_2026' };
+        return { id, class_id: 'cls_1a_2026', full_name: 'Trần Bảo Nam', parent_uids: ['usr_parent_01'] };
       }),
-      getClassRemarks: jest.fn().mockImplementation(async (classId: string) => {
+      getRemarksByClass: jest.fn().mockImplementation(async (classId: string) => {
         if (classId === 'cls_new_2026') return [];
         return [
           {
@@ -37,11 +38,17 @@ describe('RemarksService (Unit Tests UT08 - All 16 Cases)', () => {
       }),
     };
 
-    service = new RemarksService(mockDataConnect);
+    mockNotificationsService = {
+      dispatchToParentsOfStudent: jest
+        .fn()
+        .mockResolvedValue({ sent: 1, failed: 0, parentUserIds: ['usr_parent_01'] }),
+    };
+
+    service = new RemarksService(mockDataConnect, mockNotificationsService as any);
   });
 
   describe('UT08_Remarks_TC01: Gửi lời nhận xét ngắn gọn và bắn thông báo FCM cho phụ huynh', () => {
-    it('lưu nhận xét và gửi fcm thành công cho phụ huynh', async () => {
+    it('lưu nhận xét và fan-out thông báo đúng tới phụ huynh', async () => {
       const res = await service.createRemark('usr_teacher_01', {
         student_id: 'stu_01',
         class_id: 'cls_1a_2026',
@@ -53,7 +60,11 @@ describe('RemarksService (Unit Tests UT08 - All 16 Cases)', () => {
       expect(res.remark_id).toBeDefined();
       expect(res.fcm_delivered).toBe(true);
       expect(mockDataConnect.createRemark).toHaveBeenCalled();
-      expect(mockDataConnect.createNotification).toHaveBeenCalled();
+      expect(mockNotificationsService.dispatchToParentsOfStudent).toHaveBeenCalled();
+      const fanoutPayload = mockNotificationsService.dispatchToParentsOfStudent.mock.calls[0][1];
+      expect(fanoutPayload.title).toContain('Em Trần Bảo Nam');
+      expect(fanoutPayload.type).toBe('REMARK_NEW');
+      expect(fanoutPayload.metadata.screen).toBe('Remarks');
     });
   });
 
@@ -155,7 +166,9 @@ describe('RemarksService (Unit Tests UT08 - All 16 Cases)', () => {
 
   describe('UT08_Remarks_TC09: Gửi nhận xét thành công với cơ chế chịu lỗi khi dịch vụ Google FCM gián đoạn tạm thời', () => {
     it('lưu thành công và đánh dấu QUEUED_FOR_RETRY khi FCM gặp sự cố', async () => {
-      mockDataConnect.createNotification.mockRejectedValue(new Error('FirebaseMessagingError: UNAVAILABLE'));
+      mockNotificationsService.dispatchToParentsOfStudent.mockRejectedValue(
+        new Error('FirebaseMessagingError: UNAVAILABLE'),
+      );
 
       const res = await service.createRemark('usr_teacher_01', {
         student_id: 'stu_01',

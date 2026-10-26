@@ -6,11 +6,12 @@ import {
   UnauthorizedException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { FeeType } from '@giaovienhay/shared-types';
+import { FeeType, NotificationType } from '@giaovienhay/shared-types';
 
 describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
   let service: FeesInsuranceService;
   let mockDataConnect: any;
+  let mockNotificationsService: any;
 
   beforeEach(() => {
     mockDataConnect = {
@@ -64,7 +65,14 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
       }),
     };
 
-    service = new FeesInsuranceService(mockDataConnect);
+    mockNotificationsService = {
+      // Mặc định: dữ liệu mock chưa có phụ huynh liên kết -> không dispatch
+      dispatchToParentsOfStudent: jest
+        .fn()
+        .mockResolvedValue({ sent: 0, failed: 0, parentUserIds: [] }),
+    };
+
+    service = new FeesInsuranceService(mockDataConnect, mockNotificationsService as any);
   });
 
   describe('UT10_FeesInsurance_TC01: Từ chối cập nhật khi không truyền hoặc để trống mã bản ghi', () => {
@@ -303,7 +311,15 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
 
   describe('UT10_FeesInsurance_TC20: Xử lý ngoại lệ lỗi máy chủ nội bộ hoặc sự cố dịch vụ Firebase FCM', () => {
     it('ném InternalServerErrorException SYS_INTERNAL_ERROR khi gửi thông báo bị lỗi', async () => {
-      mockDataConnect.createNotification.mockRejectedValue(new Error('Firebase network timeout'));
+      // Bản ghi chưa nộp có phụ huynh liên kết, nhưng hạ tầng notify đổ sập
+      mockDataConnect.getStudentById = jest
+        .fn()
+        .mockResolvedValue({ id: 'stu_02', full_name: 'Lê Ngọc Mai', parent_uids: ['usr_parent_02'] });
+      mockNotificationsService.dispatchToParentsOfStudent.mockResolvedValue({
+        sent: 0,
+        failed: 1,
+        parentUserIds: ['usr_parent_02'],
+      });
 
       await expect(
         service.sendFeeReminder('usr_gvcn_01', {
@@ -407,9 +423,20 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
       mockDataConnect.getFeesByClass.mockResolvedValueOnce(
         Array.from({ length: 12 }, (_, i) => ({
           record_id: `fee_${i + 1}`,
+          student_id: `stu_${i + 1}`,
           insurance: { is_paid: false, paid_date: null },
         }))
       );
+      mockDataConnect.getStudentById = jest.fn().mockImplementation(async (studentId: string) => ({
+        id: studentId,
+        full_name: `Học sinh ${studentId}`,
+        parent_uids: [`parent_${studentId}`],
+      }));
+      mockNotificationsService.dispatchToParentsOfStudent.mockImplementation(async (student: any) => ({
+        sent: 1,
+        failed: 0,
+        parentUserIds: student.parent_uids,
+      }));
       const res = await service.sendFeeReminder('usr_gvcn_01', {
         class_id: 'cls_1a_2026',
         fee_type: FeeType.INSURANCE,
@@ -426,10 +453,21 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
       mockDataConnect.getFeesByClass.mockResolvedValueOnce(
         Array.from({ length: 18 }, (_, i) => ({
           record_id: `fee_${i + 1}`,
+          student_id: `stu_${i + 1}`,
           insurance: { is_paid: false, paid_date: null },
           tuition: { is_paid: false, paid_date: null },
         }))
       );
+      mockDataConnect.getStudentById = jest.fn().mockImplementation(async (studentId: string) => ({
+        id: studentId,
+        full_name: `Học sinh ${studentId}`,
+        parent_uids: [`parent_${studentId}`],
+      }));
+      mockNotificationsService.dispatchToParentsOfStudent.mockImplementation(async (student: any) => ({
+        sent: 1,
+        failed: 0,
+        parentUserIds: student.parent_uids,
+      }));
       const res = await service.sendFeeReminder('usr_gvcn_01', {
         class_id: 'cls_1a_2026',
         fee_type: 'BOTH' as any,
@@ -477,7 +515,45 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
       );
 
       expect(res.notified_parents_count).toBe(0);
-      expect(mockDataConnect.createNotification).not.toHaveBeenCalled();
+      expect(mockNotificationsService.dispatchToParentsOfStudent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('UT10_FeesInsurance_TC32: Thông báo phụ huynh khi giáo viên cập nhật trạng thái khoản thu', () => {
+    it('lưu thông báo trạng thái vào hộp thư phụ huynh sau khi cập nhật khoản thu', async () => {
+      mockDataConnect.getFeeById.mockResolvedValue({
+        id: 'fee_02',
+        student_id: 'stu_02',
+        student_name: 'Lê Ngọc Mai',
+        insurance: { is_paid: false, paid_date: null },
+      });
+      mockDataConnect.getStudentById = jest.fn().mockResolvedValue({
+        id: 'stu_02',
+        full_name: 'Lê Ngọc Mai',
+        parent_uids: ['usr_parent_02'],
+      });
+      mockNotificationsService.dispatchToParentsOfStudent.mockResolvedValue({
+        sent: 1,
+        failed: 0,
+        parentUserIds: ['usr_parent_02'],
+      });
+
+      const res = await service.toggleFeeStatus('usr_gvcn_01', {
+        record_id: 'fee_02',
+        fee_type: FeeType.INSURANCE,
+        is_paid: true,
+        paid_date: '2026-09-27',
+      });
+
+      expect(res.notified_parent_count).toBe(1);
+      expect(mockNotificationsService.dispatchToParentsOfStudent).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'stu_02' }),
+        expect.objectContaining({
+          type: NotificationType.FEE_STATUS_UPDATED,
+          metadata: expect.objectContaining({ is_paid: true, fee_type: FeeType.INSURANCE }),
+        }),
+        { requirePersistence: true },
+      );
     });
   });
 });

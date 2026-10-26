@@ -1,11 +1,7 @@
 import { Platform, Alert } from 'react-native';
 import { app } from '../config/firebase';
 import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
+import { api } from './http';
 
 type NotificationListener = (payload: any) => void;
 
@@ -13,55 +9,72 @@ class FCMService {
   private deviceToken: string | null = null;
   private listeners: NotificationListener[] = [];
   private isInitialized = false;
+  private isListening = false;
+  private permissionRequested = false;
 
   /**
    * Khởi tạo dịch vụ Firebase Cloud Messaging (FCM)
+   * Chỉ dùng token thật do FCM cấp — không tạo token giả để tránh gửi push thất bại.
    */
   async initFCM(): Promise<string | null> {
     if (this.isInitialized && this.deviceToken) {
       return this.deviceToken;
     }
 
+    // Native đọc phiên đăng nhập bất đồng bộ — chờ khôi phục xong mới đăng ký token
+    await authService.hydrateAuth();
+
     try {
-      // 1. Thử khởi tạo Firebase Messaging Web SDK nếu môi trường hỗ trợ
-      const { isSupported, getMessaging, getToken, onMessage } = await import('firebase/messaging');
-      const supported = await isSupported().catch(() => false);
+      // 1. Thử khởi tạo Firebase Messaging Web SDK nếu môi trường hỗ trợ.
+      // Trên native, Firebase JS SDK không cấp FCM token (cần SDK native + cấu hình
+      // google-services.json/GoogleService-Info.plist), nên bỏ qua thay vì bịa token.
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && 'Notification' in window) {
+        try {
+          const { isSupported, getMessaging, getToken, onMessage } = await import('firebase/messaging');
+          const supported = await isSupported().catch(() => false);
 
-      if (supported && typeof window !== 'undefined' && 'Notification' in window) {
-        const permission = await Notification.requestPermission().catch(() => 'denied');
-        if (permission === 'granted') {
-          const messaging = getMessaging(app);
-          try {
-            const token = await getToken(messaging);
-            if (token) {
-              this.deviceToken = token;
+          if (supported) {
+            if (!this.permissionRequested) {
+              this.permissionRequested = true;
+              await Notification.requestPermission().catch(() => 'denied');
             }
-          } catch (tokenErr) {
-            console.log('[FCM] Chưa có ServiceWorker Web push, dùng fallback device token:', tokenErr);
-          }
+            if (Notification.permission === 'granted') {
+              const messaging = getMessaging(app);
+              try {
+                // Web push cần VAPID key (đặt trong .env)
+                const vapidKey = process.env.EXPO_PUBLIC_FCM_VAPID_KEY;
+                const token = await getToken(messaging, vapidKey ? { vapidKey } : undefined);
+                if (token) {
+                  this.deviceToken = token;
+                }
+              } catch (tokenErr) {
+                console.log('[FCM] Chưa lấy được web push token (thiếu Service Worker/VAPID key)');
+              }
 
-          // Lắng nghe thông báo khi ứng dụng đang mở (Foreground)
-          onMessage(messaging, (payload) => {
-            console.log('[FCM Foreground Push]:', payload);
-            this.handleIncomingNotification(payload);
-          });
+              // Lắng nghe thông báo khi ứng dụng đang mở (Foreground)
+              if (!this.isListening) {
+                this.isListening = true;
+                onMessage(messaging, (payload) => {
+                  console.log('[FCM Foreground Push]:', payload);
+                  this.handleIncomingNotification(payload);
+                });
+              }
+            }
+          }
+        } catch (webFcmErr) {
+          // Bỏ qua lỗi nạp Firebase Web Messaging trên Metro bundler
         }
       }
     } catch (e) {
-      console.log('[FCM] Khởi tạo Firebase Messaging native/web fallback:', e);
-    }
-
-    // 2. Tạo Fallback Device Token định danh thiết bị nếu chưa có token trực tiếp từ FCM Web
-    if (!this.deviceToken) {
-      const user = authService.getUser();
-      const userPrefix = user?.id || 'guest';
-      this.deviceToken = `fcm_${Platform.OS}_${userPrefix}_${Date.now().toString(36)}`;
+      console.log('[FCM] Khởi tạo Firebase Messaging native/web thất bại:', e);
     }
 
     this.isInitialized = true;
 
-    // 3. Đăng ký Device Token lên Backend NestJS
-    await this.registerDeviceTokenWithBackend(this.deviceToken);
+    // 2. Chỉ đăng ký khi có token thật từ FCM và người dùng đã đăng nhập
+    if (this.deviceToken && authService.getToken()) {
+      await this.registerDeviceTokenWithBackend(this.deviceToken);
+    }
 
     return this.deviceToken;
   }
@@ -70,26 +83,25 @@ class FCMService {
    * Gửi Device Token lên Backend lưu trữ trong Database
    */
   async registerDeviceTokenWithBackend(token: string): Promise<boolean> {
+    // Chỉ đăng ký khi người dùng đã có phiên đăng nhập hợp lệ
+    const authToken = authService.getToken();
+    if (!authToken) {
+      return false;
+    }
+
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/users/device-token`, {
+      await api('/users/device-token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader,
-        },
-        body: JSON.stringify({
+        body: {
           device_token: token,
           device_type: Platform.OS.toUpperCase(),
-        }),
+        },
+        errorMessage: 'Không thể đăng ký thiết bị',
       });
-
-      if (response.ok) {
-        console.log('[FCM] Đã đăng ký Device Token với Backend thành công:', token);
-        return true;
-      }
+      console.log('[FCM] Đã đăng ký Device Token với Backend thành công:', token);
+      return true;
     } catch (err) {
-      console.warn('[FCM] Lỗi khi gửi token lên backend:', err);
+      console.log('[FCM] Chưa kết nối được token với backend (offline/dev):', err);
     }
     return false;
   }

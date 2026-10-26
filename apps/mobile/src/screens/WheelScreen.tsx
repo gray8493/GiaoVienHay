@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   StyleSheet,
   View,
@@ -11,6 +12,7 @@ import {
   Animated,
   Easing,
   Alert,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, {
@@ -27,14 +29,22 @@ import Svg, {
   Stop,
   G,
   ClipPath,
+  Text as SvgText,
 } from 'react-native-svg';
-import { quizService } from '../services/quiz.service';
 import { attendanceService } from '../services/attendance.service';
+import { classService } from '../services/class.service';
+import { gradesService } from '../services/grades.service';
+import { SUBJECT_LABELS, SCHOOL_SUBJECTS } from '../constants/academic';
+import { GAME_MODE_LABELS, GameModeKey } from './GameSelectScreen';
 
 interface WheelScreenProps {
   currentClassId?: string;
   className?: string;
   subjectName?: string;
+  quizId?: string;
+  quizTitle?: string;
+  totalQuestions?: number;
+  gameMode?: GameModeKey;
   onBack?: () => void;
   onGoHome?: () => void;
 }
@@ -48,121 +58,434 @@ interface StudentCandidate {
   order: number;
 }
 
-const CANDIDATES: StudentCandidate[] = [
-  { id: 'stu_18', code: 'HS240105', name: 'Khánh Linh', fullName: 'Võ Khánh Linh', gender: 'Nữ', order: 18 },
-  { id: 'stu_02', code: 'HS240102', name: 'Quốc Huy', fullName: 'Đặng Quốc Huy', gender: 'Nam', order: 2 },
-  { id: 'stu_01', code: 'HS240101', name: 'Bảo Ngọc', fullName: 'Nguyễn Bảo Ngọc', gender: 'Nữ', order: 1 },
-  { id: 'stu_04', code: 'HS240104', name: 'Thu Hà', fullName: 'Trần Thu Hà', gender: 'Nữ', order: 4 },
-  { id: 'stu_05', code: 'HS240105', name: 'Đức Anh', fullName: 'Lê Đức Anh', gender: 'Nam', order: 5 },
-  { id: 'stu_06', code: 'HS240106', name: 'Gia Hân', fullName: 'Phạm Gia Hân', gender: 'Nữ', order: 6 },
-  { id: 'stu_07', code: 'HS240107', name: 'Tuấn Kiệt', fullName: 'Hoàng Tuấn Kiệt', gender: 'Nam', order: 7 },
-  { id: 'stu_08', code: 'HS240108', name: 'Mai Chi', fullName: 'Vũ Mai Chi', gender: 'Nữ', order: 8 },
-  { id: 'stu_09', code: 'HS240109', name: 'Hải Đăng', fullName: 'Bùi Hải Đăng', gender: 'Nam', order: 9 },
-  { id: 'stu_10', code: 'HS240110', name: 'Phương Vy', fullName: 'Ngô Phương Vy', gender: 'Nữ', order: 10 },
-  { id: 'stu_11', code: 'HS240111', name: 'Minh Anh', fullName: 'Đỗ Minh Anh', gender: 'Nữ', order: 11 },
-  { id: 'stu_12', code: 'HS240112', name: 'Cẩm Tú', fullName: 'Lý Cẩm Tú', gender: 'Nữ', order: 12 },
+// Bảng màu 12 múi hài hòa, tương phản cao, phong cách UI/UX Pro Max
+const SLICE_PALETTE = [
+  { bg: '#FF6B4A', dark: '#C83818', text: '#FFFFFF' }, // 0. Cam san hô
+  { bg: '#3B82F6', dark: '#1D4ED8', text: '#FFFFFF' }, // 1. Xanh dương
+  { bg: '#10B981', dark: '#047857', text: '#FFFFFF' }, // 2. Xanh ngọc
+  { bg: '#8B5CF6', dark: '#6D28D9', text: '#FFFFFF' }, // 3. Tím hoa cà
+  { bg: '#F59E0B', dark: '#B45309', text: '#FFFFFF' }, // 4. Vàng hổ phách
+  { bg: '#EC4899', dark: '#BE185D', text: '#FFFFFF' }, // 5. Hồng phấn
+  { bg: '#06B6D4', dark: '#0E7490', text: '#FFFFFF' }, // 6. Xanh lam ngọc
+  { bg: '#6366F1', dark: '#4338CA', text: '#FFFFFF' }, // 7. Chàm hoàng gia
+  { bg: '#14B8A6', dark: '#0F766E', text: '#FFFFFF' }, // 8. Xanh mòng két
+  { bg: '#F97316', dark: '#C2410C', text: '#FFFFFF' }, // 9. Cam cà rốt
+  { bg: '#A855F7', dark: '#7E22CE', text: '#FFFFFF' }, // 10. Tím thạch anh
+  { bg: '#E11D48', dark: '#9F1239', text: '#FFFFFF' }, // 11. Đỏ anh đào
 ];
 
 export const WheelScreen: React.FC<WheelScreenProps> = ({
   currentClassId = '',
   className = 'Lớp học',
   subjectName = '',
+  quizId,
+  quizTitle,
+  totalQuestions,
+  gameMode,
   onBack,
   onGoHome,
 }) => {
-  const [students, setStudents] = useState<StudentCandidate[]>(CANDIDATES);
-  const [selectedStudent, setSelectedStudent] = useState<StudentCandidate>(CANDIDATES[0]);
+  const quizContextText = quizId
+    ? [
+        gameMode ? GAME_MODE_LABELS[gameMode] : null,
+        quizTitle?.trim() || null,
+        totalQuestions && totalQuestions > 0 ? `${totalQuestions} câu` : null,
+      ]
+        .filter(Boolean)
+        .join(' • ')
+    : '';
+  const [students, setStudents] = useState<StudentCandidate[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<StudentCandidate | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [presentCount, setPresentCount] = useState<number>(36);
+  const [presentCount, setPresentCount] = useState<number>(0);
+  const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>('MATH');
+  // Ẩn nhãn môn mặc định (Toán) cho tới khi biết đúng môn được phân công
+  const [subjectHydrated, setSubjectHydrated] = useState(false);
+  // Điểm miệng hiện có của từng học sinh (để hỏi xác nhận trước khi ghi đè)
+  const [oralScoreMap, setOralScoreMap] = useState<Map<string, number>>(new Map());
+  // Danh sách môn giáo viên có thể ghi điểm trong lớp — chọn ngay trong modal
+  const [subjectOptions, setSubjectOptions] = useState<{ code: string; label: string }[]>([]);
+
+  // Animation quay vòng bánh xe
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const currentRotationDeg = useRef(0);
+
+  // Animation kim chỉ nhấp nhô (Wobble)
+  const pointerWobble = useRef(new Animated.Value(0)).current;
+
+  // Animation nút ấn QUAY (Scale press)
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    setSubjectHydrated(false);
     loadPresentStudents();
   }, [currentClassId]);
 
-  const loadPresentStudents = async () => {
+  // Tải điểm miệng hiện có của một môn (dùng cho xác nhận ghi đè)
+  const loadOralScores = async (subject: string) => {
     try {
-      const res = await attendanceService.getTodayPresentStudents(currentClassId);
-      if (res && res.present_students && res.present_students.length > 0) {
-        const formatted: StudentCandidate[] = res.present_students.map((s, idx) => {
-          const parts = s.full_name.trim().split(' ');
-          const shortName = parts[parts.length - 1] || s.full_name;
-          return {
-            id: s.id,
-            code: s.student_code || `HS${idx + 1}`,
-            name: shortName,
-            fullName: s.full_name,
-            gender: 'N/A',
-            order: idx + 1,
-          };
-        });
-        setStudents(formatted);
-        setSelectedStudent(formatted[0]);
-        setPresentCount(res.total_present || formatted.length);
+      const grades: any = await gradesService.getClassGrades(currentClassId, subject, 1);
+      const rows = Array.isArray(grades) ? grades : grades?.rows || [];
+      const map = new Map<string, number>();
+      for (const r of rows) {
+        if (String(r.scoreType || r.score_type || '') !== 'ORAL_TEST') continue;
+        const sid = String(r.studentId || r.student_id || '');
+        const v = Number(r.scoreValue ?? r.score_value);
+        if (sid && !isNaN(v)) map.set(sid, v);
       }
-    } catch (e) {
-      // Giữ mock CANDIDATES khi offline
+      setOralScoreMap(map);
+    } catch {
+      setOralScoreMap(new Map());
     }
   };
 
+  // Danh sách môn giáo viên được ghi điểm: GVCN → hồ sơ ∪ phân công (rỗng thì đủ môn trường);
+  // GVBM → phân công → my-subject → hồ sơ
+  const loadSubjectOptions = async () => {
+    if (!currentClassId || currentClassId === 'cls_empty') return;
+    try {
+      const role = await classService.getMyRoleInClass(currentClassId);
+      let codes: string[];
+      if (role.isHomeroom) {
+        codes = [
+          ...new Set([
+            // Môn GV được phân công dạy trong lớp đứng đầu danh sách
+            ...role.myAssignedCodes,
+            ...role.profileSubjectCodes,
+            ...role.allAssignedCodes,
+            ...role.apiSubjectCodes,
+          ]),
+        ];
+        if (codes.length === 0) codes = [...SCHOOL_SUBJECTS];
+      } else {
+        codes =
+          role.myAssignedCodes.length > 0
+            ? role.myAssignedCodes
+            : role.apiSubjectCodes.length > 0
+            ? role.apiSubjectCodes
+            : role.profileSubjectCodes;
+      }
+      const opts = Array.from(new Set(codes)).map((code) => ({
+        code,
+        label: SUBJECT_LABELS[code] || code,
+      }));
+      if (opts.length > 0) setSubjectOptions(opts);
+    } catch {
+      // giữ danh sách rỗng — modal vẫn hiện nhãn môn hiện tại
+    }
+  };
+
+  const handlePickSubject = (code: string) => {
+    if (code === selectedSubjectCode) return;
+    setSelectedSubjectCode(code);
+    // Đổi môn ngay trong modal cũng là lựa chọn chủ động: Sổ điểm mở tiếp
+    // theo đúng môn này để bấm Gửi sổ liên lạc là gửi đúng cột vừa chấm.
+    AsyncStorage.setItem(`gvh_gb_subject_v2_${currentClassId}`, code).catch(() => null);
+    loadOralScores(code);
+  };
+
+  const loadPresentStudents = async () => {
+    try {
+      const [res, mySubject, storedSubject] = await Promise.all([
+        attendanceService.getTodayPresentStudents(currentClassId),
+        classService.getMySubject(currentClassId),
+        // Ưu tiên môn Sổ điểm đang mở lần gần nhất của lớp này — để điểm miệng
+        // chấm qua Vòng quay rơi đúng cột giáo viên đang nhìn (tránh lệch môn).
+        // Chưa có lựa chọn nào thì dùng đúng môn GV được phân công trong lớp.
+        AsyncStorage.getItem(`gvh_gb_subject_v2_${currentClassId}`).catch(() => null),
+      ]);
+      const ownSubjects = (mySubject.teaching_subjects || []).filter(Boolean).map(String);
+      const subject = storedSubject || ownSubjects[0] || 'MATH';
+      setSelectedSubjectCode(subject);
+      setSubjectHydrated(true);
+      const formatted: StudentCandidate[] = (res?.present_students || []).map((s, idx) => {
+        const parts = s.full_name.trim().split(' ');
+        const shortName = parts[parts.length - 1] || s.full_name;
+        return {
+          id: s.id,
+          code: s.student_code || `HS${idx + 1}`,
+          name: shortName,
+          fullName: s.full_name,
+          gender: 'N/A',
+          order: idx + 1,
+        };
+      });
+      setStudents(formatted);
+      setSelectedStudent(formatted[0] ?? null);
+      setPresentCount(res?.total_present ?? formatted.length);
+
+      // Tải điểm miệng của môn sẽ lưu (biến local — state chưa kịp cập nhật)
+      loadOralScores(subject);
+      loadSubjectOptions();
+    } catch (e) {
+      setStudents([]);
+      setSelectedStudent(null);
+      setPresentCount(0);
+    }
+  };
+
+  // Chuẩn bị danh sách học sinh hiển thị trên nan quạt (Tối ưu từ 6 đến 12 múi để chữ to rõ)
+  const wheelSlices = useMemo(() => {
+    if (students.length === 0) {
+      return [
+        { id: '1', code: 'HS01', name: 'Em 1', fullName: 'Học sinh 1', gender: 'N/A', order: 1 },
+        { id: '2', code: 'HS02', name: 'Em 2', fullName: 'Học sinh 2', gender: 'N/A', order: 2 },
+        { id: '3', code: 'HS03', name: 'Em 3', fullName: 'Học sinh 3', gender: 'N/A', order: 3 },
+        { id: '4', code: 'HS04', name: 'Em 4', fullName: 'Học sinh 4', gender: 'N/A', order: 4 },
+        { id: '5', code: 'HS05', name: 'Em 5', fullName: 'Học sinh 5', gender: 'N/A', order: 5 },
+        { id: '6', code: 'HS06', name: 'Em 6', fullName: 'Học sinh 6', gender: 'N/A', order: 6 },
+      ];
+    }
+    if (students.length < 6) {
+      const repeated: StudentCandidate[] = [];
+      while (repeated.length < 6) {
+        repeated.push(...students);
+      }
+      return repeated.slice(0, 6);
+    }
+    if (students.length > 12) {
+      // Giới hạn 12 múi để tên học sinh không bị co cụm, giữ thẩm mỹ cao cấp
+      return students.slice(0, 12);
+    }
+    return students;
+  }, [students]);
+
+  const totalSlices = wheelSlices.length;
+  const sliceAngle = 360 / totalSlices;
+
   // Modal chấm điểm miệng
   const [scoreModalVisible, setScoreModalVisible] = useState(false);
-  const [inputScore, setInputScore] = useState('8.5');
-  const [teacherComment, setTeacherComment] = useState('Thuộc bài tốt, vẽ hình chính xác và rõ ràng.');
-
-  // Màn hình thành công (Đã lưu điểm miệng)
+  const [inputScore, setInputScore] = useState('');
+  const [teacherComment, setTeacherComment] = useState('');
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
 
-  // Animation quay vòng
-  const spinValue = useRef(new Animated.Value(0)).current;
-
+  // Bắt đầu quay vòng
   const handleSpin = () => {
     if (isSpinning) return;
+    if (students.length === 0) {
+      Alert.alert(
+        'Chưa có học sinh có mặt',
+        'Hôm nay lớp chưa được điểm danh hoặc danh sách có mặt đang trống. Vui lòng điểm danh trước khi dò bài.',
+      );
+      return;
+    }
+
+    // Hiệu ứng ấn nút QUAY
+    Animated.sequence([
+      Animated.timing(buttonScale, {
+        toValue: 0.9,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonScale, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     setIsSpinning(true);
 
-    const randomExtra = Math.floor(Math.random() * students.length);
-    const targetStudent = students[randomExtra];
+    // Chọn ngẫu nhiên 1 học sinh từ danh sách có mặt thực tế
+    const randomIndex = Math.floor(Math.random() * students.length);
+    const chosenStudent = students[randomIndex];
 
-    // Xoay 5 vòng (1800 độ) + góc của học sinh (theo 12 múi hiển thị trên đồ họa)
-    const targetDeg = 1800 + (360 - (randomExtra % 12) * 30);
+    // Xác định múi đích tương ứng trên vòng quay
+    let targetSliceIdx = wheelSlices.findIndex((s) => s.id === chosenStudent.id);
+    if (targetSliceIdx === -1) {
+      // Nếu em này ngoài top 12, gán tạm vào múi ngẫu nhiên để kim chỉ đúng
+      targetSliceIdx = randomIndex % totalSlices;
+    }
 
-    spinValue.setValue(0);
+    // Góc tâm của múi đích
+    const midAngle = (targetSliceIdx + 0.5) * sliceAngle;
+    // Góc cần dừng để múi này nằm ngay dưới kim chỉ ở đỉnh (12h = 0 độ)
+    const targetStopDeg = (360 - midAngle) % 360;
+
+    // Quay tối thiểu 5 vòng (1800 độ) + góc bù để kim dừng chuẩn xác
+    const baseRotations = 1800;
+    const finalDegree = currentRotationDeg.current + baseRotations + ((targetStopDeg - (currentRotationDeg.current % 360) + 360) % 360);
+
+    // Bắt đầu lắc kim nhịp nhàng
+    pointerWobble.setValue(0);
+    const wobbleLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pointerWobble, {
+          toValue: 1,
+          duration: 90,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pointerWobble, {
+          toValue: -1,
+          duration: 90,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    wobbleLoop.start();
+
     Animated.timing(spinValue, {
-      toValue: targetDeg,
-      duration: 2500,
-      easing: Easing.out(Easing.cubic),
+      toValue: finalDegree,
+      duration: 3200,
+      easing: Easing.bezier(0.18, 0.89, 0.32, 1.0),
       useNativeDriver: true,
     }).start(() => {
-      setSelectedStudent(targetStudent);
+      wobbleLoop.stop();
+      Animated.spring(pointerWobble, {
+        toValue: 0,
+        friction: 4,
+        tension: 80,
+        useNativeDriver: true,
+      }).start();
+
+      currentRotationDeg.current = finalDegree;
+      setSelectedStudent(chosenStudent);
       setIsSpinning(false);
     });
   };
 
   const handleSkip = () => {
-    const currentIndex = students.findIndex((s) => s.id === selectedStudent.id);
+    if (students.length === 0) return;
+    const currentIndex = selectedStudent
+      ? students.findIndex((s) => s.id === selectedStudent.id)
+      : -1;
     const nextIndex = (currentIndex + 1) % students.length;
     setSelectedStudent(students[nextIndex]);
   };
 
-  const handleSaveScore = async () => {
+  const handleScoreTextChange = (text: string) => {
+    const cleaned = text.replace(/[^\d.]/g, '');
+    if (!cleaned) {
+      setInputScore('');
+      return;
+    }
+    const dotCount = (cleaned.match(/\./g) || []).length;
+    if (dotCount > 1) return;
+    const [intPart, decPart, extraPart] = cleaned.split('.');
+    if (extraPart !== undefined) return;
+    if (decPart !== undefined) {
+      if (decPart.length > 1) return;
+      if (!intPart) return;
+      const joined = `${intPart}.${decPart}`;
+      if (Number(joined) > 10) return;
+      setInputScore(joined);
+      return;
+    }
+    if (Number(cleaned) > 10) return;
+    setInputScore(cleaned);
+  };
+
+  // Alert.alert của react-native-web là no-op → trên web phải dùng window.alert,
+  // nếu không các lỗi/kết quả sẽ biến mất im lặng.
+  const flashNotice = (message: string, title = 'Thông báo') => {
+    if (Platform.OS === 'web') {
+      const browser = globalThis as any;
+      if (typeof browser.alert === 'function') {
+        browser.alert(`${title}\n${message}`);
+        return;
+      }
+    }
+    Alert.alert(title, message);
+  };
+
+  // Xác nhận ghi đè bằng modal tự dựng — chạy được cả web (Alert no-op) và mobile
+  const [overwritePrompt, setOverwritePrompt] = useState<{
+    oldScore: number;
+    newScore: number;
+  } | null>(null);
+
+  const doSaveScore = async (score: number) => {
+    if (!selectedStudent || !currentClassId) return;
     try {
-      await quizService.recordInClassScore('qz_88219', {
-        student_id: selectedStudent.id,
-        score: parseFloat(inputScore) || 8.5,
-        teacher_note: teacherComment,
-        mode_played: 'GOLDEN_BELL',
-        sync_to_scores_table: true,
+      await gradesService.batchInputScores({
+        class_id: currentClassId,
+        subject_code: selectedSubjectCode || 'MATH',
+        score_type: 'ORAL_TEST',
+        semester: 1,
+        is_correction: true,
+        scores: [
+          {
+            student_id: selectedStudent.id,
+            score_value: score,
+            teacher_comment: teacherComment,
+          },
+        ],
       });
 
+      // Cập nhật map để lần chấm sau hỏi xác nhận với điểm mới nhất
+      setOralScoreMap((prev) => new Map(prev).set(selectedStudent.id, score));
+      // Chốt môn vừa chấm cho Sổ điểm: bấm Gửi sổ liên lạc ngay sau đó sẽ
+      // mở đúng môn này thay vì môn mặc định từng gây lệch cột điểm.
+      AsyncStorage.setItem(
+        `gvh_gb_subject_v2_${currentClassId}`,
+        selectedSubjectCode || 'MATH',
+      ).catch(() => null);
       setScoreModalVisible(false);
       setShowSuccessScreen(true);
     } catch (e: any) {
-      Alert.alert('Thông báo', e.message || 'Không thể lưu điểm');
+      flashNotice(e.message || 'Không thể lưu điểm');
     }
   };
+
+  const handleSaveScore = async () => {
+    if (!selectedStudent) return;
+    if (!currentClassId) {
+      flashNotice('Chưa xác định được lớp học. Vui lòng chọn lớp trước khi chấm điểm.');
+      return;
+    }
+    const score = parseFloat(inputScore);
+    if (isNaN(score) || score < 0 || score > 10) {
+      flashNotice('Vui lòng nhập điểm hợp lệ trong khoảng 0 đến 10');
+      return;
+    }
+
+    // Học sinh đã có điểm miệng → mở modal xác nhận trước khi ghi đè.
+    // Map tải trước có thể chưa về kịp nếu GV thao tác quá nhanh → đọc lại
+    // đúng học sinh/môn từ DB để không âm thầm ghi đè điểm đã gửi phụ huynh.
+    let oldScore = oralScoreMap.get(selectedStudent.id);
+    if (oldScore === undefined) {
+      try {
+        const grades: any = await gradesService.getClassGrades(
+          currentClassId,
+          selectedSubjectCode || 'MATH',
+          1,
+        );
+        const rows = Array.isArray(grades) ? grades : grades?.rows || [];
+        const row = rows.find(
+          (r: any) =>
+            String(r.studentId || r.student_id || '') === selectedStudent.id &&
+            String(r.scoreType || r.score_type || '') === 'ORAL_TEST',
+        );
+        const existing = row ? Number(row.scoreValue ?? row.score_value) : NaN;
+        if (!isNaN(existing)) {
+          oldScore = existing;
+          setOralScoreMap((prev) => new Map(prev).set(selectedStudent.id, existing));
+        }
+      } catch {
+        // Lỗi mạng: vẫn cho lưu, không chặn giáo viên chấm bài
+      }
+    }
+    if (oldScore !== undefined) {
+      setOverwritePrompt({ oldScore, newScore: score });
+      return;
+    }
+
+    await doSaveScore(score);
+  };
+
+  const subjectLabel =
+    SUBJECT_LABELS[selectedSubjectCode] || selectedSubjectCode || subjectName || 'Toán học';
 
   const spinInterpolate = spinValue.interpolate({
     inputRange: [0, 360],
     outputRange: ['0deg', '360deg'],
+  });
+
+  const pointerInterpolate = pointerWobble.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: ['-12deg', '0deg', '10deg'],
   });
 
   // MÀN HÌNH 3: THÀNH CÔNG (ĐÃ LƯU ĐIỂM MIỆNG)
@@ -170,7 +493,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
     return (
       <View style={styles.root}>
         <LinearGradient
-          colors={['#FFCFA3', '#FFE3C8', '#FFF3E6']}
+          colors={['#FFF8EE', '#FFF1E2', '#FFE6D1']}
           locations={[0, 0.45, 1.0]}
           style={StyleSheet.absoluteFillObject}
         />
@@ -180,7 +503,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
             contentContainerStyle={styles.successScrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* 3D Gold Star & Pencil Illustration (~200px) */}
+            {/* 3D Gold Star & Success Badge Illustration */}
             <View style={styles.successIllustrationWrap}>
               <Svg width={200} height={200} viewBox="0 0 200 200" fill="none">
                 <Defs>
@@ -203,8 +526,6 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
                 {/* 3D Star Badge Base */}
                 <Circle cx="100" cy="98" r="58" fill="url(#goldStar)" />
-
-                {/* Bevels */}
                 <Path d="M100,52 L112,83 L145,86 L120,108 L128,141 L100,123 L72,141 L80,108 L55,86 L88,83 Z" fill="#FFAA00" opacity="0.4" />
                 <Path d="M100,52 L112,83 L100,98 L88,83 Z" fill="#FFEBAA" opacity="0.8" />
                 <Path d="M145,86 L120,108 L100,98 L112,83 Z" fill="#FFC938" />
@@ -212,8 +533,6 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
                 {/* Circular Inner Badge for Success Checkmark */}
                 <Circle cx="100" cy="98" r="32" fill="#FFFFFF" />
                 <Circle cx="100" cy="98" r="28" fill="url(#checkGrad)" />
-
-                {/* White Checkmark */}
                 <Path d="M88 98 L96 106 L113 88" stroke="#FFFFFF" strokeWidth={6.5} strokeLinecap="round" strokeLinejoin="round" />
 
                 {/* Leaning Cute Pencil */}
@@ -225,50 +544,58 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
                   <Polygon points="6,66 12,66 9,72" fill="#1E1B2E" />
                 </G>
 
-                {/* Sparkles */}
                 <Circle cx="48" cy="156" r="4.5" fill="#FFFFFF" opacity={0.9} />
                 <Circle cx="168" cy="158" r="3.5" fill="#FFE27A" opacity={0.8} />
               </Svg>
             </View>
 
-            {/* Title */}
             <Text style={styles.successTitle}>Đã lưu điểm miệng!</Text>
-            <Text style={styles.successSubtitle}>Toán Hình • Lớp 6A1 • Tiết 2</Text>
+            <Text style={styles.successSubtitle}>
+              {subjectLabel} • {className}
+            </Text>
 
             {/* White Summary Card */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryTopRow}>
                 <View style={styles.summaryStudentInfo}>
                   <View style={styles.studentAvatarCircle}>
-                    <Text style={styles.studentAvatarText}>KL</Text>
+                    <Text style={styles.studentAvatarText}>
+                      {selectedStudent
+                        ? selectedStudent.name
+                            .split(' ')
+                            .map((w) => w.charAt(0))
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase()
+                        : '--'}
+                    </Text>
                   </View>
                   <View>
-                    <Text style={styles.summaryStudentName}>{selectedStudent.fullName}</Text>
+                    <Text style={styles.summaryStudentName}>{selectedStudent?.fullName || '--'}</Text>
                     <View style={styles.summaryMetaRow}>
                       <View style={styles.summaryCodeBadge}>
-                        <Text style={styles.summaryCodeBadgeText}>{selectedStudent.code}</Text>
+                        <Text style={styles.summaryCodeBadgeText}>{selectedStudent?.code || '--'}</Text>
                       </View>
-                      <Text style={styles.summaryOrderText}>STT: {selectedStudent.order}</Text>
+                      <Text style={styles.summaryOrderText}>STT: {selectedStudent?.order ?? '--'}</Text>
                     </View>
                   </View>
                 </View>
 
-                {/* Big Score */}
                 <View style={styles.summaryScoreWrap}>
                   <Text style={styles.summaryScoreLabel}>Điểm miệng</Text>
                   <Text style={styles.summaryScoreValue}>{inputScore}</Text>
                 </View>
               </View>
 
-              {/* Teacher Comment */}
-              <View style={styles.summaryCommentWrap}>
-                <Text style={styles.summaryCommentTitle}>Nhận xét của cô:</Text>
-                <View style={styles.summaryCommentBox}>
-                  <Text style={styles.summaryCommentText}>“{teacherComment}”</Text>
+              {teacherComment ? (
+                <View style={styles.summaryCommentWrap}>
+                  <Text style={styles.summaryCommentTitle}>Nhận xét của cô:</Text>
+                  <View style={styles.summaryCommentBox}>
+                    <Text style={styles.summaryCommentText}>“{teacherComment}”</Text>
+                  </View>
                 </View>
-              </View>
+              ) : null}
 
-              {/* Bottom Tag */}
               <View style={styles.summaryBottomRow}>
                 <View style={styles.greenRecordedBadge}>
                   <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
@@ -276,11 +603,10 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
                   </Svg>
                   <Text style={styles.greenRecordedBadgeText}>Đã ghi vào sổ điểm</Text>
                 </View>
-                <Text style={styles.timestampText}>Vừa xong • 08:24</Text>
+                <Text style={styles.timestampText}>Vừa xong</Text>
               </View>
             </View>
 
-            {/* Action Buttons */}
             <View style={styles.successActionsArea}>
               <TouchableOpacity
                 style={styles.callOtherBtn}
@@ -310,14 +636,32 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
     );
   }
 
-  // MÀN HÌNH 1: VÒNG QUAY MAY MẮN
+  // MÀN HÌNH 1: VÒNG QUAY MAY MẮN 3D
+  const WHEEL_RADIUS = 138;
+  const CENTER_XY = 150;
+
   return (
     <View style={styles.root}>
+      {/* Background tone kem ấm đồng bộ toàn hệ thống */}
       <LinearGradient
-        colors={['#FFCFA3', '#FFE3C8', '#FFF3E6']}
+        colors={['#FFF8EE', '#FFF3E5', '#FFE7D1']}
         locations={[0, 0.45, 1.0]}
         style={StyleSheet.absoluteFillObject}
       />
+
+      {/* Họa tiết trang trí nền 3D confetti */}
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+        <Svg width="100%" height="100%">
+          <Circle cx="12%" cy="16%" r={3} fill="#F58F4C" opacity={0.3} />
+          <Circle cx="88%" cy="14%" r={4} fill="#FFB68B" opacity={0.4} />
+          <Circle cx="8%" cy="58%" r={3.5} fill="#5E5CE6" opacity={0.25} />
+          <Circle cx="92%" cy="62%" r={4} fill="#F58F4C" opacity={0.35} />
+          <Circle cx="45%" cy="8%" r={2.5} fill="#F59E0B" opacity={0.35} />
+          {/* Confetti rectangles */}
+          <Rect x="20" y="240" width={10} height={5} rx={2} fill="#FF7043" opacity={0.25} transform="rotate(25 25 242)" />
+          <Rect x="350" y="220" width={12} height={6} rx={2} fill="#3B82F6" opacity={0.25} transform="rotate(-35 356 223)" />
+        </Svg>
+      </View>
 
       <SafeAreaView style={styles.safeContainer}>
         {/* Header */}
@@ -336,141 +680,464 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
             <View style={styles.headerTitleWrap}>
               <Text style={styles.screenTitle}>Dò Bài Cũ</Text>
-              <Text style={styles.screenSubtitle}>{`${subjectName} • ${className}`}</Text>
+              <Text style={styles.screenSubtitle}>
+                {[subjectHydrated ? subjectLabel : 'Đang tải...', className]
+                  .filter(Boolean)
+                  .join(' • ')}
+              </Text>
               <View style={styles.attendancePill}>
                 <View style={styles.onlineDot} />
                 <Text style={styles.attendancePillText}>{`${presentCount} em có mặt`}</Text>
               </View>
+              {!!quizContextText && (
+                <View style={styles.quizContextPill}>
+                  <Text style={styles.quizContextText} numberOfLines={1}>
+                    {quizContextText}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
-          {/* 3D Microphone Illustration */}
+          {/* 3D Trophy / Golden Mic Illustration */}
           <View style={styles.micIllustrationWrap}>
-            <Svg width={80} height={80} viewBox="0 0 100 100">
-              <Circle cx={50} cy={50} r={40} fill="#FFE3C8" opacity={0.6} />
-              <Path d="M22 24 Q22 32 14 32 Q22 32 22 40 Q22 32 30 32 Q22 32 22 24 Z" fill="#F59E0B" />
-              <Path d="M82 42 Q82 48 76 48 Q82 48 82 54 Q82 48 88 48 Q82 48 82 42 Z" fill="#F59E0B" />
-              <Rect x={42} y={46} width={16} height={34} rx={8} fill="#5E5CE6" transform="rotate(-25 50 63)" />
-              <Rect x={44} y={74} width={12} height={6} rx={3} fill="#3B3860" transform="rotate(-25 50 63)" />
-              <Circle cx={39} cy={35} r={17} fill="#F58F4C" />
+            <Svg width={74} height={74} viewBox="0 0 100 100">
+              <Defs>
+                <SvgRadialGradient id="trophyGlow" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0%" stopColor="#FFE79A" stopOpacity="0.8" />
+                  <Stop offset="100%" stopColor="#F58F4C" stopOpacity="0" />
+                </SvgRadialGradient>
+                <SvgLinearGradient id="goldCup" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor="#FFF2A3" />
+                  <Stop offset="30%" stopColor="#FBBF24" />
+                  <Stop offset="70%" stopColor="#F59E0B" />
+                  <Stop offset="100%" stopColor="#B45309" />
+                </SvgLinearGradient>
+              </Defs>
+              <Circle cx={50} cy={50} r={38} fill="url(#trophyGlow)" />
+              {/* Sparkles */}
+              <Path d="M22 24 Q22 30 16 30 Q22 30 22 36 Q22 30 28 30 Q22 30 22 24 Z" fill="#F59E0B" />
+              <Path d="M80 34 Q80 39 75 39 Q80 39 80 44 Q80 39 85 39 Q80 39 80 34 Z" fill="#F59E0B" />
+              {/* Cute 3D Trophy / Microphone */}
+              <Rect x={42} y={48} width={16} height={32} rx={8} fill="#4F46E5" transform="rotate(-25 50 63)" />
+              <Rect x={45} y={72} width={10} height={6} rx={3} fill="#312E81" transform="rotate(-25 50 63)" />
+              <Circle cx={39} cy={35} r={17} fill="url(#goldCup)" />
               <Ellipse cx={37} cy={32} rx={13} ry={9} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth={1.8} />
-              <Circle cx={32} cy={27} r={4} fill="#FFFFFF" opacity={0.8} />
+              <Circle cx={33} cy={28} r={3.5} fill="#FFFFFF" opacity={0.85} />
             </Svg>
           </View>
         </View>
 
-        {/* Wheel Bento Card */}
+        {/* Khung Bento Vòng Quay 3D (3D Wheel Card) */}
         <View style={styles.wheelCardContainer}>
           <View style={styles.wheelCard}>
-            {/* Pointer at the top pointing down */}
-            <View style={styles.topPointerWrap}>
-              <Svg width={34} height={42} viewBox="0 0 34 42" fill="none">
-                <Path d="M17 40L4 12C2 7.5 5.5 2 10.5 2H23.5C28.5 2 32 7.5 30 12L17 40Z" fill="#1E1B2E" />
-                <Path d="M17 37L6 13C4.5 9 7.2 5 11.5 5H22.5C26.8 5 29.5 9 28 13L17 37Z" fill="#F58F4C" />
-                <Circle cx={17} cy={14} r={5} fill="#FFFFFF" />
-                <Circle cx={17} cy={14} r={2.5} fill="#5E5CE6" />
-              </Svg>
-            </View>
+            {/* Kim chỉ 3D Hoàng Gia ở đỉnh (3D Gold Pointer with Wobble) */}
+            <Animated.View
+              style={[
+                styles.topPointerWrap,
+                {
+                  transform: [{ rotate: pointerInterpolate }],
+                },
+              ]}
+            >
+              <Svg width={38} height={48} viewBox="0 0 38 48" fill="none">
+                <Defs>
+                  <SvgLinearGradient id="pointerGoldL" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#FFF8CC" />
+                    <Stop offset="60%" stopColor="#FBBF24" />
+                    <Stop offset="100%" stopColor="#D97706" />
+                  </SvgLinearGradient>
+                  <SvgLinearGradient id="pointerGoldR" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#FBBF24" />
+                    <Stop offset="60%" stopColor="#D97706" />
+                    <Stop offset="100%" stopColor="#92400E" />
+                  </SvgLinearGradient>
+                  <SvgLinearGradient id="pointerGem" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#818CF8" />
+                    <Stop offset="100%" stopColor="#4338CA" />
+                  </SvgLinearGradient>
+                </Defs>
 
-            {/* 12-Segment Wheel Animated */}
-            <View style={styles.wheelWrapper}>
+                {/* Drop shadow */}
+                <Path d="M19 46 L6 14 C4 9 7.5 4 12.5 4 H25.5 C30.5 4 34 9 32 14 L19 46 Z" fill="rgba(30, 27, 46, 0.28)" />
+                {/* Left Bevel */}
+                <Path d="M19 43 L8 14 C6.5 10 9 6 13.5 6 H19 V43 Z" fill="url(#pointerGoldL)" />
+                {/* Right Bevel */}
+                <Path d="M19 43 L30 14 C31.5 10 29 6 24.5 6 H19 V43 Z" fill="url(#pointerGoldR)" />
+                {/* Center ridge highlight */}
+                <Line x1={19} y1={6} x2={19} y2={43} stroke="#FFFFFF" strokeWidth={1.2} opacity={0.7} />
+                {/* Center Gem Pivot */}
+                <Circle cx={19} cy={14} r={6.5} fill="url(#pointerGem)" />
+                <Circle cx={19} cy={14} r={6.5} stroke="#FFFBEB" strokeWidth={1.5} fill="none" />
+                <Circle cx={17.5} cy={12.5} r={1.8} fill="#FFFFFF" opacity={0.8} />
+              </Svg>
+            </Animated.View>
+
+            {/* Khung chứa Vòng Quay 3D */}
+            <View style={styles.wheel3DHousing}>
+              {/* Lớp bóng đổ chân đế 3D khối trụ dày */}
+              <View style={styles.wheelCylinderShadow} />
+
               <Animated.View
                 style={[
                   styles.wheelSvgWrap,
                   { transform: [{ rotate: spinInterpolate }] },
                 ]}
               >
-                <Svg width={286} height={286} viewBox="0 0 300 300">
+                <Svg width={300} height={300} viewBox="0 0 300 300">
                   <Defs>
-                    <ClipPath id="wheelClip">
-                      <Circle cx={150} cy={150} r={148} />
-                    </ClipPath>
-                  </Defs>
-                  <G clipPath="url(#wheelClip)">
-                    {/* 12 Segments */}
-                    <Path d="M150,150 L111.4,7.1 A148,148 0 0,1 188.6,7.1 Z" fill="#EDEBFF" />
-                    <Path d="M150,150 L188.6,7.1 A148,148 0 0,1 254.6,45.4 Z" fill="#FFF1E6" />
-                    <Path d="M150,150 L254.6,45.4 A148,148 0 0,1 292.9,111.4 Z" fill="#F58F4C" />
-                    <Path d="M150,150 L292.9,111.4 A148,148 0 0,1 292.9,188.6 Z" fill="#FFFFFF" />
-                    <Path d="M150,150 L292.9,188.6 A148,148 0 0,1 254.6,254.6 Z" fill="#EDEBFF" />
-                    <Path d="M150,150 L254.6,254.6 A148,148 0 0,1 188.6,292.9 Z" fill="#FFF1E6" />
-                    <Path d="M150,150 L188.6,292.9 A148,148 0 0,1 111.4,292.9 Z" fill="#F58F4C" />
-                    <Path d="M150,150 L111.4,292.9 A148,148 0 0,1 45.4,254.6 Z" fill="#FFFFFF" />
-                    <Path d="M150,150 L45.4,254.6 A148,148 0 0,1 7.1,188.6 Z" fill="#EDEBFF" />
-                    <Path d="M150,150 L7.1,188.6 A148,148 0 0,1 7.1,111.4 Z" fill="#FFF1E6" />
-                    <Path d="M150,150 L7.1,111.4 A148,148 0 0,1 45.4,45.4 Z" fill="#F58F4C" />
-                    <Path d="M150,150 L45.4,45.4 A148,148 0 0,1 111.4,7.1 Z" fill="#FFFFFF" />
+                    {/* Vành ngoài kim loại vàng đúc (3D Metallic Gold Rim) */}
+                    <SvgLinearGradient id="goldRimGrad" x1="10%" y1="0%" x2="90%" y2="100%">
+                      <Stop offset="0%" stopColor="#FFFBEB" />
+                      <Stop offset="25%" stopColor="#FDE68A" />
+                      <Stop offset="50%" stopColor="#F59E0B" />
+                      <Stop offset="80%" stopColor="#D97706" />
+                      <Stop offset="100%" stopColor="#78350F" />
+                    </SvgLinearGradient>
 
-                    {/* Separators */}
-                    <Line x1={150} y1={150} x2={111.4} y2={7.1} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={188.6} y2={7.1} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={254.6} y2={45.4} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={292.9} y2={111.4} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={292.9} y2={188.6} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={254.6} y2={254.6} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={188.6} y2={292.9} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={111.4} y2={292.9} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={45.4} y2={254.6} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={7.1} y2={188.6} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={7.1} y2={111.4} stroke="#FFFFFF" strokeWidth={2.5} />
-                    <Line x1={150} y1={150} x2={45.4} y2={45.4} stroke="#FFFFFF" strokeWidth={2.5} />
-                  </G>
+                    {/* Vành bóng phản chiếu bên trong */}
+                    <SvgRadialGradient id="innerShineGrad" cx="50%" cy="50%" r="50%">
+                      <Stop offset="65%" stopColor="rgba(255,255,255,0)" />
+                      <Stop offset="90%" stopColor="rgba(255,255,255,0.3)" />
+                      <Stop offset="100%" stopColor="rgba(0,0,0,0.22)" />
+                    </SvgRadialGradient>
+                  </Defs>
+
+                  {/* 1. NỀN BÁNH XE */}
+                  <Circle
+                    cx={CENTER_XY}
+                    cy={CENTER_XY}
+                    r={WHEEL_RADIUS + 8}
+                    fill="#B45309"
+                  />
+
+                  {/* 2. CÁC MÚI NAN QUẠT VÀ TÊN HỌC SINH */}
+                  {wheelSlices.map((student, idx) => {
+                    const color = SLICE_PALETTE[idx % SLICE_PALETTE.length];
+                    const startDeg = idx * sliceAngle;
+                    const endDeg = (idx + 1) * sliceAngle;
+                    const midDeg = (idx + 0.5) * sliceAngle;
+
+                    const radStart = (startDeg * Math.PI) / 180;
+                    const radEnd = (endDeg * Math.PI) / 180;
+
+                    const x1 = CENTER_XY + WHEEL_RADIUS * Math.sin(radStart);
+                    const y1 = CENTER_XY - WHEEL_RADIUS * Math.cos(radStart);
+                    const x2 = CENTER_XY + WHEEL_RADIUS * Math.sin(radEnd);
+                    const y2 = CENTER_XY - WHEEL_RADIUS * Math.cos(radEnd);
+
+                    const largeArc = sliceAngle > 180 ? 1 : 0;
+                    const pathData = `M ${CENTER_XY} ${CENTER_XY} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${WHEEL_RADIUS} ${WHEEL_RADIUS} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+
+                    // Tên hiển thị (Tối đa 7 ký tự để không bị cắt)
+                    const displayName = student.name.length > 8 ? student.name.slice(0, 7) + '…' : student.name;
+
+                    return (
+                      <G key={`slice_${student.id}_${idx}`}>
+                        {/* Nan quạt */}
+                        <Path d={pathData} fill={color.bg} />
+
+                        {/* Viền ngăn cách nan quạt */}
+                        <Line
+                          x1={CENTER_XY}
+                          y1={CENTER_XY}
+                          x2={x2.toFixed(2)}
+                          y2={y2.toFixed(2)}
+                          stroke="#FFFFFF"
+                          strokeWidth={2}
+                          opacity={0.85}
+                        />
+
+                        {/* TÊN HỌC SINH TRÊN NAN QUẠT (Tự động xoay xuôi mắt để không bị lộn ngược đầu) */}
+                        {(() => {
+                          const isBottomHalf = midDeg > 90 && midDeg < 270;
+                          const rot = isBottomHalf ? midDeg + 180 : midDeg;
+                          const textY = isBottomHalf ? 254 : (totalSlices > 10 ? 50 : 46);
+                          const shadowY = isBottomHalf ? 255 : (totalSlices > 10 ? 51 : 47);
+                          const dotY = isBottomHalf ? 236 : 64;
+                          const orderY = isBottomHalf ? 224 : 77;
+
+                          return (
+                            <G rotation={rot} origin={`${CENTER_XY}, ${CENTER_XY}`}>
+                              {/* Text shadow mờ tạo chiều sâu 3D */}
+                              <SvgText
+                                x={CENTER_XY}
+                                y={shadowY}
+                                fill="rgba(0,0,0,0.4)"
+                                fontSize={totalSlices > 10 ? 11.5 : 13}
+                                fontWeight="bold"
+                                textAnchor="middle"
+                                letterSpacing={0.4}
+                              >
+                                {displayName}
+                              </SvgText>
+
+                              {/* Tên chính chữ trắng sắc nét */}
+                              <SvgText
+                                x={CENTER_XY}
+                                y={textY}
+                                fill="#FFFFFF"
+                                fontSize={totalSlices > 10 ? 11.5 : 13}
+                                fontWeight="bold"
+                                textAnchor="middle"
+                                letterSpacing={0.4}
+                              >
+                                {displayName}
+                              </SvgText>
+
+                              {/* Chấm ngọc / Số thứ tự học sinh */}
+                              <Circle
+                                cx={CENTER_XY}
+                                cy={dotY}
+                                r={totalSlices > 10 ? 2.8 : 3.2}
+                                fill="rgba(255,255,255,0.8)"
+                              />
+                              <SvgText
+                                x={CENTER_XY}
+                                y={orderY}
+                                fill="rgba(255,255,255,0.95)"
+                                fontSize={8.5}
+                                fontWeight="bold"
+                                textAnchor="middle"
+                              >
+                                {student.order ? `#${student.order}` : ''}
+                              </SvgText>
+                            </G>
+                          );
+                        })()}
+                      </G>
+                    );
+                  })}
+
+                  {/* Viền bóng đổ 3D nhẹ ở mép trong vành */}
+                  <Circle
+                    cx={CENTER_XY}
+                    cy={CENTER_XY}
+                    r={WHEEL_RADIUS - 1}
+                    stroke="rgba(0, 0, 0, 0.2)"
+                    strokeWidth={2.5}
+                    fill="none"
+                  />
+
+                  {/* 3. VÀNH ĐÚC KIM LOẠI 3D ĐÈ LÊN MÉP NGOÀI */}
+                  <Circle
+                    cx={CENTER_XY}
+                    cy={CENTER_XY}
+                    r={WHEEL_RADIUS + 3}
+                    stroke="url(#goldRimGrad)"
+                    strokeWidth={14}
+                    fill="none"
+                  />
+                  <Circle
+                    cx={CENTER_XY}
+                    cy={CENTER_XY}
+                    r={WHEEL_RADIUS - 3}
+                    stroke="#FFFBEB"
+                    strokeWidth={1.5}
+                    fill="none"
+                    opacity={0.8}
+                  />
+
+                  {/* 3. CÁC ĐINH TÁN NGỌC VÀNG KIM 3D QUANH VÀNH (3D Gold Rivets) */}
+                  {Array.from({ length: 12 }).map((_, rIdx) => {
+                    const rDeg = rIdx * 30;
+                    const rRad = (rDeg * Math.PI) / 180;
+                    const rx = CENTER_XY + 145 * Math.sin(rRad);
+                    const ry = CENTER_XY - 145 * Math.cos(rRad);
+                    return (
+                      <G key={`rivet_${rIdx}`}>
+                        {/* Shadow */}
+                        <Circle cx={rx} cy={ry + 0.8} r={4.5} fill="#78350F" opacity={0.7} />
+                        {/* Gold Base */}
+                        <Circle cx={rx} cy={ry} r={4} fill="#FDE047" />
+                        <Circle cx={rx} cy={ry} r={2.8} fill="#F59E0B" />
+                        {/* Highlight */}
+                        <Circle cx={rx - 1} cy={ry - 1} r={1.2} fill="#FFFFFF" opacity={0.9} />
+                      </G>
+                    );
+                  })}
                 </Svg>
               </Animated.View>
 
-              {/* Center Spin Button */}
+              {/* 4. NÚT ẤN VÒM 3D TRUNG TÂM "QUAY" (3D Central Dome Button) */}
               <View style={styles.centerSpinWrap}>
                 <TouchableOpacity
-                  style={styles.centerSpinBtn}
                   onPress={handleSpin}
-                  activeOpacity={0.9}
+                  activeOpacity={0.88}
                   disabled={isSpinning}
                 >
-                  <Text style={styles.centerSpinBtnText}>QUAY</Text>
+                  <Animated.View
+                    style={[
+                      styles.centerSpinBtn3D,
+                      {
+                        transform: [{ scale: buttonScale }],
+                      },
+                    ]}
+                  >
+                    <Svg width={78} height={78} viewBox="0 0 78 78">
+                      <Defs>
+                        {/* Vành mạ vàng kim chrome */}
+                        <SvgLinearGradient id="btnRimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <Stop offset="0%" stopColor="#FFFDEB" />
+                          <Stop offset="50%" stopColor="#FBBF24" />
+                          <Stop offset="100%" stopColor="#92400E" />
+                        </SvgLinearGradient>
+
+                        {/* Vòm cầu đỏ cam 3D */}
+                        <SvgRadialGradient id="domeGrad" cx="40%" cy="35%" r="65%">
+                          <Stop offset="0%" stopColor="#FF855D" />
+                          <Stop offset="45%" stopColor="#FF5722" />
+                          <Stop offset="85%" stopColor="#EA580C" />
+                          <Stop offset="100%" stopColor="#9A3412" />
+                        </SvgRadialGradient>
+
+                        {/* Highlight phản quang thủy tinh */}
+                        <SvgLinearGradient id="glossHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.75" />
+                          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+                        </SvgLinearGradient>
+                      </Defs>
+
+                      {/* Khối đế viền mạ vàng */}
+                      <Circle cx={39} cy={40} r={37} fill="#78350F" />
+                      <Circle cx={39} cy={39} r={36} fill="url(#btnRimGrad)" />
+                      <Circle cx={39} cy={39} r={32} fill="#FFFFFF" />
+
+                      {/* Mặt vòm cầu 3D cam lửa */}
+                      <Circle cx={39} cy={39} r={30} fill="url(#domeGrad)" />
+
+                      {/* Dải sáng phản quang cong bán nguyệt ở nửa trên */}
+                      <Ellipse cx={39} cy={24} rx={19} ry={9} fill="url(#glossHighlight)" />
+
+                      {/* Tia chớp / Ngôi sao nhỏ */}
+                      <Path
+                        d="M39 17 L40.5 21 L44.5 22.5 L40.5 24 L39 28 L37.5 24 L33.5 22.5 L37.5 21 Z"
+                        fill="#FFF3B0"
+                        opacity={0.8}
+                      />
+                    </Svg>
+
+                    {/* Text "QUAY" nổi 3D in hoa */}
+                    <View style={styles.centerTextWrap}>
+                      <Text style={styles.centerSpinBtnText}>QUAY</Text>
+                      <Text style={styles.centerSpinSubText}>SPIN</Text>
+                    </View>
+                  </Animated.View>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Result chip */}
-            <View style={styles.resultChip}>
-              <Svg width={18} height={18} viewBox="0 0 24 24" fill="#F59E0B">
-                <Path d="M12 2L14.7 8.3L21.5 9.1L16.4 13.7L17.8 20.4L12 17L6.2 20.4L7.6 13.7L2.5 9.1L9.3 8.3L12 2Z" />
-              </Svg>
-              <Text style={styles.resultChipText}>
-                Đang gọi: <Text style={styles.resultChipBoldName}>{selectedStudent.name}</Text>
-              </Text>
+            {/* 5. THẺ HỌC SINH ĐƯỢC GỌI 3D (Student Spotlight Bento Card) */}
+            <View style={styles.studentSpotlightCard}>
+              {selectedStudent ? (
+                <View style={styles.spotlightContentRow}>
+                  {/* Avatar 3D học sinh */}
+                  <View style={styles.spotlightAvatarCircle}>
+                    <Text style={styles.spotlightAvatarText}>
+                      {selectedStudent.name
+                        .split(' ')
+                        .map((w) => w.charAt(0))
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </Text>
+                    <View style={styles.spotlightOrderBadge}>
+                      <Text style={styles.spotlightOrderText}>#{selectedStudent.order}</Text>
+                    </View>
+                  </View>
+
+                  {/* Thông tin học sinh */}
+                  <View style={styles.spotlightInfoWrap}>
+                    <View style={styles.spotlightBadgeRow}>
+                      <View style={styles.callingBadge}>
+                        <View style={styles.pulsingGreenDot} />
+                        <Text style={styles.callingBadgeText}>
+                          {isSpinning ? 'ĐANG QUAY VÒNG...' : 'ĐANG GỌI LÊN BẢNG'}
+                        </Text>
+                      </View>
+                      <Text style={styles.spotlightCodeText}>{selectedStudent.code}</Text>
+                    </View>
+
+                    <Text style={styles.spotlightStudentName} numberOfLines={1}>
+                      {isSpinning ? 'Đang chọn em...' : selectedStudent.fullName}
+                    </Text>
+                    <Text style={styles.spotlightClassMeta}>
+                      {className} • {subjectLabel}
+                    </Text>
+                  </View>
+
+                  {/* Nút đổi nhanh em khác */}
+                  <TouchableOpacity
+                    style={styles.quickSkipIconBtn}
+                    onPress={handleSkip}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Đổi bạn khác"
+                  >
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2.2}>
+                      <Path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.spotlightEmptyState}>
+                  <Text style={styles.spotlightEmptyText}>
+                    Chạm nút <Text style={{ fontWeight: '800', color: '#F58F4C' }}>QUAY</Text> ở tâm để gọi ngẫu nhiên một em lên bảng
+                  </Text>
+                </View>
+              )}
             </View>
 
             <Text style={styles.wheelFootnote}>
-              Học sinh được chọn ngẫu nhiên từ danh sách có mặt
+              Tên học sinh hiển thị trực tiếp trên vòng quay • Ngẫu nhiên 100%
             </Text>
           </View>
         </View>
 
-        {/* Fixed Bottom Controls */}
+        {/* Thanh Điều Khiển Đáy Cố Định (Fixed Bottom Bar) */}
         <View style={styles.fixedBottomBar}>
-          <Text style={styles.bottomHintText}>
-            Gọi trúng em đã chấm? Bấm <Text style={{ fontWeight: '700', color: '#1E1B2E' }}>Bỏ qua</Text>
-          </Text>
+          <View style={styles.actionRow}>
+            {/* Nút Bỏ qua */}
+            <TouchableOpacity
+              style={styles.skipBtn}
+              onPress={handleSkip}
+              activeOpacity={0.8}
+            >
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2.2}>
+                <Path d="M5 4l10 8-10 8V4z" fill="#F58F4C" />
+                <Line x1="19" y1="5" x2="19" y2="19" strokeLinecap="round" />
+              </Svg>
+              <Text style={styles.skipBtnText}>Bỏ qua</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.skipBtn}
-            onPress={handleSkip}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.skipBtnText}>Bỏ qua</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.openScoreModalBtn}
-            onPress={() => setScoreModalVisible(true)}
-            activeOpacity={0.9}
-          >
-            <Text style={styles.openScoreModalBtnText}>Chấm Điểm Miệng</Text>
-            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.5}>
-              <Path d="M13 7l5 5m0 0l-5 5m5-5H6" strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
-          </TouchableOpacity>
+            {/* Nút Chấm Điểm Miệng 3D */}
+            <TouchableOpacity
+              style={styles.openScoreModalBtn}
+              onPress={() => {
+                if (!selectedStudent) {
+                  Alert.alert(
+                    'Chưa chọn được học sinh',
+                    'Danh sách học sinh có mặt đang trống. Vui lòng điểm danh trước khi dò bài.',
+                  );
+                  return;
+                }
+                setScoreModalVisible(true);
+              }}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={['#FFA26B', '#F58F4C', '#EA580C']}
+                locations={[0, 0.5, 1.0]}
+                style={StyleSheet.absoluteFillObject}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.4}>
+                <Path d="M12 20h9" strokeLinecap="round" />
+                <Path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+              <Text style={styles.openScoreModalBtnText}>Chấm Điểm Miệng</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* MÀN HÌNH 2: MODAL CHẤM ĐIỂM MIỆNG (BOTTOM-SHEET) */}
@@ -484,78 +1151,156 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
             <View style={styles.modalCard}>
               <View style={styles.modalDragHandle} />
 
-              <Text style={styles.modalSectionLabel}>Học sinh được gọi</Text>
-              <View style={styles.modalStudentRow}>
-                <View style={styles.modalStudentLeft}>
-                  <View style={styles.modalAvatarCircle}>
-                    <Text style={styles.modalAvatarText}>KL</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.modalStudentName}>{selectedStudent.fullName}</Text>
-                    <Text style={styles.modalStudentMeta}>STT: {selectedStudent.order} • {selectedStudent.gender}</Text>
-                  </View>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalTitle}>Chấm Điểm Miệng</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseIconBtn}
+                  onPress={() => setScoreModalVisible(false)}
+                >
+                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#6B6880" strokeWidth={2}>
+                    <Line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round" />
+                    <Line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round" />
+                  </Svg>
+                </TouchableOpacity>
+              </View>
+
+              {/* Học sinh được chọn */}
+              <View style={styles.modalStudentCard}>
+                <View style={styles.modalAvatarCircle}>
+                  <Text style={styles.modalAvatarText}>
+                    {selectedStudent
+                      ? selectedStudent.name
+                          .split(' ')
+                          .map((w) => w.charAt(0))
+                          .join('')
+                          .slice(0, 2)
+                          .toUpperCase()
+                      : '--'}
+                  </Text>
                 </View>
-                <View style={styles.modalCodeBadge}>
-                  <Text style={styles.modalCodeBadgeText}>{selectedStudent.code}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalStudentName}>{selectedStudent?.fullName || '--'}</Text>
+                  <Text style={styles.modalStudentMeta}>
+                    STT: {selectedStudent?.order ?? '--'} • Mã: {selectedStudent?.code || '--'} • {className}
+                  </Text>
                 </View>
               </View>
 
-              {/* Điểm miệng */}
-              <Text style={[styles.modalSectionLabel, { marginTop: 12 }]}>Điểm miệng</Text>
-              <View style={styles.modalScoreBox}>
-                <View style={styles.modalScoreDisplayRow}>
-                  <Text style={styles.modalScoreDisplayText}>{inputScore}</Text>
-                  <View style={styles.cursorBlink} />
-                </View>
-                <Text style={styles.modalScoreScale}>Thang 0.0 - 10.0</Text>
-
-                {/* Quick-pick chips */}
-                <View style={styles.quickPickRow}>
-                  {['7.0', '8.0', '8.5', '9.0', '10'].map((sc) => (
+              {/* Môn ghi điểm — chọn được ngay tại đây để điểm rơi đúng cột */}
+              <Text style={styles.modalSectionLabel}>Môn ghi điểm</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.subjectPillRow}
+              >
+                {subjectOptions.map((opt) => {
+                  const isSelected = opt.code === selectedSubjectCode;
+                  return (
                     <TouchableOpacity
-                      key={sc}
-                      style={[styles.quickPickBtn, inputScore === sc && styles.quickPickBtnActive]}
-                      onPress={() => setInputScore(sc)}
+                      key={opt.code}
+                      style={[styles.subjectPill, isSelected && styles.subjectPillActive]}
+                      onPress={() => handlePickSubject(opt.code)}
+                      activeOpacity={0.8}
                     >
-                      <Text style={[styles.quickPickBtnText, inputScore === sc && styles.quickPickBtnTextActive]}>
-                        {sc}
+                      <Text
+                        style={[
+                          styles.subjectPillText,
+                          isSelected && styles.subjectPillTextActive,
+                        ]}
+                      >
+                        {opt.label}
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Thang điểm & Ô nhập điểm */}
+              <Text style={styles.modalSectionLabel}>Điểm số (Thang 0 - 10)</Text>
+              <View style={styles.modalScoreBox}>
+                <TextInput
+                  style={styles.modalScoreInput}
+                  value={inputScore}
+                  onChangeText={handleScoreTextChange}
+                  placeholder="0.0"
+                  placeholderTextColor="#E8C4A8"
+                  keyboardType="numeric"
+                  textAlign="center"
+                  maxLength={4}
+                />
               </View>
 
-              {/* Nhận xét */}
-              <Text style={[styles.modalSectionLabel, { marginTop: 12 }]}>Nhận xét</Text>
+              {/* Nhận xét giáo viên */}
+              <Text style={[styles.modalSectionLabel, { marginTop: 16 }]}>Nhận xét về bài cũ</Text>
               <View style={styles.commentInputBox}>
                 <TextInput
                   style={styles.commentTextInput}
                   value={teacherComment}
                   onChangeText={setTeacherComment}
-                  placeholder="Nhận xét ngắn về bài cũ"
+                  placeholder="Nhập nhận xét của thầy/cô về bài cũ..."
                   placeholderTextColor="#94A3B8"
                 />
               </View>
 
-              <Text style={styles.modalSyncNote}>Ghi vào cột điểm miệng • Toán Hình</Text>
+              <Text style={styles.modalSyncNote}>
+                Điểm sẽ tự động ghi vào cột Điểm miệng • {subjectLabel}
+              </Text>
 
+              {/* Nút Lưu điểm */}
               <TouchableOpacity
                 style={styles.saveScoreBtn}
                 onPress={handleSaveScore}
                 activeOpacity={0.9}
               >
+                <LinearGradient
+                  colors={['#FFA26B', '#F58F4C', '#EA580C']}
+                  style={StyleSheet.absoluteFillObject}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
                 <Text style={styles.saveScoreBtnText}>Lưu Điểm Miệng</Text>
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.5}>
                   <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setScoreModalVisible(false)}
-              >
-                <Text style={styles.modalCloseBtnText}>Đóng</Text>
-              </TouchableOpacity>
+        {/* Xác nhận ghi đè điểm miệng — modal tự dựng vì Alert.alert không chạy trên web */}
+        <Modal
+          visible={overwritePrompt !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setOverwritePrompt(null)}
+        >
+          <View style={styles.confirmOverlay}>
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmTitle}>Thay đổi điểm miệng?</Text>
+              <Text style={styles.confirmMessage}>
+                Em {selectedStudent?.fullName || selectedStudent?.name || ''} đang có điểm miệng{' '}
+                {overwritePrompt?.oldScore}. Bạn muốn thay bằng {overwritePrompt?.newScore}?
+              </Text>
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, styles.confirmCancelBtn]}
+                  onPress={() => setOverwritePrompt(null)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.confirmCancelText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, styles.confirmOkBtn]}
+                  onPress={() => {
+                    const next = overwritePrompt;
+                    setOverwritePrompt(null);
+                    if (next) doSaveScore(next.newScore);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.confirmOkText}>Thay đổi</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -565,10 +1310,38 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
+  subjectPillRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  subjectPill: {
+    paddingHorizontal: 14,
+    height: 34,
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  subjectPillActive: {
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1.5,
+    borderColor: '#F58F4C',
+  },
+  subjectPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  subjectPillTextActive: {
+    color: '#C2570F',
+  },
   root: {
     flex: 1,
     position: 'relative',
-    backgroundColor: '#FFE3C8',
+    backgroundColor: '#FFF8EE',
   },
   safeContainer: {
     flex: 1,
@@ -596,11 +1369,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowColor: '#C97A3E',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#FFE7D3',
   },
   headerTitleWrap: {
     gap: 2,
@@ -615,8 +1390,8 @@ const styles = StyleSheet.create({
   screenSubtitle: {
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: '500',
-    color: '#6B6880',
+    fontWeight: '600',
+    color: '#887367',
   },
   attendancePill: {
     flexDirection: 'row',
@@ -630,6 +1405,11 @@ const styles = StyleSheet.create({
     borderColor: '#FFE8D6',
     alignSelf: 'flex-start',
     marginTop: 4,
+    shadowColor: '#C97A3E',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 1,
   },
   onlineDot: {
     width: 7,
@@ -643,106 +1423,246 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#F58F4C',
   },
+  quizContextPill: {
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FFE3C8',
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    maxWidth: '100%',
+  },
+  quizContextText: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+    color: '#9A3412',
+  },
   micIllustrationWrap: {
-    width: 80,
-    height: 80,
+    width: 74,
+    height: 74,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  /* Wheel Card */
+  /* Wheel Bento Card */
   wheelCardContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     marginTop: 4,
     flex: 1,
   },
   wheelCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 16,
+    borderRadius: 28,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     alignItems: 'center',
-    shadowColor: '#1E1B2E',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
+    shadowColor: '#C97A3E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#FFE7D3',
   },
   topPointerWrap: {
     position: 'absolute',
-    top: -6,
-    zIndex: 30,
+    top: 0,
+    zIndex: 40,
     alignItems: 'center',
   },
-  wheelWrapper: {
-    width: 286,
-    height: 286,
-    borderRadius: 143,
-    borderWidth: 4,
-    borderColor: '#FFF3E6',
-    overflow: 'hidden',
+  wheel3DHousing: {
+    width: 300,
+    height: 300,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
-    backgroundColor: '#FFFFFF',
+    marginTop: 8,
+    position: 'relative',
+  },
+  wheelCylinderShadow: {
+    position: 'absolute',
+    width: 296,
+    height: 296,
+    borderRadius: 148,
+    backgroundColor: '#78350F',
+    top: 6,
+    shadowColor: '#C2410C',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 6,
   },
   wheelSvgWrap: {
-    width: 286,
-    height: 286,
+    width: 300,
+    height: 300,
   },
   centerSpinWrap: {
     position: 'absolute',
-    zIndex: 20,
+    zIndex: 35,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centerSpinBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#F58F4C',
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
+  centerSpinBtn3D: {
+    width: 78,
+    height: 78,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F58F4C',
+    position: 'relative',
+    shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  centerTextWrap: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    top: 24,
   },
   centerSpinBtnText: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 18,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
-  resultChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#EDEBFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  centerSpinSubText: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: '800',
+    color: '#FFF2CC',
+    letterSpacing: 1,
+  },
+
+  /* Thẻ học sinh được gọi Spotlight 3D */
+  studentSpotlightCard: {
+    width: '100%',
+    backgroundColor: '#FFFBF7',
     borderRadius: 20,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#FFE2C7',
     marginTop: 14,
     marginBottom: 6,
+    shadowColor: '#C97A3E',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  resultChipText: {
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '700',
+  spotlightContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  spotlightAvatarCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FF7043',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFE0B2',
+    position: 'relative',
+  },
+  spotlightAvatarText: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  spotlightOrderBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: '#1E1B2E',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  spotlightOrderText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFB68B',
+  },
+  spotlightInfoWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  spotlightBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  callingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EDEBFF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  pulsingGreenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  callingBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
     color: '#5E5CE6',
+    letterSpacing: 0.3,
   },
-  resultChipBoldName: {
+  spotlightCodeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#887367',
+  },
+  spotlightStudentName: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '800',
     color: '#1E1B2E',
+  },
+  spotlightClassMeta: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+    color: '#887367',
+  },
+  quickSkipIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FFE0C8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spotlightEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  spotlightEmptyText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#887367',
+    textAlign: 'center',
   },
   wheelFootnote: {
     fontSize: 11,
     lineHeight: 15,
     fontWeight: '500',
-    color: '#6B6880',
+    color: '#A39287',
     textAlign: 'center',
+    marginTop: 4,
   },
 
   /* Fixed Bottom Bar */
@@ -751,60 +1671,61 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 12,
-    paddingBottom: 24,
-    alignItems: 'center',
-    gap: 8,
-    shadowColor: '#F58F4C',
+    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
+    shadowColor: '#C97A3E',
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#FFE7D3',
   },
-  bottomHintText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-    color: '#6B6880',
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   skipBtn: {
-    width: '100%',
-    height: 40,
-    borderRadius: 20,
+    flex: 1,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 1.5,
     borderColor: '#F58F4C',
     backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
   skipBtnText: {
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#F58F4C',
   },
   openScoreModalBtn: {
-    width: '100%',
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#F58F4C',
+    flex: 2,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#F58F4C',
+    shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 5,
   },
   openScoreModalBtnText: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: '800',
     color: '#FFFFFF',
   },
@@ -812,61 +1733,72 @@ const styles = StyleSheet.create({
   /* Modal Bottom Sheet */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(30, 27, 46, 0.45)',
+    backgroundColor: 'rgba(30, 27, 46, 0.5)',
     justifyContent: 'flex-end',
   },
   modalCard: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 28,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
   },
   modalDragHandle: {
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#E2E8F0',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  modalSectionLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    color: '#6B6880',
-    marginBottom: 6,
-  },
-  modalStudentRow: {
+  modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  modalStudentLeft: {
+  modalTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  modalCloseIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalStudentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    backgroundColor: '#FFF8F3',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FFE7D6',
+    marginBottom: 14,
   },
   modalAvatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#EDEBFF',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FF7043',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
   },
   modalAvatarText: {
-    fontSize: 15,
-    lineHeight: 19,
-    fontWeight: '700',
-    color: '#5E5CE6',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   modalStudentName: {
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     fontWeight: '800',
     color: '#1E1B2E',
   },
@@ -874,86 +1806,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '500',
-    color: '#6B6880',
+    color: '#887367',
+    marginTop: 2,
   },
-  modalCodeBadge: {
-    backgroundColor: '#F1F0FB',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E0E7FF',
-  },
-  modalCodeBadgeText: {
-    fontSize: 11,
-    lineHeight: 15,
+  modalSectionLabel: {
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '700',
-    color: '#5E5CE6',
+    color: '#6B6880',
+    marginBottom: 8,
   },
   modalScoreBox: {
     backgroundColor: '#FFF1E6',
     borderRadius: 18,
-    padding: 12,
+    paddingVertical: 8,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#FDE6D2',
   },
-  modalScoreDisplayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  modalScoreDisplayText: {
-    fontSize: 32,
-    lineHeight: 38,
+  modalScoreInput: {
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: '900',
     color: '#F58F4C',
-  },
-  cursorBlink: {
-    width: 2,
-    height: 28,
-    backgroundColor: '#F58F4C',
-  },
-  modalScoreScale: {
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: '600',
-    color: '#6B6880',
-    marginTop: 2,
-  },
-  quickPickRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
-  quickPickBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-  },
-  quickPickBtnActive: {
-    backgroundColor: '#F58F4C',
-    borderColor: '#F58F4C',
-  },
-  quickPickBtnText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    color: '#1E1B2E',
-  },
-  quickPickBtnTextActive: {
-    color: '#FFFFFF',
+    padding: 0,
+    minWidth: 100,
   },
   commentInputBox: {
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FBFBFE',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   commentTextInput: {
     fontSize: 13,
@@ -963,20 +1848,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '500',
-    color: '#6B6880',
+    color: '#887367',
     textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: 14,
+    marginBottom: 12,
   },
   saveScoreBtn: {
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#F58F4C',
+    height: 52,
+    borderRadius: 26,
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#F58F4C',
+    shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
@@ -988,15 +1873,71 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
-  modalCloseBtn: {
+
+  /* Xác nhận ghi đè điểm miệng */
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 27, 46, 0.55)',
     alignItems: 'center',
-    paddingVertical: 10,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  modalCloseBtnText: {
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: '600',
+  confirmCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 20,
+    shadowColor: '#1E1B2E',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  confirmMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
     color: '#6B6880',
+    marginTop: 8,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 18,
+  },
+  confirmBtn: {
+    minWidth: 96,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  confirmCancelBtn: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  confirmCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B6880',
+  },
+  confirmOkBtn: {
+    backgroundColor: '#F58F4C',
+  },
+  confirmOkText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 
   /* Màn hình thành công (Success) */
@@ -1034,8 +1975,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#FFFFFF',
-    shadowColor: '#DC732D',
+    borderColor: '#FFE7D3',
+    shadowColor: '#C97A3E',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 18,
@@ -1058,7 +1999,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#EDEBFF',
+    backgroundColor: '#FF7043',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1066,7 +2007,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     fontWeight: '800',
-    color: '#5E5CE6',
+    color: '#FFFFFF',
   },
   summaryStudentName: {
     fontSize: 16,
@@ -1179,7 +2120,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#F58F4C',
+    shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,

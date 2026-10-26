@@ -2,6 +2,84 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// =========================================================================
+// DANH MỤC MÔN HỌC CHUẨN (chân phương rõ ràng) — dùng đồng bộ toàn hệ thống
+// Bảng users không có cột teaching_subjects nên lưu trong assigned_info dạng JSON
+// =========================================================================
+export const CANON_SUBJECT_CODES = [
+  'MATH', 'LIT', 'ENG', 'CS', 'SCIENCE', 'HISTORY', 'GEOGRAPHY', 'ETHICS',
+  'PE', 'ART', 'MUSIC',
+];
+
+const SUBJECT_ALIASES: Record<string, string> = {
+  LITERATURE: 'LIT',
+  VN: 'LIT',
+  ENGLISH: 'ENG',
+  INFORMATICS: 'CS',
+  INF: 'CS',
+  TECH: 'CS',
+  IT: 'CS',
+  SCI: 'SCIENCE',
+  NAT_SOC: 'SCIENCE',
+  PHYSICS: 'SCIENCE',
+  CHEMISTRY: 'SCIENCE',
+  CHEM: 'SCIENCE',
+  BIOLOGY: 'SCIENCE',
+  BIO: 'SCIENCE',
+  HIST: 'HISTORY',
+  GEO: 'GEOGRAPHY',
+  CIVICS: 'ETHICS',
+  GDCD: 'ETHICS',
+  ETH: 'ETHICS',
+  GD: 'ETHICS',
+  AMH: 'ART',
+};
+
+/** Trả về { codes, invalid } — codes đã chuẩn GDPT, invalid là mã lạ (dùng để báo lỗi rõ cho người dùng) */
+export const normalizeSubjectCodes = (
+  list: any,
+): { codes: string[]; invalid: string[] } => {
+  const codes: string[] = [];
+  const invalid: string[] = [];
+  if (Array.isArray(list)) {
+    list.forEach((raw) => {
+      const s = String(raw || '').trim();
+      if (!s) return;
+      const key = s.toUpperCase();
+      const code = SUBJECT_ALIASES[key] || key;
+      if (CANON_SUBJECT_CODES.includes(code)) {
+        if (!codes.includes(code)) codes.push(code);
+      } else if (!invalid.includes(s)) {
+        invalid.push(s);
+      }
+    });
+  }
+  return { codes, invalid };
+};
+
+/** Đọc lại teaching_subjects đã lưu JSON trong assigned_info (VD: {"teaching_subjects":["MATH"],"assigned_info":null}) */
+export const decodeSubjectsFromAssignedInfo = (info: any): string[] => {
+  if (typeof info !== 'string' || !info.trim()) return [];
+  try {
+    const parsed = JSON.parse(info);
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.teaching_subjects)) {
+      return parsed.teaching_subjects.map(String);
+    }
+  } catch {}
+  return [];
+};
+
+/** Gói teaching_subjects + thông tin phân công dạng text vào 1 chuỗi JSON lưu cột assigned_info */
+export const encodeSubjectsToAssignedInfo = (
+  subjects: string[],
+  assignedInfoText?: string | null,
+): string => {
+  return JSON.stringify({
+    teaching_subjects: subjects,
+    assigned_info: assignedInfoText ?? null,
+  });
+};
+
 export interface DataConnectUserRecord {
   id: string;
   code: string;
@@ -10,6 +88,7 @@ export interface DataConnectUserRecord {
   phone: string;
   email?: string | null;
   role: string;
+  teaching_subjects?: string[];
   schoolName?: string | null;
   school_name?: string | null;
   assignedInfo?: string | null;
@@ -69,6 +148,12 @@ export interface DataConnectStudentRecord {
   gender: string;
   parentPhone?: string | null;
   parent_phone?: string | null;
+  parentName?: string | null;
+  parent_name?: string | null;
+  parentRelationship?: string | null;
+  parent_relationship?: string | null;
+  isParentAppConnected?: boolean;
+  is_parent_app_connected?: boolean;
   parent_uids?: string[];
   isDeleted: boolean;
   is_deleted?: boolean;
@@ -103,8 +188,18 @@ export interface DataConnectScoreRecord {
   term: number;
   academicYear: string;
   academic_year?: string;
+  /** Đã gửi cho phụ huynh qua Gửi sổ liên lạc chưa (delta publishing) */
+  isPublished?: boolean;
+  is_published?: boolean;
+  /** ĐÃ TỪNG gửi ít nhất 1 lần — giữ dấu khi is_published reset sau khi sửa */
+  published_once?: boolean;
   createdAt: string;
   created_at?: string;
+  /** Giáo viên nhập/sửa ô điểm này gần nhất (khi GVBM bị đổi người) */
+  updatedByTeacherId?: string | null;
+  updated_by_teacher_id?: string | null;
+  updatedAt?: string | null;
+  updated_at?: string | null;
 }
 
 export interface DataConnectQuizRecord {
@@ -120,11 +215,18 @@ export interface DataConnectQuizRecord {
 export interface DataConnectRemarkRecord {
   id: string;
   studentId: string;
+  student_id?: string;
   teacherId: string;
+  teacher_id?: string;
   date: string;
   content: string;
   category: string;
+  subjectCode?: string;
+  subject_code?: string;
+  teacherName?: string;
+  teacher_name?: string;
   createdAt: string;
+  created_at?: string;
 }
 
 export interface DataConnectExamReminderRecord {
@@ -140,10 +242,16 @@ export interface DataConnectExamReminderRecord {
 export interface DataConnectFeeRecord {
   id: string;
   studentId: string;
+  student_id?: string;
+  fee_type?: string;
+  type?: string;
+  is_paid?: boolean;
+  paid_date?: string | null;
   title: string;
   amount: number;
   status: string;
-  dueDate: string;
+  dueDate: string | null;
+  due_date?: string | null;
   paidAt?: string | null;
   createdAt: string;
 }
@@ -445,7 +553,7 @@ export class SupabaseService implements OnModuleInit {
     const ph1 = {
       id: 'usr_ph_01',
       code: 'PH-1001',
-      full_name: 'Bác Phạm Văn Hùng',
+      full_name: 'Phạm Văn Hùng',
       phone: '0987654321',
       email: 'hung.pham@gmail.com',
       role: 'PARENT',
@@ -476,6 +584,21 @@ export class SupabaseService implements OnModuleInit {
       ai_used_today: 0,
       ai_model_tier: 'AUTO',
     };
+    
+    const hangTeacher = {
+      id: 'usr_hang_lit_01',
+      code: 'GV-1008',
+      full_name: 'Cô Lê Thị Hằng',
+      phone: '0903888999',
+      email: 'hang.le@chuvanan.edu.vn',
+      role: 'TEACHER_SUBJECT',
+      school_name: 'Trường Tiểu Học Chu Văn An',
+      teaching_subjects: ['LIT'],
+      is_active: true,
+      is_deleted: false,
+    };
+    this.memoryStore.users.set(hangTeacher.id, hangTeacher);
+
     [adminUser, adminRoot, gv1, gv2, ph1, usr01].forEach((u) => {
       this.memoryStore.users.set(u.id, u);
     });
@@ -536,7 +659,29 @@ export class SupabaseService implements OnModuleInit {
   private mapUser(u: any): DataConnectUserRecord {
     const isAct = u.is_active ?? u.isActive ?? true;
     const isDel = u.is_deleted ?? u.isDeleted ?? false;
-    const pwdHash = u.password_hash ?? u.passwordHash ?? null;
+    let pwdHash = u.password_hash ?? u.passwordHash ?? null;
+    const assignedInfo = u.assigned_info ?? u.assignedInfo ?? null;
+    if (!pwdHash && assignedInfo) {
+      try {
+        let parsed = typeof assignedInfo === 'string' ? JSON.parse(assignedInfo) : assignedInfo;
+        while (parsed && typeof parsed.assigned_info === 'string') {
+          try {
+            parsed = JSON.parse(parsed.assigned_info);
+          } catch { break; }
+        }
+        if (parsed?.password_hash) {
+          pwdHash = parsed.password_hash;
+        }
+      } catch {}
+    }
+    const teachingSubjects =
+      (Array.isArray(u.teaching_subjects) && u.teaching_subjects.length > 0
+        ? u.teaching_subjects
+        : null) ||
+      (Array.isArray(u.teachingSubjects) && u.teachingSubjects.length > 0
+        ? u.teachingSubjects
+        : null) ||
+      decodeSubjectsFromAssignedInfo(assignedInfo);
     return {
       id: u.id,
       code: u.code,
@@ -545,10 +690,11 @@ export class SupabaseService implements OnModuleInit {
       phone: u.phone,
       email: u.email ?? null,
       role: u.role,
+      teaching_subjects: teachingSubjects,
       schoolName: u.school_name ?? u.schoolName ?? null,
       school_name: u.school_name ?? u.schoolName ?? null,
-      assignedInfo: u.assigned_info ?? u.assignedInfo ?? null,
-      assigned_info: u.assigned_info ?? u.assignedInfo ?? null,
+      assignedInfo,
+      assigned_info: assignedInfo,
       isActive: isAct,
       is_active: isAct,
       isDeleted: isDel,
@@ -680,33 +826,64 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async createUser(user: any) {
+    // DB ràng buộc users.code NOT NULL: tự sinh mã theo vai trò nếu caller không cung cấp (GV-xxxx / PH-xxxx / ADM-xxxx)
+    const rolePrefix = user.role === 'ADMIN' ? 'ADM' : user.role === 'PARENT' ? 'PH' : 'GV';
+    const randSuffix = String(Math.floor(Math.random() * 9000) + 1000);
+    const resolvedCode = user.code || user.userCode || `${rolePrefix}-${randSuffix}`;
+
+    const { codes: normSubjects } = normalizeSubjectCodes(
+      user.teaching_subjects || user.teachingSubjects,
+    );
+
+    // DB bảng users không có cột teaching_subjects & password_hash:
+    // lưu môn và mật khẩu vào cột assigned_info dạng JSON
+    const plainAssignedInfo = user.assigned_info || user.assignedInfo || null;
+    let baseInfo: any = {};
+    if (plainAssignedInfo) {
+      try {
+        baseInfo = typeof plainAssignedInfo === 'string' ? JSON.parse(plainAssignedInfo) : plainAssignedInfo;
+      } catch {
+        baseInfo = { info: plainAssignedInfo };
+      }
+    }
+    if (normSubjects.length > 0) {
+      baseInfo.teaching_subjects = normSubjects;
+    }
+    const pwdToStore = user.password_hash || user.passwordHash || null;
+    if (pwdToStore) {
+      baseInfo.password_hash = pwdToStore;
+    }
+    const assignedInfoStored = Object.keys(baseInfo).length > 0 ? JSON.stringify(baseInfo) : null;
+
     const record = {
       id: user.id,
-      code: user.code,
+      code: resolvedCode,
       full_name: user.full_name || user.fullName,
       phone: user.phone,
       email: user.email || null,
       role: user.role,
       school_name: user.school_name || user.schoolName || null,
-      assigned_info: user.assigned_info || user.assignedInfo || null,
+      assigned_info: assignedInfoStored,
       is_active: user.is_active ?? user.isActive ?? true,
       is_deleted: false,
       ai_daily_quota: user.ai_daily_quota ?? user.aiDailyQuota ?? 25,
       ai_used_today: user.ai_used_today ?? user.aiUsedToday ?? 0,
       ai_model_tier: user.ai_model_tier || user.aiModelTier || 'AUTO',
+      updated_at: user.updated_at || user.updatedAt || new Date().toISOString(),
     };
 
     if (this.supabase) {
-      try {
-        await this.supabase.from('users').upsert(record);
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] createUser error: ${err?.message}`);
+      const { error } = await this.supabase.from('users').upsert(record);
+      if (error) {
+        this.logger.error(`[Supabase] createUser failed for ${user.id}: ${error.message} (code=${error.code})`);
       }
     }
 
     const fullRecord = {
       ...record,
       ...user,
+      assigned_info: assignedInfoStored,
+      teaching_subjects: normSubjects.length > 0 ? normSubjects : (user.teaching_subjects || []),
       password_hash: user.password_hash || user.passwordHash || null,
       passwordHash: user.password_hash || user.passwordHash || null,
     };
@@ -771,6 +948,118 @@ export class SupabaseService implements OnModuleInit {
     };
     this.memoryStore.users.set(id, updated);
     return this.mapUser(updated);
+  }
+
+  private parseAssignedInfo(raw: any): Record<string, any> {
+    if (raw === null || raw === undefined || raw === '') return {};
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return { ...parsed };
+        }
+      } catch {}
+      return { text: raw };
+    }
+    if (typeof raw === 'object' && !Array.isArray(raw)) {
+      return { ...raw };
+    }
+    return {};
+  }
+
+  async getUserAssignedInfo(id: string): Promise<Record<string, any>> {
+    const user = await this.getUserById(id);
+    return this.parseAssignedInfo(user?.assigned_info ?? user?.assignedInfo);
+  }
+
+  async mergeUserAssignedInfo(id: string, patch: Record<string, any>): Promise<Record<string, any> | null> {
+    const user = await this.getUserById(id);
+    if (!user) return null;
+
+    const info = this.parseAssignedInfo(user.assigned_info ?? user.assignedInfo);
+    for (const [key, value] of Object.entries(patch || {})) {
+      if (Array.isArray(value)) {
+        const current = Array.isArray(info[key]) ? info[key].map(String) : [];
+        const merged = [...current];
+        for (const item of value) {
+          if (item === null || item === undefined || item === '') continue;
+          if (!merged.includes(String(item))) merged.push(String(item));
+        }
+        info[key] = merged;
+      } else if (value !== undefined) {
+        info[key] = value;
+      }
+    }
+
+    const assignedInfoStored = JSON.stringify(info);
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('users')
+          .update({ assigned_info: assignedInfoStored, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] mergeUserAssignedInfo: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] mergeUserAssignedInfo error: ${err?.message}`);
+      }
+    }
+
+    const existing = this.memoryStore.users.get(id);
+    if (existing) {
+      existing.assigned_info = assignedInfoStored;
+      existing.assignedInfo = assignedInfoStored;
+      this.memoryStore.users.set(id, existing);
+    }
+    return info;
+  }
+
+  /**
+   * Gỡ hẳn một lớp khỏi phân công của giáo viên: xóa class_subjects[classId]
+   * và bỏ classId khỏi joined_class_ids. mergeUserAssignedInfo không làm được
+   * vì nó hợp nhất mảng (chỉ thêm, không xóa).
+   */
+  async removeUserClassAssignment(id: string, classId: string): Promise<Record<string, any> | null> {
+    const user = await this.getUserById(id);
+    if (!user) return null;
+
+    const info = this.parseAssignedInfo(user.assigned_info ?? user.assignedInfo);
+
+    const classSubjects = this.parseAssignedInfo(info.class_subjects);
+    delete classSubjects[classId];
+    if (Object.keys(classSubjects).length > 0) {
+      info.class_subjects = classSubjects;
+    } else {
+      delete info.class_subjects;
+    }
+
+    if (Array.isArray(info.joined_class_ids)) {
+      info.joined_class_ids = info.joined_class_ids.map(String).filter((c) => c !== classId);
+    }
+
+    const assignedInfoStored = JSON.stringify(info);
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('users')
+          .update({ assigned_info: assignedInfoStored, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] removeUserClassAssignment: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] removeUserClassAssignment error: ${err?.message}`);
+      }
+    }
+
+    const existing = this.memoryStore.users.get(id);
+    if (existing) {
+      existing.assigned_info = assignedInfoStored;
+      existing.assignedInfo = assignedInfoStored;
+      this.memoryStore.users.set(id, existing);
+    }
+    return info;
   }
 
   async updateTeacherAiQuota(id: string, quota: number, tier: string = 'AUTO', usedToday?: number) {
@@ -896,16 +1185,23 @@ export class SupabaseService implements OnModuleInit {
       id: c.id,
       name: c.name,
       gradeLevel: c.grade_level ?? c.gradeLevel ?? 1,
+      grade_level: c.grade_level ?? c.gradeLevel,
       academicYear: c.academic_year ?? c.academicYear ?? '2024-2025',
+      academic_year: c.academic_year ?? c.academicYear,
       schoolName: c.school_name ?? c.schoolName ?? null,
+      school_name: c.school_name ?? c.schoolName ?? null,
       homeroomTeacherId: c.homeroom_teacher_id ?? c.homeroomTeacherId ?? null,
       homeroom_teacher_id: c.homeroom_teacher_id ?? c.homeroomTeacherId ?? null,
       homeroom_teacher: c.homeroom_teacher ?? c.homeroomTeacher ?? null,
       subject_teachers: c.subject_teachers ?? [],
       inviteCode: c.invite_code ?? c.inviteCode ?? '',
+      invite_code: c.invite_code ?? c.inviteCode,
       studentCount: c.student_count ?? c.studentCount ?? 0,
+      student_count: c.student_count ?? c.studentCount,
       isDeleted: c.is_deleted ?? c.isDeleted ?? false,
+      is_deleted: c.is_deleted ?? c.isDeleted ?? false,
       createdAt: c.created_at ?? c.createdAt ?? new Date().toISOString(),
+      created_at: c.created_at ?? c.createdAt,
     };
   }
 
@@ -937,11 +1233,21 @@ export class SupabaseService implements OnModuleInit {
         const { data, error } = await this.supabase
           .from('classes')
           .select('*')
-          .or(`homeroom_teacher_id.eq.${teacherId},subject_teacher_ids.cs.{${teacherId}}`)
           .eq('is_deleted', false)
           .order('grade_level', { ascending: true });
-        if (!error && data && data.length > 0) {
-          return data.map((c) => this.mapClass(c));
+        if (!error && data) {
+          const mine = data.filter((c: any) => {
+            const isHomeroom = (c.homeroom_teacher_id || c.homeroomTeacherId) === teacherId;
+            const subjects = c.subject_teachers;
+            const isSubject =
+              Array.isArray(subjects) &&
+              subjects.some((st: any) => (st.teacher_id || st.teacherId || st) === teacherId);
+            return isHomeroom || isSubject;
+          });
+          return mine.map((c) => this.mapClass(c));
+        }
+        if (error) {
+          this.logger.warn(`[Supabase] listClassesByTeacher: ${error.message}`);
         }
       } catch (err: any) {
         this.logger.debug(`[Supabase] listClassesByTeacher fallback: ${err?.message}`);
@@ -959,41 +1265,63 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async getClassById(id: string) {
+    let result: any = null;
     if (this.supabase) {
       try {
         const { data, error } = await this.supabase.from('classes').select('*').eq('id', id).maybeSingle();
         if (!error && data) {
-          return this.mapClass(data);
+          result = this.mapClass(data);
         }
       } catch (err: any) {
         this.logger.debug(`[Supabase] getClassById fallback: ${err?.message}`);
       }
     }
-    const mem = this.memoryStore.classes.get(id);
-    return mem ? this.mapClass(mem) : null;
+    if (!result) {
+      const mem = this.memoryStore.classes.get(id);
+      result = mem ? this.mapClass(mem) : null;
+    }
+    if (result) {
+      const mem = this.memoryStore.classes.get(id);
+      if (mem && Array.isArray(mem.subject_teachers) && mem.subject_teachers.length > 0) {
+        result.subject_teachers = [...mem.subject_teachers];
+      }
+    }
+    return result;
   }
 
   async getClassByInviteCode(inviteCode: string) {
-    const cleanCode = (inviteCode || '').trim();
+    const cleanCode = (inviteCode || '').trim().toUpperCase();
+    if (!cleanCode) return null;
+    let result: any = null;
     if (this.supabase) {
       try {
         const { data, error } = await this.supabase
           .from('classes')
           .select('*')
-          .eq('invite_code', cleanCode)
+          .ilike('invite_code', cleanCode)
           .eq('is_deleted', false)
           .maybeSingle();
         if (!error && data) {
-          return this.mapClass(data);
+          result = this.mapClass(data);
         }
       } catch (err: any) {
         this.logger.debug(`[Supabase] getClassByInviteCode fallback: ${err?.message}`);
       }
     }
-    const mem = Array.from(this.memoryStore.classes.values()).find(
-      (c) => (c.invite_code || c.inviteCode) === cleanCode && !c.is_deleted && !c.isDeleted,
-    );
-    return mem ? this.mapClass(mem) : null;
+    if (!result) {
+      const mem = Array.from(this.memoryStore.classes.values()).find(
+        (c) => String(c.invite_code || c.inviteCode || '').toUpperCase() === cleanCode && !c.is_deleted && !c.isDeleted,
+      );
+      result = mem ? this.mapClass(mem) : null;
+    }
+    if (result) {
+      const classId = result.id || result.class_id;
+      const mem = this.memoryStore.classes.get(classId);
+      if (mem && Array.isArray(mem.subject_teachers) && mem.subject_teachers.length > 0) {
+        result.subject_teachers = [...mem.subject_teachers];
+      }
+    }
+    return result;
   }
 
   async createClass(classData: any) {
@@ -1006,12 +1334,20 @@ export class SupabaseService implements OnModuleInit {
       homeroom_teacher_id: classData.homeroom_teacher_id || classData.homeroomTeacherId || null,
       invite_code: classData.invite_code || classData.inviteCode,
       student_count: classData.student_count || classData.studentCount || 0,
+      subject_teachers: Array.isArray(classData.subject_teachers)
+        ? classData.subject_teachers
+        : Array.isArray(classData.subjectTeachers)
+          ? classData.subjectTeachers
+          : [],
       is_deleted: false,
     };
 
     if (this.supabase) {
       try {
-        await this.supabase.from('classes').upsert(record);
+        const { error } = await this.supabase.from('classes').upsert(record);
+        if (error) {
+          this.logger.warn(`[Supabase] createClass upsert: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] createClass error: ${err?.message}`);
       }
@@ -1021,13 +1357,68 @@ export class SupabaseService implements OnModuleInit {
     return this.mapClass(record);
   }
 
+  /**
+   * Ghi danh sách phân công GVBM vào bảng classes.subject_teachers (jsonb) trên Supabase.
+   * Lưu cả trong memory để đọc nhanh trong cùng tiến trình.
+   */
+  async updateClassSubjectTeachers(id: string, subjectTeachers: any[]) {
+    const list = Array.isArray(subjectTeachers) ? subjectTeachers : [];
+
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('classes')
+          .update({ subject_teachers: list, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] updateClassSubjectTeachers: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] updateClassSubjectTeachers error: ${err?.message}`);
+      }
+    }
+
+    const existing = this.memoryStore.classes.get(id) || { id };
+    existing.subject_teachers = list;
+    this.memoryStore.classes.set(id, existing);
+    return true;
+  }
+
+  async updateClassInviteCode(id: string, inviteCode: string) {
+    const normalized = String(inviteCode || '').trim().toUpperCase();
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from('classes')
+          .update({ invite_code: normalized, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] updateClassInviteCode: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] updateClassInviteCode error: ${err?.message}`);
+      }
+    }
+
+    const existing = this.memoryStore.classes.get(id);
+    if (existing) {
+      existing.invite_code = normalized;
+      existing.inviteCode = normalized;
+      this.memoryStore.classes.set(id, existing);
+    }
+    return true;
+  }
+
   async softDeleteClass(id: string) {
     if (this.supabase) {
       try {
-        await this.supabase
+        const { error } = await this.supabase
           .from('classes')
           .update({ is_deleted: true, updated_at: new Date().toISOString() })
           .eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] softDeleteClass: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] softDeleteClass error: ${err?.message}`);
       }
@@ -1059,6 +1450,12 @@ export class SupabaseService implements OnModuleInit {
       gender: s.gender ?? 'MALE',
       parentPhone: s.parent_phone ?? s.parentPhone ?? null,
       parent_phone: s.parent_phone ?? s.parentPhone ?? null,
+      parentName: s.parent_name ?? s.parentName ?? null,
+      parent_name: s.parent_name ?? s.parentName ?? null,
+      parentRelationship: s.parent_relationship ?? s.parentRelationship ?? null,
+      parent_relationship: s.parent_relationship ?? s.parentRelationship ?? null,
+      isParentAppConnected: s.is_parent_app_connected ?? s.isParentAppConnected ?? false,
+      is_parent_app_connected: s.is_parent_app_connected ?? s.isParentAppConnected ?? false,
       parent_uids: s.parent_uids ?? s.parentUids ?? [],
       isDeleted: s.is_deleted ?? s.isDeleted ?? false,
       is_deleted: s.is_deleted ?? s.isDeleted ?? false,
@@ -1091,17 +1488,34 @@ export class SupabaseService implements OnModuleInit {
 
   async getStudentById(id: string) {
     const cleanId = (id || '').trim();
+    if (!cleanId) return null;
     if (this.supabase) {
       try {
         const { data, error } = await this.supabase.from('students').select('*').eq('id', cleanId).maybeSingle();
         if (!error && data) {
           return this.mapStudent(data);
         }
+        if (!error) {
+          const byCode = await this.supabase
+            .from('students')
+            .select('*')
+            .ilike('student_code', cleanId)
+            .eq('is_deleted', false)
+            .maybeSingle();
+          if (!byCode.error && byCode.data) {
+            return this.mapStudent(byCode.data);
+          }
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] getStudentById fallback: ${err?.message}`);
       }
     }
-    const mem = this.memoryStore.students.get(cleanId);
+    const mem = this.memoryStore.students.get(cleanId) ||
+      Array.from(this.memoryStore.students.values()).find(
+        (s) =>
+          String(s.student_code || s.studentCode || '').toLowerCase() === cleanId.toLowerCase() &&
+          !(s.is_deleted ?? s.isDeleted),
+      );
     return mem ? this.mapStudent(mem) : null;
   }
 
@@ -1114,25 +1528,110 @@ export class SupabaseService implements OnModuleInit {
       dob: student.dob || null,
       gender: student.gender,
       parent_phone: student.parent_phone || student.parentPhone || null,
+      parent_name: student.parent_name || student.parentName || null,
+      parent_relationship: student.parent_relationship || student.parentRelationship || 'Bố',
+      is_parent_app_connected: student.is_parent_app_connected || student.isParentAppConnected || false,
       is_deleted: false,
     };
 
     if (this.supabase) {
       try {
-        await this.supabase.from('students').upsert(record);
+        const dbRecord = {
+          id: record.id,
+          class_id: record.class_id,
+          student_code: record.student_code,
+          full_name: record.full_name,
+          dob: record.dob,
+          gender: record.gender,
+          parent_phone: record.parent_phone,
+          is_deleted: false,
+        };
+        const { error } = await this.supabase.from('students').upsert(dbRecord);
+        if (error) {
+          this.logger.warn(`[Supabase] createStudent upsert: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] createStudent error: ${err?.message}`);
       }
     }
 
     this.memoryStore.students.set(student.id, record);
+    // Tự động khởi tạo ngay hồ sơ công nợ mặc định (BHYT, Học phí trạng thái Chưa nộp)
+    await this.ensureDefaultFeeRecordsForStudent(record).catch(() => null);
     return this.mapStudent(record);
+  }
+
+  async updateStudent(id: string, patch: any) {
+    const cleanId = (id || '').trim();
+    if (!cleanId) throw new Error('Mã học sinh bắt buộc phải được cung cấp');
+
+    const current = await this.getStudentById(cleanId);
+    if (!current) throw new Error(`Không tìm thấy học sinh: ${cleanId}`);
+
+    // Bảng students thật chỉ có các cột dưới đây — không ghi field không tồn tại
+    const dbRecord: Record<string, any> = {};
+    if (patch.student_code !== undefined || patch.studentCode !== undefined) {
+      dbRecord.student_code = String(patch.student_code ?? patch.studentCode ?? '').trim();
+    }
+    if (patch.full_name !== undefined || patch.fullName !== undefined) {
+      dbRecord.full_name = String(patch.full_name ?? patch.fullName ?? '').trim();
+    }
+    if (patch.dob !== undefined) {
+      dbRecord.dob = patch.dob || null;
+    }
+    if (patch.gender !== undefined) {
+      dbRecord.gender = patch.gender;
+    }
+    if (patch.parent_phone !== undefined || patch.parentPhone !== undefined) {
+      dbRecord.parent_phone =
+        String(patch.parent_phone ?? patch.parentPhone ?? '').trim() || null;
+    }
+
+    if (this.supabase) {
+      if (Object.keys(dbRecord).length > 0) {
+        const { error } = await this.supabase
+          .from('students')
+          .update(dbRecord)
+          .eq('id', cleanId)
+          .eq('is_deleted', false);
+        if (error) throw new Error(`Cập nhật học sinh thất bại trên Supabase: ${error.message}`);
+      }
+    } else {
+      const mem = this.memoryStore.students.get(cleanId);
+      if (!mem) {
+        throw new Error('Supabase chưa được cấu hình; không thể cập nhật học sinh.');
+      }
+    }
+
+    const mem = this.memoryStore.students.get(cleanId);
+    if (mem && Object.keys(dbRecord).length > 0) {
+      if (dbRecord.student_code !== undefined) {
+        mem.student_code = dbRecord.student_code;
+        mem.studentCode = dbRecord.student_code;
+      }
+      if (dbRecord.full_name !== undefined) {
+        mem.full_name = dbRecord.full_name;
+        mem.fullName = dbRecord.full_name;
+      }
+      if (dbRecord.dob !== undefined) mem.dob = dbRecord.dob;
+      if (dbRecord.gender !== undefined) mem.gender = dbRecord.gender;
+      if (dbRecord.parent_phone !== undefined) {
+        mem.parent_phone = dbRecord.parent_phone;
+        mem.parentPhone = dbRecord.parent_phone;
+      }
+      this.memoryStore.students.set(cleanId, mem);
+    }
+
+    return (await this.getStudentById(cleanId)) || current;
   }
 
   async softDeleteStudent(id: string) {
     if (this.supabase) {
       try {
-        await this.supabase.from('students').update({ is_deleted: true }).eq('id', id);
+        const { error } = await this.supabase.from('students').update({ is_deleted: true }).eq('id', id);
+        if (error) {
+          this.logger.warn(`[Supabase] softDeleteStudent: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] softDeleteStudent error: ${err?.message}`);
       }
@@ -1297,7 +1796,11 @@ export class SupabaseService implements OnModuleInit {
       scoreValue: Number(s.score_value ?? s.scoreValue ?? 0),
       term: s.term ?? 1,
       academicYear: s.academic_year ?? s.academicYear ?? '2024-2025',
+      isPublished: (s.is_published ?? s.isPublished) === true,
+      published_once: (s.published_once ?? s.publishedOnce) === true,
       createdAt: s.created_at ?? s.createdAt ?? new Date().toISOString(),
+      updatedByTeacherId: s.updated_by_teacher_id ?? s.updatedByTeacherId ?? null,
+      updatedAt: s.updated_at ?? s.updatedAt ?? null,
     };
   }
 
@@ -1322,7 +1825,34 @@ export class SupabaseService implements OnModuleInit {
       .map((s) => this.mapScore(s));
   }
 
+  async listScoresByClass(classId: string, subject?: string, term?: number) {
+    if (this.supabase) {
+      try {
+        let q = this.supabase.from('scores').select('*').eq('class_id', classId).eq('is_deleted', false);
+        if (subject) q = q.eq('subject', subject);
+        if (term) q = q.eq('term', term);
+        const { data, error } = await q;
+        if (!error && data && data.length > 0) {
+          return data.map((s) => this.mapScore(s));
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] listScoresByClass fallback: ${err?.message}`);
+      }
+    }
+
+    return Array.from(this.memoryStore.scores.values())
+      .filter(
+        (s) =>
+          (s.class_id || s.classId) === classId &&
+          !(s.is_deleted ?? s.isDeleted) &&
+          (!subject || s.subject === subject) &&
+          (!term || (s.term ?? 1) === term),
+      )
+      .map((s) => this.mapScore(s));
+  }
+
   async recordScore(score: any) {
+    const nowIso = new Date().toISOString();
     const record = {
       id: score.id,
       student_id: score.student_id || score.studentId,
@@ -1332,19 +1862,97 @@ export class SupabaseService implements OnModuleInit {
       score_value: score.score_value ?? score.scoreValue,
       term: score.term,
       academic_year: score.academic_year || score.academicYear,
+      // Điểm vừa nhập = chưa gửi cho PH; Gửi sổ liên lạc mới đánh dấu true
+      // published_once: giữ dấu "đã từng gửi" để lần gửi kế tiếp dùng loại Đính chính
+      is_published: (score.is_published ?? score.isPublished) === true,
+      published_once: (score.published_once ?? score.publishedOnce ?? false) === true,
+      // Ô điểm ghi đè khi GVBM cũ bị gỡ và cô mới vào chấm tiếp — lưu ai sửa lần cuối
+      updated_by_teacher_id: score.updated_by_teacher_id || score.updatedByTeacherId || null,
+      updated_at: score.updated_at || score.updatedAt || nowIso,
       is_deleted: false,
     };
 
     if (this.supabase) {
+      // Ghi cột nghiệp vụ trước, audit (migration 004) cập nhật riêng. Nếu DB chưa
+      // chạy 004 mà gộp chung, lần retry legacy sẽ nuốt mất is_published=false /
+      // published_once=true của điểm vừa đính chính → phụ huynh không nhận thông báo mới.
+      const {
+        updated_by_teacher_id: auditTeacherId,
+        updated_at: auditUpdatedAt,
+        ...baseRecord
+      } = record;
+
+      let writeError: any = null;
       try {
-        await this.supabase.from('scores').upsert(record);
+        const first = await this.supabase.from('scores').upsert(baseRecord);
+        writeError = first?.error || null;
       } catch (err: any) {
-        this.logger.debug(`[Supabase] recordScore error: ${err?.message}`);
+        writeError = err;
+      }
+
+      if (writeError) {
+        // Migration 003 chưa chạy (thiếu cột is_published/published_once)?
+        // Retry với cột legacy nhưng vẫn báo lỗi thật nếu DB từ chối.
+        this.logger.warn(
+          `[Supabase] recordScore core-record failed (${writeError?.message}) — retrying legacy columns`,
+        );
+        const { is_published: _ip, published_once: _po, ...legacy } = baseRecord;
+        try {
+          const retry = await this.supabase.from('scores').upsert(legacy);
+          if (retry?.error) throw retry.error;
+        } catch (retryErr: any) {
+          this.logger.error(`[Supabase] recordScore legacy retry also failed: ${retryErr?.message}`);
+          throw new Error(`Không thể lưu điểm vào cơ sở dữ liệu: ${retryErr?.message}`);
+        }
+      }
+
+      try {
+        const auditRes = await this.supabase
+          .from('scores')
+          .update({ updated_by_teacher_id: auditTeacherId, updated_at: auditUpdatedAt })
+          .eq('id', record.id);
+        if (auditRes?.error) {
+          this.logger.debug(`[Supabase] score audit columns skipped: ${auditRes.error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] score audit columns skipped: ${err?.message}`);
       }
     }
 
     this.memoryStore.scores.set(score.id, record);
     return this.mapScore(record);
+  }
+
+  /**
+   * Đánh dấu các ô điểm đã được gửi cho phụ huynh (sau khi publish fan-out)
+   */
+  async markScoresPublished(ids: string[]) {
+    if (!ids || ids.length === 0) return 0;
+    if (this.supabase) {
+      try {
+        // published_once phải bật cùng lúc: sau khi GV đính chính, ô điểm về
+        // is_published=false nhưng cần giữ dấu "đã từng gửi" để lần gửi kế tiếp
+        // cho phụ huynh là thông báo Đính chính, không phải Công bố lần đầu.
+        const { error } = await this.supabase
+          .from('scores')
+          .update({ is_published: true, published_once: true })
+          .in('id', ids);
+        if (error) {
+          this.logger.debug(`[Supabase] markScoresPublished error: ${error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] markScoresPublished error: ${err?.message}`);
+      }
+    }
+    for (const id of ids) {
+      const mem = this.memoryStore.scores.get(id);
+      if (mem) {
+        (mem as any).is_published = true;
+        (mem as any).published_once = true;
+        this.memoryStore.scores.set(id, mem);
+      }
+    }
+    return ids.length;
   }
 
   // =========================================================================
@@ -1409,19 +2017,58 @@ export class SupabaseService implements OnModuleInit {
     return this.mapQuiz(record);
   }
 
+  /**
+   * Cập nhật danh sách câu hỏi của một quiz (sửa/thêm/xóa/tạo lại câu hỏi).
+   * Lưu cả Supabase lẫn memory fallback, giống createQuiz.
+   */
+  async updateQuizQuestions(id: string, questions: any[]) {
+    const questionsJson = JSON.stringify(questions || []);
+
+    if (this.supabase) {
+      try {
+        await this.supabase
+          .from('quizzes')
+          .update({ questions_json: questionsJson })
+          .eq('id', id);
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] updateQuizQuestions error: ${err?.message}`);
+      }
+    }
+
+    const mem = this.memoryStore.quizzes.get(id);
+    if (mem) {
+      (mem as any).questionsJson = questionsJson;
+      (mem as any).questions_json = questionsJson;
+      this.memoryStore.quizzes.set(id, mem);
+    }
+    return this.getQuizById(id);
+  }
+
   // =========================================================================
   // 8. REMARK SQL METHODS
   // =========================================================================
 
   private mapRemark(r: any): DataConnectRemarkRecord {
+    const studentId = r.student_id ?? r.studentId;
+    const teacherId = r.teacher_id ?? r.teacherId;
+    const subjectCode = r.subject_code ?? r.subjectCode ?? '';
+    const teacherName = r.teacher_name ?? r.teacherName ?? '';
+    const createdAt = r.created_at ?? r.createdAt ?? '';
     return {
       id: r.id,
-      studentId: r.student_id ?? r.studentId,
-      teacherId: r.teacher_id ?? r.teacherId,
+      studentId,
+      student_id: studentId,
+      teacherId,
+      teacher_id: teacherId,
       date: r.date,
       content: r.content,
       category: r.category,
-      createdAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
+      subjectCode,
+      subject_code: subjectCode,
+      teacherName,
+      teacher_name: teacherName,
+      createdAt,
+      created_at: createdAt,
     };
   }
 
@@ -1447,6 +2094,49 @@ export class SupabaseService implements OnModuleInit {
       .map((r) => this.mapRemark(r));
   }
 
+  async getRemarksByClass(classId: string, limit: number = 200) {
+    const students = await this.listStudentsByClass(classId);
+    const names = new Map<string, string>(
+      students.map((s: any) => [s.id, s.full_name || s.fullName || '']),
+    );
+    const studentIds = [...names.keys()].filter(Boolean);
+    if (studentIds.length === 0) return [];
+
+    let rows: any[] = [];
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('remarks')
+          .select('*')
+          .in('student_id', studentIds)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
+          .limit(Math.max(1, limit));
+        if (!error && data) rows = data;
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getRemarksByClass fallback: ${err?.message}`);
+      }
+    }
+
+    if (rows.length === 0) {
+      rows = Array.from(this.memoryStore.remarks.values())
+        .filter((r) => studentIds.includes(r.student_id || r.studentId))
+        .sort((a: any, b: any) =>
+          String(b.created_at || b.createdAt || '').localeCompare(String(a.created_at || a.createdAt || '')),
+        )
+        .slice(0, Math.max(1, limit));
+    }
+
+    return rows.map((r) => {
+      const studentId = r.student_id ?? r.studentId;
+      return {
+        ...this.mapRemark(r),
+        class_id: classId,
+        student_name: names.get(studentId) || '',
+      };
+    });
+  }
+
   async createRemark(remark: any) {
     const record = {
       id: remark.id,
@@ -1455,6 +2145,8 @@ export class SupabaseService implements OnModuleInit {
       date: remark.date,
       content: remark.content,
       category: remark.category,
+      subject_code: remark.subject_code || null,
+      teacher_name: remark.teacher_name || null,
       is_deleted: false,
     };
 
@@ -1462,7 +2154,18 @@ export class SupabaseService implements OnModuleInit {
       try {
         await this.supabase.from('remarks').upsert(record);
       } catch (err: any) {
-        this.logger.debug(`[Supabase] createRemark error: ${err?.message}`);
+        // Migration 004 chưa chạy (thiếu cột subject_code/teacher_name)?
+        // Retry legacy columns để nhận xét vẫn lưu, không fail âm thầm.
+        this.logger.warn(
+          `[Supabase] createRemark full-record failed (${err?.message}) — retrying legacy columns`,
+        );
+        try {
+          const { subject_code: _sc, teacher_name: _tn, ...legacy } = record;
+          await this.supabase.from('remarks').upsert(legacy);
+        } catch (retryErr: any) {
+          this.logger.error(`[Supabase] createRemark legacy retry failed: ${retryErr?.message}`);
+          throw new Error(`Không thể lưu nhận xét vào cơ sở dữ liệu: ${retryErr?.message}`);
+        }
       }
     }
 
@@ -1509,6 +2212,7 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async createExamReminder(reminder: any) {
+    const createdBy = reminder.created_by || reminder.createdBy;
     const record = {
       id: reminder.id,
       class_id: reminder.class_id || reminder.classId,
@@ -1516,20 +2220,22 @@ export class SupabaseService implements OnModuleInit {
       exam_date: reminder.exam_date || reminder.examDate,
       title: reminder.title,
       note: reminder.note || reminder.message || null,
-      created_by: reminder.created_by || reminder.createdBy,
       is_deleted: false,
     };
 
     if (this.supabase) {
       try {
-        await this.supabase.from('exam_reminders').upsert(record);
+        const { error } = await this.supabase.from('exam_reminders').upsert(record);
+        if (error) {
+          this.logger.warn(`[Supabase] createExamReminder upsert: ${error.message}`);
+        }
       } catch (err: any) {
         this.logger.debug(`[Supabase] createExamReminder error: ${err?.message}`);
       }
     }
 
-    this.memoryStore.examReminders.set(reminder.id, record);
-    return { ...this.mapExamReminder(record), created_by: record.created_by };
+    this.memoryStore.examReminders.set(reminder.id, { ...record, created_by: createdBy });
+    return { ...this.mapExamReminder(record), created_by: createdBy };
   }
 
   async getExamReminderById(id: string) {
@@ -1556,34 +2262,49 @@ export class SupabaseService implements OnModuleInit {
   // 10. FEE SQL METHODS
   // =========================================================================
 
+  private resolveFeeType(f: any): 'TUITION' | 'INSURANCE' | null {
+    const explicitType = String(f?.fee_type ?? f?.feeType ?? f?.type ?? '').toUpperCase();
+    if (explicitType === 'TUITION' || explicitType === 'FEE') return 'TUITION';
+    if (explicitType === 'INSURANCE' || explicitType === 'BHYT') return 'INSURANCE';
+
+    const title = String(f?.title ?? f?.name ?? '').toLowerCase();
+    if (title.includes('bảo hiểm') || title.includes('bhyt') || title.includes('insurance')) return 'INSURANCE';
+    if (title.includes('học phí') || title.includes('tuition')) return 'TUITION';
+    return null;
+  }
+
   private mapFee(f: any): DataConnectFeeRecord {
+    const feeType = this.resolveFeeType(f);
+    const isPaid = f.is_paid ?? f.isPaid ?? String(f.status || '').toUpperCase() === 'PAID';
+    const paidDate = f.paid_date ?? f.paid_at ?? f.paidAt ?? null;
+    const dueDate = f.due_date ?? f.dueDate ?? null;
     return {
       id: f.id,
       studentId: f.student_id ?? f.studentId,
+      student_id: f.student_id ?? f.studentId,
+      ...(feeType ? { fee_type: feeType, type: feeType } : {}),
+      is_paid: Boolean(isPaid),
+      paid_date: paidDate,
       title: f.title,
-      amount: Number(f.amount ?? 0),
+      amount: f.amount == null ? 0 : Number(f.amount),
       status: f.status,
-      dueDate: f.due_date ?? f.dueDate,
-      paidAt: f.paid_at ?? f.paidAt ?? null,
-      createdAt: f.created_at ?? f.createdAt ?? new Date().toISOString(),
+      dueDate,
+      due_date: dueDate,
+      paidAt: paidDate,
+      createdAt: f.created_at ?? f.createdAt ?? '',
     };
   }
 
   async getFeesByStudent(studentId: string) {
     if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('fees')
-          .select('*')
-          .eq('student_id', studentId)
-          .eq('is_deleted', false)
-          .order('due_date', { ascending: false });
-        if (!error && data && data.length > 0) {
-          return data.map((f) => this.mapFee(f));
-        }
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] getFeesByStudent fallback: ${err?.message}`);
-      }
+      const { data, error } = await this.supabase
+        .from('fees')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('is_deleted', false)
+        .order('due_date', { ascending: false });
+      if (error) throw new Error(`Không thể đọc trạng thái học phí từ Supabase: ${error.message}`);
+      return (data || []).map((f) => this.mapFee(f));
     }
 
     return Array.from(this.memoryStore.fees.values())
@@ -1614,25 +2335,159 @@ export class SupabaseService implements OnModuleInit {
     return this.mapFee(record);
   }
 
-  async getFeesByClass(classId: string) {
+  async ensureDefaultFeeRecordsForStudent(student: any) {
+    if (!student || !student.id) return null;
+    const studentId = student.id;
+    const classId = student.class_id || student.classId || '';
+    const studentName = student.full_name || student.fullName || 'Học sinh';
+    const studentCode = student.student_code || student.studentCode || '';
+    const feeRecordId = `fee_${studentId}`;
+
+    // Kiểm tra xem đã có bản ghi trong memoryStore chưa
+    let existingMem = this.memoryStore.fees.get(feeRecordId);
+    if (!existingMem) {
+      existingMem = Array.from(this.memoryStore.fees.values()).find(
+        (f: any) => (f.student_id || f.studentId) === studentId && !f.is_deleted,
+      );
+    }
+
+    if (!existingMem) {
+      const defaultRecord = {
+        record_id: feeRecordId,
+        id: feeRecordId,
+        class_id: classId,
+        student_id: studentId,
+        student_code: studentCode,
+        student_name: studentName,
+        tuition: { is_paid: false, paid_date: null },
+        insurance: { is_paid: false, paid_date: null },
+        note: null,
+        is_locked: false,
+        is_deleted: false,
+        status: 'PENDING',
+      };
+      this.memoryStore.fees.set(feeRecordId, defaultRecord);
+      existingMem = defaultRecord;
+    } else {
+      // Đảm bảo có đầy đủ class_id và student_name
+      if (!existingMem.class_id && classId) existingMem.class_id = classId;
+      if (!existingMem.student_name && studentName) existingMem.student_name = studentName;
+      if (!existingMem.student_code && studentCode) existingMem.student_code = studentCode;
+      this.memoryStore.fees.set(existingMem.id, existingMem);
+    }
+
+    // Nếu có Supabase kết nối, đồng bộ cả 2 khoản phí vào bảng fees
     if (this.supabase) {
       try {
-        const { data, error } = await this.supabase
+        const { data: existingDbFees, error: readError } = await this.supabase
           .from('fees')
-          .select('*')
-          .eq('class_id', classId)
+          .select('id, title')
+          .eq('student_id', studentId)
           .eq('is_deleted', false);
-        if (!error && data && data.length > 0) {
-          return data;
+        if (readError) throw new Error(`Không thể đọc khoản thu hiện có: ${readError.message}`);
+
+        const hasTuition = existingDbFees?.some((f: any) =>
+          String(f.title || '').toLowerCase().includes('học phí'),
+        );
+        const hasInsurance = existingDbFees?.some(
+          (f: any) =>
+            String(f.title || '').toLowerCase().includes('bảo hiểm') ||
+            String(f.title || '').toLowerCase().includes('bhyt'),
+        );
+
+        const newDbRows: any[] = [];
+        if (!hasTuition) {
+          newDbRows.push({
+            id: `fee_${studentId}_tuition`,
+            student_id: studentId,
+            title: 'Học phí HK1 2026-2027',
+            amount: 1500000,
+            status: 'PENDING',
+            due_date: '2026-11-30',
+            is_deleted: false,
+          });
+        }
+        if (!hasInsurance) {
+          newDbRows.push({
+            id: `fee_${studentId}_insurance`,
+            student_id: studentId,
+            title: 'Bảo hiểm y tế 2026-2027',
+            amount: 563220,
+            status: 'PENDING',
+            due_date: '2026-11-30',
+            is_deleted: false,
+          });
+        }
+
+        if (newDbRows.length > 0) {
+          const { error } = await this.supabase.from('fees').insert(newDbRows);
+          if (error) throw new Error(`Không thể tạo khoản thu mặc định: ${error.message}`);
         }
       } catch (err: any) {
-        this.logger.debug(`[Supabase] getFeesByClass fallback: ${err?.message}`);
+        this.logger.debug(`[Supabase] ensureDefaultFeeRecordsForStudent error: ${err?.message}`);
       }
     }
 
-    return Array.from(this.memoryStore.fees.values()).filter(
+    return existingMem;
+  }
+
+  async getFeesByClass(classId: string) {
+    // 1. Lấy toàn bộ học sinh trong lớp
+    const students = await this.listStudentsByClass(classId);
+
+    // 2. Với mỗi học sinh, đảm bảo đã có hồ sơ công nợ mặc định
+    for (const student of students) {
+      await this.ensureDefaultFeeRecordsForStudent(student).catch(() => null);
+    }
+
+    // Supabase chứa mỗi khoản thu thành một dòng riêng. Gom lại thành một hồ sơ
+    // theo học sinh, đồng thời luôn lấy trạng thái mới nhất từ DB.
+    const memoryRecords = Array.from(this.memoryStore.fees.values()).filter(
       (f: any) => (f.class_id || f.classId) === classId && !f.is_deleted,
     );
+
+    if (this.supabase && students.length > 0) {
+      const studentIds = students.map((student: any) => student.id).filter(Boolean);
+      const { data, error } = await this.supabase
+        .from('fees')
+        .select('*')
+        .in('student_id', studentIds)
+        .eq('is_deleted', false);
+      if (error) {
+        throw new Error(`Không thể đọc trạng thái khoản thu từ Supabase: ${error.message}`);
+      }
+
+      const byStudent = new Map<string, any>();
+      for (const student of students) {
+        byStudent.set(student.id, {
+          record_id: `fee_${student.id}`,
+          id: `fee_${student.id}`,
+          class_id: classId,
+          student_id: student.id,
+          student_code: student.student_code || student.studentCode || '',
+          student_name: student.full_name || student.fullName || 'Học sinh',
+          tuition: { is_paid: false, paid_date: null },
+          insurance: { is_paid: false, paid_date: null },
+          note: null,
+          is_locked: false,
+          is_deleted: false,
+        });
+      }
+
+      for (const row of data || []) {
+        const record = byStudent.get(row.student_id);
+        const fee = this.mapFee(row);
+        if (!record || !fee.fee_type) continue;
+        const key = fee.fee_type === 'TUITION' ? 'tuition' : 'insurance';
+        record[key] = { is_paid: fee.is_paid, paid_date: fee.paid_date };
+        record.note = row.note ?? record.note;
+        record.is_locked = Boolean(row.is_locked || row.term_locked || row.status === 'LOCKED');
+      }
+
+      return Array.from(byStudent.values());
+    }
+
+    return memoryRecords;
   }
 
   async getFeeById(id: string) {
@@ -1647,10 +2502,84 @@ export class SupabaseService implements OnModuleInit {
         this.logger.debug(`[Supabase] getFeeById error: ${err?.message}`);
       }
     }
-    const mem = this.memoryStore.fees.get(id);
+    let mem = this.memoryStore.fees.get(id);
+    if (!mem) {
+      // Fallback: Tìm theo student_id hoặc dạng fee_<studentId>
+      const cleanStudentId = id.replace(/^fee_/, '');
+      const student = await this.getStudentById(cleanStudentId);
+      if (student) {
+        mem = await this.ensureDefaultFeeRecordsForStudent(student);
+      }
+    }
     if (!mem) return null;
     const isLocked = Boolean(mem.is_locked || mem.term_locked || mem.status === 'LOCKED');
     return { ...this.mapFee(mem), ...mem, is_locked: isLocked, isLocked, term_locked: isLocked };
+  }
+
+  async updateFeeRecord(
+    recordId: string,
+    feeType: string,
+    isPaid: boolean,
+    paidDate: string | null,
+    note?: string,
+  ) {
+    let mem = this.memoryStore.fees.get(recordId);
+    if (!mem) {
+      const cleanStudentId = recordId.replace(/^fee_/, '');
+      const student = await this.getStudentById(cleanStudentId);
+      if (student) {
+        mem = await this.ensureDefaultFeeRecordsForStudent(student);
+      }
+    }
+
+    if (!mem) throw new Error(`Không tìm thấy hồ sơ học phí trong bộ nhớ: ${recordId}`);
+    if (!this.supabase) throw new Error('Supabase chưa được cấu hình; từ chối báo đã lưu trạng thái học phí.');
+
+    const { data: dbFees, error: readError } = await this.supabase
+      .from('fees')
+      .select('id, title')
+      .eq('student_id', mem.student_id)
+      .eq('is_deleted', false);
+    if (readError) throw new Error(`Không thể tìm khoản thu trong Supabase: ${readError.message}`);
+
+    const matchesFeeType = (title: unknown) => {
+      const normalizedTitle = String(title || '').toLocaleLowerCase('vi');
+      return feeType === 'TUITION'
+        ? normalizedTitle.includes('học phí')
+        : normalizedTitle.includes('bảo hiểm') || normalizedTitle.includes('bhyt');
+    };
+    const matchingFee = dbFees?.find((fee: any) => matchesFeeType(fee.title));
+
+    const update = {
+      status: isPaid ? 'PAID' : 'PENDING',
+      paid_at: isPaid ? (paidDate ? new Date(paidDate).toISOString() : new Date().toISOString()) : null,
+    };
+    if (matchingFee) {
+      const { error } = await this.supabase.from('fees').update(update).eq('id', matchingFee.id);
+      if (error) throw new Error(`Không thể lưu trạng thái khoản thu vào Supabase: ${error.message}`);
+    } else {
+      const { error } = await this.supabase.from('fees').insert({
+        id: `fee_${mem.student_id}_${feeType === 'TUITION' ? 'tuition' : 'insurance'}`,
+        student_id: mem.student_id,
+        title: feeType === 'TUITION' ? 'Học phí HK1 2026-2027' : 'Bảo hiểm y tế 2026-2027',
+        amount: feeType === 'TUITION' ? 1500000 : 563220,
+        status: isPaid ? 'PAID' : 'PENDING',
+        due_date: '2026-11-30',
+        paid_at: isPaid ? (paidDate ? new Date(paidDate).toISOString() : new Date().toISOString()) : null,
+        is_deleted: false,
+      });
+      if (error) throw new Error(`Không thể tạo khoản thu trong Supabase: ${error.message}`);
+    }
+
+    if (feeType === 'TUITION') {
+      mem.tuition = { is_paid: isPaid, paid_date: isPaid ? paidDate : null };
+    } else if (feeType === 'INSURANCE') {
+      mem.insurance = { is_paid: isPaid, paid_date: isPaid ? paidDate : null };
+    }
+    if (note !== undefined) mem.note = note;
+    this.memoryStore.fees.set(recordId, mem);
+
+    return mem;
   }
 
   async updateFeeStatus(id: string, status: string) {
@@ -1670,84 +2599,6 @@ export class SupabaseService implements OnModuleInit {
     return true;
   }
 
-  // =========================================================================
-  // 11. NOTIFICATION SQL METHODS
-  // =========================================================================
-
-  private mapNotification(n: any): DataConnectNotificationRecord {
-    return {
-      id: n.id,
-      recipientId: n.recipient_id ?? n.recipientId,
-      title: n.title,
-      body: n.body,
-      type: n.type,
-      isRead: n.is_read ?? n.isRead ?? false,
-      createdAt: n.created_at ?? n.createdAt ?? new Date().toISOString(),
-    };
-  }
-
-  async getNotificationsByRecipient(recipientId: string) {
-    if (this.supabase) {
-      try {
-        const { data, error } = await this.supabase
-          .from('notifications')
-          .select('*')
-          .eq('recipient_id', recipientId)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          return data.map((n) => this.mapNotification(n));
-        }
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] getNotificationsByRecipient fallback: ${err?.message}`);
-      }
-    }
-
-    return Array.from(this.memoryStore.notifications.values())
-      .filter((n) => (n.recipient_id || n.recipientId) === recipientId)
-      .map((n) => this.mapNotification(n));
-  }
-
-  async createNotification(notif: any) {
-    const record = {
-      id: notif.id,
-      recipient_id: notif.recipient_id || notif.recipientId,
-      title: notif.title,
-      body: notif.body,
-      type: notif.type,
-      is_read: false,
-      is_deleted: false,
-    };
-
-    if (this.supabase) {
-      try {
-        await this.supabase.from('notifications').upsert(record);
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] createNotification error: ${err?.message}`);
-      }
-    }
-
-    this.memoryStore.notifications.set(notif.id, record);
-    return this.mapNotification(record);
-  }
-
-  async markNotificationRead(id: string) {
-    if (this.supabase) {
-      try {
-        await this.supabase.from('notifications').update({ is_read: true }).eq('id', id);
-      } catch (err: any) {
-        this.logger.debug(`[Supabase] markNotificationRead error: ${err?.message}`);
-      }
-    }
-
-    const existing = this.memoryStore.notifications.get(id);
-    if (existing) {
-      existing.is_read = true;
-      existing.isRead = true;
-      this.memoryStore.notifications.set(id, existing);
-    }
-    return true;
-  }
 
   // =========================================================================
   // 12. SYSTEM LIMITS SQL METHODS
@@ -1846,6 +2697,20 @@ export class SupabaseService implements OnModuleInit {
     return this.mapScore(item);
   }
 
+  private mapNotification(n: any) {
+    return {
+      id: n.id,
+      recipient_user_id: n.recipient_user_id ?? n.recipient_id ?? n.recipientId ?? null,
+      title: n.title ?? '',
+      body: n.body ?? '',
+      type: n.type ?? 'SYSTEM',
+      is_read: n.is_read ?? false,
+      is_deleted: n.is_deleted ?? false,
+      metadata: n.metadata ?? null,
+      created_at: n.created_at ?? new Date().toISOString(),
+    };
+  }
+
   async getNotificationById(id: string) {
     if (this.supabase) {
       try {
@@ -1865,6 +2730,151 @@ export class SupabaseService implements OnModuleInit {
     const item = this.memoryStore.notifications.get(id);
     if (!item) return null;
     return this.mapNotification(item);
+  }
+
+  /**
+   * Lấy danh sách thông báo theo recipient_user_id (phụ huynh / giáo viên)
+   */
+  async getNotificationsByRecipient(userId: string): Promise<any[]> {
+    if (this.supabase) {
+      const { data, error } = await this.supabase
+        .from('notifications')
+        .select('*')
+        // DB hiện dùng recipient_id; API vẫn trả recipient_user_id qua mapNotification.
+        .eq('recipient_id', userId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw new Error(`Không thể đọc hộp thư từ Supabase: ${error.message}`);
+      return (data || []).map((n) => this.mapNotification(n));
+    }
+
+    // Fallback in-memory: lấy tất cả notif của user, sắp xếp mới nhất lên trước
+    return Array.from(this.memoryStore.notifications.values())
+      .filter((n: any) => {
+        const rid = n.recipient_user_id ?? n.recipient_id ?? n.recipientId;
+        return rid === userId && !n.is_deleted;
+      })
+      .sort((a: any, b: any) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      .map((n) => this.mapNotification(n));
+  }
+
+  /**
+   * Tạo thông báo mới — lưu vào Supabase DB và in-memory store
+   */
+  async createNotification(payload: {
+    id?: string;
+    recipient_user_id?: string;
+    recipient_id?: string;
+    recipientId?: string;
+    title: string;
+    body: string;
+    type: string;
+    is_read?: boolean;
+    metadata?: any;
+  }, options: { requirePersistence?: boolean } = {}): Promise<any> {
+    const id = payload.id || `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const recipientUserId =
+      payload.recipient_user_id ?? payload.recipient_id ?? payload.recipientId ?? null;
+
+    const record: any = {
+      id,
+      // Persist using the column name used by the existing Supabase schema.
+      recipient_id: recipientUserId,
+      title: payload.title,
+      body: payload.body,
+      type: payload.type,
+      is_read: payload.is_read ?? false,
+      is_deleted: false,
+      metadata: payload.metadata ?? null,
+      created_at: new Date().toISOString(),
+    };
+
+    let persisted = false;
+    if (this.supabase) {
+      try {
+        const { error } = await this.supabase.from('notifications').insert(record);
+        if (error) {
+          // Older production schemas may not have the optional metadata column yet.
+          // Retry with the legacy columns so the actual inbox notification is still persisted.
+          const metadataColumnMissing =
+            Boolean(record.metadata) &&
+            /metadata/i.test(error.message) &&
+            /(column|schema cache)/i.test(error.message);
+          if (!metadataColumnMissing) throw new Error(error.message);
+
+          const legacyRecord = { ...record };
+          delete legacyRecord.metadata;
+          const retry = await this.supabase.from('notifications').insert(legacyRecord);
+          if (retry.error) throw new Error(retry.error.message);
+          this.logger.warn(
+            '[Supabase] Notification persisted without optional metadata; apply migration 002 to store metadata too.',
+          );
+        }
+        persisted = true;
+        this.logger.debug(`[Supabase] createNotification OK: ${id} -> ${recipientUserId}`);
+      } catch (err: any) {
+        if (options.requirePersistence) {
+          throw new Error(`Không thể lưu thông báo vào Supabase: ${err?.message}`);
+        }
+        this.logger.debug(`[Supabase] createNotification fallback to memory: ${err?.message}`);
+      }
+    } else if (options.requirePersistence) {
+      throw new Error('Supabase chưa được cấu hình; không thể lưu thông báo bền vững.');
+    }
+
+    // Các luồng không yêu cầu DB bền vững vẫn giữ fallback cũ; luồng học phí
+    // chỉ tới đây sau khi Supabase đã xác nhận insert thành công.
+    this.memoryStore.notifications.set(id, record);
+    return this.mapNotification(record);
+  }
+
+  /**
+   * Đánh dấu thông báo đã đọc (is_read = true)
+   */
+  async markNotificationRead(notifId: string): Promise<void> {
+    if (this.supabase) {
+      try {
+        await this.supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('id', notifId);
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] markNotificationRead fallback: ${err?.message}`);
+      }
+    }
+
+    const item = this.memoryStore.notifications.get(notifId);
+    if (item) {
+      item.is_read = true;
+      this.memoryStore.notifications.set(notifId, item);
+    }
+  }
+
+  /**
+   * Xóa mềm thông báo (is_deleted = true) — giữ dữ liệu lịch sử cho báo cáo
+   */
+  async softDeleteNotification(notifId: string): Promise<void> {
+    const now = new Date().toISOString();
+    if (this.supabase) {
+      try {
+        await this.supabase
+          .from('notifications')
+          .update({ is_deleted: true, deleted_at: now })
+          .eq('id', notifId);
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] softDeleteNotification fallback: ${err?.message}`);
+      }
+    }
+
+    const item = this.memoryStore.notifications.get(notifId);
+    if (item) {
+      item.is_deleted = true;
+      item.deleted_at = now;
+      this.memoryStore.notifications.set(notifId, item);
+    }
   }
 
   private async resolveEffectiveAiQuota(teacherId: string): Promise<number> {

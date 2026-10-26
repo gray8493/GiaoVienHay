@@ -14,6 +14,8 @@ describe('QuizzesService (Unit Tests UT07 - All 28 Cases)', () => {
   beforeEach(() => {
     mockDataConnect = {
       createQuiz: jest.fn().mockResolvedValue(true),
+      updateQuizQuestions: jest.fn().mockResolvedValue(true),
+      syncAiUsageToday: jest.fn().mockResolvedValue(true),
       getQuizById: jest.fn().mockImplementation(async (id: string) => {
         if (!id || id === 'qz_nonexistent_9999') return null;
         return {
@@ -27,6 +29,20 @@ describe('QuizzesService (Unit Tests UT07 - All 28 Cases)', () => {
               content: 'Muốn cộng hai phân số cùng mẫu số, ta làm thế nào?',
               options: ['A', 'B', 'C', 'D'],
               correct_answer: 'A',
+              time_limit_seconds: 30,
+            },
+            {
+              question_index: 2,
+              content: 'Phân số nào lớn hơn 1/2?',
+              options: ['1/3', '2/5', '3/4', '1/4'],
+              correct_answer: 'C',
+              time_limit_seconds: 30,
+            },
+            {
+              question_index: 3,
+              content: '2/7 + 3/7 bằng bao nhiêu?',
+              options: ['5/14', '5/7', '6/49', '1/7'],
+              correct_answer: 'B',
               time_limit_seconds: 30,
             },
           ]),
@@ -253,7 +269,9 @@ describe('QuizzesService (Unit Tests UT07 - All 28 Cases)', () => {
     it('sinh câu hỏi thay thế thành công', async () => {
       const res = await service.regenerateQuestion('qz_88219', 3, {});
       expect(res.question_number).toBe(3);
-      expect(res.content).toContain('hình chữ nhật');
+      // Nội dung mới đến từ AI (mock), không còn câu hỏi cứng
+      expect(res.content).toContain('phân số');
+      expect(mockDataConnect.updateQuizQuestions).toHaveBeenCalled();
     });
   });
 
@@ -263,16 +281,19 @@ describe('QuizzesService (Unit Tests UT07 - All 28 Cases)', () => {
         content: 'Kết quả của 2/7 + 3/7 là:',
         correct_answer: 'A',
       });
-      expect(res.question_number).toBe(6);
-      expect(res.total_questions).toBe(6);
+      // Bộ đề fixture có 3 câu → câu mới là số 4
+      expect(res.question_number).toBe(4);
+      expect(res.total_questions).toBe(4);
+      expect(mockDataConnect.updateQuizQuestions).toHaveBeenCalled();
     });
   });
 
   describe('UT07_Quizzes_TC16: Xóa bớt câu hỏi không phù hợp khỏi bộ đề thành công', () => {
     it('xóa câu hỏi thành công và giảm số lượng', async () => {
-      const res = await service.deleteQuestion('qz_88219', 6, 6);
-      expect(res.deleted_question_number).toBe(6);
-      expect(res.remaining_questions).toBe(5);
+      const res = await service.deleteQuestion('qz_88219', 3);
+      expect(res.deleted_question_number).toBe(3);
+      expect(res.remaining_questions).toBe(2);
+      expect(mockDataConnect.updateQuizQuestions).toHaveBeenCalled();
     });
   });
 

@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, {
@@ -17,6 +18,7 @@ import Svg, {
   Rect,
   Line,
   Polygon,
+  Polyline,
   Defs,
   LinearGradient as SvgLinearGradient,
   Stop,
@@ -28,6 +30,7 @@ import {
   AttendanceRecordItem,
 } from '../services/attendance.service';
 import { classService } from '../services/class.service';
+import { getInitials } from '../utils/format';
 
 export interface StudentAttendance {
   id: number;
@@ -44,6 +47,7 @@ export interface AttendanceSavedData {
   totalCount: number;
   presentCount: number;
   absentCount: number;
+  notifiedParentsQueued: number;
   className: string;
   lessonName: string;
   lessonTime: string;
@@ -58,23 +62,29 @@ export interface AttendanceSavedData {
 }
 
 interface AttendanceScreenProps {
-  classId?: string;
+  classId: string;
   className?: string;
   onBack?: () => void;
   onSaveSuccess?: (savedData: AttendanceSavedData) => void;
+  onTabChange?: (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => void;
 }
 
+// Điểm danh đầu ngày tương ứng tiết 1 (mặc định backend theo mô tả DTO)
+const DAILY_ATTENDANCE_PERIOD = 1;
+
 export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
-  classId = 'cls_1a_2026',
-  className = 'Lớp 1A',
+  classId,
+  className = 'Lớp học',
   onBack,
   onSaveSuccess,
+  onTabChange,
 }) => {
   const [students, setStudents] = useState<StudentAttendance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSavedRecords, setHasSavedRecords] = useState(false);
 
   useEffect(() => {
     loadClassStudents();
@@ -85,27 +95,47 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
     try {
       const detail = await classService.getClassDetail(classId);
       if (detail && detail.students && detail.students.length > 0) {
+        // Tải trạng thái điểm danh đã lưu hôm nay (nếu có) để mở lại màn hình vẫn đúng trạng thái
+        let savedMap = new Map<string, any>();
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const existingRes: any = await attendanceService.getClassAttendance(classId, today);
+          // Phòng hờ: service đã chuẩn hoá thành mảng, nhưng vẫn chấp nhận wrapper { records: [...] }
+          const existing = Array.isArray(existingRes) ? existingRes : existingRes?.records || [];
+          existing.forEach((r: any) => {
+            const sid = r.studentId || r.student_id;
+            if (sid) savedMap.set(String(sid), r);
+          });
+        } catch (e) {}
+        setHasSavedRecords(savedMap.size > 0);
+
         const mapped: StudentAttendance[] = detail.students.map((s, idx) => {
           const fullName = s.full_name || (s as any).name || '';
-          const parts = fullName.trim().split(' ');
-          const initials = parts.length > 1
-            ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-            : (parts[0]?.substring(0, 2) || 'HS').toUpperCase();
+          const initials = getInitials(fullName);
+
+          const saved = savedMap.get(String(s.id));
+          const savedStatus = saved?.status;
+          const isAbsent = !!saved && savedStatus !== AttendanceStatus.PRESENT;
+
           return {
             id: idx + 1,
             student_id: s.id,
             code: s.student_code || `HS${String(idx + 1).padStart(4, '0')}`,
             name: fullName || 'Học sinh',
             initials,
-            status: 'present',
+            status: isAbsent ? 'absent' : 'present',
+            excused: isAbsent ? savedStatus === AttendanceStatus.ABSENT_EXCUSED : undefined,
+            reason: isAbsent ? saved?.note || '' : undefined,
           };
         });
         setStudents(mapped);
       } else {
         setStudents([]);
+        setHasSavedRecords(false);
       }
     } catch (e) {
       setStudents([]);
+      setHasSavedRecords(false);
     } finally {
       setIsLoading(false);
     }
@@ -127,9 +157,13 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
               reason: s.reason || '',
             };
           } else {
+            // Quay lại Có mặt phải XÓA lý do vắng cũ — không thì submit
+            // sẽ gửi PRESENT kèm note 'Vắng không phép' (mâu thuẫn)
             return {
               ...s,
               status: 'present',
+              excused: undefined,
+              reason: undefined,
             };
           }
         }
@@ -156,23 +190,29 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
 
     try {
       const records: AttendanceRecordItem[] = students.map((s) => ({
-        student_id: s.student_id || (s.id < 10 ? `stu_0${s.id}` : `stu_${s.id}`),
+        student_id: s.student_id || '',
         status:
           s.status === 'present'
             ? AttendanceStatus.PRESENT
             : s.excused
             ? AttendanceStatus.ABSENT_EXCUSED
             : AttendanceStatus.ABSENT_UNEXCUSED,
-        note: s.reason || (s.excused ? 'Có phép' : 'Chưa có phép'),
+        // Học sinh CÓ MẶT không được gắn lý do vắng — trước đây builder bịa
+        // 'Vắng không phép' cho cả HS present khiến DB mâu thuẫn status/note
+        note:
+          s.status === 'present'
+            ? undefined
+            : s.reason || (s.excused ? 'Vắng có phép' : 'Vắng không phép'),
       }));
 
-      // Gọi API backend 05-attendance POST /attendance/submit
-      await attendanceService.submitAttendance({
+      // Gọi API backend 05-attendance POST /attendance/submit (upsert: cho phép lưu lại để sửa)
+      const result = await attendanceService.submitAttendance({
         class_id: classId,
         attendance_date: new Date().toISOString().split('T')[0],
-        period: 2,
+        period: DAILY_ATTENDANCE_PERIOD,
         records,
       });
+      setHasSavedRecords(true);
 
       const absentList = students
         .filter((s) => s.status === 'absent')
@@ -182,41 +222,28 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
           code: s.code,
           initials: s.initials,
           excused: !!s.excused,
-          reason: s.reason || (s.excused ? 'Bị sốt, mẹ xin phép' : 'Chưa có phép'),
+          reason: s.reason || (s.excused ? 'Vắng có phép' : 'Vắng không phép'),
         }));
+
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mi = String(now.getMinutes()).padStart(2, '0');
 
       onSaveSuccess?.({
         totalCount,
         presentCount,
         absentCount,
+        notifiedParentsQueued: Number(result?.notified_parents_queued ?? 0),
         className,
-        lessonName: 'Tiết 2',
-        lessonTime: '08:15',
+        lessonName: 'Điểm danh đầu ngày',
+        lessonTime: `${hh}:${mi}`,
         absentStudents: absentList,
       });
     } catch (err: any) {
-      console.warn('Attendance save warning:', err?.message);
-      // Fallback transition
-      const absentList = students
-        .filter((s) => s.status === 'absent')
-        .map((s) => ({
-          id: s.id,
-          name: s.name,
-          code: s.code,
-          initials: s.initials,
-          excused: !!s.excused,
-          reason: s.reason || (s.excused ? 'Bị sốt, mẹ xin phép' : 'Chưa có phép'),
-        }));
-
-      onSaveSuccess?.({
-        totalCount,
-        presentCount,
-        absentCount,
-        className,
-        lessonName: 'Tiết 2',
-        lessonTime: '08:15',
-        absentStudents: absentList,
-      });
+      Alert.alert(
+        'Lỗi',
+        err?.message || 'Không thể lưu điểm danh. Vui lòng kiểm tra kết nối và thử lại.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -375,7 +402,9 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
                 <Line x1={12} y1={8} x2={12.01} y2={8} />
               </Svg>
               <Text style={styles.statsGuidanceText} numberOfLines={1}>
-                Cả lớp mặc định có mặt. Chạm để đổi vắng.
+                {hasSavedRecords
+                  ? 'Đã lưu hôm nay. Có thể chỉnh sửa rồi lưu lại.'
+                  : 'Cả lớp mặc định có mặt. Chạm để đổi vắng.'}
               </Text>
             </View>
           </View>
@@ -424,7 +453,14 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
 
             {/* List of Students */}
             <View style={styles.studentsContainer}>
-              {filteredStudents.length === 0 ? (
+              {isLoading && students.length === 0 ? (
+                <View style={{ padding: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 }}>
+                  <ActivityIndicator size="large" color="#F58F4C" />
+                  <Text style={{ marginTop: 14, fontSize: 13, color: '#6B6880', fontWeight: '600' }}>
+                    Đang tải danh sách điểm danh...
+                  </Text>
+                </View>
+              ) : filteredStudents.length === 0 ? (
                 <View style={{ padding: 32, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12 }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E1B2E', marginBottom: 6 }}>
                     {searchQuery ? 'Không tìm thấy học sinh phù hợp' : 'Lớp chưa có học sinh'}
@@ -531,17 +567,18 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
                         </TouchableOpacity>
                       </View>
 
-                      {/* Reason Input Pill */}
-                      <View style={styles.reasonPillWrap}>
-                        <Text style={styles.reasonIconText}>💬</Text>
-                        <TextInput
-                          style={styles.reasonTextInput}
-                          placeholder="Lý do vắng (không bắt buộc)"
-                          placeholderTextColor="#94A3B8"
-                          value={student.reason}
-                          onChangeText={(text) => updateReason(student.id, text)}
-                        />
-                      </View>
+                      {/* Reason Input Pill: chỉ hiện khi vắng CÓ PHÉP */}
+                      {student.excused && (
+                        <View style={styles.reasonPillWrap}>
+                          <TextInput
+                            style={styles.reasonTextInput}
+                            placeholder="Lý do vắng (không bắt buộc)"
+                            placeholderTextColor="#94A3B8"
+                            value={student.reason}
+                            onChangeText={(text) => updateReason(student.id, text)}
+                          />
+                        </View>
+                      )}
                     </View>
                   </View>
                 );
@@ -558,7 +595,8 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
               <Path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
             </Svg>
             <Text style={styles.notiNoteText}>
-              Sẽ tự động gửi thông báo đến <Text style={styles.notiNoteHighlight}>{absentCount}</Text> phụ huynh
+              Sẽ gửi thông báo cho phụ huynh của{' '}
+              <Text style={styles.notiNoteHighlight}>{absentCount}</Text> học sinh vắng khi trạng thái thay đổi
             </Text>
           </View>
 
@@ -573,16 +611,72 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Text style={styles.btnSaveAttendanceText}>Lưu & Báo Phụ Huynh</Text>
+                <Text style={styles.btnSaveAttendanceText}>
+                  {hasSavedRecords ? 'Cập nhật & Báo Phụ Huynh' : 'Lưu & Báo Phụ Huynh'}
+                </Text>
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2} style={styles.sendIcon}>
                   <Path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
               </>
             )}
           </TouchableOpacity>
+        </View>
 
-          {/* iOS Home indicator */}
-          <View style={styles.homeIndicator} />
+        {/* Bottom Dock Navigation (4 tabs, giống các trang khác) */}
+        <View style={styles.dockWrapper}>
+          <View style={styles.dockBar}>
+            {/* Lịch dạy */}
+            <TouchableOpacity
+              style={styles.dockTabItem}
+              onPress={() => onTabChange?.('schedule')}
+              activeOpacity={0.8}
+            >
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2}>
+                <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <Line x1="16" y1="2" x2="16" y2="6" />
+                <Line x1="8" y1="2" x2="8" y2="6" />
+                <Line x1="3" y1="10" x2="21" y2="10" />
+              </Svg>
+              <Text style={styles.dockTabTextInactive}>Trang chủ</Text>
+            </TouchableOpacity>
+
+            {/* Điểm danh (Active) */}
+            <TouchableOpacity style={styles.dockTabItem} activeOpacity={0.8}>
+              <View style={styles.dockActiveIconWrap}>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2}>
+                  <Path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <Polyline points="22 4 12 14.01 9 11.01" />
+                </Svg>
+              </View>
+              <Text style={styles.dockTabTextActive}>Điểm danh</Text>
+            </TouchableOpacity>
+
+            {/* Sổ điểm */}
+            <TouchableOpacity
+              style={styles.dockTabItem}
+              onPress={() => onTabChange?.('gradebook')}
+              activeOpacity={0.8}
+            >
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2}>
+                <Path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <Path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </Svg>
+              <Text style={styles.dockTabTextInactive}>Sổ điểm</Text>
+            </TouchableOpacity>
+
+            {/* Cá nhân */}
+            <TouchableOpacity
+              style={styles.dockTabItem}
+              onPress={() => onTabChange?.('profile')}
+              activeOpacity={0.8}
+            >
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={2}>
+                <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <Circle cx="12" cy="7" r="4" />
+              </Svg>
+              <Text style={styles.dockTabTextInactive}>Cá nhân</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     </View>
@@ -600,7 +694,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 130,
+    paddingBottom: 250,
     gap: 12,
   },
 
@@ -1018,9 +1112,6 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 6 : 4,
     gap: 6,
   },
-  reasonIconText: {
-    fontSize: 11,
-  },
   reasonTextInput: {
     flex: 1,
     fontSize: 12,
@@ -1037,7 +1128,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 
-  /* 4. Bottom Action Bar */
+  /* 4. Bottom Action Bar: trải sát đáy màn hình, dock đen đè lên phía dưới */
   bottomActionBar: {
     position: 'absolute',
     bottom: 0,
@@ -1048,7 +1139,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 78,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.08,
@@ -1056,6 +1147,55 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.8)',
+  },
+
+  /* Bottom Dock Navigation */
+  dockWrapper: {
+    position: 'absolute',
+    bottom: 12,
+    left: 14,
+    right: 14,
+    zIndex: 50,
+  },
+  dockBar: {
+    height: 56,
+    backgroundColor: '#1E1B2E',
+    borderRadius: 28,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  dockTabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+  },
+  dockActiveIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dockTabTextActive: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  dockTabTextInactive: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '500',
+    color: '#94A3B8',
   },
   notiNoteRow: {
     flexDirection: 'row',

@@ -1,10 +1,141 @@
-import { Platform } from 'react-native';
+import { api, apiFetch } from './http';
 import { authService } from './auth.service';
+import { formatPaidDate } from '../utils/format';
+import {
+  EXAM_TYPE_LABELS,
+  SUBJECT_LABELS,
+  WEEKDAY_FULL_LABELS,
+  WEEKDAY_SHORT_LABELS,
+} from '../constants/academic';
 
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
+export const PARENT_SCORE_COLUMNS: Array<{
+  key: string;
+  label: string;
+  aliases: string[];
+  weight: number;
+}> = [
+  { key: 'oral', label: 'Miệng', aliases: ['ORALTEST', 'ORAL', 'MIENG'], weight: 1 },
+  { key: 'test15p', label: '15 phút', aliases: ['TEST15P', '15MIN', '15P'], weight: 2 },
+  { key: 'test1p', label: '1 Tiết', aliases: ['TEST1P', '1TIET', '45MIN'], weight: 3 },
+  { key: 'midTerm', label: 'Thi GK', aliases: ['MIDTERM', 'GK', 'GIUAKY'], weight: 2 },
+  { key: 'final', label: 'Thi CK', aliases: ['FINAL', 'CK', 'CUOIKY'], weight: 3 },
+];
+
+const normalizeScoreType = (raw: any): string =>
+  String(raw ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s_-]/g, '');
+
+const canonicalSubjectKey = (name: string): string => {
+  const normalized = String(name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]/g, '');
+  const aliases: Record<string, string> = {
+    toan: 'math',
+    toanhoc: 'math',
+    tiengviet: 'lit',
+    nguvan: 'lit',
+    tienganh: 'eng',
+    tinhoc: 'it',
+    daoduc: 'ethics',
+  };
+  if (aliases[normalized]) return aliases[normalized];
+  const withoutSuffix = normalized.replace(/hoc$/, '');
+  return aliases[withoutSuffix] || withoutSuffix;
+};
+
+const SUBJECT_DISPLAY_INFO: Record<string, { name: string; color: string }> = {
+  math: { name: 'Toán', color: '#F58F4C' },
+  lit: { name: 'Ngữ văn', color: '#EC6D8C' },
+  eng: { name: 'Tiếng Anh', color: '#5B8DEF' },
+  it: { name: 'Tin học', color: '#8B7CF6' },
+  khoa: { name: 'Khoa học', color: '#10B981' },
+  science: { name: 'Khoa học', color: '#10B981' },
+  lichsu: { name: 'Lịch sử', color: '#D97706' },
+  history: { name: 'Lịch sử', color: '#D97706' },
+  diali: { name: 'Địa lí', color: '#0EA5E9' },
+  geography: { name: 'Địa lí', color: '#0EA5E9' },
+  ethics: { name: 'Đạo đức', color: '#A855F7' },
+};
+
+// Nhãn ngắn cho thẻ "Điểm mới" trên dashboard phụ huynh
+const SHORT_TEST_TYPE_LABELS: Record<string, string> = {
+  ORAL_TEST: 'Miệng',
+  QUIZ: 'Kiểm tra',
+  TEST_15P: '15 phút',
+  TEST_1P: '1 tiết',
+  MID_TERM: 'Giữa kỳ',
+  FINAL: 'Cuối kỳ',
+};
+
+const getSubjectDisplay = (value: any): { name: string; color: string } => {
+  const raw = String(value || '').trim();
+  if (!raw) return { name: 'Môn học', color: '#F58F4C' };
+  const key = canonicalSubjectKey(raw);
+  const info = SUBJECT_DISPLAY_INFO[key];
+  if (info) return info;
+  // Mã môn chuẩn của backend (HIST, GEO, PHYSICS, CHEM...) → nhãn tiếng Việt
+  // — trước đây rơi xuống hiển thị nguyên mã
+  const knownLabel = SUBJECT_LABELS[raw.toUpperCase()];
+  if (knownLabel) return { name: knownLabel, color: '#F58F4C' };
+  return {
+    name: raw.replace(/\s*học$/i, '').trim() || 'Môn học',
+    color: '#F58F4C',
+  };
+};
+
+const parseExamDate = (value: any): Date | null => {
+  const raw = String(value || '').split('T')[0];
+  if (!raw) return null;
+  const date = new Date(`${raw}T00:00:00`);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+const formatRemarkDate = (value: any): string => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '';
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const deriveExamTypeLabel = (examType: any, title: any): string => {
+  const code = String(examType || '').trim().toUpperCase();
+  if (EXAM_TYPE_LABELS[code]) return EXAM_TYPE_LABELS[code];
+  const rawTitle = String(title || '').trim();
+  if (rawTitle) {
+    const prefix = rawTitle.split(/\s*[-–]\s*Môn\s+/i)[0].trim();
+    if (prefix) return prefix;
+  }
+  return code && code.length <= 30 ? code : 'Kiểm tra';
+};
+
+const subjectFromTitle = (title: any): string => {
+  const match = String(title || '').match(/[-–]\s*Môn\s+(.+)$/i);
+  return match ? match[1].trim() : '';
+};
+
+const pickLatestScoreValue = (scores: any[], aliases: string[]): number | null => {
+  let latest: any = null;
+  for (const score of scores) {
+    if (!aliases.includes(normalizeScoreType(score.type ?? score.score_type))) continue;
+    if (
+      latest === null ||
+      String(score.created_at ?? score.createdAt ?? '') >
+        String(latest.created_at ?? latest.createdAt ?? '')
+    ) {
+      latest = score;
+    }
+  }
+  if (!latest) return null;
+  const raw = latest.value ?? latest.score_value ?? latest.scoreValue;
+  const num = Number(raw);
+  if (raw === null || raw === undefined || raw === '--' || isNaN(num)) return null;
+  return num;
+};
 
 export interface ChildItem {
   id: string;
@@ -13,8 +144,8 @@ export interface ChildItem {
   avatar_letters: string;
   class_name: string;
   school_name?: string;
-  attendance_status?: string; // 'Vắng Có Phép' | 'Có mặt'
-  attendance_note?: string; // 'Bị sốt, mẹ xin phép'
+  attendance_status?: string;
+  attendance_note?: string;
 }
 
 export interface ParentDashboardData {
@@ -44,73 +175,80 @@ export interface ParentDashboardData {
     subject: string;
     exam_date: string;
   };
-  today_schedule: Array<{
-    period_title: string;
-    time_room: string;
-  }>;
+}
+
+const toChildItem = (student: any): ChildItem => {
+  const fullName = student.full_name || student.fullName || 'Học sinh';
+  const initials = fullName
+    .split(' ')
+    .filter(Boolean)
+    .map((w: string) => w[0])
+    .slice(-2)
+    .join('')
+    .toUpperCase();
+  const rawClassName = student.class_name || student.className || '';
+  const classNameFormatted = rawClassName
+    ? rawClassName.startsWith('Lớp')
+      ? rawClassName
+      : `Lớp ${rawClassName}`
+    : 'Lớp học';
+
+  return {
+    id: student.id || student.student_id || '',
+    student_code: student.student_code || student.studentCode || '',
+    full_name: fullName,
+    avatar_letters: initials || 'HS',
+    class_name: classNameFormatted,
+    school_name: student.school_name || student.schoolName || '',
+  };
+};
+
+export interface JoinClassChildPayload {
+  invite_code: string;
+  child_name?: string;
+  dob?: string;
+  gender?: 'MALE' | 'FEMALE';
+  relationship?: string;
+  student_code?: string;
+}
+
+export interface PreviewClassData {
+  class_id: string;
+  name: string;
+  grade_level: number;
+  academic_year: string;
+  school_name: string;
+  homeroom_teacher: string;
+  student_count: number;
+  invite_code: string;
 }
 
 export const parentService = {
   async getLinkedChildren(): Promise<ChildItem[]> {
-    const user = authService.getUser();
-    const userId = user?.id || user?.phone || 'guest';
+    try {
+      const me = await api<any>('/users/me');
+      const linkedIds: string[] = Array.isArray(me?.linked_student_ids)
+        ? me.linked_student_ids.map(String)
+        : [];
 
-    // 1. Đọc danh sách con đã liên kết từ Storage
-    let savedChildren: ChildItem[] = [];
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const stored = window.localStorage.getItem(`gvh_linked_children_${userId}`);
-        if (stored) savedChildren = JSON.parse(stored);
-      } catch (e) {}
-    }
+      if (linkedIds.length === 0) return [];
 
-    if (savedChildren.length > 0) {
-      return savedChildren;
-    }
-
-    // 2. Nếu là tài khoản phụ huynh demo seed trong DB (0977112233)
-    if (user?.phone === '0977112233') {
-      try {
-        const authHeader = await authService.getAuthHeaderAsync();
-        const res = await fetch(`${API_BASE_URL}/students/std_01`, {
-          headers: { 'Content-Type': 'application/json', ...authHeader },
-        }).catch(() => null);
-
-        if (res && res.ok) {
-          const resJson = await res.json();
-          const student = resJson.data || resJson;
-          if (student && student.id) {
-            const initials = (student.full_name || 'BN')
-              .split(' ')
-              .filter(Boolean)
-              .map((w: string) => w[0])
-              .slice(-2)
-              .join('')
-              .toUpperCase();
-
-            const classNameStr = student.class_name
-              ? (student.class_name.startsWith('Lớp') ? student.class_name : `Lớp ${student.class_name}`)
-              : 'Lớp 1A';
-
-            const child: ChildItem = {
-              id: student.id,
-              student_code: student.student_code || student.code || 'HS-1A-01',
-              full_name: student.full_name,
-              avatar_letters: initials || 'BN',
-              class_name: classNameStr,
-              school_name: student.school_name || 'Trường Tiểu Học Chu Văn An',
-              attendance_status: 'Có mặt',
-              attendance_note: 'Đúng giờ',
-            };
-
-            return [child];
+      const children = await Promise.all(
+        linkedIds.map(async (studentId) => {
+          try {
+            const student = await api<any>(`/students/${encodeURIComponent(studentId)}`);
+            return student ? toChildItem(student) : null;
+          } catch (e) {
+            return null;
           }
-        }
-      } catch (e) {}
-    }
+        }),
+      );
 
-    // Với tài khoản phụ huynh mới chưa liên kết: trả về mảng rỗng để hiển thị PAR-01.empty
-    return [];
+      return children.filter((child): child is ChildItem => Boolean(child && child.id));
+    } catch (e) {
+      console.warn('getLinkedChildren failed:', e);
+      return [];
+    }
   },
 
   async getChildDashboard(studentId: string): Promise<ParentDashboardData | null> {
@@ -119,19 +257,8 @@ export const parentService = {
     }
 
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-
-      // 1. Fetch Student Profile
-      const profileRes = await fetch(`${API_BASE_URL}/students/${studentId}`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
-
-      if (!profileRes || !profileRes.ok) {
-        return null;
-      }
-
-      const pJson = await profileRes.json();
-      const profile = pJson.data || pJson;
+      // 1. Fetch Student Profile (cần trước để lấy tên)
+      const profile = await api<any>(`/students/${studentId}`);
 
       const initials = (profile.full_name || 'HS')
         .split(' ')
@@ -153,8 +280,6 @@ export const parentService = {
           avatar_letters: initials || 'HS',
           class_name: classNameFormatted,
           school_name: profile.school_name || '',
-          attendance_status: 'Có mặt',
-          attendance_note: 'Đúng giờ',
         },
         attendance: {
           status_title: 'Chưa điểm danh',
@@ -180,104 +305,97 @@ export const parentService = {
           subject: 'Không có',
           exam_date: '--/--',
         },
-        today_schedule: [],
       };
 
-      // 2. Fetch Academic Record
-      const academicRes = await fetch(`${API_BASE_URL}/students/${studentId}/academic`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
+      // 2. Các dữ liệu còn lại độc lập với nhau → gọi song song
+      const [academic, attendance, remarks, fees, exams] = await Promise.all([
+        api<any>(`/students/${studentId}/academic`).catch(() => null),
+        api<any>(`/students/${studentId}/attendance`).catch(() => null),
+        api<any>(`/students/${studentId}/remarks`).catch(() => null),
+        api<any>(`/students/${studentId}/fees-insurance`).catch(() => null),
+        api<any>(`/students/${studentId}/exam-reminders`).catch(() => null),
+      ]);
 
-      if (academicRes && academicRes.ok) {
-        const resJson = await academicRes.json();
-        const academic = resJson.data || resJson;
-        if (academic.subjects && academic.subjects.length > 0) {
-          const firstSubj = academic.subjects[0];
-          if (firstSubj.scores && firstSubj.scores.length > 0) {
-            const lastScore = firstSubj.scores[firstSubj.scores.length - 1];
-            dashboardData.latest_grade = {
-              subject: firstSubj.subject_name?.replace(' học', '') || 'Môn học',
-              score: lastScore.value !== undefined ? Number(lastScore.value) : 0,
-              test_type: lastScore.label?.replace('Kiểm tra ', '') || '15 phút',
-            };
-          }
-          dashboardData.today_schedule = academic.subjects.slice(0, 3).map((sub: any, i: number) => ({
-            period_title: `Tiết ${i + 1}: ${sub.subject_name}`,
-            time_room: `${(7 + i).toString().padStart(2, '0')}:15 – ${(8 + i).toString().padStart(2, '0')}:00 • ${dashboardData.child.class_name}`,
-          }));
-        }
-      }
-
-      // 3. Fetch Real Attendance Status
-      const attendanceRes = await fetch(`${API_BASE_URL}/students/${studentId}/attendance`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
-
-      if (attendanceRes && attendanceRes.ok) {
-        const resJson = await attendanceRes.json();
-        const attData = resJson.data || resJson;
-        const latestRec = attData.records && attData.records.length > 0 ? attData.records[0] : null;
-        if (latestRec) {
-          let statusTitle = 'Đã Có Mặt';
-          if (latestRec.status === 'ABSENT_EXCUSED') statusTitle = 'Vắng Có Phép';
-          else if (latestRec.status === 'ABSENT_UNEXCUSED') statusTitle = 'Vắng Không Phép';
-
-          dashboardData.attendance = {
-            status_title: statusTitle,
-            note: latestRec.note || (latestRec.status === 'PRESENT' ? 'Đi học đúng giờ' : 'Nghỉ học'),
-            date_str: latestRec.date ? `HÔM NAY • ${latestRec.date}` : dashboardData.attendance.date_str,
+      if (academic?.subjects && academic.subjects.length > 0) {
+        const firstSubj = academic.subjects[0];
+        if (firstSubj.scores && firstSubj.scores.length > 0) {
+          const lastScore = firstSubj.scores[firstSubj.scores.length - 1];
+          dashboardData.latest_grade = {
+            subject: getSubjectDisplay(firstSubj.subject_name || firstSubj.subject).name,
+            score: lastScore.value !== undefined ? Number(lastScore.value) : 0,
+            // Map mã score_type (ORAL_TEST, TEST_15P...) sang nhãn ngắn tiếng Việt thay vì hiện mã gốc
+            test_type:
+              SHORT_TEST_TYPE_LABELS[String(lastScore.type || '').toUpperCase()] ||
+              lastScore.label?.replace('Kiểm tra ', '') ||
+              '15 phút',
           };
         }
+        // KHÔNG bịa "lịch học hôm nay" từ danh sách môn nữa:
+        // hệ thống không có bảng thời khóa biểu, giờ học 07:15-08:00 đều là số bịa
       }
 
-      // 4. Fetch Real Remarks
-      const remarksRes = await fetch(`${API_BASE_URL}/students/${studentId}/remarks`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
+      const latestRec = attendance?.records && attendance.records.length > 0 ? attendance.records[0] : null;
+      if (latestRec) {
+        let statusTitle = 'Đã Có Mặt';
+        if (latestRec.status === 'ABSENT_EXCUSED') statusTitle = 'Vắng Có Phép';
+        else if (latestRec.status === 'ABSENT_UNEXCUSED') statusTitle = 'Vắng Không Phép';
 
-      if (remarksRes && remarksRes.ok) {
-        const resJson = await remarksRes.json();
-        const remarks = resJson.data || resJson;
-        if (Array.isArray(remarks) && remarks.length > 0) {
-          const latestRmk = remarks[remarks.length - 1];
+        dashboardData.attendance = {
+          status_title: statusTitle,
+          note: latestRec.note || (latestRec.status === 'PRESENT' ? 'Đi học đúng giờ' : 'Nghỉ học'),
+          date_str: latestRec.date ? `HÔM NAY • ${latestRec.date}` : dashboardData.attendance.date_str,
+        };
+      }
+
+      // API nhận xét trả wrapper { remarks: [...] } — hoặc mảng trực tiếp
+      const remarkRows: any[] = Array.isArray(remarks)
+        ? remarks
+        : Array.isArray(remarks?.remarks)
+        ? remarks.remarks
+        : [];
+
+      if (remarkRows.length > 0) {
+        const validRemarks = remarkRows.filter((r: any) => !!r?.content);
+        if (validRemarks.length > 0) {
+          const latestRmk = [...validRemarks].sort((a: any, b: any) =>
+            String(b.created_at ?? b.createdAt ?? '').localeCompare(
+              String(a.created_at ?? a.createdAt ?? ''),
+            ),
+          )[0];
           dashboardData.latest_remark = {
-            count_label: `${remarks.length} lời mới`,
+            count_label: `${validRemarks.length} lời mới`,
             status_label: 'Đã nhận',
-            teacher_name: latestRmk.teacher_name || 'Giáo viên bộ môn',
-            content: latestRmk.content || 'Đã gửi nhận xét rèn luyện',
+            teacher_name: latestRmk.teacher_name || latestRmk.teacherName || '',
+            content: latestRmk.content,
           };
         }
       }
 
-      // 5. Fetch Fees Insurance status
-      const feesRes = await fetch(`${API_BASE_URL}/students/${studentId}/fees-insurance`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
-
-      if (feesRes && feesRes.ok) {
-        const resJson = await feesRes.json();
-        const feesData = resJson.data || resJson;
-        if (feesData && feesData.insurance) {
-          dashboardData.fees_insurance = {
-            type: 'BHYT',
-            status_label: feesData.insurance.is_paid ? 'Đã nộp' : 'Chưa nộp',
-          };
-        }
+      if (fees?.insurance) {
+        dashboardData.fees_insurance = {
+          type: 'BHYT',
+          status_label: fees.insurance.is_paid ? 'Đã nộp' : 'Chưa nộp',
+        };
       }
 
-      // 6. Fetch Exam Reminders
-      const examRes = await fetch(`${API_BASE_URL}/students/${studentId}/exam-reminders`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
+      if (Array.isArray(exams) && exams.length > 0) {
+        // Chỉ nhận lịch kiểm tra CHƯA QUÁ KHỨ, lấy lịch gần nhất — trước đây
+        // lấy exams[0] (thứ tự chèn) nên tài khoản mới nhận lịch seed từ 2024
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const upcoming = exams
+          .map((e: any) => ({ ...e, _d: parseExamDate(e.exam_date) }))
+          .filter((e: any) => e._d && e._d.getTime() >= today.getTime())
+          .sort((a: any, b: any) => a._d.getTime() - b._d.getTime());
 
-      if (examRes && examRes.ok) {
-        const resJson = await examRes.json();
-        const exams = resJson.data || resJson;
-        if (Array.isArray(exams) && exams.length > 0) {
-          const firstExam = exams[0];
+        const firstExam = upcoming[0];
+        if (firstExam) {
+          const d = firstExam._d;
           dashboardData.upcoming_exam = {
-            subject: firstExam.subject_name?.replace(' học', '') || 'Môn học',
-            exam_date: firstExam.exam_date ? firstExam.exam_date.substring(5).replace('-', '/') : '--/--',
+            // 'MATH'/'Toán học' → 'Toán' (backend trả lẫn mã lẫn tên)
+            subject: getSubjectDisplay(firstExam.subject_name || firstExam.subject).name,
+            // Định dạng DD/MM (trước đây substring(5) ra MM/DD bị ngược)
+            exam_date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
           };
         }
       }
@@ -289,123 +407,137 @@ export const parentService = {
     }
   },
 
-  async linkNewChild(studentCode: string): Promise<ChildItem> {
-    const user = authService.getUser();
-    const userId = user?.id || user?.phone || 'guest';
-    const authHeader = await authService.getAuthHeaderAsync();
-
-    // 1. Thử tra cứu hồ sơ học sinh trực tiếp qua ID hoặc mã học sinh
-    let foundStudent: any = null;
-    try {
-      const res = await fetch(`${API_BASE_URL}/students/${studentCode}`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
-
-      if (res && res.ok) {
-        const resJson = await res.json();
-        foundStudent = resJson.data || resJson;
-      }
-    } catch (e) {}
-
-    // 2. Nếu không tìm thấy, thử qua mã mời lớp học
-    if (!foundStudent) {
-      try {
-        const joinRes = await fetch(`${API_BASE_URL}/classes/join`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader },
-          body: JSON.stringify({ invite_code: studentCode }),
-        }).catch(() => null);
-
-        if (joinRes && joinRes.ok) {
-          const joinJson = await joinRes.json();
-          const joinData = joinJson.data || joinJson;
-          foundStudent = {
-            id: joinData.student_id || `stu_${Date.now()}`,
-            student_code: studentCode,
-            full_name: joinData.full_name || 'Học sinh',
-            class_name: joinData.class_name || 'Lớp học',
-          };
-        }
-      } catch (e) {}
+  async previewClassByInvite(code: string): Promise<PreviewClassData> {
+    const cleanCode = String(code || '').trim().toUpperCase();
+    if (!cleanCode) {
+      throw new Error('Vui lòng nhập mã mời');
     }
-
-    if (!foundStudent || !foundStudent.id) {
-      throw new Error(`Không tìm thấy học sinh với mã "${studentCode}". Vui lòng kiểm tra lại mã học sinh hoặc mã mời lớp học do giáo viên cung cấp.`);
-    }
-
-    const initials = (foundStudent.full_name || 'HS')
-      .split(' ')
-      .filter(Boolean)
-      .map((w: string) => w[0])
-      .slice(-2)
-      .join('')
-      .toUpperCase();
-
-    const classNameFormatted = foundStudent.class_name
-      ? (foundStudent.class_name.startsWith('Lớp') ? foundStudent.class_name : `Lớp ${foundStudent.class_name}`)
-      : 'Lớp học';
-
-    const childToReturn: ChildItem = {
-      id: foundStudent.id,
-      student_code: foundStudent.student_code || studentCode,
-      full_name: foundStudent.full_name,
-      avatar_letters: initials || 'HS',
-      class_name: classNameFormatted,
-      school_name: foundStudent.school_name || 'Trường học',
-      attendance_status: 'Có mặt',
-      attendance_note: 'Đúng giờ',
-    };
-
-    // Lưu vào LocalStorage của tài khoản phụ huynh hiện tại
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const key = `gvh_linked_children_${userId}`;
-        const existingStr = window.localStorage.getItem(key);
-        const existingList: ChildItem[] = existingStr ? JSON.parse(existingStr) : [];
-        const updatedList = [...existingList.filter(c => c.student_code !== childToReturn.student_code), childToReturn];
-        window.localStorage.setItem(key, JSON.stringify(updatedList));
-      } catch (e) {}
-    }
-
-    return childToReturn;
+    return api<PreviewClassData>(`/classes/preview-invite/${encodeURIComponent(cleanCode)}`, {
+      errorMessage: 'Mã mời lớp học không hợp lệ hoặc đã hết hạn',
+    });
   },
 
-  async getFullAcademicRecord(studentId: string) {
+  async linkNewChild(input: string | JoinClassChildPayload): Promise<ChildItem> {
+    const isPayload = typeof input === 'object' && input !== null;
+    const code = String(isPayload ? input.invite_code : input || '').trim().toUpperCase();
+    if (!code) {
+      throw new Error('Vui lòng nhập mã học sinh hoặc mã mời do giáo viên cung cấp');
+    }
+
+    const initialPayload: Record<string, any> = isPayload
+      ? {
+          invite_code: code,
+          child_name: input.child_name?.trim() || undefined,
+          dob: input.dob?.trim() || undefined,
+          gender: input.gender,
+          relationship: input.relationship,
+        }
+      : { invite_code: code };
+
+    const tryJoin = async (payload: Record<string, any>) => {
+      const res = await apiFetch('/classes/join', {
+        method: 'POST',
+        body: payload,
+        auth: true,
+      }).catch(() => null);
+      const json = res ? await res.json().catch(() => ({})) : {};
+      return { res, json };
+    };
+
+    let attempt = await tryJoin(initialPayload);
+    if (!isPayload && attempt.res && !attempt.res.ok && [400, 404].includes(attempt.res.status)) {
+      const retry = await tryJoin({ student_code: code });
+      if (retry.res && retry.res.ok) {
+        attempt = retry;
+      }
+    }
+
+    if (!attempt.res) {
+      throw new Error('Không thể kết nối máy chủ. Vui lòng thử lại.');
+    }
+
+    if (!attempt.res.ok) {
+      const message =
+        attempt.json?.message ||
+        'Không thể liên kết học sinh. Vui lòng kiểm tra lại thông tin đã nhập.';
+      throw new Error(message);
+    }
+
+    const data = attempt.json.data || attempt.json;
+    const firstStudent =
+      (Array.isArray(data.students) && data.students.length > 0 ? data.students[0] : null) ||
+      data.child;
+
+    if (!firstStudent) {
+      throw new Error('Không tìm thấy học sinh phù hợp với mã đã nhập.');
+    }
+
+    return toChildItem({
+      ...firstStudent,
+      class_name: firstStudent.class_name || data.class_name,
+    });
+  },
+
+  async getFullAcademicRecord(studentId: string, semester?: number) {
     if (!studentId) return [];
 
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const res = await fetch(`${API_BASE_URL}/students/${studentId}/academic`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
+      const semesterQuery = semester ? `?semester=${semester}` : '';
+      const data = await api<any>(`/students/${studentId}/academic${semesterQuery}`);
 
-      if (res && res.ok) {
-        const resJson = await res.json();
-        const data = resJson.data || resJson;
-        if (data.subjects && Array.isArray(data.subjects) && data.subjects.length > 0) {
-          const colors = ['#F58F4C', '#4A47D2', '#00875A', '#FF5630', '#7E57C2'];
-          return data.subjects.map((sub: any, idx: number) => {
-            const scores = (sub.scores || []).map((s: any) => ({
-              label: s.label?.replace('Kiểm tra ', '') || 'Điểm',
-              value: s.value !== undefined ? String(s.value) : '--',
-            }));
-            const validScores = scores.filter((s: any) => s.value !== '--' && !isNaN(Number(s.value)));
-            const avg = validScores.length > 0
-              ? (validScores.reduce((acc: number, curr: any) => acc + Number(curr.value), 0) / validScores.length).toFixed(1)
-              : '--';
-            return {
-              subject_name: sub.subject_name || 'Môn học',
-              dot_color: colors[idx % colors.length],
-              average_score: avg !== '--' ? `TB ${avg}` : '--',
-              scores: scores.length > 0 ? scores : [
-                { label: 'Miệng', value: '--' },
-                { label: '15 phút', value: '--' },
-                { label: '1 Tiết', value: '--' },
-                { label: 'Thi GK', value: '--' },
-              ],
-            };
-          });
+      if (data?.subjects && Array.isArray(data.subjects) && data.subjects.length > 0) {
+        const colors = ['#F58F4C', '#4A47D2', '#00875A', '#FF5630', '#7E57C2'];
+
+        const mergedSubjects = new Map<string, { subject_name: string; scores: any[] }>();
+        for (const sub of data.subjects) {
+          const subjectName = sub.subject_name || 'Môn học';
+          const key = canonicalSubjectKey(subjectName);
+          if (!mergedSubjects.has(key)) {
+            mergedSubjects.set(key, { subject_name: subjectName, scores: [] });
+          }
+          mergedSubjects.get(key)!.scores.push(...(Array.isArray(sub.scores) ? sub.scores : []));
         }
+
+        return Array.from(mergedSubjects.values()).map((sub, idx: number) => {
+          const scores = sub.scores.map((s: any) => ({
+            type: normalizeScoreType(s.type ?? s.score_type),
+            label: s.label?.replace('Kiểm tra ', '') || 'Điểm',
+            value: s.value !== undefined && s.value !== null ? String(s.value) : '--',
+            created_at: s.created_at ?? s.createdAt ?? '',
+          }));
+
+          let weightedSum = 0;
+          let weightSum = 0;
+          for (const col of PARENT_SCORE_COLUMNS) {
+            const value = pickLatestScoreValue(scores, col.aliases);
+            if (value !== null) {
+              weightedSum += value * col.weight;
+              weightSum += col.weight;
+            }
+          }
+
+          let avg: string | null = null;
+          if (weightSum > 0) {
+            avg = (weightedSum / weightSum).toFixed(1);
+          } else {
+            const validScores = scores.filter(
+              (s: any) => s.value !== '--' && !isNaN(Number(s.value)),
+            );
+            if (validScores.length > 0) {
+              avg = (
+                validScores.reduce((acc: number, curr: any) => acc + Number(curr.value), 0) /
+                validScores.length
+              ).toFixed(1);
+            }
+          }
+
+          return {
+            subject_name: sub.subject_name,
+            dot_color: colors[idx % colors.length],
+            average_score: avg !== null ? `TB ${avg}` : '--',
+            scores,
+          };
+        });
       }
     } catch (e) {}
 
@@ -416,44 +548,107 @@ export const parentService = {
     if (!studentId) return { exams: [], remarks: [] };
 
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const [remRes, examRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/students/${studentId}/remarks`, {
-          headers: { 'Content-Type': 'application/json', ...authHeader },
-        }).catch(() => null),
-        fetch(`${API_BASE_URL}/students/${studentId}/exam-reminders`, {
-          headers: { 'Content-Type': 'application/json', ...authHeader },
-        }).catch(() => null),
+      const [remarksData, examsData] = await Promise.all([
+        api<any>(`/students/${studentId}/remarks`).catch(() => null),
+        api<any>(`/students/${studentId}/exam-reminders`).catch(() => null),
       ]);
 
       let remarksList: any[] = [];
       let examsList: any[] = [];
 
-      if (remRes && remRes.ok) {
-        const rJson = await remRes.json();
-        const list = rJson.data || rJson;
-        if (Array.isArray(list)) {
-          remarksList = list.map((r: any) => ({
-            id: r.remark_id || r.id,
-            teacher_title: `${r.teacher_name || 'Giáo viên'} • ${r.subject || 'Rèn luyện'}`,
-            date_str: r.created_at ? r.created_at.substring(5, 10).replace('-', '/') : 'Gần đây',
-            content: r.content,
-            is_read: true,
-          }));
-        }
+      // API trả wrapper { student_id, semester, remarks: [...] } — hoặc mảng trực tiếp
+      const remarkRows: any[] = Array.isArray(remarksData)
+        ? remarksData
+        : Array.isArray(remarksData?.remarks)
+        ? remarksData.remarks
+        : [];
+
+      if (remarkRows.length > 0) {
+        remarksList = remarkRows
+          .filter((r: any) => !!r?.content)
+          .map((r: any) => {
+            const subject = getSubjectDisplay(
+              r.subject_name || r.subjectName || r.subject_code || r.subjectCode || r.subject,
+            );
+            const teacherName = r.teacher_name || r.teacherName || '';
+            return {
+              id: r.remark_id || r.id || '',
+              teacher_name: teacherName,
+              subject_code: r.subject_code || r.subjectCode || '',
+              subject_name: subject.name,
+              teacher_title: [teacherName, subject.name].filter(Boolean).join(' • ') || 'Giáo viên',
+              date_str: formatRemarkDate(r.created_at || r.createdAt),
+              content: r.content,
+            };
+          });
+      } else {
+        remarksList = [];
       }
 
-      if (examRes && examRes.ok) {
-        const eJson = await examRes.json();
-        const list = eJson.data || eJson;
-        if (Array.isArray(list)) {
-          examsList = list.map((e: any) => ({
-            id: e.reminder_id || e.id,
-            title: `Kiểm tra ${e.subject_name || 'Môn học'}`,
-            date_label: e.exam_date || 'Sắp tới',
-            icon: 'calendar_month',
-          }));
-        }
+      const examRows: any[] = Array.isArray(examsData)
+        ? examsData
+        : Array.isArray(examsData?.reminders)
+        ? examsData.reminders
+        : [];
+
+      if (examRows.length > 0) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const seen = new Set<string>();
+
+        examsList = examRows
+          .map((e: any) => {
+            const title = String(e.title || '').trim();
+            const date = parseExamDate(e.exam_date ?? e.examDate ?? e.date);
+            const subject = getSubjectDisplay(
+              subjectFromTitle(title) || e.subject_name || e.subject_code || e.subject,
+            );
+            const rawNote = String(
+              e.content_scope ?? e.note ?? e.message ?? e.instructions ?? '',
+            ).trim();
+            const diffDays = date
+              ? Math.round((date.getTime() - today.getTime()) / 86400000)
+              : null;
+
+            return {
+              id: e.reminder_id || e.id,
+              title,
+              exam_type_label: deriveExamTypeLabel(e.exam_type ?? e.examType, title),
+              subject_name: subject.name,
+              subject_color: subject.color,
+              date_iso: date
+                ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+                : '',
+              date_label: date
+                ? `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+                : 'Sắp tới',
+              weekday_label: date ? WEEKDAY_FULL_LABELS[date.getDay()] : '',
+              weekday_short: date ? WEEKDAY_SHORT_LABELS[date.getDay()] : '',
+              day_number: date ? String(date.getDate()).padStart(2, '0') : '',
+              month_label: date ? `Th${date.getMonth() + 1}` : '',
+              countdown_label:
+                diffDays === null
+                  ? 'Sắp tới'
+                  : diffDays < 0
+                  ? 'Đã qua'
+                  : diffDays === 0
+                  ? 'Hôm nay'
+                  : diffDays === 1
+                  ? 'Ngày mai'
+                  : `Còn ${diffDays} ngày`,
+              is_today: diffDays === 0,
+              is_past: diffDays !== null && diffDays < 0,
+              note: rawNote && rawNote !== title ? rawNote : '',
+            };
+          })
+          .filter((e: any) => {
+            if (e.is_past) return false;
+            const key = `${e.date_iso}|${e.subject_name}|${e.exam_type_label}|${e.note}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a: any, b: any) => (a.date_iso || '9999').localeCompare(b.date_iso || '9999'));
       }
 
       return { exams: examsList, remarks: remarksList };
@@ -462,7 +657,7 @@ export const parentService = {
     return { exams: [], remarks: [] };
   },
 
-  async getAttendanceDetails(studentId: string, month: string = '2026-10') {
+  async getAttendanceDetails(studentId: string, month?: string) {
     if (!studentId) {
       return {
         summary: null,
@@ -470,41 +665,38 @@ export const parentService = {
       };
     }
 
+    const monthParam = month || (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    })();
+
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const res = await fetch(`${API_BASE_URL}/students/${studentId}/attendance?month=${month}`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
+      const data = await api<any>(`/students/${studentId}/attendance?month=${monthParam}`);
+      const records = Array.isArray(data?.records) ? data.records : [];
+      const presentCount = data?.total_present || records.filter((r: any) => r.status === 'PRESENT').length || 0;
+      const absentCount = data?.total_absent_excused || records.filter((r: any) => r.status?.includes('ABSENT')).length || 0;
+      const total = presentCount + absentCount;
+      const rate = total > 0 ? Math.round((presentCount / total) * 100) : 100;
 
-      if (res && res.ok) {
-        const resJson = await res.json();
-        const data = resJson.data || resJson;
-        const records = Array.isArray(data.records) ? data.records : [];
-        const presentCount = data.total_present || records.filter((r: any) => r.status === 'PRESENT').length || 0;
-        const absentCount = data.total_absent_excused || records.filter((r: any) => r.status?.includes('ABSENT')).length || 0;
-        const total = presentCount + absentCount;
-        const rate = total > 0 ? Math.round((presentCount / total) * 100) : 100;
+      const logs = records.map((r: any, idx: number) => ({
+        id: `log_0${idx + 1}`,
+        date_title: r.date || 'Hôm nay',
+        status: r.status === 'PRESENT' ? 'PRESENT' : 'ABSENT',
+        status_label: r.status === 'PRESENT' ? 'Có mặt' : 'Vắng',
+        permit_status: r.status === 'ABSENT_EXCUSED' ? 'EXCUSED' : 'UNEXCUSED',
+        permit_label: r.status === 'ABSENT_EXCUSED' ? 'Có phép' : undefined,
+        reason: r.note || undefined,
+      }));
 
-        const logs = records.map((r: any, idx: number) => ({
-          id: `log_0${idx + 1}`,
-          date_title: r.date || 'Hôm nay',
-          status: r.status === 'PRESENT' ? 'PRESENT' : 'ABSENT',
-          status_label: r.status === 'PRESENT' ? 'Có mặt' : 'Vắng',
-          permit_status: r.status === 'ABSENT_EXCUSED' ? 'EXCUSED' : 'UNEXCUSED',
-          permit_label: r.status === 'ABSENT_EXCUSED' ? 'Có phép' : undefined,
-          reason: r.note || undefined,
-        }));
-
-        return {
-          summary: {
-            present_count: presentCount,
-            absent_count: absentCount,
-            rate_week: `${rate}%`,
-            note: absentCount === 0 ? 'Chuyên cần đầy đủ' : 'Có phép nghỉ ốm',
-          },
-          logs,
-        };
-      }
+      return {
+        summary: {
+          present_count: presentCount,
+          absent_count: absentCount,
+          rate_week: `${rate}%`,
+          note: absentCount === 0 ? 'Chuyên cần đầy đủ' : 'Có phép nghỉ học',
+        },
+        logs,
+      };
     } catch (e) {}
 
     return {
@@ -517,49 +709,56 @@ export const parentService = {
     if (!studentId) return null;
 
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const res = await fetch(`${API_BASE_URL}/students/${studentId}/fees-insurance`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      }).catch(() => null);
-
-      if (res && res.ok) {
-        const resJson = await res.json();
-        const data = resJson.data || resJson;
-        if (!data || (!data.insurance && !data.tuition)) {
-          return null;
-        }
-
-        const ins = data.insurance || {};
-        const tui = data.tuition || {};
-        const insPaid = !!ins.is_paid;
-        const tuiPaid = !!tui.is_paid;
-        const paidCount = (insPaid ? 1 : 0) + (tuiPaid ? 1 : 0);
-        const remCount = 2 - paidCount;
-
-        return {
-          student_id: studentId,
-          completed_ratio: `${paidCount}/2`,
-          remaining_count: remCount === 0 ? 'Đã hoàn tất' : `Còn ${remCount} khoản`,
-          term_label: data.term_name || 'Học kỳ 1 • 2026–2027',
-          insurance: {
-            type: 'BHYT',
-            status: insPaid ? 'PAID' : 'UNPAID',
-            status_label: insPaid ? 'Đã nộp' : 'Chưa nộp',
-            deadline: ins.deadline ? `Hạn ${ins.deadline}` : 'Hạn nộp đợt 1',
-            paid_date: ins.paid_date || undefined,
-            payment_method: ins.payment_method || 'Chuyển khoản / Tiền mặt',
-          },
-          tuition: {
-            type: 'Học phí',
-            status: tuiPaid ? 'PAID' : 'UNPAID',
-            status_label: tuiPaid ? 'Đã nộp' : 'Chưa nộp',
-            paid_date: tui.paid_date || undefined,
-            payment_method: tui.payment_method || 'Đã đóng online',
-          },
-        };
+      const data = await api<any>(`/students/${studentId}/fees-insurance`);
+      if (!data || (!data.insurance && !data.tuition)) {
+        return null;
       }
+
+      const ins = data.insurance || {};
+      const tui = data.tuition || {};
+      const insExists = ins.has_record !== false;
+      const tuiExists = tui.has_record !== false;
+      const trackedCount = (insExists ? 1 : 0) + (tuiExists ? 1 : 0);
+      if (trackedCount === 0) return null;
+
+      const insPaid = insExists && !!ins.is_paid;
+      const tuiPaid = tuiExists && !!tui.is_paid;
+      const paidCount = (insPaid ? 1 : 0) + (tuiPaid ? 1 : 0);
+      const remCount = trackedCount - paidCount;
+
+      return {
+        student_id: studentId,
+        completed_ratio: `${paidCount}/${trackedCount}`,
+        completion_percent: Math.round((paidCount / trackedCount) * 100),
+        remaining_count: remCount === 0 ? 'Đã hoàn tất' : `Còn ${remCount} khoản`,
+        // Không bịa mặc định ('Học kỳ 1', 'Đã đóng online'...) — chỉ hiện
+        // những gì backend thực sự có, UI tự ẩn khi trống
+        term_label: data.term_name || undefined,
+        insurance: {
+          type: 'BHYT',
+          has_record: insExists,
+          title: ins.title || undefined,
+          amount: typeof ins.amount === 'number' ? ins.amount : undefined,
+          status: insExists ? (insPaid ? 'PAID' : 'UNPAID') : 'NONE',
+          status_label: !insExists ? 'Chưa có' : insPaid ? 'Đã nộp' : 'Chưa nộp',
+          deadline: ins.deadline ? `Hạn nộp: ${formatPaidDate(ins.deadline)}` : undefined,
+          paid_date: formatPaidDate(ins.paid_date) || undefined,
+          payment_method: ins.payment_method || undefined,
+        },
+        tuition: {
+          type: 'Học phí',
+          has_record: tuiExists,
+          title: tui.title || undefined,
+          amount: typeof tui.amount === 'number' ? tui.amount : undefined,
+          status: tuiExists ? (tuiPaid ? 'PAID' : 'UNPAID') : 'NONE',
+          status_label: !tuiExists ? 'Chưa có' : tuiPaid ? 'Đã nộp' : 'Chưa nộp',
+          deadline: tui.due_date ? `Hạn nộp: ${formatPaidDate(tui.due_date)}` : undefined,
+          paid_date: formatPaidDate(tui.paid_date) || undefined,
+          payment_method: tui.payment_method || undefined,
+        },
+      };
     } catch (e) {
-      console.warn('Backend not reachable, getChildFeesInsurance error:', e);
+      console.warn('getChildFeesInsurance error:', e);
     }
 
     return null;

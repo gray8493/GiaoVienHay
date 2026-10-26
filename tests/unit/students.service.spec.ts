@@ -18,8 +18,11 @@ describe('StudentsService (Unit Tests UT04 - All 15 Cases)', () => {
           dob: '2020-05-15',
           gender: 'MALE',
           parent_uids: ['usr_parent_01'],
+          parent_phone: '0912345678',
+          parentPhone: '0912345678',
         };
       }),
+      getClassById: jest.fn().mockResolvedValue({ id: 'cls_1a_2026', name: '1A', school_name: 'TH Chu Văn An' }),
       getScoresByStudent: jest.fn().mockImplementation(async (id: string) => {
         if (id === 'stu_02_empty') return [];
         return [
@@ -72,7 +75,7 @@ describe('StudentsService (Unit Tests UT04 - All 15 Cases)', () => {
 
   describe('UT04_Students_TC01: Phụ huynh xem thông tin lý lịch con cái thuộc quyền quản lý thành công', () => {
     it('trả về hồ sơ học sinh chi tiết', async () => {
-      const student = await service.getStudentProfile('stu_01', 'usr_parent_01');
+      const student = await service.getStudentProfile('stu_01', '0912345678');
       expect(student.full_name).toBe('Trần Bảo Nam');
       expect(student.id).toBe('stu_01');
     });
@@ -107,6 +110,9 @@ describe('StudentsService (Unit Tests UT04 - All 15 Cases)', () => {
       expect(fees.student_id).toBe('stu_01');
       expect(fees.tuition).toBeDefined();
       expect(fees.insurance).toBeDefined();
+      expect(fees.tuition.is_paid).toBe(false);
+      expect(fees.insurance.is_paid).toBe(true);
+      expect(fees.insurance.paid_date).toBe('2026-09-10T08:30:00.000Z');
     });
   });
 

@@ -1,10 +1,5 @@
-import { Platform } from 'react-native';
-import { authService } from './auth.service';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
+import { api } from './http';
+import { classService } from './class.service';
 
 export type FeeType = 'TUITION' | 'INSURANCE';
 
@@ -51,60 +46,33 @@ export interface RemindFeePayload {
   custom_message?: string;
 }
 
-const DEFAULT_RECORDS: StudentFeeRecord[] = [
-  {
-    record_id: 'fee_01',
-    student_id: 'stu_01',
-    student_code: 'HS240101',
-    student_name: 'Nguyễn Minh Anh',
-    insurance: { is_paid: true, paid_date: '18/09' },
-    tuition: { is_paid: true, paid_date: '20/09' },
-    note: null,
-  },
-  {
-    record_id: 'fee_02',
-    student_id: 'stu_02',
-    student_code: 'HS240102',
-    student_name: 'Trần Bảo Nam',
-    insurance: { is_paid: false, paid_date: null },
-    tuition: { is_paid: true, paid_date: '22/09' },
-    note: null,
-  },
-  {
-    record_id: 'fee_03',
-    student_id: 'stu_03',
-    student_code: 'HS240103',
-    student_name: 'Lê Thị Cẩm Tú',
-    insurance: { is_paid: true, paid_date: '18/09' },
-    tuition: { is_paid: false, paid_date: null },
-    note: 'Nộp tiền mặt tại lớp',
-  },
-  {
-    record_id: 'fee_04',
-    student_id: 'stu_04',
-    student_code: 'HS240104',
-    student_name: 'Phạm Hoàng Nam',
-    insurance: { is_paid: true, paid_date: '20/09' },
-    tuition: { is_paid: false, paid_date: null },
-    note: null,
-  },
-  {
-    record_id: 'fee_05',
-    student_id: 'stu_05',
-    student_code: 'HS240105',
-    student_name: 'Võ Khánh Linh',
-    insurance: { is_paid: false, paid_date: null },
-    tuition: { is_paid: true, paid_date: '19/09' },
-    note: null,
-  },
-];
+const detectFeeType = (row: any): FeeType | null => {
+  const rawType = String(row.fee_type || row.type || '').toUpperCase();
+  if (rawType === 'INSURANCE' || rawType === 'BHYT') return 'INSURANCE';
+  if (rawType === 'TUITION' || rawType === 'FEE') return 'TUITION';
+  const title = String(row.title || row.name || '').toLowerCase();
+  if (
+    title.includes('bảo hiểm') ||
+    title.includes('bhyt') ||
+    title.includes('insurance')
+  ) {
+    return 'INSURANCE';
+  }
+  if (title.includes('học phí') || title.includes('tuition')) return 'TUITION';
+  return null;
+};
+
+const normalizePaidDate = (row: any): string | null => {
+  const pd = row.paid_date || (row.paid_at ? String(row.paid_at).slice(0, 10) : null);
+  return pd || null;
+};
 
 export const feesService = {
   async getClassFeesList(classId: string = ''): Promise<ClassFeesSummary> {
     const emptySummary: ClassFeesSummary = {
       class_id: classId,
       class_name: '',
-      term_name: 'HK1',
+      term_name: '',
       total_students: 0,
       insurance_paid_count: 0,
       insurance_unpaid_count: 0,
@@ -118,84 +86,135 @@ export const feesService = {
     if (!classId || classId === 'cls_empty') return emptySummary;
 
     try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/fees-insurance/class/${classId}`, {
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-      });
+      // Lấy danh sách học sinh của lớp song song với dữ liệu thu nộp
+      const [classDetail, data] = await Promise.all([
+        classService.getClassDetail(classId).catch(() => null),
+        api<any>(`/fees-insurance/class/${classId}`).catch(() => null),
+      ]);
 
-      if (response.ok) {
-        const resJson = await response.json();
-        const data = resJson.data || resJson;
-        if (data && Array.isArray(data.records)) {
-          const records: StudentFeeRecord[] = data.records.map((r: any, idx: number) => ({
-            record_id: r.record_id || `fee_0${idx + 1}`,
-            student_id: r.student_id || `stu_0${idx + 1}`,
-            student_code: r.student_code || `HS24010${idx + 1}`,
-            student_name: r.student_name || 'Học sinh',
-            tuition: r.tuition || { is_paid: false, paid_date: null },
-            insurance: r.insurance || { is_paid: false, paid_date: null },
-            note: r.note || null,
-          }));
+      const rawFeeRows: any[] = data && Array.isArray(data.records) ? data.records : [];
 
-          const insurancePaid = records.filter(r => r.insurance.is_paid).length;
-          const tuitionPaid = records.filter(r => r.tuition.is_paid).length;
-          const total = records.length;
-
-          return {
-            class_id: classId,
-            class_name: data.class_name || 'Lớp học',
-            term_name: data.term_name || 'HK1',
-            total_students: total,
-            insurance_paid_count: insurancePaid,
-            insurance_unpaid_count: Math.max(0, total - insurancePaid),
-            insurance_percent: total > 0 ? Math.round((insurancePaid / total) * 100) : 0,
-            tuition_paid_count: tuitionPaid,
-            tuition_unpaid_count: Math.max(0, total - tuitionPaid),
-            tuition_percent: total > 0 ? Math.round((tuitionPaid / total) * 100) : 0,
-            records,
-          };
-        }
+      // Gom bản ghi phí theo student_id (hỗ trợ cả shape DB lẫn shape demo)
+      const rowsByStudent = new Map<string, any[]>();
+      for (const row of rawFeeRows) {
+        if (row.is_deleted === true) continue;
+        const sid = String(row.student_id || row.studentId || '');
+        if (!sid) continue;
+        const arr = rowsByStudent.get(sid) || [];
+        arr.push(row);
+        rowsByStudent.set(sid, arr);
       }
+
+      const buildStudentFee = (studentId: string) => {
+        const rows = rowsByStudent.get(studentId) || [];
+        const tuition = { is_paid: false, paid_date: null as string | null };
+        const insurance = { is_paid: false, paid_date: null as string | null };
+        let recordId = '';
+        let note: string | null = null;
+
+        for (const row of rows) {
+          recordId = recordId || String(row.record_id || row.id || '');
+          note = note ?? (row.note ?? null);
+
+          // Shape nested (bản ghi demo backend: tuition/insurance là object)
+          if (row.tuition && typeof row.tuition === 'object') {
+            if (row.tuition.is_paid) {
+              tuition.is_paid = true;
+              tuition.paid_date = row.tuition.paid_date || normalizePaidDate(row);
+            }
+          }
+          if (row.insurance && typeof row.insurance === 'object') {
+            if (row.insurance.is_paid) {
+              insurance.is_paid = true;
+              insurance.paid_date = row.insurance.paid_date || normalizePaidDate(row);
+            }
+          }
+
+          // Shape DB thô: mỗi dòng một loại phí (title/fee_type + status PAID)
+          const isPaid = row.is_paid === true || row.status === 'PAID';
+          const feeType = detectFeeType(row);
+          if (isPaid && feeType) {
+            const pd = normalizePaidDate(row);
+            if (feeType === 'INSURANCE') {
+              insurance.is_paid = true;
+              insurance.paid_date = pd;
+            } else {
+              tuition.is_paid = true;
+              tuition.paid_date = pd;
+            }
+          }
+        }
+
+        return { recordId, note, tuition, insurance };
+      };
+
+      // Danh sách gốc là TOÀN BỘ học sinh của lớp — merge trạng thái nếu có dòng phí
+      const students: any[] = classDetail?.students || [];
+
+      const records: StudentFeeRecord[] =
+        students.length > 0
+          ? students.map((s: any) => {
+              const sid = String(s.id || s.student_id || '');
+              const feeInfo = buildStudentFee(sid);
+              return {
+                record_id: feeInfo.recordId || `fee_${sid}`,
+                student_id: sid,
+                student_code: s.student_code || '',
+                student_name: s.full_name || s.name || 'Học sinh',
+                tuition: feeInfo.tuition,
+                insurance: feeInfo.insurance,
+                note: feeInfo.note,
+              };
+            })
+          : rawFeeRows.map((r: any) => ({
+              record_id: String(r.record_id || r.id || ''),
+              student_id: String(r.student_id || r.studentId || ''),
+              student_code: r.student_code || '',
+              student_name: r.student_name || 'Học sinh',
+              tuition: r.tuition || { is_paid: false, paid_date: null },
+              insurance: r.insurance || { is_paid: false, paid_date: null },
+              note: r.note || null,
+            }));
+
+      const insurancePaid = records.filter(r => r.insurance.is_paid).length;
+      const tuitionPaid = records.filter(r => r.tuition.is_paid).length;
+      const total = records.length;
+
+      return {
+        class_id: classId,
+        class_name: classDetail?.name || data?.class_name || '',
+        term_name: data?.term_name || '',
+        total_students: total,
+        insurance_paid_count: insurancePaid,
+        insurance_unpaid_count: Math.max(0, total - insurancePaid),
+        insurance_percent: total > 0 ? Math.round((insurancePaid / total) * 100) : 0,
+        tuition_paid_count: tuitionPaid,
+        tuition_unpaid_count: Math.max(0, total - tuitionPaid),
+        tuition_percent: total > 0 ? Math.round((tuitionPaid / total) * 100) : 0,
+        records,
+      };
     } catch (e) {
-      console.warn('Backend not reachable:', e);
+      console.warn('getClassFeesList failed:', e);
     }
 
     return emptySummary;
   },
 
   async toggleFeeStatus(payload: ToggleFeePayload): Promise<boolean> {
-    try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/fees-insurance/toggle`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        return true;
-      }
-    } catch (e) {
-      console.warn('Backend not reachable, toggle offline:', e);
-    }
+    await api('/fees-insurance/toggle', {
+      method: 'PATCH',
+      body: payload,
+      errorMessage: 'Không thể cập nhật trạng thái thu phí',
+    });
     return true;
   },
 
   async sendFeeReminder(payload: RemindFeePayload): Promise<boolean> {
-    try {
-      const authHeader = await authService.getAuthHeaderAsync();
-      const response = await fetch(`${API_BASE_URL}/fees-insurance/remind`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeader },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        return true;
-      }
-    } catch (e) {
-      console.warn('Backend not reachable, reminder sent offline:', e);
-    }
+    await api('/fees-insurance/remind', {
+      method: 'POST',
+      body: payload,
+      errorMessage: 'Không thể gửi thông báo nhắc đóng phí',
+    });
     return true;
   },
 };

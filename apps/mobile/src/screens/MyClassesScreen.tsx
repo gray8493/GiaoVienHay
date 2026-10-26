@@ -13,13 +13,19 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Ellipse } from 'react-native-svg';
-import { classService, MyClassItem } from '../services/class.service';
+import {
+  classService,
+  MyClassItem,
+  JoinPreviewData,
+  JoinSubjectOption,
+  buildJoinSubjectOptions,
+} from '../services/class.service';
 
 const { width } = Dimensions.get('window');
 
 interface MyClassesScreenProps {
   onBack?: () => void;
-  onSelectClass?: (classId: string) => void;
+  onSelectClass?: (classId: string, classData?: MyClassItem) => void;
 }
 
 type ScreenView = 'MY_CLASSES' | 'CREATE_CLASS' | 'JOIN_BY_CODE';
@@ -30,7 +36,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
 }) => {
   const [currentView, setCurrentView] = useState<ScreenView>('MY_CLASSES');
   const [classes, setClasses] = useState<MyClassItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Bottom Sheet "Thêm Lớp" (TEA-11.BS)
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -38,18 +44,55 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
 
   // Form State "Tạo Lớp Mới" (TEA-11.3)
   const [classNameInput, setClassNameInput] = useState('');
-  const [selectedGrade, setSelectedGrade] = useState<number>(6);
-  const [academicYear, setAcademicYear] = useState('2026–2027');
+  const [selectedLevel, setSelectedLevel] = useState<1 | 2>(1);
+  const [selectedGrade, setSelectedGrade] = useState<number>(1);
+  const [academicYear, setAcademicYear] = useState('2026-2027');
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
   // Form State "Vào Lớp Bằng Mã" (TEA-11.4)
-  const [inviteCodeInput, setInviteCodeInput] = useState('TCH-6A2-3047');
-  const [selectedSubject, setSelectedSubject] = useState<'MATH' | 'CS'>('MATH'); // 'MATH' (Toán) | 'CS' (Tin Học)
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [joinPreview, setJoinPreview] = useState<JoinPreviewData | null>(null);
+  const [subjectOptions, setSubjectOptions] = useState<JoinSubjectOption[]>([]);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSubmittingJoin, setIsSubmittingJoin] = useState(false);
 
   useEffect(() => {
     loadClasses();
   }, []);
+
+  /**
+   * danh sách môn cho chọn lấy thẳng từ hồ sơ giáo viên (server đã chuẩn hoá mã môn),
+   * kèm môn đã có GV khác phụ trách trong lớp. Client không tự suy đoán mã nữa.
+   */
+  const loadJoinPreview = async () => {
+    const code = inviteCodeInput.trim().toUpperCase();
+    if (!code) {
+      Alert.alert('Thông báo', 'Vui lòng nhập mã mời');
+      return;
+    }
+    setIsPreviewing(true);
+    try {
+      const data = await classService.previewJoin(code);
+      const options = buildJoinSubjectOptions(data);
+      setJoinPreview(data);
+      setSubjectOptions(options);
+      setSelectedSubjects(options.filter((o) => o.is_mine).map((o) => o.code));
+    } catch (e: any) {
+      setJoinPreview(null);
+      setSubjectOptions([]);
+      setSelectedSubjects([]);
+      Alert.alert('Thông báo', e?.message || 'Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn');
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const toggleJoinSubject = (code: string) => {
+    setSelectedSubjects((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  };
 
   const loadClasses = async () => {
     setLoading(true);
@@ -74,6 +117,13 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
       return;
     }
 
+    // Niên khóa: chuẩn hóa dấu gạch (– — → -) và kiểm định dạng YYYY-YYYY
+    const normalizedYear = academicYear.trim().replace(/[–—]/g, '-');
+    if (!/^\d{4}-\d{4}$/.test(normalizedYear)) {
+      Alert.alert('Thông báo', 'Niên khóa cần định dạng YYYY-YYYY, ví dụ 2026-2027');
+      return;
+    }
+
     setIsSubmittingCreate(true);
     try {
       const payloadName = classNameInput.trim().startsWith('Lớp')
@@ -83,15 +133,15 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
       const newClassRes = await classService.createClass({
         name: payloadName,
         grade_level: selectedGrade,
-        academic_year: academicYear,
+        academic_year: normalizedYear,
       });
 
       const newClassItem: MyClassItem = {
         id: newClassRes.id || `cls_${Date.now()}`,
         name: newClassRes.name || payloadName,
         grade_level: selectedGrade,
-        academic_year: academicYear,
-        school_name: 'THCS Lê Quý Đôn',
+        academic_year: newClassRes.academic_year || normalizedYear,
+        school_name: newClassRes.school_name || newClassRes.schoolName || '',
         student_count: 0,
         role_type: 'HOMEROOM',
         icon_name: 'groups',
@@ -115,35 +165,82 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
       Alert.alert('Thông báo', 'Vui lòng nhập mã lớp học');
       return;
     }
+    if (subjectOptions.length === 0) {
+      Alert.alert(
+        'Chưa chọn được môn',
+        joinPreview
+          ? 'Hồ sơ của bạn chưa có môn giảng dạy. Vui lòng cập nhật môn trong hồ sơ giáo viên trước khi vào lớp.'
+          : 'Vui lòng bấm "Tra mã mời" để xem thông tin lớp và môn bạn có thể nhận.',
+      );
+      return;
+    }
+
+    const selectableCodes = subjectOptions.filter((o) => !o.taken_by).map((o) => o.code);
+    if (selectableCodes.length === 0) {
+      Alert.alert(
+        'Không còn môn nhận',
+        `Toàn bộ môn trong hồ sơ của bạn (${subjectOptions.map((o) => o.label).join(', ')}) đang có giáo viên khác phụ trách.`,
+      );
+      return;
+    }
+    const selected = selectedSubjects.filter((c) => selectableCodes.includes(c));
+    if (selected.length === 0) {
+      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một môn học phụ trách');
+      return;
+    }
 
     setIsSubmittingJoin(true);
     try {
-      const result = await classService.joinClass(code);
+      const result = await classService.joinClass(code, selected);
 
-      // Thêm vào danh sách lớp giảng dạy cục bộ
-      const subjectLabel = selectedSubject === 'MATH' ? 'Toán' : 'Tin Học';
-      const iconType = selectedSubject === 'MATH' ? 'square_foot' : 'laptop_mac';
+      if (!result?.class_id) {
+        throw new Error('Không thể xác định lớp học vừa tham gia');
+      }
+
+      const acceptedCodes: string[] = Array.isArray(result.subject_codes)
+        ? result.subject_codes
+        : selected;
+      const labelOf = (c: string) =>
+        subjectOptions.find((o) => o.code === c)?.label ||
+        joinPreview?.assigned_subjects?.find((a) => a.subject_code === c)?.subject_name ||
+        c;
+      const subjectLabels = acceptedCodes.map(labelOf);
+      const primarySubject = acceptedCodes[0] || '';
+      const iconType =
+        primarySubject === 'MATH' ? 'square_foot' : primarySubject === 'CS' ? 'laptop_mac' : 'school';
 
       const joinedClassItem: MyClassItem = {
-        id: result.class_id || `cls_joined_${Date.now()}`,
-        name: result.class_name ? `Lớp ${result.class_name}` : `Lớp 6A2 (${code.split('-')[1] || 'Mới'})`,
-        grade_level: 6,
-        academic_year: '2026–2027',
-        school_name: 'THCS Lê Quý Đôn',
-        student_count: 36,
+        id: result.class_id,
+        name: result.class_name
+          ? result.class_name.startsWith('Lớp')
+            ? result.class_name
+            : `Lớp ${result.class_name}`
+          : 'Lớp học',
+        grade_level: result.grade_level ?? result.gradeLevel ?? 0,
+        academic_year: result.academic_year ?? result.academicYear ?? '',
+        school_name: result.school_name ?? result.schoolName ?? '',
+        student_count: result.student_count ?? result.studentCount ?? 0,
         role_type: 'SUBJECT',
-        subject_name: subjectLabel,
+        subject_name: subjectLabels[0],
+        subject_names: subjectLabels,
         icon_name: iconType,
       };
 
       setClasses(prev => {
-        // Tránh trùng id nếu đã có
-        const exists = prev.some(c => c.name === joinedClassItem.name && c.subject_name === joinedClassItem.subject_name);
-        if (exists) return prev;
-        return [...prev, joinedClassItem];
+        const filtered = prev.filter(c => c.id !== joinedClassItem.id);
+        return [...filtered, joinedClassItem];
       });
 
-      Alert.alert('Thành công', `Đã tham gia lớp với vai trò Giáo viên bộ môn ${subjectLabel}!`);
+      // Tải lại danh sách đầy đủ từ server để đồng bộ
+      loadClasses();
+
+      // Server trả thông báo đã tính cả trường hợp một số môn bị bỏ qua
+      // vì GV khác đang phụ trách (partial success).
+      Alert.alert('Thành công', result.message || `Đã tham gia lớp với vai trò Giáo viên bộ môn ${subjectLabels.join(', ')}!`);
+      setInviteCodeInput('');
+      setJoinPreview(null);
+      setSubjectOptions([]);
+      setSelectedSubjects([]);
       setCurrentView('MY_CLASSES');
     } catch (err: any) {
       Alert.alert('Thông báo', err.message || 'Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn');
@@ -267,11 +364,45 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
               </View>
             </View>
 
-            {/* Item 2: Grade Level Segmented Pills */}
+            {/* Item 2: School Level (Cấp 1 / Cấp 2) */}
+            <View style={styles.formItem}>
+              <Text style={styles.fieldLabel}>Cấp học</Text>
+              <View style={styles.gradeGrid}>
+                {([1, 2] as const).map((lv) => {
+                  const isSelected = selectedLevel === lv;
+                  return (
+                    <TouchableOpacity
+                      key={lv}
+                      style={[
+                        styles.levelPill,
+                        isSelected ? styles.gradePillActive : styles.gradePillInactive,
+                      ]}
+                      onPress={() => {
+                        setSelectedLevel(lv);
+                        // Đổi cấp → đưa khối về đầu dải tương ứng (1 hoặc 6)
+                        setSelectedGrade(lv === 1 ? 1 : 6);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.gradePillText,
+                          isSelected ? styles.gradePillTextActive : styles.gradePillTextInactive,
+                        ]}
+                      >
+                        {lv === 1 ? 'Cấp 1 (Tiểu học)' : 'Cấp 2 (THCS)'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Item 3: Grade Level Segmented Pills */}
             <View style={styles.formItem}>
               <Text style={styles.fieldLabel}>Khối</Text>
               <View style={styles.gradeGrid}>
-                {[6, 7, 8, 9].map((g) => {
+                {(selectedLevel === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9]).map((g) => {
                   const isSelected = selectedGrade === g;
                   return (
                     <TouchableOpacity
@@ -297,7 +428,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
               </View>
             </View>
 
-            {/* Item 3: School Year Input */}
+            {/* Item 4: School Year Input (nhập được, mặc định năm học hiện tại) */}
             <View style={styles.formItem}>
               <Text style={styles.fieldLabel}>Niên khóa</Text>
               <View style={styles.schoolYearBox}>
@@ -305,7 +436,15 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
                   <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                   <Path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
                 </Svg>
-                <Text style={styles.schoolYearText}>{academicYear}</Text>
+                <TextInput
+                  style={styles.schoolYearText}
+                  placeholder="2026-2027"
+                  placeholderTextColor="#DBC1B4"
+                  value={academicYear}
+                  onChangeText={setAcademicYear}
+                  maxLength={9}
+                  autoCapitalize="none"
+                />
               </View>
             </View>
           </View>
@@ -400,69 +539,114 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
           {/* Main White Bento Container */}
           <View style={styles.cardContainer}>
             {/* Code Input Module */}
-            <View style={styles.codeBoxWrapper}>
-              <TextInput
-                style={styles.codeInput}
-                value={inviteCodeInput}
-                onChangeText={setInviteCodeInput}
-                placeholder="TCH-6A2-3047"
-                placeholderTextColor="#A09DAE"
-                autoCapitalize="characters"
-                textAlign="center"
-              />
-            </View>
-
-            {/* Subject Pill Selection Module */}
-            <View style={styles.subjectModule}>
-              <Text style={styles.fieldLabel}>Môn dạy</Text>
-              <View style={styles.subjectRow}>
-                {/* Chip: Toán */}
-                <TouchableOpacity
-                  style={[
-                    styles.subjectChip,
-                    selectedSubject === 'MATH' ? styles.subjectChipActive : styles.subjectChipInactive,
-                  ]}
-                  onPress={() => setSelectedSubject('MATH')}
-                  activeOpacity={0.8}
-                >
-                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={selectedSubject === 'MATH' ? '#F58F4C' : '#887367'} strokeWidth={2}>
-                    <Rect x="4" y="2" width="16" height="20" rx="2" />
-                    <Path d="M8 6h8M8 10h8M8 14h2M14 14h2M8 18h2M14 18h2" strokeLinecap="round" />
-                  </Svg>
-                  <Text
-                    style={[
-                      styles.subjectChipText,
-                      selectedSubject === 'MATH' ? styles.subjectChipTextActive : styles.subjectChipTextInactive,
-                    ]}
-                  >
-                    Toán
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Chip: Tin Học */}
-                <TouchableOpacity
-                  style={[
-                    styles.subjectChip,
-                    selectedSubject === 'CS' ? styles.subjectChipActive : styles.subjectChipInactive,
-                  ]}
-                  onPress={() => setSelectedSubject('CS')}
-                  activeOpacity={0.8}
-                >
-                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={selectedSubject === 'CS' ? '#F58F4C' : '#887367'} strokeWidth={2}>
-                    <Rect x="2" y="3" width="20" height="14" rx="2" />
-                    <Path d="M8 21h8M12 17v4" strokeLinecap="round" />
-                  </Svg>
-                  <Text
-                    style={[
-                      styles.subjectChipText,
-                      selectedSubject === 'CS' ? styles.subjectChipTextActive : styles.subjectChipTextInactive,
-                    ]}
-                  >
-                    Tin Học
-                  </Text>
-                </TouchableOpacity>
+            <View style={styles.codeRow}>
+              <View style={[styles.codeBoxWrapper, { flex: 1 }]}>
+                <TextInput
+                  style={styles.codeInput}
+                  value={inviteCodeInput}
+                  onChangeText={(v) => {
+                    setInviteCodeInput(v);
+                    if (joinPreview) {
+                      setJoinPreview(null);
+                      setSubjectOptions([]);
+                      setSelectedSubjects([]);
+                    }
+                  }}
+                  placeholder="Nhập mã mời do GVCN cung cấp"
+                  placeholderTextColor="#A09DAE"
+                  autoCapitalize="characters"
+                  textAlign="center"
+                  onSubmitEditing={loadJoinPreview}
+                />
               </View>
+              <TouchableOpacity
+                style={styles.lookupButton}
+                onPress={loadJoinPreview}
+                activeOpacity={0.8}
+                disabled={isPreviewing}
+              >
+                {isPreviewing ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.lookupButtonText}>Tra mã</Text>
+                )}
+              </TouchableOpacity>
             </View>
+
+            {/* Đã tra mã -> hiện thông tin lớp để giáo viên xác nhận đúng lớp */}
+            {joinPreview ? (
+              <View style={styles.previewCard}>
+                <Text style={styles.previewTitle}>{joinPreview.name || 'Lớp học'}</Text>
+                <Text style={styles.previewMeta}>
+                  GVCN: {joinPreview.homeroom_teacher || 'Chưa cập nhật'}
+                  {joinPreview.student_count ? ` • ${joinPreview.student_count} học sinh` : ''}
+                </Text>
+                {joinPreview.is_homeroom && (
+                  <Text style={styles.previewHomeroomNote}>
+                    Bạn là chủ nhiệm lớp này — vào mã chỉ để nhận thêm môn bộ môn.
+                  </Text>
+                )}
+              </View>
+            ) : null}
+
+            {/* Dynamic Subject Pill Selection Module */}
+            {joinPreview ? (
+              <View style={styles.subjectModule}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.fieldLabel}>Môn phụ trách (chọn được nhiều môn)</Text>
+                  <Text style={{ fontSize: 11, color: '#F58F4C', fontWeight: '600' }}>
+                    {selectedSubjects.length} đã chọn
+                  </Text>
+                </View>
+
+                {subjectOptions.length === 0 ? (
+                  <Text style={styles.subjectEmptyNote}>
+                    Hồ sơ của bạn chưa có môn giảng dạy. Vui lòng cập nhật môn trong hồ sơ giáo viên
+                    trước khi vào lớp bằng mã.
+                  </Text>
+                ) : (
+                  <View style={styles.subjectGridWrap}>
+                    {subjectOptions.map(subj => {
+                      const isSelected = selectedSubjects.includes(subj.code);
+                      const isLocked = Boolean(subj.taken_by) || Boolean(subj.is_mine);
+                      return (
+                        <TouchableOpacity
+                          key={subj.code}
+                          style={[
+                            styles.subjectChip,
+                            isSelected ? styles.subjectChipActive : styles.subjectChipInactive,
+                            isLocked && styles.subjectChipLocked,
+                          ]}
+                          onPress={() => toggleJoinSubject(subj.code)}
+                          activeOpacity={0.8}
+                          disabled={isLocked}
+                        >
+                          <Text
+                            style={[
+                              styles.subjectChipText,
+                              isSelected ? styles.subjectChipTextActive : styles.subjectChipTextInactive,
+                              subj.taken_by ? styles.subjectChipTextLocked : null,
+                            ]}
+                          >
+                            {subj.label}
+                          </Text>
+                          {subj.taken_by ? (
+                            <Text style={styles.subjectChipSub}>{subj.taken_by} đang phụ trách</Text>
+                          ) : null}
+                          {subj.is_mine ? (
+                            <Text style={styles.subjectChipSub}>Bạn đang phụ trách</Text>
+                          ) : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            ) : (
+              <Text style={styles.subjectHint}>
+                Bấm “Tra mã” để xem thông tin lớp và các môn trong hồ sơ bạn được phép nhận.
+              </Text>
+            )}
 
             {/* Soft Context Note Banner */}
             <View style={styles.noteBanner}>
@@ -566,6 +750,19 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
             classes.map((cls, index) => {
               const isLast = index === classes.length - 1;
               const isHomeroom = cls.role_type === 'HOMEROOM';
+              const subjectLabels: string[] =
+                cls.subject_names && cls.subject_names.length > 0
+                  ? cls.subject_names
+                  : cls.subject_name
+                  ? [cls.subject_name]
+                  : [];
+              const roleText = isHomeroom
+                ? subjectLabels.length > 0
+                  ? `Chủ nhiệm · ${subjectLabels.join(', ')}`
+                  : 'Chủ nhiệm'
+                : subjectLabels.length > 0
+                ? `Bộ môn · ${subjectLabels.join(', ')}`
+                : 'Bộ môn';
 
               return (
                 <View key={cls.id || index}>
@@ -574,7 +771,7 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
                     activeOpacity={0.7}
                     onPress={() => {
                       if (onSelectClass) {
-                        onSelectClass(cls.id);
+                        onSelectClass(cls.id, cls);
                       }
                     }}
                   >
@@ -610,14 +807,12 @@ export const MyClassesScreen: React.FC<MyClassesScreenProps> = ({
                     <View style={styles.roleWrap}>
                       <View style={styles.rolePill}>
                         <Text style={styles.rolePillText} numberOfLines={1}>
-                          {isHomeroom ? 'Chủ nhiệm' : (cls.subject_name || 'Bộ môn')}
+                          {roleText}
                         </Text>
                       </View>
-                      {isHomeroom && (
-                        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#554339" strokeWidth={2.5}>
-                          <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                        </Svg>
-                      )}
+                      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#554339" strokeWidth={2.5}>
+                        <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
                     </View>
                   </TouchableOpacity>
 
@@ -913,6 +1108,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flexShrink: 0,
+    maxWidth: 195,
   },
   rolePill: {
     paddingHorizontal: 12,
@@ -921,6 +1117,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF1E6',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 1,
   },
   rolePillText: {
     fontSize: 11,
@@ -1181,6 +1378,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  levelPill: {
+    flex: 1,
+    height: 44,
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
   gradePill: {
     flex: 1,
     height: 44,
@@ -1264,17 +1469,83 @@ const styles = StyleSheet.create({
   subjectModule: {
     gap: 8,
   },
+  subjectGridWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   subjectRow: {
     flexDirection: 'row',
     gap: 10,
   },
-  subjectChip: {
+  codeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+  },
+  lookupButton: {
+    height: 58,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    backgroundColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lookupButtonText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  previewCard: {
+    backgroundColor: '#FFF7F0',
+    borderRadius: 16,
+    padding: 14,
+    gap: 4,
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1C192C',
+  },
+  previewMeta: {
+    fontSize: 13,
+    color: '#554339',
+  },
+  previewHomeroomNote: {
+    fontSize: 12,
+    color: '#984704',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  subjectHint: {
+    fontSize: 13,
+    color: '#6B6880',
+    lineHeight: 18,
+  },
+  subjectEmptyNote: {
+    fontSize: 13,
+    color: '#984704',
+    lineHeight: 19,
+  },
+  subjectChip: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 9999,
+    borderRadius: 16,
+  },
+  subjectChipLocked: {
+    opacity: 0.6,
+    backgroundColor: '#F6F5F8',
+  },
+  subjectChipTextLocked: {
+    textDecorationLine: 'line-through',
+  },
+  subjectChipSub: {
+    fontSize: 11,
+    color: '#984704',
+    fontWeight: '600',
   },
   subjectChipActive: {
     backgroundColor: '#FFF1E6',

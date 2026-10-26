@@ -1,6 +1,5 @@
 import {
   Injectable,
-  OnModuleInit,
   ConflictException,
   UnauthorizedException,
   BadRequestException,
@@ -17,10 +16,10 @@ import {
   ChangePasswordDto,
 } from './dto/auth.dto';
 import { ErrorCode, UserRole } from '@giaovienhay/shared-types';
-import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import { FirebaseDataConnectService, normalizeSubjectCodes } from '../../common/supabase/supabase.service';
 
 @Injectable()
-export class AuthService implements OnModuleInit {
+export class AuthService {
   // In-memory fallback map for test/emulator without Firestore connection
   private inMemoryUsers: Map<string, any> = new Map();
 
@@ -30,31 +29,6 @@ export class AuthService implements OnModuleInit {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
-
-  async onModuleInit() {
-    // Seed default Admin account for testing & full portal connectivity
-    const adminPhone = '0988888888';
-    const existing = await this.findUserByPhone(adminPhone);
-    if (!existing) {
-      const hashedPassword = await bcrypt.hash('Admin@123', 10);
-      const adminUser = {
-        id: 'usr_admin_root',
-        full_name: 'Quản trị viên Hệ thống',
-        phone: adminPhone,
-        email: 'admin@giaovienhay.vn',
-        password_hash: hashedPassword,
-        role: UserRole.ADMIN,
-        school_name: 'Sở GD&ĐT / Hệ thống GiaoVienHay',
-        teaching_subjects: [],
-        is_active: true,
-        is_deleted: false,
-        deleted_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      await this.saveUser(adminUser);
-    }
-  }
 
   async register(dto: RegisterDto) {
     // TC09: Validate định dạng mạng viễn thông Việt Nam
@@ -110,6 +84,9 @@ export class AuthService implements OnModuleInit {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const userId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
+    // Chuẩn hóa mã môn học về danh mục chung (LITERATURE->LIT, INFORMATICS->CS, ...)
+    const { codes: registerSubjects } = normalizeSubjectCodes(dto.teaching_subjects);
+
     const newUser = {
       id: userId,
       full_name: dto.full_name,
@@ -118,7 +95,7 @@ export class AuthService implements OnModuleInit {
       password_hash: hashedPassword,
       role: dto.role,
       school_name: dto.school_name || null,
-      teaching_subjects: dto.teaching_subjects || [],
+      teaching_subjects: registerSubjects,
       is_active: true,
       is_deleted: false,
       deleted_at: null,
@@ -153,7 +130,13 @@ export class AuthService implements OnModuleInit {
   }
 
   async login(dto: LoginDto) {
-    const rawAccount = (dto.identifier || dto.phone || dto.email || '').trim();
+    // Bộ gõ tiếng Việt (Unikey/EVKey) có thể chèn ký tự zero-width vô hình vào ô
+    // nhập — mắt thấy đúng nhưng chuỗi tra cứu/hash sai. Rửa sạch trước khi xử lý.
+    const stripInvisible = (v: any) => String(v ?? '').replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '');
+    const rawAccount = stripInvisible(dto.identifier || dto.phone || dto.email)
+      .trim()
+      .replace(/\s+/g, '');
+    const password = stripInvisible(dto.password);
     if (!rawAccount) {
       throw new BadRequestException({
         message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
@@ -194,21 +177,7 @@ export class AuthService implements OnModuleInit {
 
     let isMatch = false;
     if (user.password_hash) {
-      isMatch = await bcrypt.compare(dto.password, user.password_hash);
-    }
-    // Hỗ trợ đăng nhập cho Quản trị viên (Admin) với mật khẩu quản trị chuẩn 'Admin@123'
-    if (!isMatch && (user.role === UserRole.ADMIN || user.role === 'ADMIN') && dto.password === 'Admin@123') {
-      isMatch = true;
-    }
-    // Hỗ trợ Giáo viên hoặc phụ huynh với mật khẩu mặc định 'GV@123' hoặc '123456'
-    if (
-      !isMatch &&
-      (user.role === UserRole.TEACHER ||
-        user.role === 'TEACHER_HOMEROOM' ||
-        user.role === 'TEACHER_SUBJECT') &&
-      (dto.password === 'GV@123' || dto.password === '123456')
-    ) {
-      isMatch = true;
+      isMatch = await bcrypt.compare(password, user.password_hash);
     }
 
     if (!isMatch) {
@@ -248,11 +217,20 @@ export class AuthService implements OnModuleInit {
       if (this.firebaseService.auth) {
         decodedToken = await this.firebaseService.auth.verifyIdToken(dto.id_token);
       } else {
-        // Fallback for simulation / mock test
-        decodedToken = { uid: 'fb_mock_' + Date.now(), phone_number: '+84912345678' };
+        throw new UnauthorizedException({
+          message: 'Xác thực Firebase chưa được cấu hình trên hệ thống',
+          error_code: ErrorCode.AUTH_UNAUTHORIZED,
+        });
       }
 
-      const phone = decodedToken.phone_number?.replace('+84', '0') || '0912345678';
+      if (!decodedToken.phone_number) {
+        throw new BadRequestException({
+          message: 'Tài khoản Firebase không có số điện thoại xác thực',
+          error_code: ErrorCode.COMMON_VALIDATION_ERROR,
+        });
+      }
+
+      const phone = String(decodedToken.phone_number).replace('+84', '0');
       let user = await this.findUserByPhone(phone);
 
       if (!user) {

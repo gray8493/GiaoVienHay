@@ -37,8 +37,8 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
       listStudentsByClass: jest.fn().mockImplementation(async (classId: string) => {
         if (classId === 'cls_new_empty') return [];
         return [
-          { id: 'stu_01', student_code: 'HS001', studentCode: 'HS001', full_name: 'Trần Bảo Nam', is_deleted: false },
-          { id: 'stu_02', student_code: 'HS002', studentCode: 'HS002', full_name: 'Lê Ngọc Mai', is_deleted: false },
+          { id: 'stu_01', student_code: 'HS001', studentCode: 'HS001', full_name: 'Trần Bảo Nam', dob: '2020-05-15', gender: 'MALE', parent_phone: '0901234567', parentPhone: '0901234567', is_deleted: false },
+          { id: 'stu_02', student_code: 'HS002', studentCode: 'HS002', full_name: 'Lê Ngọc Mai', dob: '2019-08-20', gender: 'FEMALE', parent_phone: '0901234567', parentPhone: '0901234567', is_deleted: false },
         ];
       }),
       createStudent: jest.fn().mockResolvedValue(true),
@@ -63,6 +63,23 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
           parent_uids: id === 'stu_01' ? ['usr_parent_01'] : [],
         };
       }),
+      getUserById: jest.fn().mockImplementation(async (id: string) => {
+        if (String(id).includes('parent')) {
+          return { id, role: 'PARENT', full_name: 'Lê Văn Bố', phone: '0901234567' };
+        }
+        return {
+          id,
+          role: 'TEACHER',
+          full_name: 'Cô Nguyễn Thu Hà',
+          phone: '0901111111',
+          teaching_subjects: ['MATH', 'LIT'],
+        };
+      }),
+      getUserAssignedInfo: jest.fn().mockResolvedValue({}),
+      mergeUserAssignedInfo: jest.fn().mockResolvedValue({}),
+      removeUserClassAssignment: jest.fn().mockResolvedValue({}),
+      updateClassSubjectTeachers: jest.fn().mockResolvedValue(true),
+      updateClassInviteCode: jest.fn().mockResolvedValue('GVH1A26'),
     };
 
     mockCacheManager = {
@@ -201,7 +218,12 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
   describe('UT03_Classes_TC11: Từ chối thêm học sinh khi trùng mã học sinh (CLASS_STUDENT_CODE_EXISTS)', () => {
     it('ném ConflictException khi mã học sinh đã tồn tại', async () => {
       await expect(
-        service.addStudent('cls_1a_2026', { full_name: 'Lê Bảo Anh', student_code: 'HS001_EXISTING' } as any)
+        service.addStudent('cls_1a_2026', {
+          full_name: 'Lê Bảo Anh',
+          dob: '2020-01-01',
+          parent_phone: '0987654321',
+          student_code: 'HS001_EXISTING',
+        } as any)
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -222,11 +244,11 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
     });
   });
 
-  describe('UT03_Classes_TC14: Từ chối liên kết khi học sinh đã được liên kết với phụ huynh (STUDENT_ALREADY_LINKED)', () => {
-    it('ném ConflictException khi học sinh đã được link trước đó', async () => {
+  describe('UT03_Classes_TC14: Từ chối liên kết khi SĐT tài khoản không khớp với phụ huynh của học sinh (PARENT_PHONE_NOT_MATCHED)', () => {
+    it('ném ForbiddenException khi SĐT phụ huynh không khớp với học sinh', async () => {
       await expect(
-        service.joinClassByInvite('usr_parent_01', { invite_code: 'GVH1A26', student_id: 'stu_01' })
-      ).rejects.toThrow(ConflictException);
+        service.joinClassByInvite('usr_parent_01', { invite_code: 'GVH1A26', student_code: 'stu_01' })
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -320,15 +342,20 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
       const res = await service.getInviteCode('cls_1a_2026', 'usr_teacher_01');
       expect(res.invite_code).toBeDefined();
       expect(res.invite_link).toContain('https://giaovienhay.vn/join');
-      expect(res.expires_in_hours).toBe(72);
+      expect(res.qr_code_url).toContain('api.giaovienhay.vn/qr');
     });
   });
 
   describe('UT03_Classes_TC25: Phụ huynh tham gia lớp qua mã mời thành công', () => {
     it('xác nhận liên kết con em và phản hồi thành công', async () => {
-      const res = await service.joinClassByInvite('usr_parent_02', { invite_code: 'GVH1A26', student_id: 'stu_02' });
+      const res = await service.joinClassByInvite('usr_parent_02', {
+        invite_code: 'GVH1A26',
+        child_name: 'Lê Ngọc Mai',
+        dob: '2019-08-20',
+      });
       expect(res.message).toContain('thành công');
       expect(res.class_id).toBe('cls_1a_2026');
+      expect(res.child.id).toBe('stu_02');
     });
   });
 
@@ -341,6 +368,7 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
             full_name: 'Vũ Hải Đăng',
             dob: '2020-03-12',
             gender: 'MALE',
+            parent_phone: '0912345678',
           },
         ],
       });
@@ -382,7 +410,7 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
         { id: 'stu_deleted', full_name: 'Em B', is_deleted: true },
       ]);
 
-      const detail = await service.getClassDetail('cls_1a_2026', 'usr_01');
+      const detail = await service.getClassDetail('cls_1a_2026', 'usr_teacher_01');
       expect(detail.students.length).toBe(1);
       expect(detail.students[0].id).toBe('stu_active');
     });
@@ -399,7 +427,7 @@ describe('ClassesService (Unit Tests UT03 - All 33 Cases)', () => {
   describe('UT03_Classes_TC32: Xử lý trạng thái rỗng an toàn khi lớp học chưa có học sinh', () => {
     it('trả về mảng students rỗng không bị lỗi null', async () => {
       mockDataConnect.listStudentsByClass.mockResolvedValue([]);
-      const detail = await service.getClassDetail('cls_new_empty', 'usr_01');
+      const detail = await service.getClassDetail('cls_new_empty', 'usr_teacher_01');
       expect(Array.isArray(detail.students)).toBe(true);
     });
   });

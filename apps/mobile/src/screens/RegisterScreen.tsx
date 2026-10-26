@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { authService } from '../services/auth.service';
+import { Bell3D } from '../components/Bell3D';
 
 interface RegisterScreenProps {
   initialRole?: 'TEACHER' | 'PARENT';
@@ -66,13 +67,21 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
       return;
     }
 
+    if (!/^(03|05|07|08|09)\d{8}$/.test(phone.trim())) {
+      setErrorMessage('Số điện thoại phải gồm đúng 10 chữ số, bắt đầu bằng đầu số hợp lệ: 03, 05, 07, 08, 09');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setErrorMessage('Mật khẩu nhập lại không khớp');
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage('Mật khẩu phải chứa ít nhất 6 ký tự');
+    // Chuẩn mật khẩu khớp yêu cầu Backend: 8+ ký tự, có chữ hoa, chữ thường, số, ký tự đặc biệt
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
+      setErrorMessage(
+        'Mật khẩu phải từ 8 ký tự trở lên, gồm ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt (@ $ ! % * ? &)\nVí dụ: MatKhau123@',
+      );
       return;
     }
 
@@ -164,13 +173,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
               </View>
 
               <View style={styles.headerImageWrap}>
-                <Image
-                  source={{
-                    uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBHapMgX3qy1dHYA-_eL84gCtaDIt24Q3VlJ43EgH147CRz-febHoUo7lciHHh-YVEjpE0L2XGn0BvaZSZfazNpFzbDEYN0uzYxkK4BaCldWlzv1ry-b-yWm3zAeL8z_OjsE6ANCNgBar47ljPIIkFhB6B5wPsfk-oQ2MuAUWvFCTRBV8TmJI6qkBr5qV8ZDCFZzGuniUntnbZCb6g5stgy7HsN-RJ7oyq-fZe570wgJgXqMo6NC1FLXw',
-                  }}
-                  style={styles.header3DAsset}
-                  resizeMode="contain"
-                />
+                <Bell3D size={52} tiltAngle={-6} animated={true} />
               </View>
             </View>
 

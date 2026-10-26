@@ -9,14 +9,17 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Line, Polyline } from 'react-native-svg';
-import { parentService } from '../services/parent.service';
+import { parentService, PARENT_SCORE_COLUMNS } from '../services/parent.service';
 
 interface ParentAcademicScreenProps {
   studentId?: string;
   studentName?: string;
   className?: string;
+  /** Tab mở khi vào màn (vd bấm thẻ "Nhận xét"/"Kiểm tra" từ Trang chủ) */
+  initialTab?: 'GRADES' | 'REMARKS' | 'ATTENDANCE';
   onBackToHome?: () => void;
   onNavigateToTab?: (tabKey: 'home' | 'academic' | 'fees' | 'profile') => void;
   onOpenNotifications?: () => void;
@@ -24,17 +27,48 @@ interface ParentAcademicScreenProps {
 
 type TabType = 'GRADES' | 'REMARKS' | 'ATTENDANCE';
 
+const pickScoreValue = (scores: any[], aliases: string[]): number | null => {
+  let latest: any = null;
+  for (const score of scores || []) {
+    if (!aliases.includes(String(score.type || ''))) continue;
+    if (
+      latest === null ||
+      String(score.created_at || '') > String(latest.created_at || '')
+    ) {
+      latest = score;
+    }
+  }
+  if (!latest || latest.value === '--') return null;
+  const value = Number(latest.value);
+  return isNaN(value) ? null : value;
+};
+
 export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
   studentId = '',
   studentName = 'Học sinh',
   className = '',
+  initialTab,
   onBackToHome,
   onNavigateToTab,
   onOpenNotifications,
 }) => {
-  const [currentTab, setCurrentTab] = useState<TabType>('GRADES');
+  const [currentTab, setCurrentTab] = useState<TabType>(initialTab ?? 'GRADES');
   const [semester, setSemester] = useState<'HK1' | 'HK2'>('HK1');
-  const [selectedMonth, setSelectedMonth] = useState('Tháng 10');
+
+  // Tháng chuyên cần: mặc định là tháng hiện tại (trước đây bị cứng '2026-10')
+  const buildMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const monthKeyLabel = (key: string) => {
+    const [y, m] = key.split('-');
+    const nowYear = String(new Date().getFullYear());
+    return y === nowYear ? `Tháng ${Number(m)}` : `Tháng ${Number(m)}/${y}`;
+  };
+  const [attendanceMonth, setAttendanceMonth] = useState(buildMonthKey(new Date()));
+  const [isMonthSheetVisible, setIsMonthSheetVisible] = useState(false);
+  const monthOptions = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    return buildMonthKey(d);
+  });
 
   // Dữ liệu Điểm số
   const [academicData, setAcademicData] = useState<any[]>([]);
@@ -47,11 +81,11 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, [currentTab, studentId]);
+  }, [currentTab, studentId, semester, attendanceMonth]);
 
   const loadData = async () => {
     if (!studentId) {
@@ -66,14 +100,14 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
     setLoading(true);
     try {
       if (currentTab === 'GRADES') {
-        const data = await parentService.getFullAcademicRecord(studentId);
+        const data = await parentService.getFullAcademicRecord(studentId, semester === 'HK1' ? 1 : 2);
         setAcademicData(data);
       } else if (currentTab === 'REMARKS') {
         const data = await parentService.getRemarksAndExams(studentId);
         setExamsList(data.exams);
         setRemarksList(data.remarks);
       } else {
-        const data = await parentService.getAttendanceDetails(studentId, '2026-10');
+        const data = await parentService.getAttendanceDetails(studentId, attendanceMonth);
         if (data.summary) setAttendanceSummary(data.summary);
         else setAttendanceSummary(null);
         if (data.logs) setAttendanceLogs(data.logs);
@@ -84,14 +118,6 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  // Xác nhận đã đọc nhận xét
-  const handleConfirmRemark = (remarkId: string) => {
-    setRemarksList(prev =>
-      prev.map(r => (r.id === remarkId ? { ...r, is_read: true } : r))
-    );
-    Alert.alert('Thành công', 'Đã xác nhận đã đọc nhận xét của giáo viên.');
   };
 
   return (
@@ -148,8 +174,9 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
             <TouchableOpacity
               style={styles.filterPillButton}
               activeOpacity={0.8}
+              onPress={() => setIsMonthSheetVisible(true)}
             >
-              <Text style={styles.filterPillText} numberOfLines={1}>{selectedMonth}</Text>
+              <Text style={styles.filterPillText} numberOfLines={1}>{monthKeyLabel(attendanceMonth)}</Text>
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#554339" strokeWidth={2.5}>
                 <Path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
@@ -217,7 +244,14 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
         {/* ======================================================== */}
         {!loading && currentTab === 'GRADES' && (
           <View style={styles.tabContentWrap}>
-            {academicData.length === 0 ? (
+            {loading && academicData.length === 0 ? (
+              <View style={{ paddingVertical: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 20 }}>
+                <ActivityIndicator size="large" color="#F58F4C" />
+                <Text style={{ marginTop: 14, fontSize: 13, color: '#887367', fontWeight: '500' }}>
+                  Đang tải bảng điểm học tập...
+                </Text>
+              </View>
+            ) : academicData.length === 0 ? (
               <View style={styles.emptyTabCard}>
                 <Text style={styles.emptyTabTitle}>Chưa có điểm số</Text>
                 <Text style={styles.emptyTabSub}>Giáo viên bộ môn chưa cập nhật bảng điểm cho học kỳ này.</Text>
@@ -240,17 +274,20 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
                     </View>
                   </View>
 
-                  {/* 4 Score Columns Grid: FIX LỖI ĐÈ CHỮ */}
+                  {/* 5 cột điểm chuẩn theo sổ điểm giáo viên (chỉ xem) */}
                   <View style={styles.scoresGrid}>
-                    {item.scores?.map((score: any, idx: number) => {
-                      const isFaint = score.value === '--';
+                    {PARENT_SCORE_COLUMNS.map((col) => {
+                      const value = pickScoreValue(item.scores, col.aliases);
                       return (
-                        <View key={idx} style={[styles.scoreBox, isFaint && styles.scoreBoxFaint]}>
+                        <View key={col.key} style={styles.scoreBox}>
                           <Text style={styles.scoreTypeLabel} numberOfLines={1}>
-                            {score.label}
+                            {col.label}
                           </Text>
-                          <Text style={[styles.scoreValueText, isFaint && styles.scoreValueFaint]} numberOfLines={1}>
-                            {score.value}
+                          <Text
+                            style={value !== null ? styles.scoreValueText : styles.scoreValuePlaceholder}
+                            numberOfLines={1}
+                          >
+                            {value !== null ? value.toFixed(1) : '--'}
                           </Text>
                         </View>
                       );
@@ -270,94 +307,205 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
             {/* Card: Lịch Kiểm Tra */}
             <View style={styles.examSectionCard}>
               <View style={styles.examCardHeader}>
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                  <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <Line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" />
-                  <Line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
-                  <Line x1="3" y1="10" x2="21" y2="10" />
-                </Svg>
-                <Text style={styles.examCardTitle} numberOfLines={1}>Lịch Kiểm Tra</Text>
+                <View style={styles.examHeaderLeft}>
+                  <View style={styles.examHeaderIcon}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
+                      <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <Line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" />
+                      <Line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
+                      <Line x1="3" y1="10" x2="21" y2="10" />
+                    </Svg>
+                  </View>
+                  <View style={styles.examHeaderTextWrap}>
+                    <Text style={styles.examCardTitle} numberOfLines={1}>Lịch Kiểm Tra</Text>
+                    <Text style={styles.examCardSubtitle}>Các bài kiểm tra sắp tới của con</Text>
+                  </View>
+                </View>
+                {examsList.length > 0 && (
+                  <View style={styles.examCountPill}>
+                    <Text style={styles.examCountText}>{examsList.length} bài</Text>
+                  </View>
+                )}
               </View>
 
-              {examsList.map((exam, idx) => (
-                <View key={exam.id || idx}>
-                  <View style={styles.examRow}>
-                    <View style={styles.examRowLeft}>
-                      <View style={styles.examIconTile}>
-                        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
-                          {idx === 0 ? (
-                            <>
-                              <Rect x="3" y="4" width="18" height="18" rx="2" />
-                              <Path d="M16 2v4M8 2v4M3 10h18" />
-                            </>
-                          ) : (
-                            <>
-                              <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </>
-                          )}
-                        </Svg>
-                      </View>
-                      <Text style={styles.examTitleText} numberOfLines={1}>{exam.title}</Text>
-                    </View>
-                    <Text style={styles.examDateBadge} numberOfLines={1}>{exam.date_label}</Text>
+              {examsList.length === 0 ? (
+                <View style={styles.examEmptyWrap}>
+                  <View style={styles.examEmptyIcon}>
+                    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
+                      <Rect x="3" y="4" width="18" height="18" rx="3" />
+                      <Path d="M8 2v4M16 2v4M3 10h18" />
+                      <Path d="M9 15l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
                   </View>
-                  {idx < examsList.length - 1 && <View style={styles.hairlineDivider} />}
+                  <Text style={styles.examEmptyTitle}>Chưa có lịch kiểm tra sắp tới</Text>
+                  <Text style={styles.examEmptySub}>Lịch kiểm tra mới sẽ được giáo viên cập nhật tại đây.</Text>
                 </View>
-              ))}
+              ) : (
+                examsList.map((exam, idx) => (
+                  <View key={exam.id || idx}>
+                    <View style={styles.examItemRow}>
+                      <View style={[styles.examDateTile, exam.is_today && styles.examDateTileToday]}>
+                        <Text style={[styles.examWeekdayText, exam.is_today && styles.examDateTextToday]}>
+                          {exam.weekday_short || '--'}
+                        </Text>
+                        <Text style={[styles.examDayText, exam.is_today && styles.examDateTextToday]}>
+                          {exam.day_number || '--'}
+                        </Text>
+                        <Text style={[styles.examMonthText, exam.is_today && styles.examDateTextToday]}>
+                          {exam.month_label || exam.date_label}
+                        </Text>
+                      </View>
+
+                      <View style={styles.examInfoWrap}>
+                        <View style={styles.examBadgeRow}>
+                          <View style={styles.examTypeBadge}>
+                            <Text style={styles.examTypeBadgeText} numberOfLines={1}>
+                              {exam.exam_type_label}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.examCountdownPill,
+                              exam.is_today && styles.examCountdownPillToday,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.examCountdownText,
+                                exam.is_today && styles.examCountdownTextToday,
+                              ]}
+                            >
+                              {exam.countdown_label}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.examSubjectRow}>
+                          <View
+                            style={[
+                              styles.examSubjectDot,
+                              { backgroundColor: exam.subject_color || '#F58F4C' },
+                            ]}
+                          />
+                          <Text style={styles.examSubjectText} numberOfLines={1}>
+                            {exam.subject_name}
+                          </Text>
+                        </View>
+
+                        <Text style={styles.examDateText} numberOfLines={1}>
+                          {exam.weekday_label}, {exam.date_label}
+                        </Text>
+
+                        {exam.note ? (
+                          <Text style={styles.examNoteText} numberOfLines={2}>
+                            {exam.note}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    {idx < examsList.length - 1 && <View style={styles.hairlineDivider} />}
+                  </View>
+                ))
+              )}
             </View>
 
-            {/* Các Card Nhận Xét: FIX LỖI RỚT NGÀY THÁNG */}
-            {remarksList.map((rmk) => (
-              <View key={rmk.id} style={styles.remarkCard}>
-                <View style={styles.remarkHeader}>
-                  <Text style={styles.remarkTeacherTitle} numberOfLines={1}>
-                    {rmk.teacher_title}
-                  </Text>
-                  <Text style={styles.remarkDateText} numberOfLines={1}>
-                    {rmk.date_str}
+            {/* ======================================================== */}
+            {/* Card: Nhận Xét Của Giáo Viên (Đồng bộ Form Khung Lịch Kiểm Tra + 3D) */}
+            {/* ======================================================== */}
+            <View style={styles.remarkSectionCard}>
+              <View style={styles.remarkCardHeader}>
+                <View style={styles.remarkHeaderLeft}>
+                  <View style={styles.remarkHeaderIcon3D}>
+                    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                      <Defs>
+                        <SvgLinearGradient id="remGrad3D" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <Stop offset="0%" stopColor="#FFA67A" />
+                          <Stop offset="100%" stopColor="#E26D2B" />
+                        </SvgLinearGradient>
+                      </Defs>
+                      <Path
+                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                        fill="url(#remGrad3D)"
+                      />
+                    </Svg>
+                  </View>
+                  <View style={styles.remarkHeaderTextWrap}>
+                    <Text style={styles.remarkCardTitle} numberOfLines={1}>Nhận Xét Của Giáo Viên</Text>
+                    <Text style={styles.remarkCardSubtitle}>Đánh giá rèn luyện và tiến bộ của con</Text>
+                  </View>
+                </View>
+                <View style={styles.remarkCountPill}>
+                  <Text style={styles.remarkCountText}>
+                    {remarksList.length} lời nhắn
                   </Text>
                 </View>
+              </View>
 
-                <Text style={styles.remarkContentText}>
-                  {rmk.content}
-                </Text>
-
-                <View style={styles.remarkActionWrap}>
-                  {rmk.is_read ? (
-                    <View style={styles.readBadge}>
-                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={3}>
-                        <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+              {/* Danh sách nhận xét */}
+              {remarksList.length === 0 && (
+                <View style={styles.remarkEmptyWrap}>
+                  <Text style={styles.remarkEmptyTitle}>Chưa có nhận xét nào</Text>
+                  <Text style={styles.remarkEmptySub}>
+                    Khi giáo viên gửi nhận xét, nội dung sẽ hiển thị tại đây.
+                  </Text>
+                </View>
+              )}
+              {remarksList.map((rmk, idx, arr) => (
+                <View key={rmk.id || idx}>
+                  <View style={styles.remarkItemRow}>
+                    {/* Cột trái: Tile avatar/icon môn học 3D */}
+                    <View style={styles.remarkSubjectTile}>
+                      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                        <Defs>
+                          <SvgLinearGradient id={`remTileGrad_${idx}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#60A5FA" />
+                            <Stop offset="100%" stopColor="#2563EB" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <Circle cx="12" cy="12" r="10" fill={`url(#remTileGrad_${idx})`} />
+                        <Path d="M8 12h8M12 8v8" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
                       </Svg>
-                      <Text style={styles.readBadgeText}>Đã đọc</Text>
+                      <Text style={styles.remarkTileSubjCode}>{rmk.subject_code || '—'}</Text>
                     </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.confirmReadBtn}
-                      activeOpacity={0.85}
-                      onPress={() => handleConfirmRemark(rmk.id)}
-                    >
-                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={3}>
-                        <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
-                      </Svg>
-                      <Text style={styles.confirmReadText}>Xác Nhận</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ))}
 
-            {/* Micro-Quote Card */}
-            <View style={styles.quoteCard}>
-              <View style={styles.quoteIconBox}>
-                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#984704" strokeWidth={2}>
-                  <Path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                </Svg>
-              </View>
-              <Text style={styles.quoteText}>
-                "Mỗi ngày một trang sách mới cùng thầy cô và bạn bè."
-              </Text>
+                    {/* Cột phải: Thông tin nhận xét */}
+                    <View style={styles.remarkInfoWrap}>
+                      <View style={styles.remarkBadgeRow}>
+                        <View style={styles.remarkSubjectBadge}>
+                          <Text style={styles.remarkSubjectBadgeText} numberOfLines={1}>
+                            {rmk.subject_name || 'Môn học'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Tên giáo viên và ngày */}
+                      <View style={styles.remarkTeacherRow}>
+                        <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#984704" strokeWidth={2}>
+                          <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <Circle cx="12" cy="7" r="4" />
+                        </Svg>
+                        <Text style={styles.remarkTeacherText} numberOfLines={1}>
+                          {rmk.teacher_title || rmk.teacher_name || 'Giáo viên'}
+                        </Text>
+                        {rmk.date_str ? (
+                          <>
+                            <Text style={styles.remarkDotSeparator}>•</Text>
+                            <Text style={styles.remarkDateLabel}>{rmk.date_str}</Text>
+                          </>
+                        ) : null}
+                      </View>
+
+                      {/* Khung lời nhắn trích dẫn (Bento Quote Bubble 3D thân thiện) */}
+                      <View style={styles.remarkBubbleCard}>
+                        <Text style={styles.remarkContentText}>
+                          {rmk.content}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  {idx < arr.length - 1 && <View style={styles.hairlineDivider} />}
+                </View>
+              ))}
             </View>
           </View>
         )}
@@ -547,6 +695,46 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
           <Text style={styles.dockLabel}>Cá nhân</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ================= BOTTOM SHEET CHỌN THÁNG (Chuyên cần) ================= */}
+      <Modal
+        visible={isMonthSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsMonthSheetVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.monthSheetOverlay}
+          activeOpacity={1}
+          onPress={() => setIsMonthSheetVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.monthSheetCard}>
+            <Text style={styles.monthSheetTitle}>Chọn tháng cần xem</Text>
+            {monthOptions.map((key) => {
+              const isSelected = key === attendanceMonth;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.monthSheetItem, isSelected && styles.monthSheetItemActive]}
+                  onPress={() => {
+                    setAttendanceMonth(key);
+                    setIsMonthSheetVisible(false);
+                  }}
+                >
+                  <Text style={[styles.monthSheetItemText, isSelected && styles.monthSheetItemTextActive]}>
+                    {monthKeyLabel(key)}
+                  </Text>
+                  {isSelected && (
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={3}>
+                      <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -738,31 +926,35 @@ const styles = StyleSheet.create({
   scoreBox: {
     flex: 1,
     backgroundColor: '#FFF1E6',
-    borderRadius: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 56,
-  },
-  scoreBoxFaint: {
-    opacity: 0.65,
   },
   scoreTypeLabel: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#554339',
-    marginBottom: 3,
+    lineHeight: 14,
+    fontWeight: '500',
+    color: '#6B6880',
+    marginBottom: 2,
     textAlign: 'center',
   },
   scoreValueText: {
-    fontSize: 18,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: '800',
-    color: '#1C192C',
+    color: '#1E1B2E',
+    marginTop: 2,
     textAlign: 'center',
   },
-  scoreValueFaint: {
-    color: '#887367',
+  scoreValuePlaceholder: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: '#6B6880',
+    marginTop: 2,
+    textAlign: 'center',
   },
 
   /* PAR-02b Remarks & Exams */
@@ -779,140 +971,345 @@ const styles = StyleSheet.create({
   examCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 14,
+  },
+  examHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  examHeaderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  examHeaderTextWrap: {
+    flex: 1,
   },
   examCardTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1E1B2E',
   },
-  examRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
+  examCardSubtitle: {
+    fontSize: 11,
+    color: '#8A7B72',
+    marginTop: 2,
   },
-  examRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  examIconTile: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  examCountPill: {
     backgroundColor: '#FFF1E6',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    flexShrink: 0,
+  },
+  examCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B9671F',
+  },
+  examEmptyWrap: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  examEmptyIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#FFF4EA',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
   },
-  examTitleText: {
-    fontSize: 14,
-    fontWeight: '600',
+  examEmptyTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
     color: '#1E1B2E',
-    flex: 1,
   },
-  examDateBadge: {
-    fontSize: 12,
-    fontWeight: '600',
+  examEmptySub: {
+    fontSize: 11.5,
+    color: '#8A7B72',
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  examItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  examDateTile: {
+    width: 54,
+    borderRadius: 14,
+    backgroundColor: '#FFF4EA',
+    borderWidth: 1,
+    borderColor: '#FFE1CC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+  },
+  examDateTileToday: {
+    backgroundColor: '#F58F4C',
+    borderColor: '#F58F4C',
+  },
+  examWeekdayText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B4744B',
+    textTransform: 'uppercase',
+  },
+  examDayText: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    lineHeight: 25,
+    marginVertical: 1,
+  },
+  examMonthText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B4744B',
+  },
+  examDateTextToday: {
+    color: '#FFFFFF',
+  },
+  examInfoWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  examBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  examTypeBadge: {
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    flexShrink: 1,
+  },
+  examTypeBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#B9671F',
+  },
+  examCountdownPill: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    marginLeft: 'auto',
+  },
+  examCountdownPillToday: {
+    backgroundColor: '#FFE3D1',
+  },
+  examCountdownText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: '#6B6880',
-    flexShrink: 0,
-    marginLeft: 8,
+  },
+  examCountdownTextToday: {
+    color: '#C2410C',
+  },
+  examSubjectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  examSubjectDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  examSubjectText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    flexShrink: 1,
+  },
+  examDateText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#8A7B72',
+    marginTop: 3,
+  },
+  examNoteText: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: '#6B6880',
+    marginTop: 4,
   },
   hairlineDivider: {
     height: 1,
     backgroundColor: '#F3F4F6',
   },
-  remarkCard: {
+  /* Form khung nhận xét đồng bộ với Lịch kiểm tra + Hiệu ứng 3D */
+  remarkSectionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#FFE7D3',
+    shadowColor: '#C97A3E',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 3,
+    marginBottom: 20,
   },
-  remarkHeader: {
+  remarkCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 14,
   },
-  remarkTeacherTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E1B2E',
+  remarkHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     flex: 1,
-    paddingRight: 8,
   },
-  remarkDateText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B6880',
-    flexShrink: 0,
-  },
-  remarkContentText: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-  },
-  remarkActionWrap: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-  },
-  confirmReadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF1E6',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 9999,
-  },
-  confirmReadText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#F58F4C',
-  },
-  readBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 9999,
-  },
-  readBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#10B981',
-  },
-  quoteCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  quoteIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFDBC8',
+  remarkHeaderIcon3D: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FFF4EA',
+    borderWidth: 1,
+    borderColor: '#FFE1CC',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quoteText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: '#554339',
+  remarkHeaderTextWrap: {
     flex: 1,
-    lineHeight: 16,
+  },
+  remarkCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E1B2E',
+  },
+  remarkCardSubtitle: {
+    fontSize: 11,
+    color: '#8A7B72',
+    marginTop: 2,
+  },
+  remarkCountPill: {
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    flexShrink: 0,
+  },
+  remarkCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B9671F',
+  },
+  remarkEmptyWrap: {
+    paddingVertical: 22,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  remarkEmptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3D2C29',
+    marginBottom: 4,
+  },
+  remarkEmptySub: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#8A7B72',
+    textAlign: 'center',
+  },
+  remarkItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 14,
+  },
+  remarkSubjectTile: {
+    width: 52,
+    borderRadius: 16,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 3,
+  },
+  remarkTileSubjCode: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1E40AF',
+    letterSpacing: 0.5,
+  },
+  remarkInfoWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  remarkBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginBottom: 6,
+  },
+  remarkSubjectBadge: {
+    backgroundColor: '#EBF3FF',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 9999,
+  },
+  remarkSubjectBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  remarkTeacherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+  },
+  remarkTeacherText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#7A431D',
+  },
+  remarkDotSeparator: {
+    fontSize: 12,
+    color: '#BDB3AC',
+  },
+  remarkDateLabel: {
+    fontSize: 11.5,
+    color: '#8A7B72',
+    fontWeight: '500',
+  },
+  remarkBubbleCard: {
+    backgroundColor: '#FFFBF7',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FFE8D6',
+    borderLeftWidth: 3.5,
+    borderLeftColor: '#F58F4C',
+  },
+  remarkContentText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#372B20',
   },
 
   /* PAR-02c Attendance Tab */
@@ -1178,5 +1575,45 @@ const styles = StyleSheet.create({
     color: '#6B6880',
     textAlign: 'center',
     lineHeight: 18,
+  },
+
+  monthSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 27, 46, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  monthSheetCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 28,
+  },
+  monthSheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E1B2E',
+    marginBottom: 12,
+  },
+  monthSheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  monthSheetItemActive: {
+    backgroundColor: '#FFF3E6',
+  },
+  monthSheetItemText: {
+    fontSize: 15,
+    color: '#3F3D56',
+    fontWeight: '500',
+  },
+  monthSheetItemTextActive: {
+    color: '#C2570F',
+    fontWeight: '700',
   },
 });

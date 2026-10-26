@@ -5,17 +5,39 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import { scoreTypeLabel, subjectLabel } from '../../common/utils/labels';
+import { NotificationsService } from '../11-notifications/notifications.service';
 import { BatchInputScoresDto, PublishScoresDto } from './dto/grades.dto';
 import { NotificationType } from '@giaovienhay/shared-types';
+
+export interface GradesPublishedPayload {
+  classId: string;
+  subjectCode: string;
+  scoreType: string;
+  /** Công bố nhiều cột cùng lúc — worker gom thành 1 thông báo/học sinh */
+  scoreTypes?: string[];
+  semester?: number;
+  teacherName?: string;
+  students: Array<{
+    studentId: string;
+    studentName?: string;
+    /** Đã từng nhận thông báo cột này → gửi loại Đính chính thay vì Công bố */
+    isCorrection?: boolean;
+    /** Các ô thay đổi của em (để thông báo nêu điểm mới) */
+    changed?: Array<{ type: string; value: number }>;
+  }>;
+}
 
 @Injectable()
 export class GradesService {
   private readonly logger = new Logger(GradesService.name);
-  private readonly publishedColumns = new Set<string>();
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getClassGrades(classId: string, subjectCode: string, semester: number = 1, teacherId?: string) {
@@ -49,11 +71,55 @@ export class GradesService {
       `, { classId, subject: subjectCode });
 
       if (sqlScores.data?.scores && sqlScores.data.scores.length > 0) {
-        return sqlScores.data.scores;
+        return this.attachUpdatedByTeacherName(sqlScores.data.scores);
       }
     } catch (e) {}
 
+    // Fallback: đọc trực tiếp bảng scores (Supabase) theo pattern listScoresByClass
+    if (typeof this.dataConnect.listScoresByClass === 'function') {
+      try {
+        const rows = await this.dataConnect.listScoresByClass(classId, subjectCode, semester);
+        if (rows && rows.length > 0) {
+          return this.attachUpdatedByTeacherName(rows);
+        }
+      } catch (e: any) {
+        this.logger.warn(`listScoresByClass fallback failed: ${e?.message}`);
+      }
+    }
+
     return [];
+  }
+
+  /**
+   * Sổ điểm cần biết "cô nào sửa ô này lúc nào" (khi GVBM được thay giữa kỳ).
+   * Chỉ phân biệt được bằng id giáo viên nên trả kèm tên để client khỏi gọi thêm API.
+   */
+  private async attachUpdatedByTeacherName(rows: any[]) {
+    const teacherIds = Array.from(
+      new Set(
+        rows
+          .map((r: any) => String(r.updatedByTeacherId ?? r.updated_by_teacher_id ?? ''))
+          .filter((id) => id && !id.startsWith('usr_admin')),
+      ),
+    );
+    if (teacherIds.length === 0) return rows;
+
+    const nameById = new Map<string, string>();
+    await Promise.all(
+      teacherIds.map(async (id) => {
+        try {
+          const user = await this.dataConnect.getUserById(id);
+          const name = user?.full_name || (user as any)?.fullName || '';
+          if (name) nameById.set(id, name);
+        } catch (e) {}
+      }),
+    );
+
+    return rows.map((r: any) => {
+      const tid = String(r.updatedByTeacherId ?? r.updated_by_teacher_id ?? '');
+      if (!tid) return r;
+      return { ...r, updated_by_teacher_id: tid, updated_by_teacher_name: nameById.get(tid) || '' };
+    });
   }
 
   async batchInputScores(
@@ -154,8 +220,25 @@ export class GradesService {
       }
     }
 
-    const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}`;
-    const isColPublished = dto.is_published || this.publishedColumns.has(colKey) || this.publishedColumns.has(`${colKey}_${dto.semester || 1}`);
+    // Trạng thái "cột đã công bố" đọc từ DB (is_published trên từng dòng điểm)
+    let existingRows: any[] = [];
+    try {
+      if (typeof (this.dataConnect as any).listScoresByClass === 'function') {
+        existingRows =
+          (await this.dataConnect.listScoresByClass(dto.class_id, dto.subject_code, dto.semester || 1)) || [];
+      }
+    } catch {}
+    const colRows = existingRows.filter(
+      (r: any) => String(r.scoreType || r.score_type || '') === String(dto.score_type),
+    );
+    const oldRowByStudent = new Map<string, any>();
+    for (const r of colRows) {
+      const sid = String(r.studentId ?? r.student_id ?? '');
+      if (sid) oldRowByStudent.set(sid, r);
+    }
+    const isColPublished =
+      dto.is_published ||
+      colRows.some((r: any) => (r.isPublished ?? r.is_published) === true);
     const hasCorrectionReason = dto.is_correction || (dto as any).correction_reason || dto.scores?.some((s: any) => s.correction_reason || s.teacher_comment);
 
     if (isColPublished && !hasCorrectionReason) {
@@ -169,6 +252,7 @@ export class GradesService {
 
     for (const item of dto.scores) {
       const docId = `score_${dto.class_id}_${dto.subject_code}_${item.student_id}_${dto.score_type}`;
+      const oldRow = oldRowByStudent.get(item.student_id);
       const scoreData = {
         id: docId,
         student_id: item.student_id,
@@ -183,6 +267,21 @@ export class GradesService {
         term: dto.semester || 1,
         academic_year: '2026-2027',
         academicYear: '2026-2027',
+        // Điểm vừa nhập/sửa = CHƯA gửi cho PH; chỉ Gửi sổ liên lạc mới đánh dấu đã gửi.
+        // published_once giữ dấu "đã từng gửi" — lần gửi kế tiếp dùng loại Đính chính
+        is_published: false,
+        isPublished: false,
+        published_once:
+          oldRow?.published_once === true ||
+          oldRow?.publishedOnce === true ||
+          oldRow?.is_published === true ||
+          oldRow?.isPublished === true,
+        // GVBM có thể bị đổi giữa học kỳ: ô điểm là bản ghi duy nhất theo
+        // (lớp, môn, hs, loại bài) nên cô sau ghi đè — lưu lại ai sửa lần cuối
+        updated_by_teacher_id: teacherId || null,
+        updatedByTeacherId: teacherId || null,
+        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       // Lưu hoàn toàn vào SQL Data Connect
@@ -195,9 +294,16 @@ export class GradesService {
         subject_code: dto.subject_code,
         score_type: dto.score_type,
         student_id: dto.scores[0].student_id,
-        old_score: 7.0,
+        old_score: oldRowByStudent.get(dto.scores[0].student_id)
+          ? Number(
+              oldRowByStudent.get(dto.scores[0].student_id).scoreValue ??
+                oldRowByStudent.get(dto.scores[0].student_id).score_value ??
+                null,
+            ) || null
+          : null,
         new_score: dto.scores[0].score_value,
-        notified_parents_count: 1,
+        // batch KHÔNG gửi thông báo — chỉ POST /grades/publish mới gửi
+        notified_parents_count: 0,
         updated_at: new Date().toISOString(),
       };
     }
@@ -276,15 +382,31 @@ export class GradesService {
     };
   }
 
-  async publishScores(teacherId: string, dto: PublishScoresDto & { no_scores?: boolean; already_published?: boolean }) {
-    const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}_${dto.semester || 1}`;
-    const simpleKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}`;
+  async publishScores(
+    teacherId: string,
+    dto: PublishScoresDto & { no_scores?: boolean; already_published?: boolean; score_types?: string[] },
+  ) {
+    // score_types: công bố NHIỀU cột trong MỘT lần gọi — backend phát MỘT sự kiện,
+    // worker gom thành MỘT thông báo/học sinh thay vì mỗi cột một thông báo.
+    const requestedTypes = (Array.isArray(dto.score_types) && dto.score_types.length > 0
+      ? dto.score_types.filter(Boolean)
+      : [dto.score_type]
+    ).filter((t, i, a) => a.indexOf(t) === i);
+    const isBatch = Array.isArray(dto.score_types) && dto.score_types.length > 0;
 
-    if (dto.already_published || this.publishedColumns.has(colKey) || this.publishedColumns.has(simpleKey)) {
+    const now = new Date().toISOString();
+
+    // 1) KHÔNG chặn cột "đã từng công bố" bằng Set trong RAM: sau khi giáo viên
+    // đính chính, ô điểm được ghi is_published=false trong DB nên vẫn phải đi tiếp
+    // để gửi thông báo Đính chính. Delta thật luôn đọc từ DB bên dưới.
+    // Chỉ tôn trọng cờ already_published khi phía gọi chủ động truyền vào.
+    const newTypes = dto.already_published ? [] : requestedTypes;
+
+    if (newTypes.length === 0) {
       const duplicateGuard = {
         already_published: true,
         notified_parents_count: 0,
-        published_at: new Date().toISOString(),
+        published_at: now,
       };
       return {
         message: 'Cột điểm này đã được công bố từ trước. Không có thông báo mới nào cần gửi thêm.',
@@ -302,9 +424,18 @@ export class GradesService {
       });
     }
 
+    let scoresForFanout: any[] = [];
     try {
       const currentScores = await this.getClassGrades(dto.class_id, dto.subject_code, dto.semester || 1, teacherId);
       if (currentScores && currentScores.length === 0) {
+        if (isBatch) {
+          return {
+            message: 'Không có cột điểm nào có dữ liệu để công bố.',
+            notified_parents_count: 0,
+            published_types: [],
+            published_at: now,
+          };
+        }
         throw new BadRequestException({
           success: false,
           status_code: 400,
@@ -312,60 +443,306 @@ export class GradesService {
           message: `Không thể công bố do chưa có dữ liệu điểm nào được nhập cho cột điểm ${dto.score_type || 'FINAL'}`,
         });
       }
+      scoresForFanout = currentScores || [];
     } catch (e: any) {
       if (e instanceof BadRequestException) throw e;
     }
 
-    this.publishedColumns.add(colKey);
-    this.publishedColumns.add(simpleKey);
+    // 2) Batch: chỉ công bố những cột THỰC SỰ có điểm, bỏ qua cột trống
+    const typesWithData = isBatch
+      ? newTypes.filter((t) =>
+          scoresForFanout.some(
+            (row: any) => String(row.scoreType || row.score_type || '') === String(t),
+          ),
+        )
+      : newTypes;
 
-    const now = new Date().toISOString();
-
-    // Bắn thông báo kết quả học tập cho phụ huynh vào SQL (có fallback an toàn)
-    try {
-      const notifId = 'notif_score_' + Date.now();
-      const notifData = {
-        id: notifId,
-        recipient_id: 'class_' + dto.class_id,
-        recipientId: 'class_' + dto.class_id,
-        title: 'Công bố điểm mới',
-        body: `Giáo viên vừa công bố điểm ${dto.score_type} môn ${dto.subject_code}. Kính mời quý phụ huynh xem chi tiết trong Sổ liên lạc.`,
-        type: NotificationType.GRADE_PUBLISHED,
+    if (typesWithData.length === 0) {
+      return {
+        message: 'Không có cột điểm nào có dữ liệu để công bố.',
+        notified_parents_count: 0,
+        published_types: [],
+        published_at: now,
       };
-
-      await this.dataConnect.createNotification(notifData);
-    } catch (err: any) {
-      this.logger.warn(`[Grades] FCM notification fallback triggered: ${err?.message}`);
     }
 
+    // 3) Delta: chỉ gửi cho học sinh có ô CHƯA gửi (is_published=false).
+    // Học sinh từng nhận cột này → thông báo loại Đính chính; lần đầu → Công bố.
+    const rowsForTypes = scoresForFanout.filter((row: any) =>
+      typesWithData.some((t) => String(row.scoreType || row.score_type || '') === String(t)),
+    );
+    const everPublished = new Set<string>();
+    const changedByStudent = new Map<
+      string,
+      { studentId: string; studentName?: string; changed: Array<{ type: string; value: number }> }
+    >();
+    for (const row of rowsForTypes) {
+      const sid = String(row.studentId || row.student_id || '');
+      if (!sid) continue;
+      const published = (row.isPublished ?? (row as any).is_published) === true;
+      // ĐÃ TỪNG gửi cho PH (kể cả lần trước, dù vừa sửa) → loại Đính chính
+      const everSent =
+        published || (row.published_once ?? (row as any).published_once) === true;
+      const name = row.full_name || row.fullName || row.student_name;
+      if (everSent) {
+        everPublished.add(sid);
+      }
+      if (!published) {
+        const entry =
+          changedByStudent.get(sid) || { studentId: sid, studentName: name, changed: [] };
+        if (!entry.studentName && name) entry.studentName = name;
+        entry.changed.push({
+          type: String(row.scoreType || row.score_type),
+          value: Number(row.scoreValue ?? row.score_value ?? 0),
+        });
+        changedByStudent.set(sid, entry);
+      }
+    }
+    const studentsToNotify = [...changedByStudent.values()].map((e) => ({
+      ...e,
+      isCorrection: everPublished.has(e.studentId),
+    }));
+
+    if (studentsToNotify.length === 0) {
+      return {
+        message: 'Không có thay đổi mới để gửi cho phụ huynh.',
+        no_changes: true,
+        notified_parents_count: 0,
+        published_types: typesWithData,
+        published_at: now,
+      };
+    }
+
+    // Đánh dấu các ô vừa gửi là đã gửi (trước khi phát sự kiện)
+    const pendingIds = rowsForTypes
+      .filter((row: any) => (row.isPublished ?? (row as any).is_published) !== true)
+      .map((row: any) => row.id)
+      .filter(Boolean);
+    if (pendingIds.length > 0 && typeof (this.dataConnect as any).markScoresPublished === 'function') {
+      await this.dataConnect.markScoresPublished(pendingIds);
+    }
+
+    // Phát sự kiện nền (Event-driven Worker) fan-out thông báo từng phụ huynh
+    // tránh độ trễ chặn request công bố điểm
+    let teacherName = '';
+    try {
+      if (teacherId && typeof (this.dataConnect as any).getUserById === 'function') {
+        const teacher = await this.dataConnect.getUserById(teacherId);
+        teacherName = teacher?.full_name || teacher?.fullName || '';
+      }
+    } catch {}
+
+    this.eventEmitter.emit('grades.published', {
+      classId: dto.class_id,
+      subjectCode: dto.subject_code,
+      scoreType: typesWithData[0],
+      scoreTypes: typesWithData,
+      semester: dto.semester || 1,
+      teacherName,
+      students: studentsToNotify,
+    } as GradesPublishedPayload);
+
     return {
-      message: 'Đã công bố điểm cho phụ huynh thành công qua SQL Data Connect',
-      notified_parents_count: 35,
+      message: `Đã gửi thông báo cho ${studentsToNotify.length} học sinh có thay đổi.`,
+      notified_parents_count: studentsToNotify.length,
+      total_students_with_scores: this.extractUniqueStudents(rowsForTypes).length,
+      no_changes: false,
+      published_types: typesWithData,
       published_at: now,
     };
   }
 
+  private extractUniqueStudents(scores: any[]): Array<{ studentId: string; studentName?: string }> {
+    const map = new Map<string, { studentId: string; studentName?: string }>();
+    for (const row of scores || []) {
+      const sid = row.studentId || row.student_id;
+      if (!sid) continue;
+      if (!map.has(sid)) {
+        map.set(sid, { studentId: sid, studentName: row.full_name || row.fullName || row.student_name });
+      }
+    }
+    return [...map.values()];
+  }
+
+  /**
+   * Worker nền: fan-out thông báo công bố điểm tới phụ huynh từng học sinh
+   * (mô phỏng pattern event-driven đã nghiệm thu ở Module 05 - Điểm danh)
+   */
+  @OnEvent('grades.published', { async: true })
+  async handleGradesPublishedEvent(payload: GradesPublishedPayload) {
+    const types =
+      payload.scoreTypes && payload.scoreTypes.length > 0
+        ? payload.scoreTypes
+        : [payload.scoreType];
+    const isBatch = types.length > 1;
+    const subjectName = subjectLabel(payload.subjectCode);
+    this.logger.log(
+      `[Worker] Công bố điểm ${payload.subjectCode}/${types.join('+')} lớp ${payload.classId}: fan-out ${payload.students.length} phụ huynh${isBatch ? ' (gom 1 thông báo/học sinh)' : ''}`,
+    );
+
+    for (const item of payload.students) {
+      let student: any = { id: item.studentId, full_name: item.studentName };
+      if (typeof this.dataConnect.getStudentById === 'function') {
+        try {
+          const full = await this.dataConnect.getStudentById(item.studentId);
+          if (full) student = { ...student, ...full, id: item.studentId };
+        } catch (e) {}
+      }
+      const studentName = student.full_name || item.studentName || 'Học sinh';
+      const teacherPrefix = payload.teacherName ? `Giáo viên ${payload.teacherName} vừa cập nhật` : 'Giáo viên vừa cập nhật';
+      const isCorrection = item.isCorrection === true;
+
+      // Ba loại thông báo: Đính chính (sửa điểm đã gửi) / Cập nhật loạt (nhiều cột) / Công bố (lần đầu)
+      const title = isCorrection
+        ? `Đính chính điểm ${subjectName} - Em ${studentName}`
+        : isBatch
+        ? `Cập nhật điểm ${subjectName} - Em ${studentName}`
+        : `Công bố điểm ${subjectName} - Em ${studentName}`;
+      const changedText =
+        item.changed && item.changed.length > 0
+          ? item.changed.map((c) => `${scoreTypeLabel(c.type)}: ${c.value}`).join(', ')
+          : scoreTypeLabel(payload.scoreType);
+      const detail = isCorrection
+        ? `${teacherPrefix} đính chính điểm của em môn ${subjectName}: ${changedText} (điểm mới). Phụ huynh vui lòng xem Sổ điểm để biết chi tiết.`
+        : isBatch
+        ? `${teacherPrefix} ${types.length} cột điểm môn ${subjectName}: ${types.map((t) => scoreTypeLabel(t)).join(', ')} (học kỳ ${payload.semester || 1}).`
+        : `${teacherPrefix} điểm ${scoreTypeLabel(payload.scoreType)} môn ${subjectName} học kỳ ${payload.semester || 1} của em.`;
+
+      await this.notificationsService.dispatchToParentsOfStudent(student, {
+        title,
+        body: `Kính gửi Phụ huynh em ${studentName}, ${detail} Trân trọng thông báo để gia đình cùng đồng hành với con!`,
+        type: isCorrection ? NotificationType.GRADE_CORRECTED : NotificationType.GRADE_PUBLISHED,
+        metadata: {
+          screen: 'Grades',
+          class_id: payload.classId,
+          student_id: item.studentId,
+          subject_code: payload.subjectCode,
+          score_type: types[0],
+          score_types: isBatch ? types : undefined,
+          correction: isCorrection,
+          semester: payload.semester || 1,
+        },
+      });
+    }
+
+    this.logger.log(`[Worker] Hoàn tất fan-out công bố điểm cho ${payload.students.length} học sinh lớp ${payload.classId}`);
+  }
+
+  // Trọng số tính điểm TB môn học, đồng bộ với công thức hiển thị trên Sổ điểm
+  private static readonly SCORE_WEIGHTS: Record<string, number> = {
+    ORAL_TEST: 1,
+    TEST_15P: 2,
+    TEST_1P: 3,
+    MID_TERM: 2,
+    FINAL: 3,
+  };
+
   async getLeaderboard(classId: string, subjectCode: string, semester: number = 1, limit: number = 5) {
-    const scores = await this.getClassGrades(classId, subjectCode, semester);
-    if (!scores || scores.length === 0) {
-      return {
-        class_id: classId,
-        subject_code: subjectCode,
-        subject_name: subjectCode === 'MATH' ? 'Toán học' : 'Môn học',
-        semester,
-        total_ranked: 0,
-        top_students: [],
-      };
+    const maxRows = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5;
+    const scores = (await this.getClassGrades(classId, subjectCode, semester)) || [];
+    const baseResult = {
+      class_id: classId,
+      subject_code: subjectCode,
+      subject_name: subjectLabel(subjectCode),
+      semester,
+    };
+
+    const termScores = scores.filter((row: any) => {
+      const term = row.term ?? row.semester;
+      return term === undefined || term === null || Number(term) === Number(semester);
+    });
+
+    if (termScores.length === 0) {
+      return { ...baseResult, total_ranked: 0, top_students: [] };
+    }
+
+    // Mỗi học sinh chỉ giữ điểm mới nhất của từng loại điểm (giống thao tác nhập/đính chính)
+    const latestByStudent = new Map<string, Map<string, any>>();
+    for (const row of termScores) {
+      const studentId = row.studentId ?? row.student_id;
+      const scoreType = String(row.scoreType ?? row.score_type ?? '').toUpperCase();
+      if (!studentId || !scoreType) continue;
+      if (!latestByStudent.has(studentId)) latestByStudent.set(studentId, new Map());
+      const byType = latestByStudent.get(studentId)!;
+      const current = byType.get(scoreType);
+      const rowTime = String(row.createdAt ?? row.created_at ?? '');
+      const currentTime = String(current?.createdAt ?? current?.created_at ?? '');
+      if (!current || rowTime >= currentTime) {
+        byType.set(scoreType, row);
+      }
+    }
+
+    // Tên học sinh thật của lớp hiện tại
+    const namesById = new Map<string, string>();
+    const classStudentIds = new Set<string>();
+    let hasClassRoster = false;
+    if (typeof this.dataConnect.listStudentsByClass === 'function') {
+      try {
+        const classStudents = await this.dataConnect.listStudentsByClass(classId);
+        hasClassRoster = Array.isArray(classStudents);
+        for (const student of classStudents || []) {
+          const name = student.full_name ?? student.fullName;
+          if (student.id && name) {
+            namesById.set(student.id, name);
+            classStudentIds.add(student.id);
+          }
+        }
+      } catch (e: any) {
+        this.logger.warn(`getLeaderboard listStudentsByClass failed: ${e?.message}`);
+      }
+    }
+    for (const row of termScores) {
+      const studentId = row.studentId ?? row.student_id;
+      const name = row.student_name ?? row.studentName ?? row.full_name ?? row.fullName;
+      if (studentId && name && !namesById.has(studentId)) namesById.set(studentId, name);
+    }
+
+    const entries: Array<{ studentId: string; studentName: string; score: number }> = [];
+    for (const [studentId, byType] of latestByStudent) {
+      // Chỉ vinh danh học sinh đang thuộc lớp hiện tại
+      if (hasClassRoster && !classStudentIds.has(studentId)) continue;
+      let weightedSum = 0;
+      let weightSum = 0;
+      for (const [scoreType, row] of byType) {
+        const weight = GradesService.SCORE_WEIGHTS[scoreType];
+        if (!weight) continue;
+        const value = Number(row.scoreValue ?? row.score_value);
+        if (!Number.isFinite(value)) continue;
+        weightedSum += value * weight;
+        weightSum += weight;
+      }
+      if (weightSum === 0) continue;
+      const score = Math.round((weightedSum / weightSum) * 10) / 10;
+      entries.push({
+        studentId,
+        studentName: namesById.get(studentId) || 'Học sinh',
+        score,
+      });
+    }
+
+    if (entries.length === 0) {
+      return { ...baseResult, total_ranked: 0, top_students: [] };
+    }
+
+    entries.sort((a, b) => b.score - a.score || a.studentName.localeCompare(b.studentName, 'vi'));
+
+    // Đồng hạng: các học sinh cùng điểm nhận cùng thứ hạng (1, 1, 3, ...)
+    const ranked: Array<{ rank: number; student_name: string; score: number; badge: string }> = [];
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i];
+      const rank = i > 0 && entry.score === entries[i - 1].score ? ranked[i - 1].rank : i + 1;
+      ranked.push({
+        rank,
+        student_name: entry.studentName,
+        score: entry.score,
+        badge: rank === 1 ? 'GOLD' : rank === 2 ? 'SILVER' : rank === 3 ? 'BRONZE' : 'TOP',
+      });
     }
 
     return {
-      subject_code: subjectCode,
-      subject_name: subjectCode === 'MATH' ? 'Toán học' : 'Môn học',
-      top_students: [
-        { rank: 1, student_name: 'Trần Bảo Nam', score: 10.0, badge: 'GOLD' },
-        { rank: 1, student_name: 'Lê Ngọc Mai', score: 10.0, badge: 'GOLD' },
-        { rank: 3, student_name: 'Hoàng Minh Khôi', score: 9.5, badge: 'BRONZE' },
-      ],
+      ...baseResult,
+      total_ranked: ranked.length,
+      top_students: ranked.slice(0, maxRows),
     };
   }
 }

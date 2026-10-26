@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { IllustrationOnboarding } from '../components/IllustrationOnboarding';
 
 interface OnboardingScreenProps {
   onNavigateToLogin?: () => void;
@@ -98,18 +99,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
             <Text style={styles.brandTitle}>GiaoVienHay</Text>
           </View>
 
-          {/* 2. Hero 3D Illustration: Centered ~300px */}
+          {/* 2. Hero 3D Illustration: Centered ~300px (100% Vector SVG, No fake background) */}
           <View style={styles.heroSection}>
-            <View style={styles.imageCard}>
-              <View style={styles.backdropBlurEffect} />
-              <Image
-                source={{
-                  uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDiPE0aDMn5G-IVfUee-NwPFViqoIpLGMH_FwlYUweaZbWw_xU91WewkPGrdlEJuSUEs0dCFjV2t75mYMQnjmz0_d8_ff1Vb_BMs0aZRHmbEMDNxZokHV4NSaIsW5IhvZYiXbEiwH2Fx6SiMoGPYEaUtbzPIJ9WuNEBEPv16SZ1BFOK8qmWsP_udv6IEcIHQBip1QseuD3U34NvtSDICt8gWF7JINDvrpYy8dnJ7C5sqwXaS9JKqgopKQ',
-                }}
-                style={styles.heroImage}
-                resizeMode="contain"
-              />
-            </View>
+            <IllustrationOnboarding width={Math.min(SCREEN_WIDTH - 48, 320)} height={270} />
           </View>
 
           {/* 3. Bottom Interactive Section */}

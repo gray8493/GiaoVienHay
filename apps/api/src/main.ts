@@ -3,6 +3,15 @@ import { AppModule } from './app.module';
 import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+// Ngăn chặn tiến trình Node.js bị crash đột ngột khi gặp tác vụ bất đồng bộ lỗi
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRITICAL] Unhandled Rejection phát hiện:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[CRITICAL] Uncaught Exception phát hiện:', err);
+});
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 

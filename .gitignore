@@ -21,6 +21,10 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+serviceAccountKey*.json
+*firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
 
 # IDE & Editor
 .vscode/
@@ -37,4 +41,5 @@ out/
 .DS_Store
 Thumbs.db
 .agent/
+.qoder/
 

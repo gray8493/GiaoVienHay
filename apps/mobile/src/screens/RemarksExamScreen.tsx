@@ -9,53 +9,155 @@ import {
   Modal,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Line } from 'react-native-svg';
 import {
   remarksService,
   StudentRemarkItem,
   ExamReminderItem,
-  RemarkStatus,
+  RawRemarkRecord,
+  subjectLabel,
 } from '../services/remarks.service';
+import { getInitials } from '../utils/format';
+import { classService, SUBJECT_LABELS, SCHOOL_SUBJECTS, StudentItem } from '../services/class.service';
+import { getCurrentAcademicYear } from '../utils/academic';
 
 interface RemarksExamScreenProps {
   onBack?: () => void;
   classId?: string;
+  className?: string;
   initialTab?: 'REMARKS' | 'EXAMS';
 }
 
 type RemarkFilter = 'ALL' | 'SENT' | 'UNSENT';
 
+const formatSentDate = (iso: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `Gửi ${dd}/${mm}/${d.getFullYear()}`;
+};
+
+const buildStudentRemarkRow = (
+  student: StudentItem,
+  remark?: RawRemarkRecord,
+): StudentRemarkItem => {
+  const subject = subjectLabel(remark?.subject_code);
+  const hasContent = !!(remark && remark.content);
+  return {
+    id: student.id,
+    student_id: student.id,
+    student_code: student.student_code || '',
+    student_name: student.full_name || '',
+    subject_code: remark?.subject_code || '',
+    subject_name: subject,
+    content: hasContent ? remark!.content : null,
+    status: hasContent ? 'SENT' : 'NONE',
+    sent_date: hasContent ? [formatSentDate(remark!.created_at) || 'Gửi gần đây', subject].join(' • ') : null,
+  };
+};
+
 export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
   onBack,
   classId = '',
+  className = 'Lớp học',
   initialTab = 'REMARKS',
 }) => {
   const [activeTab, setActiveTab] = useState<'REMARKS' | 'EXAMS'>(initialTab);
   const [remarksList, setRemarksList] = useState<StudentRemarkItem[]>([]);
   const [examsList, setExamsList] = useState<ExamReminderItem[]>([]);
+  const [remarksLoading, setRemarksLoading] = useState(false);
 
   // Tab A states
   const [searchQuery, setSearchQuery] = useState('');
   const [remarkFilter, setRemarkFilter] = useState<RemarkFilter>('ALL');
-  const [expandedStudentId, setExpandedStudentId] = useState<string | null>('stu_02'); // Mặc định mở Trần Bảo Nam như database
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
 
-  // Modal TEA-09.2 Nhập nhận xét
+  // Modal TEA-09.2 Nhập nhận xét — môn làm việc bằng MÃ chuẩn, chọn theo môn giáo viên phụ trách
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [targetStudent, setTargetStudent] = useState<StudentRemarkItem | null>(null);
-  const [remarkSubject, setRemarkSubject] = useState('Toán học');
+  const [remarkSubjectCode, setRemarkSubjectCode] = useState('');
+  const [remarkSubjectOptions, setRemarkSubjectOptions] = useState<{ code: string; label: string }[]>([]);
+  const remarkSubjectLabel = SUBJECT_LABELS[remarkSubjectCode] || remarkSubjectCode || 'Môn học';
   const [remarkContent, setRemarkContent] = useState('Em tiếp thu bài nhanh, hăng hái phát biểu.');
 
   // Modal TEA-09.3 Tạo lịch kiểm tra
   const [showExamModal, setShowExamModal] = useState(false);
-  const [examSubject, setExamSubject] = useState('Toán học');
-  const [examDate, setExamDate] = useState('16/10/2026');
+  // Môn kiểm tra làm việc bằng MÃ CHUẨN (MATH/LIT/...) — danh sách theo phân công thật của lớp
+  const [examSubjectCode, setExamSubjectCode] = useState('');
+  const [examSubjectOptions, setExamSubjectOptions] = useState<{ code: string; label: string }[]>([]);
+  const examSubjectLabel = SUBJECT_LABELS[examSubjectCode] || examSubjectCode || 'Chọn môn';
+  const [examDate, setExamDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  });
   const [examType, setExamType] = useState('Kiểm tra 15 phút');
   const [examMessage, setExamMessage] = useState('Kính nhờ phụ huynh nhắc con ôn kỹ các dạng bài chương 1 cho bài kiểm tra.');
 
   useEffect(() => {
     loadData();
+    loadAssignedSubjectOptions();
   }, [classId]);
+
+  // Môn nhận xét + Môn lịch kiểm tra lấy theo phân công thật trong lớp:
+  // GVCN → chính các môn cô dạy (hồ sơ) ∪ môn đã có phân công trong lớp
+  // GVBM → đúng môn được phân công (chuỗi: phân công lớp → my-subject → hồ sơ)
+  const loadAssignedSubjectOptions = async () => {
+    if (!classId) return;
+    try {
+      const cls: any = await classService.getClassDetail(classId).catch(() => null);
+      const role = await classService.getMyRoleInClass(classId, cls);
+      let codes: string[] = [];
+      if (role.isHomeroom) {
+        // Môn của CHÍNH giáo viên đang đăng nhập phải đứng đầu để mặc định
+        // không rơi vào môn của giáo viên bộ môn khác (vd Tiếng Anh)
+        const own = [
+          ...new Set([
+            ...role.myAssignedCodes,
+            ...role.profileSubjectCodes,
+            ...role.apiSubjectCodes,
+          ]),
+        ];
+        const fallback = own.length > 0 ? own : role.allAssignedCodes;
+        const base = fallback.length > 0 ? fallback : [...SCHOOL_SUBJECTS];
+        codes = [...new Set([...base, ...role.allAssignedCodes])];
+      } else {
+        let mine = role.myAssignedCodes;
+        if (mine.length === 0) mine = role.apiSubjectCodes;
+        if (mine.length === 0) mine = role.profileSubjectCodes;
+        codes = [...new Set(mine)];
+      }
+      const opts = codes.map((code: string) => ({
+        code,
+        label: SUBJECT_LABELS[code] || code,
+      }));
+      if (opts.length > 0) {
+        setRemarkSubjectOptions(opts);
+        setRemarkSubjectCode(prev => (opts.some(o => o.code === prev) ? prev : opts[0].code));
+      }
+      // Môn lịch kiểm tra: GVCN có thể tạo cho mọi môn của trường, GVBM giới hạn theo phân công
+      const examCodes = role.isHomeroom
+        ? [...codes, ...SCHOOL_SUBJECTS]
+        : codes;
+      const examOpts = Array.from(new Set(examCodes)).map((code: string) => ({
+        code,
+        label: SUBJECT_LABELS[code] || code,
+      }));
+      setExamSubjectOptions(examOpts);
+      setExamSubjectCode(prev => (examOpts.some(o => o.code === prev) ? prev : examOpts[0]?.code || ''));
+    } catch (e) {
+      setRemarkSubjectOptions([]);
+      setRemarkSubjectCode('');
+      setExamSubjectOptions([]);
+      setExamSubjectCode('');
+    }
+  };
 
   const loadData = async () => {
     if (!classId || classId === 'cls_empty') {
@@ -63,82 +165,159 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       setExamsList([]);
       return;
     }
-    const remarks = await remarksService.getClassRemarks(classId);
+
     const exams = await remarksService.getClassExamReminders(classId);
-    setRemarksList(remarks);
     setExamsList(exams);
+
+    setRemarksLoading(true);
+    try {
+      // Danh sách học sinh của lớp là "khung" của tab Lời Nhận Xét:
+      // mỗi em một dòng, kèm badge đã gửi/chưa gửi.
+      let students: StudentItem[] = [];
+      try {
+        const classDetail = await classService.getClassDetail(classId);
+        students = classDetail?.students || [];
+      } catch (e) {
+        console.warn('class detail not reachable:', e);
+      }
+
+      const remarkByStudent = new Map<string, RawRemarkRecord>();
+      const classRemarks = await remarksService.getClassRemarks(classId);
+      classRemarks.forEach(r => {
+        if (r.student_id && !remarkByStudent.has(r.student_id)) {
+          remarkByStudent.set(r.student_id, r);
+        }
+      });
+
+      if (students.length > 0) {
+        const missing = students.filter(s => s.id && !remarkByStudent.has(s.id));
+        const histories = await Promise.all(
+          missing.map(async s => ({
+            id: s.id,
+            history: await remarksService.getStudentRemarks(s.id),
+          })),
+        );
+        histories.forEach(({ id, history }) => {
+          const latest = [...history]
+            .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+            .find(r => !!r.content);
+          if (latest) remarkByStudent.set(id, latest);
+        });
+      }
+
+      const rows: StudentRemarkItem[] =
+        students.length > 0
+          ? students.map(student => buildStudentRemarkRow(student, remarkByStudent.get(student.id)))
+          : classRemarks.map(r => ({
+              id: r.remark_id || r.student_id,
+              student_id: r.student_id,
+              student_code: '',
+              student_name: r.student_name || 'Học sinh',
+              subject_code: r.subject_code || '',
+              subject_name: subjectLabel(r.subject_code),
+              content: r.content || null,
+              status: r.content ? 'SENT' : 'NONE',
+              sent_date: [formatSentDate(r.created_at) || 'Gửi gần đây', subjectLabel(r.subject_code)].join(' • '),
+            }));
+
+      setRemarksList(rows);
+    } finally {
+      setRemarksLoading(false);
+    }
   };
 
   const handleOpenRemarkModal = (student: StudentRemarkItem) => {
     setTargetStudent(student);
-    setRemarkSubject(student.subject_name || 'Toán học');
-    setRemarkContent(student.content || 'Em tiếp thu bài nhanh, hăng hái phát biểu.');
+    // Giữ môn của nhận xét đã có; nhận xét mới thì mặc định chọn môn đang phụ trách
+    const rowCode = (student.subject_code || '').trim();
+    setRemarkSubjectCode(prevCore => {
+      const candidate = rowCode || prevCore;
+      if (candidate && remarkSubjectOptions.some(o => o.code === candidate)) return candidate;
+      return remarkSubjectOptions[0]?.code || rowCode || '';
+    });
+    setRemarkContent(student.content || '');
     setShowRemarkModal(true);
   };
 
+  // Chống bấm đúp — trước đây 2 lần nhấn tạo 2 nhận xét trùng nhau
+  const [isSendingRemark, setIsSendingRemark] = useState(false);
+
   const handleSaveRemark = async () => {
+    if (isSendingRemark) return;
     if (!targetStudent || !remarkContent.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập nội dung nhận xét');
       return;
     }
 
-    await remarksService.createRemark({
-      student_id: targetStudent.student_id,
-      class_id: classId,
-      subject_code: targetStudent.subject_code,
-      content: remarkContent.trim(),
-    });
+    if (!remarkSubjectCode) {
+      Alert.alert('Thông báo', 'Chưa xác định được môn phụ trách của bạn. Vui lòng kiểm tra lại phân công giảng dạy.');
+      return;
+    }
+
+    setIsSendingRemark(true);
+    try {
+      await remarksService.createRemark({
+        student_id: targetStudent.student_id,
+        class_id: classId,
+        subject_code: remarkSubjectCode,
+        content: remarkContent.trim(),
+      });
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể gửi nhận xét. Vui lòng thử lại.');
+      setIsSendingRemark(false);
+      return;
+    }
 
     setRemarksList(prev =>
-      prev.map(item => {
-        if (item.id === targetStudent.id) {
-          return {
-            ...item,
-            content: remarkContent.trim(),
-            status: 'READ',
-            sent_date: `Gửi hôm nay • ${remarkSubject}`,
-          };
-        }
-        return item;
-      })
+      prev.map(item =>
+        item.student_id === targetStudent.student_id
+          ? {
+              ...item,
+              subject_code: remarkSubjectCode,
+              subject_name: remarkSubjectLabel,
+              content: remarkContent.trim(),
+              status: 'SENT',
+              sent_date: `Gửi hôm nay • ${remarkSubjectLabel}`,
+            }
+          : item,
+      ),
     );
 
     setShowRemarkModal(false);
+    setIsSendingRemark(false);
     Alert.alert('Thành công! ✨', `Đã gửi lời nhận xét cho học sinh ${targetStudent.student_name}.`);
   };
 
+  // Chống bấm đúp — trước đây 2 lần nhấn tạo 2 lịch kiểm tra trùng nhau
+  const [isCreatingExam, setIsCreatingExam] = useState(false);
+
   const handleCreateExam = async () => {
+    if (isCreatingExam) return;
     if (!examMessage.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập lời dặn dò kiểm tra');
       return;
     }
 
-    await remarksService.createExamReminder({
-      class_id: classId,
-      subject_code: examSubject === 'Toán học' ? 'MATH' : 'LIT',
-      exam_type: examType,
-      exam_date: examDate,
-      message: examMessage.trim(),
-    });
+    setIsCreatingExam(true);
+    try {
+      await remarksService.createExamReminder({
+        class_id: classId,
+        subject_code: examSubjectCode,
+        exam_type: examType,
+        exam_date: examDate,
+        message: examMessage.trim(),
+      });
+    } catch (e: any) {
+      Alert.alert('Thông báo', e?.message || 'Không thể tạo lịch kiểm tra. Vui lòng thử lại.');
+      setIsCreatingExam(false);
+      return;
+    }
 
-    const newExam: ExamReminderItem = {
-      id: 'exam_' + Date.now(),
-      class_id: classId,
-      subject_code: 'MATH',
-      subject_name: examSubject,
-      exam_type: examType,
-      exam_date: examDate,
-      day_of_week: 'Thứ Sáu',
-      day_number: '16',
-      month_str: 'Th10',
-      message: examMessage.trim(),
-      teacher_name: 'Cô Nguyễn Thu Hà',
-      created_at: 'Hôm nay',
-    };
-
-    setExamsList(prev => [newExam, ...prev]);
+    const exams = await remarksService.getClassExamReminders(classId);
+    setExamsList(exams);
     setShowExamModal(false);
-    Alert.alert('Đã gửi thông báo! 📢', `Lịch kiểm tra ${examSubject} (${examType}) đã được gửi đến toàn thể 38 phụ huynh.`);
+    setIsCreatingExam(false);
+    Alert.alert('Đã gửi thông báo! 📢', `Lịch kiểm tra ${examSubjectLabel} (${examType}) đã được gửi tới phụ huynh trong lớp.`);
   };
 
   const getAvatarColors = (index: number) => {
@@ -152,21 +331,14 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
     return palettes[index % palettes.length];
   };
 
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  };
-
   const filteredRemarks = remarksList.filter(item => {
+    const search = searchQuery.toLowerCase();
     const matchSearch =
-      item.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.student_code.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.student_name || '').toLowerCase().includes(search) ||
+      (item.student_code || '').toLowerCase().includes(search);
     if (!matchSearch) return false;
 
-    if (remarkFilter === 'SENT') return item.status === 'READ' || item.status === 'UNREAD';
+    if (remarkFilter === 'SENT') return item.status === 'SENT';
     if (remarkFilter === 'UNSENT') return item.status === 'NONE';
     return true;
   });
@@ -221,7 +393,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
           </TouchableOpacity>
 
           <View style={styles.classPillDropdown}>
-            <Text style={styles.classPillText}>Lớp 6A1</Text>
+            <Text style={styles.classPillText}>{className}</Text>
             <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
               <Path d="M6 9l6 6 6-6" stroke="#4B5563" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
@@ -232,7 +404,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
         <View style={styles.titleRow}>
           <View style={styles.titleCol}>
             <Text style={styles.headingTitle}>Nhận Xét & Lịch Kiểm Tra</Text>
-            <Text style={styles.headingSubtitle}>Năm học 2024 - 2025</Text>
+            <Text style={styles.headingSubtitle}>Năm học {getCurrentAcademicYear()}</Text>
           </View>
 
           {/* 3D Pastel Illustration Badge */}
@@ -332,6 +504,33 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
 
             {/* Student List Bento Container */}
             <View style={styles.studentListCard}>
+              {remarksLoading && remarksList.length === 0 && (
+                <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator size="large" color="#F58F4C" />
+                  <Text style={{ marginTop: 12, fontSize: 13, color: '#887367', fontWeight: '600' }}>
+                    Đang tải danh sách nhận xét...
+                  </Text>
+                </View>
+              )}
+              {filteredRemarks.length === 0 && !remarksLoading && (
+                <View style={styles.listEmptyState}>
+                  <View style={styles.emptyIconWrap}>
+                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
+                      <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    {searchQuery.trim() || remarkFilter !== 'ALL'
+                      ? 'Không có lời nhắn khớp bộ lọc'
+                      : 'Chưa có học sinh nào'}
+                  </Text>
+                  <Text style={styles.emptySubtitle}>
+                    {searchQuery.trim() || remarkFilter !== 'ALL'
+                      ? 'Thử đổi bộ lọc (Tất cả / Đã gửi / Chưa gửi) hoặc xóa từ khóa tìm kiếm.'
+                      : 'Thêm học sinh ở Quản lý lớp học, sau đó bấm bút chỉnh sửa bên cạnh từng em để gửi lời nhận.'}
+                  </Text>
+                </View>
+              )}
               {filteredRemarks.map((student, idx) => {
                 const colors = getAvatarColors(idx);
                 const isExpanded = expandedStudentId === student.id;
@@ -358,19 +557,12 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                       </TouchableOpacity>
 
                       <View style={styles.studentRightActions}>
-                        {student.status === 'READ' && (
+                        {student.status === 'SENT' && (
                           <View style={styles.badgeRead}>
                             <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
                               <Path d="M5 13l4 4L19 7" stroke="#059669" strokeWidth={3} strokeLinecap="round" />
                             </Svg>
-                            <Text style={styles.badgeReadText}>Đã đọc</Text>
-                          </View>
-                        )}
-
-                        {student.status === 'UNREAD' && (
-                          <View style={styles.badgeUnread}>
-                            <View style={styles.orangeDot} />
-                            <Text style={styles.badgeUnreadText}>Chưa xem</Text>
+                            <Text style={styles.badgeReadText}>Đã gửi</Text>
                           </View>
                         )}
 
@@ -430,6 +622,31 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
         {/* ======================================================== */}
         {activeTab === 'EXAMS' && (
           <View style={styles.tabContentCol}>
+            {remarksLoading && examsList.length === 0 ? (
+              <View style={[styles.studentListCard, { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color="#F58F4C" />
+                <Text style={{ marginTop: 12, fontSize: 13, color: '#887367', fontWeight: '600' }}>
+                  Đang tải lịch kiểm tra...
+                </Text>
+              </View>
+            ) : examsList.length === 0 ? (
+              <View style={[styles.studentListCard, { paddingVertical: 10 }]}>
+                <View style={styles.listEmptyState}>
+                  <View style={styles.emptyIconWrap}>
+                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={1.8}>
+                      <Rect x="3" y="4" width="18" height="18" rx="2" />
+                      <Line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" />
+                      <Line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" />
+                      <Line x1="3" y1="10" x2="21" y2="10" />
+                    </Svg>
+                  </View>
+                  <Text style={styles.emptyTitle}>Chưa có lịch kiểm tra nào</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Dùng nút “Tạo Lịch Kiểm Tra” ở bên dưới để nhắc phụ huynh giúp con ôn tập trước ngày thi.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             {examsList.map(exam => (
               <View key={exam.id} style={styles.examCard}>
                 {/* Left Date Block */}
@@ -442,28 +659,34 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                 {/* Right Content */}
                 <View style={styles.examRightCol}>
                   <View style={styles.examTitleRow}>
-                    <Text style={styles.examSubjectText}>{exam.subject_name}</Text>
-                    <View style={styles.examTypePill}>
-                      <Text style={styles.examTypePillText}>{exam.exam_type}</Text>
-                    </View>
+                    <Text style={styles.examSubjectText}>
+                      {exam.subject_name || exam.title || 'Lịch kiểm tra'}
+                    </Text>
+                    {exam.exam_type ? (
+                      <View style={styles.examTypePill}>
+                        <Text style={styles.examTypePillText}>{exam.exam_type}</Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <Text style={styles.examMessageText} numberOfLines={3}>
                     {exam.message}
                   </Text>
 
-                  <View style={styles.examMetaRow}>
-                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                      <Path
-                        d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"
-                        stroke="#887367"
-                        strokeWidth={2}
-                      />
-                    </Svg>
-                    <Text style={styles.examMetaText}>
-                      {exam.teacher_name} • {exam.created_at}
-                    </Text>
-                  </View>
+                  {(exam.teacher_name || exam.created_at) ? (
+                    <View style={styles.examMetaRow}>
+                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                        <Path
+                          d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"
+                          stroke="#887367"
+                          strokeWidth={2}
+                        />
+                      </Svg>
+                      <Text style={styles.examMetaText}>
+                        {[exam.teacher_name, exam.created_at].filter(Boolean).join(' • ')}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             ))}
@@ -514,16 +737,16 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               <View style={styles.sheetStudentLeft}>
                 <View style={styles.sheetAvatarBox}>
                   <Text style={styles.sheetAvatarText}>
-                    {targetStudent ? getInitials(targetStudent.student_name) : 'BN'}
+                    {targetStudent ? getInitials(targetStudent.student_name) : 'HS'}
                   </Text>
                 </View>
                 <View>
                   <Text style={styles.sheetStudentName}>
-                    {targetStudent?.student_name || 'Trần Bảo Nam'}
+                    {targetStudent?.student_name || 'Học sinh'}
                   </Text>
                   <View style={styles.sheetStudentCodeBadge}>
                     <Text style={styles.sheetStudentCodeText}>
-                      {targetStudent?.student_code || 'HS240102'}
+                      {targetStudent?.student_code || '—'}
                     </Text>
                   </View>
                 </View>
@@ -539,15 +762,39 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Field 1: Môn học Dropdown Module */}
+            {/* Field 1: Môn học (chọn theo môn giáo viên phụ trách) */}
             <View style={styles.inputCard}>
               <Text style={styles.inputCardLabel}>MÔN HỌC</Text>
               <View style={styles.inputCardRow}>
-                <Text style={styles.inputCardValue}>{remarkSubject}</Text>
+                <Text style={styles.inputCardValue}>{remarkSubjectLabel}</Text>
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                   <Path d="M6 9l6 6 6-6" stroke="#6B7280" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
               </View>
+              {remarkSubjectOptions.length > 1 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                  {remarkSubjectOptions.map(opt => (
+                    <TouchableOpacity
+                      key={opt.code}
+                      style={[styles.examPillItem, remarkSubjectCode === opt.code && styles.examPillItemActive]}
+                      onPress={() => setRemarkSubjectCode(opt.code)}
+                    >
+                      <Text
+                        style={[
+                          styles.examPillItemText,
+                          remarkSubjectCode === opt.code && styles.examPillItemTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {/* Cơ chế quyền: GVCN tự do môn, GVBM theo phân công (backend chặn 403) */}
+              <Text style={{ fontSize: 11.5, color: '#9E9BB2', marginTop: 8 }}>
+                GVCN có thể nhận xét mọi môn học • Giáo viên bộ môn: các môn được phân công
+              </Text>
             </View>
 
             {/* Field 2: Nhận xét Text Area Module */}
@@ -618,7 +865,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               <View style={styles.halfFieldBox}>
                 <Text style={styles.halfFieldLabel}>Môn học</Text>
                 <View style={styles.halfFieldBottom}>
-                  <Text style={styles.halfFieldValue}>{examSubject}</Text>
+                  <Text style={styles.halfFieldValue}>{examSubjectLabel}</Text>
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Path d="M6 9l6 6 6-6" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" />
                   </Svg>
@@ -640,6 +887,24 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                     <Path d="M16 2v4M8 2v4M3 10h18" stroke="#F58F4C" strokeWidth={2} strokeLinecap="round" />
                   </Svg>
                 </View>
+              </View>
+            </View>
+
+            {/* Form Section: Môn kiểm tra (theo phân công thật của lớp) */}
+            <View style={{ marginTop: 14 }}>
+              <Text style={styles.examPillsLabel}>Môn kiểm tra</Text>
+              <View style={styles.examPillsGrid}>
+                {examSubjectOptions.map(opt => (
+                  <TouchableOpacity
+                    key={opt.code}
+                    style={[styles.examPillItem, examSubjectCode === opt.code && styles.examPillItemActive]}
+                    onPress={() => setExamSubjectCode(opt.code)}
+                  >
+                    <Text style={[styles.examPillItemText, examSubjectCode === opt.code && styles.examPillItemTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 
@@ -677,8 +942,9 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
 
             {/* Primary Action Button */}
             <TouchableOpacity
-              style={styles.broadcastExamBtn}
+              style={[styles.broadcastExamBtn, isCreatingExam && { opacity: 0.6 }]}
               onPress={handleCreateExam}
+              disabled={isCreatingExam}
               activeOpacity={0.88}
             >
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -692,7 +958,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               </Svg>
               <Text style={styles.broadcastExamBtnText}>Gửi Thông Báo</Text>
               <View style={styles.broadcastBadge}>
-                <Text style={styles.broadcastBadgeText}>38</Text>
+                <Text style={styles.broadcastBadgeText}>{remarksList.length}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -909,6 +1175,42 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 3,
   },
+  listEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 18,
+  },
+  listLoadingState: {
+    alignItems: 'center',
+    paddingVertical: 28,
+  },
+  listLoadingText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#887367',
+  },
+  emptyIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#3D2C29',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: '#887367',
+    textAlign: 'center',
+  },
   studentRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -964,26 +1266,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#059669',
-  },
-  badgeUnread: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  orangeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#D97706',
-  },
-  badgeUnreadText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#D97706',
   },
   badgeNone: {
     backgroundColor: '#F3F4F6',

@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { authService } from '../services/auth.service';
+import { EducationHero3D } from '../components/EducationHero3D';
 
 interface LoginScreenProps {
   onLoginSuccess?: (user?: any) => void;
@@ -25,8 +26,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   onNavigateToSignup,
 }) => {
-  const [phone, setPhone] = useState('0912345678');
-  const [password, setPassword] = useState('MatKhau123@');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -95,15 +96,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             contentContainerStyle={styles.scrollContainer}
             showsVerticalScrollIndicator={false}
           >
-            {/* Top 3D Educational Illustration */}
+            {/* Top 3D Educational Illustration (100% Vector 3D, No box background) */}
             <View style={styles.illustrationWrap}>
-              <Image
-                source={{
-                  uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDswx2hTFvGT6E6moN712p1cjuMNGjkZupKqFaiZhIBAOZp9MurYXqaPWYcmROU-OthsKVymKYE-4h9y3gH34GOuvOR-hlWnGmoPgidTscLp_gqH-aFhifDZnk-dgSAUAiMdSfpwtsJL0ENB3hB2iasnTI8ZJl00GhKvL8-vb6jvcWP7iACRHco8XcA7NRrtGjex4KsAxjERsOB3dqL7jO9XIIg5hMYxCmLI-EXFaVDMwPhAV_TzRCnpQ',
-                }}
-                style={styles.heroImage}
-                resizeMode="contain"
-              />
+              <EducationHero3D width={280} height={175} animated={true} />
             </View>
 
             {/* Brand Row */}
@@ -170,6 +165,46 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   </Svg>
                 </TouchableOpacity>
               </View>
+
+              {/* Quick Fill Test Accounts */}
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 12 }}>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.75)',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: '#F58F4C',
+                  }}
+                  onPress={() => {
+                    setPhone('0912345678');
+                    setPassword('MatKhau123@');
+                    setErrorMessage('');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 12, color: '#984704', fontWeight: '600' }}>👩‍🏫 Cô Lan (GV)</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.75)',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: '#5B8DEF',
+                  }}
+                  onPress={() => {
+                    setPhone('0977112233');
+                    setPassword('MatKhau123@');
+                    setErrorMessage('');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 12, color: '#1E40AF', fontWeight: '600' }}>👨‍👩‍👧 Trần Văn Hùng (PH)</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Exactly ONE Solid Orange Button */}
@@ -228,12 +263,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   illustrationWrap: {
-    width: 220,
-    height: 200,
+    width: '100%',
+    height: 180,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: 6,
+    marginBottom: 6,
   },
   heroImage: {
     width: '100%',
