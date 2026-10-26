@@ -34,9 +34,16 @@ import { classService } from '../services/class.service';
 import { authService } from '../services/auth.service';
 import { SCHOOL_SUBJECTS, SUBJECT_LABELS } from '../constants/academic';
 
+export interface QuizPlayInfo {
+  quizId: string;
+  title: string;
+  totalQuestions: number;
+  subjectCode: string;
+}
+
 interface QuizGenScreenProps {
   onBack?: () => void;
-  onSaveAndPlay?: (quizId?: string) => void;
+  onSaveAndPlay?: (quiz: QuizPlayInfo) => void;
   classId?: string;
   className?: string;
 }
@@ -146,6 +153,11 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressPercent, setProgressPercent] = useState(60);
   const [generatedQuizId, setGeneratedQuizId] = useState<string>('');
+  // Tên/môn của bộ đề đã tạo — giữ lại để màn chọn game hiển thị đúng dữ liệu
+  const [generatedQuizMeta, setGeneratedQuizMeta] = useState<{
+    title: string;
+    subjectCode: string;
+  } | null>(null);
 
   // Danh sách câu hỏi
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -282,6 +294,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
     setSelectedSubject(opt.label);
     setQuestions([]);
     setGeneratedQuizId('');
+    setGeneratedQuizMeta(null);
     setSubjectMenuVisible(false);
   };
 
@@ -321,6 +334,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
       });
       setQuestions([]);
       setGeneratedQuizId('');
+      setGeneratedQuizMeta(null);
     } catch {
       Alert.alert('Không thể chọn tệp', 'Vui lòng thử lại hoặc kiểm tra quyền truy cập tệp.');
     }
@@ -330,6 +344,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
     setPickedFile(null);
     setQuestions([]);
     setGeneratedQuizId('');
+    setGeneratedQuizMeta(null);
   };
 
   // Gọi AI tạo đề toàn diện
@@ -367,6 +382,10 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
 
       setTimeout(() => {
         setGeneratedQuizId(data?.quiz_id || '');
+        setGeneratedQuizMeta({
+          title: data?.title || `Kiểm tra ${selectedSubject} - ${selectedClass}`,
+          subjectCode: data?.subject_code || selectedSubjectCode,
+        });
         setQuestions(data?.questions || []);
         setIsGenerating(false);
       }, 1600);
@@ -840,7 +859,12 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
                 Alert.alert('Thông báo', 'Chưa có câu hỏi nào. Hãy soạn đề bằng AI trước.');
                 return;
               }
-              onSaveAndPlay?.(generatedQuizId || undefined);
+              onSaveAndPlay?.({
+                quizId: generatedQuizId,
+                title: generatedQuizMeta?.title || `Kiểm tra ${selectedSubject} - ${selectedClass}`,
+                totalQuestions: questions.length,
+                subjectCode: generatedQuizMeta?.subjectCode || selectedSubjectCode,
+              });
             }}
             activeOpacity={0.9}
           >

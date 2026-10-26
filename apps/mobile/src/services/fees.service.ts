@@ -46,7 +46,7 @@ export interface RemindFeePayload {
   custom_message?: string;
 }
 
-const detectFeeType = (row: any): FeeType => {
+const detectFeeType = (row: any): FeeType | null => {
   const rawType = String(row.fee_type || row.type || '').toUpperCase();
   if (rawType === 'INSURANCE' || rawType === 'BHYT') return 'INSURANCE';
   if (rawType === 'TUITION' || rawType === 'FEE') return 'TUITION';
@@ -58,7 +58,8 @@ const detectFeeType = (row: any): FeeType => {
   ) {
     return 'INSURANCE';
   }
-  return 'TUITION';
+  if (title.includes('học phí') || title.includes('tuition')) return 'TUITION';
+  return null;
 };
 
 const normalizePaidDate = (row: any): string | null => {
@@ -131,9 +132,10 @@ export const feesService = {
 
           // Shape DB thô: mỗi dòng một loại phí (title/fee_type + status PAID)
           const isPaid = row.is_paid === true || row.status === 'PAID';
-          if (isPaid) {
+          const feeType = detectFeeType(row);
+          if (isPaid && feeType) {
             const pd = normalizePaidDate(row);
-            if (detectFeeType(row) === 'INSURANCE') {
+            if (feeType === 'INSURANCE') {
               insurance.is_paid = true;
               insurance.paid_date = pd;
             } else {

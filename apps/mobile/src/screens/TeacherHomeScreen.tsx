@@ -23,11 +23,18 @@ import Svg, {
   G,
   Polyline,
 } from 'react-native-svg';
-import { classService, MyClassItem } from '../services/class.service';
+import {
+  classService,
+  MyClassItem,
+  JoinPreviewData,
+  JoinSubjectOption,
+  buildJoinSubjectOptions,
+} from '../services/class.service';
 import { attendanceService } from '../services/attendance.service';
 import { feesService, ClassFeesSummary } from '../services/fees.service';
 import { remarksService, ExamReminderItem, StudentRemarkItem } from '../services/remarks.service';
 import { authService } from '../services/auth.service';
+import { userService } from '../services/user.service';
 import { getCurrentAcademicYear } from '../utils/academic';
 
 export interface ClassOption {
@@ -119,6 +126,10 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
   const [newClassGrade, setNewClassGrade] = useState('6');
   const [newClassYear, setNewClassYear] = useState(getCurrentAcademicYear());
   const [joinInviteCode, setJoinInviteCode] = useState('');
+  const [joinPreview, setJoinPreview] = useState<JoinPreviewData | null>(null);
+  const [joinSubjectOptions, setJoinSubjectOptions] = useState<JoinSubjectOption[]>([]);
+  const [joinSelectedSubjects, setJoinSelectedSubjects] = useState<string[]>([]);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedClassId = internalClassId || currentClassId;
@@ -175,6 +186,14 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
       if (user && user.full_name) {
         setTeacherName(user.full_name);
       }
+      // Tên hiển thị lấy lại từ DB mỗi lần vào trang chủ — session cũ (bản app trước)
+      // có thể đã cache tên bị lỗi font, không nên để nó "dính" mãi trên header.
+      userService
+        .getProfile()
+        .then((fresh) => {
+          if (fresh?.full_name) setTeacherName(fresh.full_name);
+        })
+        .catch(() => null);
       const cls = await classService.getMyClasses();
       if (Array.isArray(cls)) {
         if (cls.length > 0) {
@@ -321,17 +340,81 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
     }
   };
 
+  /**
+   * Tra mã mời: server trả thông tin lớp + môn trong hồ sơ cô được phép nhận
+   * và môn đã có giáo viên khác phụ trách.
+   */
+  const handleJoinPreviewLookup = async () => {
+    if (!joinInviteCode.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mã mời tham gia lớp học');
+      return;
+    }
+    setIsLookingUp(true);
+    try {
+      const data = await classService.previewJoin(joinInviteCode.trim());
+      const options = buildJoinSubjectOptions(data);
+      setJoinPreview(data);
+      setJoinSubjectOptions(options);
+      setJoinSelectedSubjects(options.filter((o) => o.is_mine).map((o) => o.code));
+    } catch (err: any) {
+      setJoinPreview(null);
+      setJoinSubjectOptions([]);
+      setJoinSelectedSubjects([]);
+      Alert.alert('Lỗi', err.message || 'Mã mời không hợp lệ');
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const toggleJoinSubject = (code: string) => {
+    setJoinSelectedSubjects((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  };
+
+  const closeJoinModal = () => {
+    setJoinClassModalVisible(false);
+    setJoinPreview(null);
+    setJoinSubjectOptions([]);
+    setJoinSelectedSubjects([]);
+  };
+
   const handleJoinClassSubmit = async () => {
     if (!joinInviteCode.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập mã mời tham gia lớp học');
       return;
     }
+    if (!joinPreview) {
+      Alert.alert('Thông báo', 'Vui lòng bấm "Tra mã" để xem thông tin lớp và môn được nhận.');
+      return;
+    }
+    if (joinSubjectOptions.length === 0) {
+      Alert.alert(
+        'Chưa chọn được môn',
+        'Hồ sơ của bạn chưa có môn giảng dạy. Vui lòng cập nhật môn trong hồ sơ giáo viên trước khi vào lớp.',
+      );
+      return;
+    }
+    const selectableCodes = joinSubjectOptions.filter((o) => !o.taken_by).map((o) => o.code);
+    if (selectableCodes.length === 0) {
+      Alert.alert(
+        'Không còn môn nhận',
+        `Toàn bộ môn trong hồ sơ (${joinSubjectOptions.map((o) => o.label).join(', ')}) đang có giáo viên khác phụ trách.`,
+      );
+      return;
+    }
+    const selected = joinSelectedSubjects.filter((c) => selectableCodes.includes(c));
+    if (selected.length === 0) {
+      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một môn học phụ trách');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const res = await classService.joinClass(joinInviteCode.trim());
-      setJoinClassModalVisible(false);
+      const res = await classService.joinClass(joinInviteCode.trim(), selected);
+      closeJoinModal();
       setJoinInviteCode('');
-      Alert.alert('Thành công', 'Đã tham gia lớp học thành công!');
+      Alert.alert('Thành công', res?.message || 'Đã tham gia lớp học thành công!');
       await loadClasses();
     } catch (err: any) {
       Alert.alert('Lỗi', err.message || 'Mã mời không hợp lệ');
@@ -533,24 +616,116 @@ export const TeacherHomeScreen: React.FC<TeacherHomeScreenProps> = ({
           visible={joinClassModalVisible}
           transparent
           animationType="slide"
-          onRequestClose={() => setJoinClassModalVisible(false)}
+          onRequestClose={closeJoinModal}
         >
           <View style={styles.sheetOverlay}>
-            <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setJoinClassModalVisible(false)} />
+            <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeJoinModal} />
             <View style={styles.dialogSheetBox}>
               <View style={styles.dragHandle} />
               <Text style={styles.dialogSheetTitle}>Vào Lớp Bằng Mã</Text>
               <Text style={styles.dialogSheetSubtitle}>Nhập mã mời được cung cấp bởi Giáo viên chủ nhiệm</Text>
-              <TextInput
-                style={[styles.dialogInput, { marginBottom: 16 }]}
-                placeholder="Nhập mã mời do GVCN cung cấp"
-                placeholderTextColor="#9D9AA8"
-                autoCapitalize="characters"
-                value={joinInviteCode}
-                onChangeText={setJoinInviteCode}
-              />
+              <View style={styles.joinCodeRow}>
+                <TextInput
+                  style={[styles.dialogInput, { flex: 1 }]}
+                  placeholder="Nhập mã mời do GVCN cung cấp"
+                  placeholderTextColor="#9D9AA8"
+                  autoCapitalize="characters"
+                  value={joinInviteCode}
+                  onChangeText={(v) => {
+                    setJoinInviteCode(v);
+                    if (joinPreview) {
+                      setJoinPreview(null);
+                      setJoinSubjectOptions([]);
+                      setJoinSelectedSubjects([]);
+                    }
+                  }}
+                  onSubmitEditing={handleJoinPreviewLookup}
+                />
+                <TouchableOpacity
+                  style={styles.joinLookupBtn}
+                  onPress={handleJoinPreviewLookup}
+                  disabled={isLookingUp}
+                >
+                  <Text style={styles.joinLookupBtnText}>{isLookingUp ? 'Đang tra…' : 'Tra mã'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                style={styles.joinSheetScroll}
+                contentContainerStyle={styles.joinSheetScrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {joinPreview ? (
+                  <View style={styles.joinClassCard}>
+                    <Text style={styles.joinClassName}>{joinPreview.name || 'Lớp học'}</Text>
+                    <Text style={styles.joinClassMeta}>
+                      GVCN: {joinPreview.homeroom_teacher || 'Chưa cập nhật'}
+                      {joinPreview.student_count ? ` • ${joinPreview.student_count} học sinh` : ''}
+                    </Text>
+                    {joinPreview.is_homeroom && (
+                      <Text style={styles.joinClassNote}>
+                        Bạn là chủ nhiệm lớp này — vào mã chỉ để nhận thêm môn bộ môn.
+                      </Text>
+                    )}
+                  </View>
+                ) : (
+                  <Text style={styles.joinClassMeta}>
+                    Bấm “Tra mã” để xem thông tin lớp và các môn trong hồ sơ bạn được phép nhận.
+                  </Text>
+                )}
+
+                {joinPreview ? (
+                  <View style={{ gap: 8 }}>
+                    <Text style={styles.joinSectionLabel}>Môn phụ trách (chọn được nhiều môn)</Text>
+                    {joinSubjectOptions.length === 0 ? (
+                      <Text style={styles.joinClassNote}>
+                        Hồ sơ của bạn chưa có môn giảng dạy. Vui lòng cập nhật môn trong hồ sơ giáo viên
+                        trước khi vào lớp bằng mã.
+                      </Text>
+                    ) : (
+                      <View style={styles.joinChipRow}>
+                        {joinSubjectOptions.map((subj) => {
+                          const isSelected = joinSelectedSubjects.includes(subj.code);
+                          const isLocked = Boolean(subj.taken_by) || Boolean(subj.is_mine);
+                          return (
+                            <TouchableOpacity
+                              key={subj.code}
+                              style={[
+                                styles.joinChip,
+                                isSelected ? styles.joinChipActive : null,
+                                isLocked ? styles.joinChipLocked : null,
+                              ]}
+                              onPress={() => !isLocked && toggleJoinSubject(subj.code)}
+                              disabled={isLocked}
+                              activeOpacity={0.8}
+                            >
+                              <Text
+                                style={[
+                                  styles.joinChipText,
+                                  isSelected ? styles.joinChipTextActive : null,
+                                  subj.taken_by ? styles.joinChipTextStruck : null,
+                                ]}
+                              >
+                                {subj.label}
+                              </Text>
+                              {subj.taken_by ? (
+                                <Text style={styles.joinChipSub}>{subj.taken_by} đang phụ trách</Text>
+                              ) : null}
+                              {subj.is_mine ? (
+                                <Text style={styles.joinChipSub}>Bạn đang phụ trách</Text>
+                              ) : null}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+              </ScrollView>
+
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity style={styles.dialogCancelBtn} onPress={() => setJoinClassModalVisible(false)}>
+                <TouchableOpacity style={styles.dialogCancelBtn} onPress={closeJoinModal}>
                   <Text style={styles.dialogCancelBtnText}>Hủy</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.dialogPrimaryBtn} onPress={handleJoinClassSubmit} disabled={isSubmitting}>
@@ -2424,5 +2599,103 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  joinCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  joinLookupBtn: {
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinLookupBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  joinSheetScroll: {
+    flexGrow: 0,
+    maxHeight: 260,
+    marginBottom: 14,
+  },
+  joinSheetScrollContent: {
+    gap: 14,
+  },
+  joinClassCard: {
+    backgroundColor: '#FFF7F0',
+    borderRadius: 16,
+    padding: 12,
+    gap: 4,
+  },
+  joinClassName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  joinClassMeta: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B6880',
+    lineHeight: 18,
+  },
+  joinClassNote: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#984704',
+    lineHeight: 17,
+  },
+  joinSectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E1B2E',
+  },
+  joinChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  joinChip: {
+    minWidth: 110,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+  },
+  joinChipActive: {
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1.5,
+    borderColor: '#F58F4C',
+  },
+  joinChipLocked: {
+    opacity: 0.6,
+    backgroundColor: '#F6F5F8',
+  },
+  joinChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E1B2E',
+  },
+  joinChipTextActive: {
+    fontWeight: '800',
+    color: '#F58F4C',
+  },
+  joinChipTextStruck: {
+    textDecorationLine: 'line-through',
+  },
+  joinChipSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#984704',
   },
 });

@@ -41,4 +41,5 @@ GoogleService-Info.plist
 .DS_Store
 Thumbs.db
 .agent/
+.qoder/
 

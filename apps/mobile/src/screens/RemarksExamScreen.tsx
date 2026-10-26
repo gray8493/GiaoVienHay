@@ -55,7 +55,7 @@ const buildStudentRemarkRow = (
     subject_code: remark?.subject_code || '',
     subject_name: subject,
     content: hasContent ? remark!.content : null,
-    status: hasContent ? (remark!.parent_acknowledged ? 'READ' : 'UNREAD') : 'NONE',
+    status: hasContent ? 'SENT' : 'NONE',
     sent_date: hasContent ? [formatSentDate(remark!.created_at) || 'Gửi gần đây', subject].join(' • ') : null,
   };
 };
@@ -115,10 +115,18 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       const role = await classService.getMyRoleInClass(classId, cls);
       let codes: string[] = [];
       if (role.isHomeroom) {
-        let profile = role.profileSubjectCodes;
-        if (profile.length === 0) profile = role.apiSubjectCodes;
-        if (profile.length === 0) profile = [...SCHOOL_SUBJECTS];
-        codes = [...new Set([...role.allAssignedCodes, ...profile])];
+        // Môn của CHÍNH giáo viên đang đăng nhập phải đứng đầu để mặc định
+        // không rơi vào môn của giáo viên bộ môn khác (vd Tiếng Anh)
+        const own = [
+          ...new Set([
+            ...role.myAssignedCodes,
+            ...role.profileSubjectCodes,
+            ...role.apiSubjectCodes,
+          ]),
+        ];
+        const fallback = own.length > 0 ? own : role.allAssignedCodes;
+        const base = fallback.length > 0 ? fallback : [...SCHOOL_SUBJECTS];
+        codes = [...new Set([...base, ...role.allAssignedCodes])];
       } else {
         let mine = role.myAssignedCodes;
         if (mine.length === 0) mine = role.apiSubjectCodes;
@@ -208,7 +216,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               subject_code: r.subject_code || '',
               subject_name: subjectLabel(r.subject_code),
               content: r.content || null,
-              status: r.parent_acknowledged ? 'READ' : 'UNREAD',
+              status: r.content ? 'SENT' : 'NONE',
               sent_date: [formatSentDate(r.created_at) || 'Gửi gần đây', subjectLabel(r.subject_code)].join(' • '),
             }));
 
@@ -227,7 +235,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       if (candidate && remarkSubjectOptions.some(o => o.code === candidate)) return candidate;
       return remarkSubjectOptions[0]?.code || rowCode || '';
     });
-    setRemarkContent(student.content || 'Em tiếp thu bài nhanh, hăng hái phát biểu.');
+    setRemarkContent(student.content || '');
     setShowRemarkModal(true);
   };
 
@@ -268,7 +276,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
               subject_code: remarkSubjectCode,
               subject_name: remarkSubjectLabel,
               content: remarkContent.trim(),
-              status: 'UNREAD',
+              status: 'SENT',
               sent_date: `Gửi hôm nay • ${remarkSubjectLabel}`,
             }
           : item,
@@ -330,7 +338,7 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
       (item.student_code || '').toLowerCase().includes(search);
     if (!matchSearch) return false;
 
-    if (remarkFilter === 'SENT') return item.status === 'READ' || item.status === 'UNREAD';
+    if (remarkFilter === 'SENT') return item.status === 'SENT';
     if (remarkFilter === 'UNSENT') return item.status === 'NONE';
     return true;
   });
@@ -549,19 +557,12 @@ export const RemarksExamScreen: React.FC<RemarksExamScreenProps> = ({
                       </TouchableOpacity>
 
                       <View style={styles.studentRightActions}>
-                        {student.status === 'READ' && (
+                        {student.status === 'SENT' && (
                           <View style={styles.badgeRead}>
                             <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
                               <Path d="M5 13l4 4L19 7" stroke="#059669" strokeWidth={3} strokeLinecap="round" />
                             </Svg>
-                            <Text style={styles.badgeReadText}>Đã đọc</Text>
-                          </View>
-                        )}
-
-                        {student.status === 'UNREAD' && (
-                          <View style={styles.badgeUnread}>
-                            <View style={styles.orangeDot} />
-                            <Text style={styles.badgeUnreadText}>Chưa xem</Text>
+                            <Text style={styles.badgeReadText}>Đã gửi</Text>
                           </View>
                         )}
 
@@ -1265,26 +1266,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#059669',
-  },
-  badgeUnread: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  orangeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#D97706',
-  },
-  badgeUnreadText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#D97706',
   },
   badgeNone: {
     backgroundColor: '#F3F4F6',

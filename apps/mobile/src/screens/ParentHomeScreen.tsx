@@ -190,6 +190,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
               </View>
               <TouchableOpacity
                 style={styles.bellButton}
+                accessibilityLabel="Thông báo"
                 onPress={onOpenNotifications}
                 activeOpacity={0.85}
               >
@@ -274,6 +275,7 @@ export const ParentHomeScreen: React.FC<ParentHomeScreenProps> = ({
               {/* Notification Bell */}
               <TouchableOpacity
                 style={styles.bellButton}
+                accessibilityLabel="Thông báo"
                 onPress={onOpenNotifications}
                 activeOpacity={0.85}
               >

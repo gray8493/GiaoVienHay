@@ -15,8 +15,8 @@ import { AttendanceScreen, AttendanceSavedData } from './src/screens/AttendanceS
 import { AttendanceResultScreen } from './src/screens/AttendanceResultScreen';
 import { GradebookScreen } from './src/screens/GradebookScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
-import { QuizGenScreen } from './src/screens/QuizGenScreen';
-import { GameSelectScreen } from './src/screens/GameSelectScreen';
+import { QuizGenScreen, QuizPlayInfo } from './src/screens/QuizGenScreen';
+import { GameSelectScreen, GameModeKey } from './src/screens/GameSelectScreen';
 import { WheelScreen } from './src/screens/WheelScreen';
 import { ClassManagementScreen } from './src/screens/ClassManagementScreen';
 import { MyClassesScreen } from './src/screens/MyClassesScreen';
@@ -75,6 +75,9 @@ export default function App() {
   const [parentAcademicTab, setParentAcademicTab] = useState<'GRADES' | 'REMARKS' | 'ATTENDANCE'>('GRADES');
   const [selectedRole, setSelectedRole] = useState<'TEACHER' | 'PARENT'>('TEACHER');
   const [attendanceData, setAttendanceData] = useState<AttendanceSavedData | undefined>(undefined);
+  // Bộ đề + chế độ game đang chơi — nối liền Quiz → Chọn game → Vòng quay
+  const [activeQuiz, setActiveQuiz] = useState<QuizPlayInfo | null>(null);
+  const [activeGameMode, setActiveGameMode] = useState<GameModeKey | null>(null);
 
   const handleTeacherTabChange = (tab: 'schedule' | 'attendance' | 'gradebook' | 'profile') => {
     if ((tab === 'attendance' || tab === 'gradebook') && !hasRealClassId(currentClassId)) {
@@ -93,51 +96,67 @@ export default function App() {
   };
 
   // Kiểm tra phiên đăng nhập hợp lệ khi khởi động app
+  // Native: AsyncStorage đọc bất đồng bộ nên phải chờ hydrate xong mới được điều hướng
   useEffect(() => {
-    const token = authService.getToken();
-    const user = authService.getUser();
-    if (token && user) {
-      const role = (user.role || '').toUpperCase();
-      const isParent = role === 'PARENT';
-      setSelectedRole(isParent ? 'PARENT' : 'TEACHER');
-      if (isParent) {
-        parentService.getLinkedChildren().then((children) => {
-          if (children && children.length > 0) {
-            setCurrentStudentId(children[0].id);
-            setCurrentStudentName(children[0].full_name);
-            setCurrentStudentClass(children[0].class_name);
-          } else {
-            setCurrentStudentId('');
-            setCurrentStudentName('');
-            setCurrentStudentClass('');
-          }
-        });
-        setCurrentScreen('parent_home');
-      } else {
-        classService
-          .getMyClasses()
-          .then((clsList) => {
-            if (clsList && clsList.length > 0) {
-              setCurrentClassId(clsList[0].id);
-              setCurrentClassName(clsList[0].name || 'Lớp học');
-              setCurrentClassRoleType(clsList[0].role_type);
-              setCurrentSubjectName(clsList[0].role_type === 'SUBJECT' ? clsList[0].subject_name || '' : '');
-              setCurrentScreen('teacher_home');
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      await authService.hydrateAuth();
+      if (cancelled) return;
+
+      const token = authService.getToken();
+      const user = authService.getUser();
+      if (token && user) {
+        const role = (user.role || '').toUpperCase();
+        const isParent = role === 'PARENT';
+        setSelectedRole(isParent ? 'PARENT' : 'TEACHER');
+        if (isParent) {
+          parentService.getLinkedChildren().then((children) => {
+            if (cancelled) return;
+            if (children && children.length > 0) {
+              setCurrentStudentId(children[0].id);
+              setCurrentStudentName(children[0].full_name);
+              setCurrentStudentClass(children[0].class_name);
             } else {
+              setCurrentStudentId('');
+              setCurrentStudentName('');
+              setCurrentStudentClass('');
+            }
+          });
+          setCurrentScreen('parent_home');
+        } else {
+          classService
+            .getMyClasses()
+            .then((clsList) => {
+              if (cancelled) return;
+              if (clsList && clsList.length > 0) {
+                setCurrentClassId(clsList[0].id);
+                setCurrentClassName(clsList[0].name || 'Lớp học');
+                setCurrentClassRoleType(clsList[0].role_type);
+                setCurrentSubjectName(clsList[0].role_type === 'SUBJECT' ? clsList[0].subject_name || '' : '');
+                setCurrentScreen('teacher_home');
+              } else {
+                setCurrentClassId('cls_empty');
+                setCurrentClassName('Chưa có lớp');
+                setCurrentScreen('teacher_home_empty');
+              }
+            })
+            .catch(() => {
+              if (cancelled) return;
               setCurrentClassId('cls_empty');
               setCurrentClassName('Chưa có lớp');
               setCurrentScreen('teacher_home_empty');
-            }
-          })
-          .catch(() => {
-            setCurrentClassId('cls_empty');
-            setCurrentClassName('Chưa có lớp');
-            setCurrentScreen('teacher_home_empty');
-          });
+            });
+        }
+      } else {
+        setCurrentScreen('login');
       }
-    } else {
-      setCurrentScreen('login');
-    }
+    };
+
+    restoreSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Tự động nhúng font Plus Jakarta Sans & Be Vietnam Pro chuẩn Stitch AI khi chạy trên Web
@@ -256,6 +275,14 @@ export default function App() {
           {currentScreen === 'parent_notifications' && (
             <ParentNotificationScreen
               onBack={() => setCurrentScreen('parent_home')}
+              onOpenLinkedScreen={(target) => {
+                if (target.screen === 'parent_fees') {
+                  setCurrentScreen('parent_fees');
+                  return;
+                }
+                setParentAcademicTab(target.tab);
+                setCurrentScreen('parent_academic');
+              }}
             />
           )}
           {currentScreen === 'remarks_exam' && (
@@ -310,7 +337,11 @@ export default function App() {
               currentClassId={currentClassId}
               className={currentClassName}
               subjectName={currentSubjectName}
-              onBack={() => setCurrentScreen('teacher_home')}
+              quizId={activeQuiz?.quizId}
+              quizTitle={activeQuiz?.title}
+              totalQuestions={activeQuiz?.totalQuestions}
+              gameMode={activeGameMode ?? undefined}
+              onBack={() => setCurrentScreen(activeQuiz ? 'game_select' : 'teacher_home')}
               onGoHome={() => setCurrentScreen('teacher_home')}
             />
           )}
@@ -340,6 +371,9 @@ export default function App() {
                   Alert.alert('Thông báo', 'Vui lòng tạo lớp học trước khi sử dụng tính năng này');
                   return;
                 }
+                // Mở vòng quay trực tiếp từ trang chủ: không mang bộ đề cũ
+                setActiveQuiz(null);
+                setActiveGameMode(null);
                 setCurrentScreen('wheel');
               }}
               onManageClass={() => setCurrentScreen('class_mgmt')}
@@ -401,13 +435,21 @@ export default function App() {
               classId={currentClassId}
               className={currentClassName}
               onBack={() => setCurrentScreen('teacher_home')}
-              onSaveAndPlay={() => setCurrentScreen('game_select')}
+              onSaveAndPlay={(quiz) => {
+                setActiveQuiz(quiz);
+                setCurrentScreen('game_select');
+              }}
             />
           )}
           {currentScreen === 'game_select' && (
             <GameSelectScreen
+              quizTitle={activeQuiz?.title}
+              totalQuestions={activeQuiz?.totalQuestions}
               onBack={() => setCurrentScreen('quiz_gen')}
-              onStartGame={() => setCurrentScreen('wheel')}
+              onStartGame={(mode) => {
+                setActiveGameMode(mode);
+                setCurrentScreen('wheel');
+              }}
             />
           )}
           {currentScreen === 'attendance' && (
@@ -452,6 +494,8 @@ export default function App() {
           {currentScreen === 'login' && (
             <LoginScreen
               onLoginSuccess={(user) => {
+                // Đăng nhập xong mới có token — đăng ký thiết bị nhận push thật
+                fcmService.initFCM().catch(() => null);
                 const role = (user?.role || authService.getUser()?.role || '').toUpperCase();
                 const isParent = role === 'PARENT';
                 setSelectedRole(isParent ? 'PARENT' : 'TEACHER');

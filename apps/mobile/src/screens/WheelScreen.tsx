@@ -35,11 +35,16 @@ import { attendanceService } from '../services/attendance.service';
 import { classService } from '../services/class.service';
 import { gradesService } from '../services/grades.service';
 import { SUBJECT_LABELS, SCHOOL_SUBJECTS } from '../constants/academic';
+import { GAME_MODE_LABELS, GameModeKey } from './GameSelectScreen';
 
 interface WheelScreenProps {
   currentClassId?: string;
   className?: string;
   subjectName?: string;
+  quizId?: string;
+  quizTitle?: string;
+  totalQuestions?: number;
+  gameMode?: GameModeKey;
   onBack?: () => void;
   onGoHome?: () => void;
 }
@@ -73,14 +78,29 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   currentClassId = '',
   className = 'Lớp học',
   subjectName = '',
+  quizId,
+  quizTitle,
+  totalQuestions,
+  gameMode,
   onBack,
   onGoHome,
 }) => {
+  const quizContextText = quizId
+    ? [
+        gameMode ? GAME_MODE_LABELS[gameMode] : null,
+        quizTitle?.trim() || null,
+        totalQuestions && totalQuestions > 0 ? `${totalQuestions} câu` : null,
+      ]
+        .filter(Boolean)
+        .join(' • ')
+    : '';
   const [students, setStudents] = useState<StudentCandidate[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<StudentCandidate | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [presentCount, setPresentCount] = useState<number>(0);
   const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>('MATH');
+  // Ẩn nhãn môn mặc định (Toán) cho tới khi biết đúng môn được phân công
+  const [subjectHydrated, setSubjectHydrated] = useState(false);
   // Điểm miệng hiện có của từng học sinh (để hỏi xác nhận trước khi ghi đè)
   const [oralScoreMap, setOralScoreMap] = useState<Map<string, number>>(new Map());
   // Danh sách môn giáo viên có thể ghi điểm trong lớp — chọn ngay trong modal
@@ -97,6 +117,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   const buttonScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    setSubjectHydrated(false);
     loadPresentStudents();
   }, [currentClassId]);
 
@@ -128,6 +149,8 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
       if (role.isHomeroom) {
         codes = [
           ...new Set([
+            // Môn GV được phân công dạy trong lớp đứng đầu danh sách
+            ...role.myAssignedCodes,
             ...role.profileSubjectCodes,
             ...role.allAssignedCodes,
             ...role.apiSubjectCodes,
@@ -155,6 +178,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   const handlePickSubject = (code: string) => {
     if (code === selectedSubjectCode) return;
     setSelectedSubjectCode(code);
+    // Đổi môn ngay trong modal cũng là lựa chọn chủ động: Sổ điểm mở tiếp
+    // theo đúng môn này để bấm Gửi sổ liên lạc là gửi đúng cột vừa chấm.
+    AsyncStorage.setItem(`gvh_gb_subject_v2_${currentClassId}`, code).catch(() => null);
     loadOralScores(code);
   };
 
@@ -164,13 +190,14 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
         attendanceService.getTodayPresentStudents(currentClassId),
         classService.getMySubject(currentClassId),
         // Ưu tiên môn Sổ điểm đang mở lần gần nhất của lớp này — để điểm miệng
-        // chấm qua Vòng quay rơi đúng cột giáo viên đang nhìn (tránh lệch môn)
-        AsyncStorage.getItem(`gvh_gb_subject_${currentClassId}`).catch(() => null),
+        // chấm qua Vòng quay rơi đúng cột giáo viên đang nhìn (tránh lệch môn).
+        // Chưa có lựa chọn nào thì dùng đúng môn GV được phân công trong lớp.
+        AsyncStorage.getItem(`gvh_gb_subject_v2_${currentClassId}`).catch(() => null),
       ]);
-      const firstSubject =
-        storedSubject || (mySubject.teaching_subjects || [])[0];
-      const subject = firstSubject ? String(firstSubject) : 'MATH';
+      const ownSubjects = (mySubject.teaching_subjects || []).filter(Boolean).map(String);
+      const subject = storedSubject || ownSubjects[0] || 'MATH';
       setSelectedSubjectCode(subject);
+      setSubjectHydrated(true);
       const formatted: StudentCandidate[] = (res?.present_students || []).map((s, idx) => {
         const parts = s.full_name.trim().split(' ');
         const shortName = parts[parts.length - 1] || s.full_name;
@@ -350,59 +377,102 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
     setInputScore(cleaned);
   };
 
+  // Alert.alert của react-native-web là no-op → trên web phải dùng window.alert,
+  // nếu không các lỗi/kết quả sẽ biến mất im lặng.
+  const flashNotice = (message: string, title = 'Thông báo') => {
+    if (Platform.OS === 'web') {
+      const browser = globalThis as any;
+      if (typeof browser.alert === 'function') {
+        browser.alert(`${title}\n${message}`);
+        return;
+      }
+    }
+    Alert.alert(title, message);
+  };
+
+  // Xác nhận ghi đè bằng modal tự dựng — chạy được cả web (Alert no-op) và mobile
+  const [overwritePrompt, setOverwritePrompt] = useState<{
+    oldScore: number;
+    newScore: number;
+  } | null>(null);
+
+  const doSaveScore = async (score: number) => {
+    if (!selectedStudent || !currentClassId) return;
+    try {
+      await gradesService.batchInputScores({
+        class_id: currentClassId,
+        subject_code: selectedSubjectCode || 'MATH',
+        score_type: 'ORAL_TEST',
+        semester: 1,
+        is_correction: true,
+        scores: [
+          {
+            student_id: selectedStudent.id,
+            score_value: score,
+            teacher_comment: teacherComment,
+          },
+        ],
+      });
+
+      // Cập nhật map để lần chấm sau hỏi xác nhận với điểm mới nhất
+      setOralScoreMap((prev) => new Map(prev).set(selectedStudent.id, score));
+      // Chốt môn vừa chấm cho Sổ điểm: bấm Gửi sổ liên lạc ngay sau đó sẽ
+      // mở đúng môn này thay vì môn mặc định từng gây lệch cột điểm.
+      AsyncStorage.setItem(
+        `gvh_gb_subject_v2_${currentClassId}`,
+        selectedSubjectCode || 'MATH',
+      ).catch(() => null);
+      setScoreModalVisible(false);
+      setShowSuccessScreen(true);
+    } catch (e: any) {
+      flashNotice(e.message || 'Không thể lưu điểm');
+    }
+  };
+
   const handleSaveScore = async () => {
     if (!selectedStudent) return;
     if (!currentClassId) {
-      Alert.alert('Thông báo', 'Chưa xác định được lớp học. Vui lòng chọn lớp trước khi chấm điểm.');
+      flashNotice('Chưa xác định được lớp học. Vui lòng chọn lớp trước khi chấm điểm.');
       return;
     }
     const score = parseFloat(inputScore);
     if (isNaN(score) || score < 0 || score > 10) {
-      Alert.alert('Thông báo', 'Vui lòng nhập điểm hợp lệ trong khoảng 0 đến 10');
+      flashNotice('Vui lòng nhập điểm hợp lệ trong khoảng 0 đến 10');
       return;
     }
 
-    const doSave = async () => {
+    // Học sinh đã có điểm miệng → mở modal xác nhận trước khi ghi đè.
+    // Map tải trước có thể chưa về kịp nếu GV thao tác quá nhanh → đọc lại
+    // đúng học sinh/môn từ DB để không âm thầm ghi đè điểm đã gửi phụ huynh.
+    let oldScore = oralScoreMap.get(selectedStudent.id);
+    if (oldScore === undefined) {
       try {
-        await gradesService.batchInputScores({
-          class_id: currentClassId,
-          subject_code: selectedSubjectCode || 'MATH',
-          score_type: 'ORAL_TEST',
-          semester: 1,
-          is_correction: true,
-          scores: [
-            {
-              student_id: selectedStudent.id,
-              score_value: score,
-              teacher_comment: teacherComment,
-            },
-          ],
-        });
-
-        // Cập nhật map để lần chấm sau hỏi xác nhận với điểm mới nhất
-        setOralScoreMap((prev) => new Map(prev).set(selectedStudent.id, score));
-        setScoreModalVisible(false);
-        setShowSuccessScreen(true);
-      } catch (e: any) {
-        Alert.alert('Thông báo', e.message || 'Không thể lưu điểm');
+        const grades: any = await gradesService.getClassGrades(
+          currentClassId,
+          selectedSubjectCode || 'MATH',
+          1,
+        );
+        const rows = Array.isArray(grades) ? grades : grades?.rows || [];
+        const row = rows.find(
+          (r: any) =>
+            String(r.studentId || r.student_id || '') === selectedStudent.id &&
+            String(r.scoreType || r.score_type || '') === 'ORAL_TEST',
+        );
+        const existing = row ? Number(row.scoreValue ?? row.score_value) : NaN;
+        if (!isNaN(existing)) {
+          oldScore = existing;
+          setOralScoreMap((prev) => new Map(prev).set(selectedStudent.id, existing));
+        }
+      } catch {
+        // Lỗi mạng: vẫn cho lưu, không chặn giáo viên chấm bài
       }
-    };
-
-    // Học sinh đã có điểm miệng → hỏi xác nhận trước khi ghi đè
-    const oldScore = oralScoreMap.get(selectedStudent.id);
+    }
     if (oldScore !== undefined) {
-      Alert.alert(
-        'Thay đổi điểm miệng?',
-        `Em ${selectedStudent.fullName || selectedStudent.name} đang có điểm miệng ${oldScore}. Bạn muốn thay bằng ${score}?`,
-        [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Thay đổi', onPress: doSave },
-        ],
-      );
+      setOverwritePrompt({ oldScore, newScore: score });
       return;
     }
 
-    await doSave();
+    await doSaveScore(score);
   };
 
   const subjectLabel =
@@ -611,12 +681,21 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
             <View style={styles.headerTitleWrap}>
               <Text style={styles.screenTitle}>Dò Bài Cũ</Text>
               <Text style={styles.screenSubtitle}>
-                {[subjectLabel, className].filter(Boolean).join(' • ')}
+                {[subjectHydrated ? subjectLabel : 'Đang tải...', className]
+                  .filter(Boolean)
+                  .join(' • ')}
               </Text>
               <View style={styles.attendancePill}>
                 <View style={styles.onlineDot} />
                 <Text style={styles.attendancePillText}>{`${presentCount} em có mặt`}</Text>
               </View>
+              {!!quizContextText && (
+                <View style={styles.quizContextPill}>
+                  <Text style={styles.quizContextText} numberOfLines={1}>
+                    {quizContextText}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -1187,6 +1266,44 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
             </View>
           </View>
         </Modal>
+
+        {/* Xác nhận ghi đè điểm miệng — modal tự dựng vì Alert.alert không chạy trên web */}
+        <Modal
+          visible={overwritePrompt !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setOverwritePrompt(null)}
+        >
+          <View style={styles.confirmOverlay}>
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmTitle}>Thay đổi điểm miệng?</Text>
+              <Text style={styles.confirmMessage}>
+                Em {selectedStudent?.fullName || selectedStudent?.name || ''} đang có điểm miệng{' '}
+                {overwritePrompt?.oldScore}. Bạn muốn thay bằng {overwritePrompt?.newScore}?
+              </Text>
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, styles.confirmCancelBtn]}
+                  onPress={() => setOverwritePrompt(null)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.confirmCancelText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, styles.confirmOkBtn]}
+                  onPress={() => {
+                    const next = overwritePrompt;
+                    setOverwritePrompt(null);
+                    if (next) doSaveScore(next.newScore);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.confirmOkText}>Thay đổi</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -1305,6 +1422,23 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     fontWeight: '700',
     color: '#F58F4C',
+  },
+  quizContextPill: {
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FFE3C8',
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    maxWidth: '100%',
+  },
+  quizContextText: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+    color: '#9A3412',
   },
   micIllustrationWrap: {
     width: 74,
@@ -1736,6 +1870,72 @@ const styles = StyleSheet.create({
   saveScoreBtnText: {
     fontSize: 15,
     lineHeight: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
+  /* Xác nhận ghi đè điểm miệng */
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 27, 46, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 20,
+    shadowColor: '#1E1B2E',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  confirmMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+    color: '#6B6880',
+    marginTop: 8,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 18,
+  },
+  confirmBtn: {
+    minWidth: 96,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  confirmCancelBtn: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  confirmCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B6880',
+  },
+  confirmOkBtn: {
+    backgroundColor: '#F58F4C',
+  },
+  confirmOkText: {
+    fontSize: 14,
     fontWeight: '800',
     color: '#FFFFFF',
   },

@@ -28,8 +28,11 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   RefreshControl,
+  Share,
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Line } from 'react-native-svg';
+import QRCode from 'react-native-qrcode-svg';
+import * as Clipboard from 'expo-clipboard';
 import {
   classService,
   StudentItem,
@@ -190,12 +193,74 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
 
       const subjName = SUBJECT_LABELS[assignSubjectCode] || assignSubjectCode;
       const teacherName = assignTeacherItem?.full_name || 'Giáo viên';
-      Alert.alert('Thành công', `Đã phân công ${teacherName} phụ trách môn ${subjName}!`);
+      notify('Thành công', `Đã phân công ${teacherName} phụ trách môn ${subjName}!`);
 
       setShowAssignModal(false);
       await loadClassData();
     } catch (e: any) {
-      Alert.alert('Lỗi phân công', e?.message || 'Không thể lưu phân công. Vui lòng thử lại.');
+      notify('Lỗi phân công', e?.message || 'Không thể lưu phân công. Vui lòng thử lại.');
+    } finally {
+      setIsSubmittingAssign(false);
+    }
+  };
+
+  const notify = (title: string, message: string) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.alert === 'function') {
+      window.alert(`${title}\n\n${message}`);
+      return;
+    }
+    Alert.alert(title, message);
+  };
+
+  const confirmAction = (title: string, message: string, confirmLabel: string): Promise<boolean> => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+    }
+    return new Promise(resolve => {
+      Alert.alert(
+        title,
+        message,
+        [
+          { text: 'Hủy', style: 'cancel', onPress: () => resolve(false) },
+          { text: confirmLabel, style: 'destructive', onPress: () => resolve(true) },
+        ],
+        { cancelable: true, onDismiss: () => resolve(false) },
+      );
+    });
+  };
+
+  const handleRemoveSubjectTeacher = async (teacher: SubjectTeacherItem) => {
+    if (!isHomeroom) return;
+    const subjName =
+      teacher.subject_name || SUBJECT_LABELS[teacher.subject_code] || teacher.subject_code;
+    const confirmed = await confirmAction(
+      'Gỡ giáo viên bộ môn',
+      `Gỡ ${teacher.teacher_name} khỏi môn ${subjName} của lớp? Điểm đã nhập vẫn nằm trong sổ điểm của môn này, thầy cô vào sau sẽ sửa tiếp trên cùng dữ liệu đó.`,
+      'Gỡ',
+    );
+    if (!confirmed) return;
+
+    setIsSubmittingAssign(true);
+    try {
+      const currentList = Array.isArray(classData?.subject_teachers)
+        ? classData!.subject_teachers
+        : [];
+      const updatedList = currentList
+        .filter(
+          (st: any) =>
+            !(
+              (st.teacher_id || st.teacherId) === teacher.teacher_id &&
+              (st.subject_code || st.subjectCode) === teacher.subject_code
+            ),
+        )
+        .map((st: any) => ({
+          teacher_id: st.teacher_id || st.teacherId,
+          subject_code: st.subject_code || st.subjectCode,
+        }));
+      await classService.updateSubjectTeachers(classId, updatedList);
+      await loadClassData();
+    } catch (e: any) {
+      notify('Lỗi', e?.message || 'Không thể gỡ giáo viên. Vui lòng thử lại.');
     } finally {
       setIsSubmittingAssign(false);
     }
@@ -531,9 +596,48 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
     }
   };
 
-  const handleCopyCode = () => {
-    setCopiedToast(true);
-    setTimeout(() => setCopiedToast(false), 2000);
+  const activeInviteCode = (inviteRole === 'TEACHER' ? teacherInviteCode : parentInviteCode)
+    .trim()
+    .toUpperCase();
+  const inviteQrValue = activeInviteCode
+    ? `giaovienhay://join?role=${inviteRole}&code=${encodeURIComponent(activeInviteCode)}`
+    : '';
+
+  const handleCopyCode = async () => {
+    if (!activeInviteCode) {
+      Alert.alert('Chưa có mã mời', 'Vui lòng tạo lại mã mời trước khi sao chép.');
+      return;
+    }
+    try {
+      await Clipboard.setStringAsync(activeInviteCode);
+      setCopiedToast(true);
+      setTimeout(() => setCopiedToast(false), 2000);
+    } catch (e) {
+      Alert.alert('Không thể sao chép', 'Thiết bị không cho phép truy cập bộ nhớ tạm.');
+    }
+  };
+
+  const handleShareCode = async () => {
+    if (!activeInviteCode) {
+      Alert.alert('Chưa có mã mời', 'Vui lòng tạo lại mã mời trước khi chia sẻ.');
+      return;
+    }
+    const roleLabel = inviteRole === 'TEACHER' ? 'giáo viên bộ môn' : 'phụ huynh';
+    const message = `Mã mời ${roleLabel} lớp ${classData?.name || ''}: ${activeInviteCode}\nMở ứng dụng Scholaro → nhập mã hoặc quét mã QR để tham gia.`;
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: 'Mã mời lớp học', text: message });
+        return;
+      } catch (e) {
+        // Người dùng đóng hộp thoại chia sẻ — không cần báo lỗi
+        return;
+      }
+    }
+    try {
+      await Share.share({ message });
+    } catch (e) {
+      Alert.alert('Chia sẻ mã mời', message);
+    }
   };
 
   // Avatar helper
@@ -592,25 +696,6 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
       default:
         return { bg: '#F3F4F6', text: '#374151', border: '#E5E7EB', dot: '#6B7280' };
     }
-  };
-
-  const handleCallTeacher = (phone?: string) => {
-    if (!phone) {
-      Alert.alert('Thông báo', 'Giáo viên này chưa cập nhật số điện thoại.');
-      return;
-    }
-    const telUrl = `tel:${phone.replace(/\s+/g, '')}`;
-    Linking.canOpenURL(telUrl)
-      .then(supported => {
-        if (supported) {
-          Linking.openURL(telUrl);
-        } else {
-          Alert.alert('Số điện thoại liên hệ', phone);
-        }
-      })
-      .catch(() => {
-        Alert.alert('Số điện thoại liên hệ', phone);
-      });
   };
 
   const allSubjectTeachers: SubjectTeacherItem[] = classData?.subject_teachers || [];
@@ -1343,22 +1428,24 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                               </Svg>
                             </TouchableOpacity>
                           )}
-                          <TouchableOpacity
-                            style={styles.quickCallBtn}
-                            onPress={() => handleCallTeacher(teacher.phone)}
-                            activeOpacity={0.8}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          >
-                            <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
-                              <Path
-                                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                                stroke="#F58F4C"
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </Svg>
-                          </TouchableOpacity>
+                          {isHomeroom && (
+                            <TouchableOpacity
+                              style={styles.quickRemoveBtn}
+                              onPress={() => handleRemoveSubjectTeacher(teacher)}
+                              activeOpacity={0.8}
+                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            >
+                              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                                <Path
+                                  d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a2 2 0 01-2 2H8a2 2 0 01-2-2V6"
+                                  stroke="#E11D48"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </Svg>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
 
@@ -1366,11 +1453,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                       {(teacher.phone || teacher.email) ? (
                         <View style={styles.teacherCardFooter}>
                           {teacher.phone ? (
-                            <TouchableOpacity
-                              style={styles.teacherContactItem}
-                              onPress={() => handleCallTeacher(teacher.phone)}
-                              activeOpacity={0.7}
-                            >
+                            <View style={styles.teacherContactItem}>
                               <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
                                 <Path
                                   d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
@@ -1379,7 +1462,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
                                 />
                               </Svg>
                               <Text style={styles.teacherContactText}>{teacher.phone}</Text>
-                            </TouchableOpacity>
+                            </View>
                           ) : null}
 
                           {teacher.email ? (
@@ -2079,63 +2162,26 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
               <Text style={styles.sparkleBottomLeft}>✧</Text>
               <Text style={styles.sparkleTopLeft}>★</Text>
 
-              {/* Clean QR code Vector SVG */}
+              {/* QR thật: mã hoá đúng mã mời đang hiển thị để phụ huynh/GVBM quét */}
               <View style={styles.qrWhiteBox}>
-                <Svg width={140} height={140} viewBox="0 0 100 100" fill="#2D2A26">
-                  {/* Top-Left Finder */}
-                  <Rect x={5} y={5} width={28} height={28} rx={5} fill="#2D2A26" />
-                  <Rect x={9} y={9} width={20} height={20} rx={3} fill="#FFFFFF" />
-                  <Rect x={13} y={13} width={12} height={12} rx={2} fill="#2D2A26" />
-
-                  {/* Top-Right Finder */}
-                  <Rect x={67} y={5} width={28} height={28} rx={5} fill="#2D2A26" />
-                  <Rect x={71} y={9} width={20} height={20} rx={3} fill="#FFFFFF" />
-                  <Rect x={75} y={13} width={12} height={12} rx={2} fill="#2D2A26" />
-
-                  {/* Bottom-Left Finder */}
-                  <Rect x={5} y={67} width={28} height={28} rx={5} fill="#2D2A26" />
-                  <Rect x={9} y={71} width={20} height={20} rx={3} fill="#FFFFFF" />
-                  <Rect x={13} y={75} width={12} height={12} rx={2} fill="#2D2A26" />
-
-                  {/* Timing & Alignment Bits */}
-                  <Rect x={37} y={10} width={4} height={4} rx={1} />
-                  <Rect x={45} y={10} width={4} height={4} rx={1} />
-                  <Rect x={53} y={10} width={4} height={4} rx={1} />
-                  <Rect x={10} y={37} width={4} height={4} rx={1} />
-                  <Rect x={10} y={45} width={4} height={4} rx={1} />
-
-                  {/* Central Branded Pixel in Orange */}
-                  <Rect x={40} y={36} width={6} height={6} rx={1} />
-                  <Rect x={48} y={46} width={6} height={6} rx={1.5} fill="#F58F4C" />
-                  <Rect x={58} y={46} width={8} height={8} rx={1} />
-                  <Rect x={38} y={58} width={14} height={6} rx={1} />
-
-                  {/* Dense data dots */}
-                  <Rect x={68} y={38} width={5} height={5} rx={1} />
-                  <Rect x={77} y={38} width={5} height={5} rx={1} />
-                  <Rect x={68} y={47} width={8} height={5} rx={1} />
-                  <Rect x={80} y={47} width={5} height={5} rx={1} />
-                  <Rect x={37} y={68} width={8} height={5} rx={1} />
-                  <Rect x={49} y={68} width={5} height={5} rx={1} />
-                  <Rect x={68} y={68} width={6} height={6} rx={1} />
-                  <Rect x={78} y={68} width={8} height={6} rx={1} />
-                  <Rect x={37} y={77} width={5} height={8} rx={1} />
-                  <Rect x={46} y={77} width={8} height={5} rx={1} />
-                  <Rect x={68} y={78} width={8} height={5} rx={1} />
-                  <Rect x={80} y={78} width={6} height={5} rx={1} />
-                </Svg>
+                {inviteQrValue ? (
+                  <QRCode value={inviteQrValue} size={140} color="#2D2A26" backgroundColor="#FFFFFF" />
+                ) : (
+                  <Text style={{ fontSize: 12, color: '#6B6880', textAlign: 'center' }}>
+                    Chưa có mã mời
+                  </Text>
+                )}
               </View>
             </View>
 
             {/* Invite Code Text + Round Copy Button */}
             <View style={styles.inviteCodeRow}>
-              <Text style={styles.inviteCodeText}>
-                {inviteRole === 'TEACHER' ? teacherInviteCode : parentInviteCode}
-              </Text>
+              <Text style={styles.inviteCodeText}>{activeInviteCode || '—'}</Text>
               <TouchableOpacity
                 style={styles.copyBtn}
                 onPress={handleCopyCode}
                 activeOpacity={0.8}
+                accessibilityLabel="Sao chép mã mời"
               >
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                   <Rect x={9} y={9} width={13} height={13} rx={2} stroke="#F58F4C" strokeWidth={2} />
@@ -2161,11 +2207,7 @@ export const ClassManagementScreen: React.FC<ClassManagementScreenProps> = ({
             <View style={styles.inviteActionsCol}>
               <TouchableOpacity
                 style={styles.shareBtn}
-                onPress={() => {
-                  const activeCode = inviteRole === 'TEACHER' ? teacherInviteCode : parentInviteCode;
-                  const roleLabel = inviteRole === 'TEACHER' ? 'giáo viên bộ môn' : 'phụ huynh';
-                  Alert.alert('Chia sẻ mã mời', `Mã mời ${roleLabel} lớp ${classData?.name}: ${activeCode}`);
-                }}
+                onPress={handleShareCode}
                 activeOpacity={0.88}
               >
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
@@ -3462,21 +3504,6 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
   },
-  quickCallBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF1E6',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 143, 76, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#F58F4C',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 1,
-  },
   teacherCardFooter: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -3710,6 +3737,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF7ED',
     borderWidth: 1,
     borderColor: 'rgba(245, 143, 76, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickRemoveBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: 'rgba(225, 29, 72, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },

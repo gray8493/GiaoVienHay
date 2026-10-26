@@ -15,6 +15,7 @@ import { ClassesService } from './classes.service';
 import {
   CreateClassDto,
   AddStudentToClassDto,
+  UpdateStudentInClassDto,
   JoinClassDto,
   UpdateSubjectTeachersDto,
 } from './dto/classes.dto';
@@ -123,8 +124,11 @@ export class ClassesController {
 
   @Get('preview-invite/:code')
   @ApiOperation({ summary: 'Xem trước thông tin lớp học theo mã mời' })
-  async previewClassByInvite(@Param('code') code: string) {
-    return this.classesService.previewClassByInvite(code);
+  async previewClassByInvite(
+    @Param('code') code: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.classesService.previewClassByInvite(code, userId);
   }
 
   @Post('join')
@@ -157,6 +161,18 @@ export class ClassesController {
     @Body() dto: UpdateSubjectTeachersDto,
   ) {
     return this.classesService.updateSubjectTeachers(classId, teacherId, dto);
+  }
+
+  @Put(':id/students/:studentId')
+  @Roles('TEACHER_*', 'ADMIN')
+  @ApiOperation({ summary: 'Cập nhật thông tin học sinh, giữ nguyên mã định danh' })
+  async updateStudent(
+    @Param('id') classId: string,
+    @Param('studentId') studentId: string,
+    @CurrentUser('sub') teacherId: string,
+    @Body() dto: UpdateStudentInClassDto,
+  ) {
+    return this.classesService.updateStudent(classId, studentId, dto, teacherId);
   }
 
   @Delete(':id/students/:studentId')

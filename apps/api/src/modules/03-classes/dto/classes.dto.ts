@@ -142,6 +142,43 @@ export class AddStudentToClassDto {
 
 export { AddStudentToClassDto as AddStudentsToClassDto };
 
+export class UpdateStudentInClassDto {
+  @ApiProperty({ example: 'Trần Bảo Nam', description: 'Họ và tên học sinh' })
+  @IsString({ message: 'Họ và tên học sinh phải là chuỗi ký tự' })
+  @IsNotEmpty({ message: 'Họ và tên học sinh bắt buộc và không được để trống' })
+  full_name: string;
+
+  @ApiPropertyOptional({ example: 'HS001', description: 'Mã học sinh' })
+  @IsOptional()
+  @IsString({ message: 'Mã học sinh phải là chuỗi ký tự' })
+  student_code?: string;
+
+  @ApiPropertyOptional({ example: '2019-05-15', description: 'Ngày sinh (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsString({ message: 'Ngày sinh phải là chuỗi ký tự YYYY-MM-DD' })
+  dob?: string;
+
+  @ApiPropertyOptional({ example: 'MALE', enum: ['MALE', 'FEMALE', 'OTHER'] })
+  @IsOptional()
+  @IsString({ message: 'Giới tính học sinh phải là chuỗi ký tự' })
+  gender?: string;
+
+  @ApiPropertyOptional({ example: '0912345678', description: 'SĐT Phụ huynh liên kết' })
+  @IsOptional()
+  @IsString({ message: 'SĐT phụ huynh phải là chuỗi ký tự' })
+  parent_phone?: string;
+
+  @ApiPropertyOptional({ example: 'Trần Văn Hùng', description: 'Họ tên phụ huynh' })
+  @IsOptional()
+  @IsString({ message: 'Họ tên phụ huynh phải là chuỗi ký tự' })
+  parent_name?: string;
+
+  @ApiPropertyOptional({ example: 'Bố', description: 'Mối quan hệ với học sinh' })
+  @IsOptional()
+  @IsString({ message: 'Mối quan hệ phải là chuỗi ký tự' })
+  parent_relationship?: string;
+}
+
 export class JoinClassDto {
   @ApiPropertyOptional({ example: 'INV-1A-9821', description: 'Mã mời tham gia lớp học' })
   @ValidateIf((o) => !o.student_code)
@@ -163,6 +200,16 @@ export class JoinClassDto {
   @IsOptional()
   @IsString({ message: 'Mã môn học phải là chuỗi ký tự' })
   subject_code?: string;
+
+  @ApiPropertyOptional({
+    example: ['MATH', 'LIT'],
+    description: 'Danh sách môn giáo viên đăng ký phụ trách khi vào lớp bằng mã',
+    isArray: true,
+  })
+  @IsOptional()
+  @IsArray({ message: 'Danh sách môn học phải là mảng' })
+  @IsString({ each: true, message: 'Mã môn học phải là chuỗi ký tự' })
+  subject_codes?: string[];
 
   @ApiPropertyOptional({ example: 'Trần Bảo Nam', description: 'Họ và tên con (dành cho phụ huynh nhập thông tin)' })
   @IsOptional()
@@ -186,9 +233,11 @@ export class JoinClassDto {
 }
 
 export class UpdateSubjectTeachersDto {
-  @ApiProperty({ type: [ClassSubjectTeacherItemDto], description: 'Danh sách GVBM phân công' })
+  @ApiProperty({
+    type: [ClassSubjectTeacherItemDto],
+    description: 'Danh sách GVBM phân công — rỗng nghĩa là gỡ toàn bộ khỏi lớp',
+  })
   @IsArray({ message: 'Danh sách phân công GVBM phải là một mảng' })
-  @ArrayNotEmpty({ message: 'Danh sách phân công GVBM không được để trống' })
   @ValidateNested({ each: true })
   @Type(() => ClassSubjectTeacherItemDto)
   subject_teachers: ClassSubjectTeacherItemDto[];

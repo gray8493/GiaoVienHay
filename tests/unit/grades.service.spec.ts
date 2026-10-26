@@ -189,6 +189,50 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
     });
   });
 
+  describe('UT06_Grades_TC03d: công bố lại sau đính chính không bị chặn bởi cache cột đã công bố', () => {
+    it('lần 2 trên CÙNG instance vẫn gửi thông báo Đính chính cho ô vừa chấm lại', async () => {
+      // Lần 1: cột TEST_15P vừa nhập, chưa từng gửi → công bố thành công
+      const first: any = await service.publishScores('usr_teacher_01', {
+        class_id: 'cls_1a_2026',
+        subject_code: 'MATH',
+        score_type: GradeType.TEST_15P,
+        semester: 1,
+      });
+      expect(first.notified_parents_count).toBe(1);
+
+      // GV dò bài/chấm lại → ô điểm được ghi lại is_published=false, published_once=true
+      mockDataConnect.execute.mockImplementationOnce(() =>
+        Promise.resolve({
+          data: {
+            scores: [
+              { id: 'sc_01', studentId: 'stu_01', scoreType: 'TEST_15P', scoreValue: 7.5, is_published: false, published_once: true },
+            ],
+          },
+        }),
+      );
+      mockEventEmitter.emit.mockClear();
+
+      // Lần 2: delta đọc từ DB nên phải đi tiếp, không được coi là "đã công bố"
+      const second: any = await service.publishScores('usr_teacher_01', {
+        class_id: 'cls_1a_2026',
+        subject_code: 'MATH',
+        score_type: GradeType.TEST_15P,
+        semester: 1,
+      });
+      expect(second.already_published).not.toBe(true);
+      expect(second.notified_parents_count).toBe(1);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('grades.published', expect.objectContaining({
+        students: [
+          expect.objectContaining({
+            studentId: 'stu_01',
+            isCorrection: true,
+            changed: [expect.objectContaining({ type: 'TEST_15P', value: 7.5 })],
+          }),
+        ],
+      }));
+    });
+  });
+
   describe('UT06_Grades_TC04: Truy xuất bảng xếp hạng vinh danh học sinh có điểm số cao nhất', () => {
     it('trả về danh sách vinh danh top học sinh', async () => {
       const res = await service.getLeaderboard('cls_1a_2026', 'MATH', 1, 5);
@@ -362,6 +406,29 @@ describe('GradesService (Unit Tests UT06 - All 35 Cases)', () => {
         scores: [{ student_id: 'stu_01', score_value: 8.5, teacher_comment: 'Cộng sót điểm' }],
       });
       expect((res as any).new_score).toBe(8.5);
+    });
+
+    it('giữ published_once=true khi sửa cột đã công bố để lần gửi sau là Đính chính', async () => {
+      // DB cũ chỉ bật is_published (published_once chưa từng được set) vẫn phải
+      // suy ra "đã từng gửi" — nếu không, PH sẽ nhận nhầm thông báo Công bố lần đầu.
+      mockDataConnect.listScoresByClass = jest.fn().mockResolvedValue([
+        { studentId: 'stu_01', score_type: 'TEST_15P', score_value: 9, is_published: true, published_once: false },
+      ]);
+
+      await service.batchInputScores('usr_teacher_01', {
+        class_id: 'cls_1a_2026',
+        subject_code: 'MATH',
+        score_type: GradeType.TEST_15P,
+        semester: 1,
+        is_correction: true,
+        scores: [{ student_id: 'stu_01', score_value: 8.5 }],
+      });
+
+      expect(mockDataConnect.recordScore).toHaveBeenCalledWith(expect.objectContaining({
+        student_id: 'stu_01',
+        is_published: false,
+        published_once: true,
+      }));
     });
   });
 

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
+import { subjectLabel } from '../../common/utils/labels';
 
 function normalizePhone(value?: string | null): string {
   if (!value) return '';
@@ -186,28 +187,54 @@ export class StudentsService {
     const isPaidInsurance = insuranceRecord ? Boolean(insuranceRecord.is_paid ?? insuranceRecord.isPaid) : false;
     const isPaidTuition = tuitionRecord ? Boolean(tuitionRecord.is_paid ?? tuitionRecord.isPaid) : false;
 
+    const classId = (student as any).class_id || (student as any).classId || '';
+    let classYear = '';
+    if (classId && typeof this.dataConnect.getClassById === 'function') {
+      try {
+        const cls = await this.dataConnect.getClassById(classId);
+        classYear = String(cls?.academic_year || cls?.academicYear || '').trim();
+      } catch (e) {}
+    }
+    const feeTitleYear = fees
+      .map((f) => String(f.title || '').match(/(\d{4})\s*[-–]\s*(\d{4})/))
+      .find(Boolean);
+    const academicYear = feeTitleYear
+      ? `${feeTitleYear[1]}-${feeTitleYear[2]}`
+      : classYear || null;
+    const hasFirstSemester = fees.some((f) => /hk1|học kỳ 1/i.test(String(f.title || '')));
+    const termName = academicYear
+      ? hasFirstSemester
+        ? `Học kỳ 1 năm học ${academicYear}`
+        : `Năm học ${academicYear}`
+      : null;
+
     return {
       student_id: (student as any).id || studentId,
-      academic_year: '2026-2027',
+      academic_year: academicYear,
+      has_fee_records: fees.length > 0,
       is_paid_insurance: isPaidInsurance,
       insurance_paid_at: insuranceRecord?.paid_at || insuranceRecord?.paid_date || null,
       is_paid_tuition: isPaidTuition,
-      tuition_due_date: tuitionRecord?.due_date || tuitionRecord?.deadline || '2026-10-05',
+      tuition_due_date: tuitionRecord?.due_date || tuitionRecord?.dueDate || null,
       tuition: {
+        has_record: !!tuitionRecord,
+        title: tuitionRecord?.title || null,
         is_paid: isPaidTuition,
-        amount: tuitionRecord?.amount ?? 1200000,
+        amount: tuitionRecord?.amount ?? null,
         paid_date: tuitionRecord?.paid_at || tuitionRecord?.paid_date || null,
-        due_date: tuitionRecord?.due_date || tuitionRecord?.deadline || '2026-10-05',
+        due_date: tuitionRecord?.due_date || tuitionRecord?.dueDate || null,
         status_label: isPaidTuition ? 'ĐÃ HOÀN THÀNH' : 'CHƯA NỘP',
       },
       insurance: {
+        has_record: !!insuranceRecord,
+        title: insuranceRecord?.title || null,
         is_paid: isPaidInsurance,
-        amount: insuranceRecord?.amount ?? 880000,
+        amount: insuranceRecord?.amount ?? null,
         paid_date: insuranceRecord?.paid_at || insuranceRecord?.paid_date || null,
-        deadline: insuranceRecord?.deadline || insuranceRecord?.due_date || '2026-10-15',
+        deadline: insuranceRecord?.due_date || insuranceRecord?.dueDate || null,
         status_label: isPaidInsurance ? 'ĐÃ HOÀN THÀNH' : 'CHƯA NỘP',
       },
-      term_name: 'Học kỳ 1 năm học 2026-2027',
+      term_name: termName,
       fee_records: fees,
     };
   }
@@ -225,15 +252,18 @@ export class StudentsService {
       return [];
     }
 
-    return sqlRemarks.map((r: any) => ({
-      id: r.id || r.remark_id || 'rmk_9912',
-      remark_id: r.remark_id || r.id || 'rmk_9912',
-      teacher_name: r.teacher_name || r.teacherName || 'Nguyễn Thị Lan',
-      subject_name: r.subject_name || r.subject || 'Toán học',
-      content: r.content,
-      parent_acknowledged: r.parent_acknowledged ?? true,
-      created_at: r.created_at || r.createdAt || '2026-09-23T10:15:00.000Z',
-    }));
+    return sqlRemarks.map((r: any) => {
+      const subjectCode = r.subject_code || r.subjectCode || '';
+      return {
+        id: r.id || r.remark_id || '',
+        remark_id: r.remark_id || r.id || '',
+        teacher_name: r.teacher_name || r.teacherName || '',
+        subject_code: subjectCode,
+        subject_name: r.subject_name || r.subjectName || subjectLabel(subjectCode),
+        content: r.content || '',
+        created_at: r.created_at || r.createdAt || '',
+      };
+    });
   }
 
   async getExamReminders(studentId: string, parentPhone?: string) {

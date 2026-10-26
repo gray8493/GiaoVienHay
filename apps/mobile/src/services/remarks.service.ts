@@ -1,7 +1,7 @@
 import { api } from './http';
 import { EXAM_TYPE_LABELS, SUBJECT_LABELS, WEEKDAY_FULL_LABELS } from '../constants/academic';
 
-export type RemarkStatus = 'READ' | 'UNREAD' | 'NONE';
+export type RemarkStatus = 'SENT' | 'NONE';
 
 export interface StudentRemarkItem {
   id: string;
@@ -52,9 +52,9 @@ export interface RawRemarkRecord {
   student_id: string;
   student_name?: string;
   subject_code: string;
+  teacher_name?: string;
   content: string;
   created_at: string;
-  parent_acknowledged?: boolean;
 }
 
 const formatReminderCreatedAt = (value: any): string => {
@@ -75,10 +75,10 @@ const normalizeRemarkRecord = (raw: any): RawRemarkRecord => ({
   remark_id: String(raw.remark_id ?? raw.id ?? ''),
   student_id: String(raw.student_id ?? raw.studentId ?? ''),
   student_name: raw.student_name ?? raw.studentName ?? '',
-  subject_code: String(raw.subject_code ?? raw.subjectCode ?? raw.subject ?? 'MATH'),
+  subject_code: String(raw.subject_code ?? raw.subjectCode ?? raw.subject ?? ''),
+  teacher_name: raw.teacher_name ?? raw.teacherName ?? '',
   content: String(raw.content ?? ''),
   created_at: String(raw.created_at ?? raw.createdAt ?? ''),
-  parent_acknowledged: raw.parent_acknowledged === true || raw.parentAcknowledged === true,
 });
 
 // Chuẩn hóa record từ backend (camelCase: classId/subject/examDate/title/note)
@@ -140,22 +140,10 @@ export const remarksService = {
       body: {
         student_id: payload.student_id,
         class_id: payload.class_id,
-        subject_code: payload.subject_code || 'MATH',
+        subject_code: payload.subject_code,
         content: payload.content,
       },
       errorMessage: 'Không thể gửi nhận xét',
-    });
-    return true;
-  },
-
-  /**
-   * Phụ huynh bấm "Xác nhận đã đọc" — PATCH /remarks/:id/acknowledge
-   * Backend yêu cầu role PARENT.
-   */
-  async acknowledgeRemark(remarkId: string): Promise<boolean> {
-    await api(`/remarks/${remarkId}/acknowledge`, {
-      method: 'PATCH',
-      errorMessage: 'Không thể xác nhận đã đọc nhận xét',
     });
     return true;
   },
@@ -199,7 +187,7 @@ export const remarksService = {
       method: 'POST',
       body: {
         class_id: payload.class_id,
-        subject_code: payload.subject_code || 'MATH',
+        subject_code: payload.subject_code,
         exam_type: normalizedType,
         exam_date: normalizedDate,
         message: payload.message,

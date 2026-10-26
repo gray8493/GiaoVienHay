@@ -225,9 +225,10 @@ export class NotificationsService {
     }
 
     // 3. Gửi FCM Push nếu có device tokens hợp lệ
+    // Bỏ token giả do client cũ tự sinh (fcm_web_/fcm_android_/fcm_ios_…) — FCM sẽ từ chối
     let pushed = false;
     const validTokens = targetTokens.filter(
-      (t) => t && typeof t === 'string' && t.trim().length > 0 && !t.startsWith('fcm_android_') && !t.startsWith('fcm_ios_'),
+      (t) => t && typeof t === 'string' && t.trim().length > 0 && !t.startsWith('fcm_'),
     );
 
     if (validTokens.length > 0 && this.firebaseAdmin.isReady()) {

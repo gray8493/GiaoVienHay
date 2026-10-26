@@ -52,6 +52,57 @@ export interface ClassDetailData {
   subject_teachers?: SubjectTeacherItem[];
 }
 
+/**
+ * Kết quả xem trước mã mời. Với giáo viên, server trả thêm môn thuộc hồ sơ
+ * và môn đã có GV khác phụ trách để UI không phải tự suy đoán mã môn.
+ */
+export interface JoinPreviewData {
+  class_id: string;
+  name: string;
+  grade_level?: number;
+  academic_year?: string;
+  school_name?: string;
+  homeroom_teacher?: string;
+  student_count?: number;
+  invite_code: string;
+  is_homeroom?: boolean;
+  profile_subjects?: { code: string; label: string }[];
+  assigned_subjects?: {
+    subject_code: string;
+    subject_name?: string;
+    teacher_id: string;
+    teacher_name: string;
+    is_me?: boolean;
+  }[];
+  my_subject_codes?: string[];
+}
+
+export interface JoinSubjectOption {
+  code: string;
+  label: string;
+  /** GV khác đang phụ trách môn này trong lớp -> không được chọn */
+  taken_by?: string;
+  /** Chính giáo viên đang phụ trách môn này trong lớp */
+  is_mine?: boolean;
+}
+
+/**
+ * Môn được phép nhận khi vào lớp bằng mã, dựng từ dữ liệu server đã chuẩn hoá
+ * để các màn hình join không phải tự phân tích tên/mã môn ở client.
+ */
+export const buildJoinSubjectOptions = (preview: JoinPreviewData): JoinSubjectOption[] => {
+  const assigned = preview.assigned_subjects || [];
+  return (preview.profile_subjects || []).map((s) => {
+    const holder = assigned.find((a) => a.subject_code === s.code && !a.is_me);
+    return {
+      code: s.code,
+      label: s.label,
+      is_mine: assigned.some((a) => a.subject_code === s.code && a.is_me),
+      taken_by: holder ? holder.teacher_name : undefined,
+    };
+  });
+};
+
 export interface AddStudentPayload {
   full_name: string;
   dob?: string;
@@ -121,37 +172,19 @@ export const classService = {
   },
 
   /**
-   * Cập nhật học sinh bằng cách tận dụng API có sẵn:
-   * 1) DELETE xóa mềm học sinh cũ (mở khóa ràng buộc trùng tên + ngày sinh)
-   * 2) POST thêm lại học sinh với thông tin mới, giữ nguyên mã học sinh
-   * Nếu bước 2 lỗi, rollback: thêm lại học sinh cũ để không mất dữ liệu.
+   * Cập nhật hồ sơ học sinh tại chỗ — backend giữ nguyên student_id nên
+   * điểm số, điểm danh, nhận xét và liên kết phụ huynh không bị mồ côi.
    */
   async updateStudent(
     classId: string,
     currentStudent: StudentItem,
     payload: AddStudentPayload,
   ): Promise<StudentItem> {
-    await this.removeStudent(classId, currentStudent.id);
-
-    try {
-      const created = await this.addStudent(classId, {
-        student_code: currentStudent.student_code,
-        ...payload,
-      });
-      return created;
-    } catch (e: any) {
-      // Rollback best-effort: tái tạo học sinh với dữ liệu cũ
-      await this.addStudent(classId, {
-        student_code: currentStudent.student_code,
-        full_name: currentStudent.full_name,
-        dob: currentStudent.dob,
-        gender: currentStudent.gender,
-        parent_phone: currentStudent.parent_phone,
-        parent_name: currentStudent.parent_name,
-        parent_relationship: currentStudent.parent_relationship,
-      }).catch(() => undefined);
-      throw e;
-    }
+    return api<StudentItem>(`/classes/${classId}/students/${currentStudent.id}`, {
+      method: 'PUT',
+      body: { student_code: currentStudent.student_code, ...payload },
+      errorMessage: 'Không thể cập nhật học sinh',
+    });
   },
 
   async removeStudent(classId: string, studentId: string): Promise<boolean> {
@@ -170,13 +203,21 @@ export const classService = {
     });
   },
 
-  async joinClass(inviteCode: string, subjectCode?: string): Promise<any> {
+  async previewJoin(inviteCode: string): Promise<JoinPreviewData> {
     const normalizedCode = normalizeInviteCode(inviteCode);
-    const payload: { invite_code: string; subject_code?: string } = {
+    return api<JoinPreviewData>(`/classes/preview-invite/${encodeURIComponent(normalizedCode)}`, {
+      errorMessage: 'Mã mời tham gia lớp học không hợp lệ hoặc đã hết hạn',
+    });
+  },
+
+  async joinClass(inviteCode: string, subjectCodes?: string[]): Promise<any> {
+    const normalizedCode = normalizeInviteCode(inviteCode);
+    const payload: { invite_code: string; subject_codes?: string[] } = {
       invite_code: normalizedCode,
     };
-    if (subjectCode && subjectCode.trim()) {
-      payload.subject_code = subjectCode.trim().toUpperCase();
+    const codes = (subjectCodes || []).map((c) => String(c).trim().toUpperCase()).filter(Boolean);
+    if (codes.length > 0) {
+      payload.subject_codes = Array.from(new Set(codes));
     }
     return api('/classes/join', {
       method: 'POST',

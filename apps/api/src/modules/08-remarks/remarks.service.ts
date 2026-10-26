@@ -146,8 +146,6 @@ export class RemarksService {
       date: now.split('T')[0],
       content: dto.content,
       category: 'GENERAL',
-      parent_acknowledged: false,
-      acknowledged_at: null,
       is_deleted: false,
       deleted_at: null,
       created_at: now,
@@ -216,17 +214,25 @@ export class RemarksService {
     };
   }
 
-  async getClassRemarks(classId: string, limit: number = 20, studentId?: string) {
+  async getClassRemarks(classId: string, limit: number = 200, studentId?: string) {
     let remarks: any[] = [];
-    if ((this.dataConnect as any).getClassRemarks) {
-      try {
-        remarks = await (this.dataConnect as any).getClassRemarks(classId, limit, studentId);
-      } catch (e) {}
-    }
+    try {
+      remarks = await this.dataConnect.getRemarksByClass(classId, limit);
+    } catch (e) {}
 
     const items = (remarks || [])
       .filter((item) => !studentId || item.student_id === studentId)
-      .slice(0, Math.max(0, limit));
+      .slice(0, Math.max(0, limit))
+      .map((r: any) => ({
+        remark_id: r.remark_id || r.id,
+        student_id: r.student_id || r.studentId,
+        student_name: r.student_name || '',
+        subject_code: r.subject_code || r.subjectCode || null,
+        subject_name: subjectLabel(r.subject_code || r.subjectCode) || null,
+        teacher_name: r.teacher_name || r.teacherName || '',
+        content: r.content,
+        created_at: r.created_at || r.createdAt || '',
+      }));
 
     return {
       class_id: classId,
@@ -246,26 +252,18 @@ export class RemarksService {
     const items = (remarks || []).map((r: any) => ({
       remark_id: r.remark_id || r.id,
       student_id: studentId,
-      subject_code: r.subject_code || r.subject || null,
-      subject_name: subjectLabel(r.subject_code || r.subject) || null,
-      teacher_name: r.teacher_name || '',
+      subject_code: r.subject_code || r.subjectCode || r.subject || null,
+      subject_name:
+        subjectLabel(r.subject_code || r.subjectCode || r.subject) || null,
+      teacher_name: r.teacher_name || r.teacherName || '',
       content: r.content,
-      created_at: r.created_at || r.createdAt || new Date().toISOString(),
+      created_at: r.created_at || r.createdAt || '',
     }));
 
     return {
       student_id: studentId,
       total: items.length,
       items,
-    };
-  }
-
-  async acknowledgeRemark(remarkId: string, parentId: string) {
-    const now = new Date().toISOString();
-    return {
-      remark_id: remarkId,
-      parent_acknowledged: true,
-      acknowledged_at: now,
     };
   }
 

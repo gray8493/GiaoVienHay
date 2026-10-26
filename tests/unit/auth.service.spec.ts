@@ -9,12 +9,18 @@ jest.mock('firebase-admin/auth', () => ({
 jest.mock('firebase-admin/messaging', () => ({
   getMessaging: jest.fn(() => ({})),
 }));
-jest.mock('../../apps/api/src/common/supabase/supabase.service', () => ({
-  FirebaseService: jest.fn().mockImplementation(() => ({
-    auth: { verifyIdToken: jest.fn() },
-    messaging: { sendEachForMulticast: jest.fn() },
-  })),
-}));
+jest.mock('../../apps/api/src/common/supabase/supabase.service', () => {
+  // Giữ nguyên các helper thuần (normalizeSubjectCodes) vì auth.service dùng thật,
+  // chỉ mock các service có kết nối bên ngoài
+  const actual = jest.requireActual('../../apps/api/src/common/supabase/supabase.service');
+  return {
+    ...actual,
+    FirebaseService: jest.fn().mockImplementation(() => ({
+      auth: { verifyIdToken: jest.fn() },
+      messaging: { sendEachForMulticast: jest.fn() },
+    })),
+  };
+});
 
 import { ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { validate } from 'class-validator';

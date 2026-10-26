@@ -32,7 +32,7 @@ export const userService = {
     try {
       const user = await api<any>('/users/me');
       if (user && user.id) {
-        return {
+        const profile: UserProfile = {
           id: user.id,
           phone: user.phone || '',
           full_name: user.full_name || 'Người dùng',
@@ -41,6 +41,10 @@ export const userService = {
           school_name: user.school_name || 'Chưa cập nhật',
           teaching_subjects: user.teaching_subjects || [],
         };
+        // Cache phiên có thể do bản cũ ghi lỗi font (chuỗi bị thay dấu bằng '?').
+        // Mỗi lần đọc được profile thật từ DB thì đồng bộ luôn vào cache để tự chữa lành.
+        authService.setUser({ ...(authService.getUser() || {}), ...profile } as any);
+        return profile;
       }
     } catch (error: any) {
       console.warn('Lỗi tải thông tin cá nhân:', error.message);

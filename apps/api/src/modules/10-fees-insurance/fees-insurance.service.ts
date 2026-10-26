@@ -103,7 +103,7 @@ export class FeesInsuranceService {
 
     return {
       class_id: classId,
-      term_name: 'Học kỳ 1 năm học 2026-2027',
+      term_name: '',
       total_students: totalStudents,
       unpaid_tuition_count: unpaidTuition,
       unpaid_insurance_count: unpaidInsurance,

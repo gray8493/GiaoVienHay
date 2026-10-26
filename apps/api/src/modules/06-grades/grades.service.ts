@@ -33,7 +33,6 @@ export interface GradesPublishedPayload {
 @Injectable()
 export class GradesService {
   private readonly logger = new Logger(GradesService.name);
-  private readonly publishedColumns = new Set<string>();
 
   constructor(
     private readonly dataConnect: FirebaseDataConnectService,
@@ -72,7 +71,7 @@ export class GradesService {
       `, { classId, subject: subjectCode });
 
       if (sqlScores.data?.scores && sqlScores.data.scores.length > 0) {
-        return sqlScores.data.scores;
+        return this.attachUpdatedByTeacherName(sqlScores.data.scores);
       }
     } catch (e) {}
 
@@ -81,7 +80,7 @@ export class GradesService {
       try {
         const rows = await this.dataConnect.listScoresByClass(classId, subjectCode, semester);
         if (rows && rows.length > 0) {
-          return rows;
+          return this.attachUpdatedByTeacherName(rows);
         }
       } catch (e: any) {
         this.logger.warn(`listScoresByClass fallback failed: ${e?.message}`);
@@ -89,6 +88,38 @@ export class GradesService {
     }
 
     return [];
+  }
+
+  /**
+   * Sổ điểm cần biết "cô nào sửa ô này lúc nào" (khi GVBM được thay giữa kỳ).
+   * Chỉ phân biệt được bằng id giáo viên nên trả kèm tên để client khỏi gọi thêm API.
+   */
+  private async attachUpdatedByTeacherName(rows: any[]) {
+    const teacherIds = Array.from(
+      new Set(
+        rows
+          .map((r: any) => String(r.updatedByTeacherId ?? r.updated_by_teacher_id ?? ''))
+          .filter((id) => id && !id.startsWith('usr_admin')),
+      ),
+    );
+    if (teacherIds.length === 0) return rows;
+
+    const nameById = new Map<string, string>();
+    await Promise.all(
+      teacherIds.map(async (id) => {
+        try {
+          const user = await this.dataConnect.getUserById(id);
+          const name = user?.full_name || (user as any)?.fullName || '';
+          if (name) nameById.set(id, name);
+        } catch (e) {}
+      }),
+    );
+
+    return rows.map((r: any) => {
+      const tid = String(r.updatedByTeacherId ?? r.updated_by_teacher_id ?? '');
+      if (!tid) return r;
+      return { ...r, updated_by_teacher_id: tid, updated_by_teacher_name: nameById.get(tid) || '' };
+    });
   }
 
   async batchInputScores(
@@ -189,9 +220,7 @@ export class GradesService {
       }
     }
 
-    const colKey = `${dto.class_id}_${dto.subject_code}_${dto.score_type}`;
-    // Trạng thái "cột đã công bố" đọc từ DB (is_published trên từng dòng điểm) —
-    // trước đây dùng Set trong RAM nên backend restart là quên → PH nhận trùng thông báo
+    // Trạng thái "cột đã công bố" đọc từ DB (is_published trên từng dòng điểm)
     let existingRows: any[] = [];
     try {
       if (typeof (this.dataConnect as any).listScoresByClass === 'function') {
@@ -209,9 +238,7 @@ export class GradesService {
     }
     const isColPublished =
       dto.is_published ||
-      colRows.some((r: any) => (r.isPublished ?? r.is_published) === true) ||
-      this.publishedColumns.has(colKey) ||
-      this.publishedColumns.has(`${colKey}_${dto.semester || 1}`);
+      colRows.some((r: any) => (r.isPublished ?? r.is_published) === true);
     const hasCorrectionReason = dto.is_correction || (dto as any).correction_reason || dto.scores?.some((s: any) => s.correction_reason || s.teacher_comment);
 
     if (isColPublished && !hasCorrectionReason) {
@@ -244,7 +271,17 @@ export class GradesService {
         // published_once giữ dấu "đã từng gửi" — lần gửi kế tiếp dùng loại Đính chính
         is_published: false,
         isPublished: false,
-        published_once: (oldRow?.published_once ?? oldRow?.is_published ?? false) === true,
+        published_once:
+          oldRow?.published_once === true ||
+          oldRow?.publishedOnce === true ||
+          oldRow?.is_published === true ||
+          oldRow?.isPublished === true,
+        // GVBM có thể bị đổi giữa học kỳ: ô điểm là bản ghi duy nhất theo
+        // (lớp, môn, hs, loại bài) nên cô sau ghi đè — lưu lại ai sửa lần cuối
+        updated_by_teacher_id: teacherId || null,
+        updatedByTeacherId: teacherId || null,
+        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       // Lưu hoàn toàn vào SQL Data Connect
@@ -359,16 +396,11 @@ export class GradesService {
 
     const now = new Date().toISOString();
 
-    // 1) Bỏ qua các cột đã công bố từ trước
-    const newTypes = requestedTypes.filter((t) => {
-      const colKey = `${dto.class_id}_${dto.subject_code}_${t}_${dto.semester || 1}`;
-      const simpleKey = `${dto.class_id}_${dto.subject_code}_${t}`;
-      return !(
-        dto.already_published ||
-        this.publishedColumns.has(colKey) ||
-        this.publishedColumns.has(simpleKey)
-      );
-    });
+    // 1) KHÔNG chặn cột "đã từng công bố" bằng Set trong RAM: sau khi giáo viên
+    // đính chính, ô điểm được ghi is_published=false trong DB nên vẫn phải đi tiếp
+    // để gửi thông báo Đính chính. Delta thật luôn đọc từ DB bên dưới.
+    // Chỉ tôn trọng cờ already_published khi phía gọi chủ động truyền vào.
+    const newTypes = dto.already_published ? [] : requestedTypes;
 
     if (newTypes.length === 0) {
       const duplicateGuard = {
@@ -434,11 +466,6 @@ export class GradesService {
       };
     }
 
-    for (const t of typesWithData) {
-      this.publishedColumns.add(`${dto.class_id}_${dto.subject_code}_${t}_${dto.semester || 1}`);
-      this.publishedColumns.add(`${dto.class_id}_${dto.subject_code}_${t}`);
-    }
-
     // 3) Delta: chỉ gửi cho học sinh có ô CHƯA gửi (is_published=false).
     // Học sinh từng nhận cột này → thông báo loại Đính chính; lần đầu → Công bố.
     const rowsForTypes = scoresForFanout.filter((row: any) =>
@@ -484,11 +511,6 @@ export class GradesService {
         published_types: typesWithData,
         published_at: now,
       };
-    }
-
-    for (const t of typesWithData) {
-      this.publishedColumns.add(`${dto.class_id}_${dto.subject_code}_${t}_${dto.semester || 1}`);
-      this.publishedColumns.add(`${dto.class_id}_${dto.subject_code}_${t}`);
     }
 
     // Đánh dấu các ô vừa gửi là đã gửi (trước khi phát sự kiện)

@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Svg, Path, Rect, Circle, Defs, LinearGradient as SvgLinearGradient, Stop, G, Line, Polyline } from 'react-native-svg';
 import { parentService, PARENT_SCORE_COLUMNS } from '../services/parent.service';
-import { remarksService } from '../services/remarks.service';
 
 interface ParentAcademicScreenProps {
   studentId?: string;
@@ -70,7 +69,6 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
     d.setMonth(d.getMonth() - i);
     return buildMonthKey(d);
   });
-  const [confirmingRemarkId, setConfirmingRemarkId] = useState<string | null>(null);
 
   // Dữ liệu Điểm số
   const [academicData, setAcademicData] = useState<any[]>([]);
@@ -119,23 +117,6 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
       console.warn('Lỗi khi tải dữ liệu học tập phụ huynh:', e);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Xác nhận đã đọc nhận xét — PATCH /remarks/:id/acknowledge (lưu DB, GV thấy được)
-  const handleConfirmRemark = async (remarkId: string) => {
-    if (confirmingRemarkId) return;
-    setConfirmingRemarkId(remarkId);
-    try {
-      await remarksService.acknowledgeRemark(remarkId);
-      setRemarksList(prev =>
-        prev.map(r => (r.id === remarkId ? { ...r, is_read: true } : r))
-      );
-      Alert.alert('Thành công', 'Đã xác nhận đã đọc nhận xét của giáo viên.');
-    } catch (e: any) {
-      Alert.alert('Thông báo', e?.message || 'Không thể xác nhận đã đọc. Vui lòng thử lại.');
-    } finally {
-      setConfirmingRemarkId(null);
     }
   };
 
@@ -428,57 +409,103 @@ export const ParentAcademicScreen: React.FC<ParentAcademicScreenProps> = ({
               )}
             </View>
 
-            {/* Các Card Nhận Xét: FIX LỖI RỚT NGÀY THÁNG */}
-            {remarksList.map((rmk) => (
-              <View key={rmk.id} style={styles.remarkCard}>
-                <View style={styles.remarkHeader}>
-                  <Text style={styles.remarkTeacherTitle} numberOfLines={1}>
-                    {rmk.teacher_title}
-                  </Text>
-                  <Text style={styles.remarkDateText} numberOfLines={1}>
-                    {rmk.date_str}
+            {/* ======================================================== */}
+            {/* Card: Nhận Xét Của Giáo Viên (Đồng bộ Form Khung Lịch Kiểm Tra + 3D) */}
+            {/* ======================================================== */}
+            <View style={styles.remarkSectionCard}>
+              <View style={styles.remarkCardHeader}>
+                <View style={styles.remarkHeaderLeft}>
+                  <View style={styles.remarkHeaderIcon3D}>
+                    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                      <Defs>
+                        <SvgLinearGradient id="remGrad3D" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <Stop offset="0%" stopColor="#FFA67A" />
+                          <Stop offset="100%" stopColor="#E26D2B" />
+                        </SvgLinearGradient>
+                      </Defs>
+                      <Path
+                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                        fill="url(#remGrad3D)"
+                      />
+                    </Svg>
+                  </View>
+                  <View style={styles.remarkHeaderTextWrap}>
+                    <Text style={styles.remarkCardTitle} numberOfLines={1}>Nhận Xét Của Giáo Viên</Text>
+                    <Text style={styles.remarkCardSubtitle}>Đánh giá rèn luyện và tiến bộ của con</Text>
+                  </View>
+                </View>
+                <View style={styles.remarkCountPill}>
+                  <Text style={styles.remarkCountText}>
+                    {remarksList.length} lời nhắn
                   </Text>
                 </View>
+              </View>
 
-                <Text style={styles.remarkContentText}>
-                  {rmk.content}
-                </Text>
-
-                <View style={styles.remarkActionWrap}>
-                  {rmk.is_read ? (
-                    <View style={styles.readBadge}>
-                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={3}>
-                        <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+              {/* Danh sách nhận xét */}
+              {remarksList.length === 0 && (
+                <View style={styles.remarkEmptyWrap}>
+                  <Text style={styles.remarkEmptyTitle}>Chưa có nhận xét nào</Text>
+                  <Text style={styles.remarkEmptySub}>
+                    Khi giáo viên gửi nhận xét, nội dung sẽ hiển thị tại đây.
+                  </Text>
+                </View>
+              )}
+              {remarksList.map((rmk, idx, arr) => (
+                <View key={rmk.id || idx}>
+                  <View style={styles.remarkItemRow}>
+                    {/* Cột trái: Tile avatar/icon môn học 3D */}
+                    <View style={styles.remarkSubjectTile}>
+                      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                        <Defs>
+                          <SvgLinearGradient id={`remTileGrad_${idx}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#60A5FA" />
+                            <Stop offset="100%" stopColor="#2563EB" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <Circle cx="12" cy="12" r="10" fill={`url(#remTileGrad_${idx})`} />
+                        <Path d="M8 12h8M12 8v8" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
                       </Svg>
-                      <Text style={styles.readBadgeText}>Đã đọc</Text>
+                      <Text style={styles.remarkTileSubjCode}>{rmk.subject_code || '—'}</Text>
                     </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.confirmReadBtn}
-                      activeOpacity={0.85}
-                      onPress={() => handleConfirmRemark(rmk.id)}
-                    >
-                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={3}>
-                        <Polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
-                      </Svg>
-                      <Text style={styles.confirmReadText}>Xác Nhận</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ))}
 
-            {/* Micro-Quote Card */}
-            <View style={styles.quoteCard}>
-              <View style={styles.quoteIconBox}>
-                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#984704" strokeWidth={2}>
-                  <Path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                </Svg>
-              </View>
-              <Text style={styles.quoteText}>
-                "Mỗi ngày một trang sách mới cùng thầy cô và bạn bè."
-              </Text>
+                    {/* Cột phải: Thông tin nhận xét */}
+                    <View style={styles.remarkInfoWrap}>
+                      <View style={styles.remarkBadgeRow}>
+                        <View style={styles.remarkSubjectBadge}>
+                          <Text style={styles.remarkSubjectBadgeText} numberOfLines={1}>
+                            {rmk.subject_name || 'Môn học'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Tên giáo viên và ngày */}
+                      <View style={styles.remarkTeacherRow}>
+                        <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#984704" strokeWidth={2}>
+                          <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <Circle cx="12" cy="7" r="4" />
+                        </Svg>
+                        <Text style={styles.remarkTeacherText} numberOfLines={1}>
+                          {rmk.teacher_title || rmk.teacher_name || 'Giáo viên'}
+                        </Text>
+                        {rmk.date_str ? (
+                          <>
+                            <Text style={styles.remarkDotSeparator}>•</Text>
+                            <Text style={styles.remarkDateLabel}>{rmk.date_str}</Text>
+                          </>
+                        ) : null}
+                      </View>
+
+                      {/* Khung lời nhắn trích dẫn (Bento Quote Bubble 3D thân thiện) */}
+                      <View style={styles.remarkBubbleCard}>
+                        <Text style={styles.remarkContentText}>
+                          {rmk.content}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  {idx < arr.length - 1 && <View style={styles.hairlineDivider} />}
+                </View>
+              ))}
             </View>
           </View>
         )}
@@ -1126,95 +1153,163 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#F3F4F6',
   },
-  remarkCard: {
+  /* Form khung nhận xét đồng bộ với Lịch kiểm tra + Hiệu ứng 3D */
+  remarkSectionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#FFE7D3',
+    shadowColor: '#C97A3E',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 3,
+    marginBottom: 20,
   },
-  remarkHeader: {
+  remarkCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 14,
   },
-  remarkTeacherTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E1B2E',
+  remarkHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     flex: 1,
-    paddingRight: 8,
   },
-  remarkDateText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B6880',
-    flexShrink: 0,
-  },
-  remarkContentText: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-  },
-  remarkActionWrap: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-  },
-  confirmReadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF1E6',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 9999,
-  },
-  confirmReadText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#F58F4C',
-  },
-  readBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 9999,
-  },
-  readBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#10B981',
-  },
-  quoteCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  quoteIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFDBC8',
+  remarkHeaderIcon3D: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FFF4EA',
+    borderWidth: 1,
+    borderColor: '#FFE1CC',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quoteText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: '#554339',
+  remarkHeaderTextWrap: {
     flex: 1,
-    lineHeight: 16,
+  },
+  remarkCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E1B2E',
+  },
+  remarkCardSubtitle: {
+    fontSize: 11,
+    color: '#8A7B72',
+    marginTop: 2,
+  },
+  remarkCountPill: {
+    backgroundColor: '#FFF1E6',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    flexShrink: 0,
+  },
+  remarkCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B9671F',
+  },
+  remarkEmptyWrap: {
+    paddingVertical: 22,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  remarkEmptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3D2C29',
+    marginBottom: 4,
+  },
+  remarkEmptySub: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#8A7B72',
+    textAlign: 'center',
+  },
+  remarkItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 14,
+  },
+  remarkSubjectTile: {
+    width: 52,
+    borderRadius: 16,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 3,
+  },
+  remarkTileSubjCode: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1E40AF',
+    letterSpacing: 0.5,
+  },
+  remarkInfoWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  remarkBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginBottom: 6,
+  },
+  remarkSubjectBadge: {
+    backgroundColor: '#EBF3FF',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 9999,
+  },
+  remarkSubjectBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  remarkTeacherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+  },
+  remarkTeacherText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#7A431D',
+  },
+  remarkDotSeparator: {
+    fontSize: 12,
+    color: '#BDB3AC',
+  },
+  remarkDateLabel: {
+    fontSize: 11.5,
+    color: '#8A7B72',
+    fontWeight: '500',
+  },
+  remarkBubbleCard: {
+    backgroundColor: '#FFFBF7',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FFE8D6',
+    borderLeftWidth: 3.5,
+    borderLeftColor: '#F58F4C',
+  },
+  remarkContentText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#372B20',
   },
 
   /* PAR-02c Attendance Tab */

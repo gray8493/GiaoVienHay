@@ -215,7 +215,9 @@ export interface DataConnectQuizRecord {
 export interface DataConnectRemarkRecord {
   id: string;
   studentId: string;
+  student_id?: string;
   teacherId: string;
+  teacher_id?: string;
   date: string;
   content: string;
   category: string;
@@ -224,6 +226,7 @@ export interface DataConnectRemarkRecord {
   teacherName?: string;
   teacher_name?: string;
   createdAt: string;
+  created_at?: string;
 }
 
 export interface DataConnectExamReminderRecord {
@@ -247,7 +250,8 @@ export interface DataConnectFeeRecord {
   title: string;
   amount: number;
   status: string;
-  dueDate: string;
+  dueDate: string | null;
+  due_date?: string | null;
   paidAt?: string | null;
   createdAt: string;
 }
@@ -865,6 +869,7 @@ export class SupabaseService implements OnModuleInit {
       ai_daily_quota: user.ai_daily_quota ?? user.aiDailyQuota ?? 25,
       ai_used_today: user.ai_used_today ?? user.aiUsedToday ?? 0,
       ai_model_tier: user.ai_model_tier || user.aiModelTier || 'AUTO',
+      updated_at: user.updated_at || user.updatedAt || new Date().toISOString(),
     };
 
     if (this.supabase) {
@@ -1556,6 +1561,70 @@ export class SupabaseService implements OnModuleInit {
     return this.mapStudent(record);
   }
 
+  async updateStudent(id: string, patch: any) {
+    const cleanId = (id || '').trim();
+    if (!cleanId) throw new Error('Mã học sinh bắt buộc phải được cung cấp');
+
+    const current = await this.getStudentById(cleanId);
+    if (!current) throw new Error(`Không tìm thấy học sinh: ${cleanId}`);
+
+    // Bảng students thật chỉ có các cột dưới đây — không ghi field không tồn tại
+    const dbRecord: Record<string, any> = {};
+    if (patch.student_code !== undefined || patch.studentCode !== undefined) {
+      dbRecord.student_code = String(patch.student_code ?? patch.studentCode ?? '').trim();
+    }
+    if (patch.full_name !== undefined || patch.fullName !== undefined) {
+      dbRecord.full_name = String(patch.full_name ?? patch.fullName ?? '').trim();
+    }
+    if (patch.dob !== undefined) {
+      dbRecord.dob = patch.dob || null;
+    }
+    if (patch.gender !== undefined) {
+      dbRecord.gender = patch.gender;
+    }
+    if (patch.parent_phone !== undefined || patch.parentPhone !== undefined) {
+      dbRecord.parent_phone =
+        String(patch.parent_phone ?? patch.parentPhone ?? '').trim() || null;
+    }
+
+    if (this.supabase) {
+      if (Object.keys(dbRecord).length > 0) {
+        const { error } = await this.supabase
+          .from('students')
+          .update(dbRecord)
+          .eq('id', cleanId)
+          .eq('is_deleted', false);
+        if (error) throw new Error(`Cập nhật học sinh thất bại trên Supabase: ${error.message}`);
+      }
+    } else {
+      const mem = this.memoryStore.students.get(cleanId);
+      if (!mem) {
+        throw new Error('Supabase chưa được cấu hình; không thể cập nhật học sinh.');
+      }
+    }
+
+    const mem = this.memoryStore.students.get(cleanId);
+    if (mem && Object.keys(dbRecord).length > 0) {
+      if (dbRecord.student_code !== undefined) {
+        mem.student_code = dbRecord.student_code;
+        mem.studentCode = dbRecord.student_code;
+      }
+      if (dbRecord.full_name !== undefined) {
+        mem.full_name = dbRecord.full_name;
+        mem.fullName = dbRecord.full_name;
+      }
+      if (dbRecord.dob !== undefined) mem.dob = dbRecord.dob;
+      if (dbRecord.gender !== undefined) mem.gender = dbRecord.gender;
+      if (dbRecord.parent_phone !== undefined) {
+        mem.parent_phone = dbRecord.parent_phone;
+        mem.parentPhone = dbRecord.parent_phone;
+      }
+      this.memoryStore.students.set(cleanId, mem);
+    }
+
+    return (await this.getStudentById(cleanId)) || current;
+  }
+
   async softDeleteStudent(id: string) {
     if (this.supabase) {
       try {
@@ -1804,26 +1873,30 @@ export class SupabaseService implements OnModuleInit {
     };
 
     if (this.supabase) {
-      let firstError: any = null;
+      // Ghi cột nghiệp vụ trước, audit (migration 004) cập nhật riêng. Nếu DB chưa
+      // chạy 004 mà gộp chung, lần retry legacy sẽ nuốt mất is_published=false /
+      // published_once=true của điểm vừa đính chính → phụ huynh không nhận thông báo mới.
+      const {
+        updated_by_teacher_id: auditTeacherId,
+        updated_at: auditUpdatedAt,
+        ...baseRecord
+      } = record;
+
+      let writeError: any = null;
       try {
-        const first = await this.supabase.from('scores').upsert(record);
-        firstError = first?.error || null;
+        const first = await this.supabase.from('scores').upsert(baseRecord);
+        writeError = first?.error || null;
       } catch (err: any) {
-        firstError = err;
+        writeError = err;
       }
-      if (firstError) {
-        // Migration 003/004 chưa chạy (thiếu cột mới)? Thử lại chỉ với cột legacy
-        // để việc LƯU ĐIỂM không bao giờ thất bại âm thầm — audit chờ migration.
+
+      if (writeError) {
+        // Migration 003 chưa chạy (thiếu cột is_published/published_once)?
+        // Retry với cột legacy nhưng vẫn báo lỗi thật nếu DB từ chối.
         this.logger.warn(
-          `[Supabase] recordScore full-record failed (${firstError?.message}) — retrying legacy columns`,
+          `[Supabase] recordScore core-record failed (${writeError?.message}) — retrying legacy columns`,
         );
-        const {
-          is_published: _ip,
-          published_once: _po,
-          updated_by_teacher_id: _ub,
-          updated_at: _ua,
-          ...legacy
-        } = record;
+        const { is_published: _ip, published_once: _po, ...legacy } = baseRecord;
         try {
           const retry = await this.supabase.from('scores').upsert(legacy);
           if (retry?.error) throw retry.error;
@@ -1831,6 +1904,18 @@ export class SupabaseService implements OnModuleInit {
           this.logger.error(`[Supabase] recordScore legacy retry also failed: ${retryErr?.message}`);
           throw new Error(`Không thể lưu điểm vào cơ sở dữ liệu: ${retryErr?.message}`);
         }
+      }
+
+      try {
+        const auditRes = await this.supabase
+          .from('scores')
+          .update({ updated_by_teacher_id: auditTeacherId, updated_at: auditUpdatedAt })
+          .eq('id', record.id);
+        if (auditRes?.error) {
+          this.logger.debug(`[Supabase] score audit columns skipped: ${auditRes.error.message}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] score audit columns skipped: ${err?.message}`);
       }
     }
 
@@ -1845,9 +1930,12 @@ export class SupabaseService implements OnModuleInit {
     if (!ids || ids.length === 0) return 0;
     if (this.supabase) {
       try {
+        // published_once phải bật cùng lúc: sau khi GV đính chính, ô điểm về
+        // is_published=false nhưng cần giữ dấu "đã từng gửi" để lần gửi kế tiếp
+        // cho phụ huynh là thông báo Đính chính, không phải Công bố lần đầu.
         const { error } = await this.supabase
           .from('scores')
-          .update({ is_published: true })
+          .update({ is_published: true, published_once: true })
           .in('id', ids);
         if (error) {
           this.logger.debug(`[Supabase] markScoresPublished error: ${error.message}`);
@@ -1860,6 +1948,7 @@ export class SupabaseService implements OnModuleInit {
       const mem = this.memoryStore.scores.get(id);
       if (mem) {
         (mem as any).is_published = true;
+        (mem as any).published_once = true;
         this.memoryStore.scores.set(id, mem);
       }
     }
@@ -1960,16 +2049,26 @@ export class SupabaseService implements OnModuleInit {
   // =========================================================================
 
   private mapRemark(r: any): DataConnectRemarkRecord {
+    const studentId = r.student_id ?? r.studentId;
+    const teacherId = r.teacher_id ?? r.teacherId;
+    const subjectCode = r.subject_code ?? r.subjectCode ?? '';
+    const teacherName = r.teacher_name ?? r.teacherName ?? '';
+    const createdAt = r.created_at ?? r.createdAt ?? '';
     return {
       id: r.id,
-      studentId: r.student_id ?? r.studentId,
-      teacherId: r.teacher_id ?? r.teacherId,
+      studentId,
+      student_id: studentId,
+      teacherId,
+      teacher_id: teacherId,
       date: r.date,
       content: r.content,
       category: r.category,
-      subjectCode: r.subject_code ?? r.subjectCode ?? '',
-      teacherName: r.teacher_name ?? r.teacherName ?? '',
-      createdAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
+      subjectCode,
+      subject_code: subjectCode,
+      teacherName,
+      teacher_name: teacherName,
+      createdAt,
+      created_at: createdAt,
     };
   }
 
@@ -1993,6 +2092,49 @@ export class SupabaseService implements OnModuleInit {
     return Array.from(this.memoryStore.remarks.values())
       .filter((r) => (r.student_id || r.studentId) === studentId)
       .map((r) => this.mapRemark(r));
+  }
+
+  async getRemarksByClass(classId: string, limit: number = 200) {
+    const students = await this.listStudentsByClass(classId);
+    const names = new Map<string, string>(
+      students.map((s: any) => [s.id, s.full_name || s.fullName || '']),
+    );
+    const studentIds = [...names.keys()].filter(Boolean);
+    if (studentIds.length === 0) return [];
+
+    let rows: any[] = [];
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('remarks')
+          .select('*')
+          .in('student_id', studentIds)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
+          .limit(Math.max(1, limit));
+        if (!error && data) rows = data;
+      } catch (err: any) {
+        this.logger.debug(`[Supabase] getRemarksByClass fallback: ${err?.message}`);
+      }
+    }
+
+    if (rows.length === 0) {
+      rows = Array.from(this.memoryStore.remarks.values())
+        .filter((r) => studentIds.includes(r.student_id || r.studentId))
+        .sort((a: any, b: any) =>
+          String(b.created_at || b.createdAt || '').localeCompare(String(a.created_at || a.createdAt || '')),
+        )
+        .slice(0, Math.max(1, limit));
+    }
+
+    return rows.map((r) => {
+      const studentId = r.student_id ?? r.studentId;
+      return {
+        ...this.mapRemark(r),
+        class_id: classId,
+        student_name: names.get(studentId) || '',
+      };
+    });
   }
 
   async createRemark(remark: any) {
@@ -2135,6 +2277,7 @@ export class SupabaseService implements OnModuleInit {
     const feeType = this.resolveFeeType(f);
     const isPaid = f.is_paid ?? f.isPaid ?? String(f.status || '').toUpperCase() === 'PAID';
     const paidDate = f.paid_date ?? f.paid_at ?? f.paidAt ?? null;
+    const dueDate = f.due_date ?? f.dueDate ?? null;
     return {
       id: f.id,
       studentId: f.student_id ?? f.studentId,
@@ -2143,11 +2286,12 @@ export class SupabaseService implements OnModuleInit {
       is_paid: Boolean(isPaid),
       paid_date: paidDate,
       title: f.title,
-      amount: Number(f.amount ?? 0),
+      amount: f.amount == null ? 0 : Number(f.amount),
       status: f.status,
-      dueDate: f.due_date ?? f.dueDate,
+      dueDate,
+      due_date: dueDate,
       paidAt: paidDate,
-      createdAt: f.created_at ?? f.createdAt ?? new Date().toISOString(),
+      createdAt: f.created_at ?? f.createdAt ?? '',
     };
   }
 

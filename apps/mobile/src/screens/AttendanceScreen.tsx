@@ -47,6 +47,7 @@ export interface AttendanceSavedData {
   totalCount: number;
   presentCount: number;
   absentCount: number;
+  notifiedParentsQueued: number;
   className: string;
   lessonName: string;
   lessonTime: string;
@@ -205,7 +206,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
       }));
 
       // Gọi API backend 05-attendance POST /attendance/submit (upsert: cho phép lưu lại để sửa)
-      await attendanceService.submitAttendance({
+      const result = await attendanceService.submitAttendance({
         class_id: classId,
         attendance_date: new Date().toISOString().split('T')[0],
         period: DAILY_ATTENDANCE_PERIOD,
@@ -232,6 +233,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
         totalCount,
         presentCount,
         absentCount,
+        notifiedParentsQueued: Number(result?.notified_parents_queued ?? 0),
         className,
         lessonName: 'Điểm danh đầu ngày',
         lessonTime: `${hh}:${mi}`,
@@ -593,7 +595,8 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({
               <Path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
             </Svg>
             <Text style={styles.notiNoteText}>
-              Sẽ tự động gửi thông báo đến <Text style={styles.notiNoteHighlight}>{absentCount}</Text> phụ huynh
+              Sẽ gửi thông báo cho phụ huynh của{' '}
+              <Text style={styles.notiNoteHighlight}>{absentCount}</Text> học sinh vắng khi trạng thái thay đổi
             </Text>
           </View>
 

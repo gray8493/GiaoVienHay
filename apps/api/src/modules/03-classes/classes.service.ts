@@ -12,6 +12,7 @@ import { FirebaseDataConnectService } from '../../common/supabase/supabase.servi
 import {
   CreateClassDto,
   AddStudentToClassDto,
+  UpdateStudentInClassDto,
   JoinClassDto,
   UpdateSubjectTeachersDto,
 } from './dto/classes.dto';
@@ -706,7 +707,7 @@ export class ClassesService {
     return this.buildInviteResponse(classId, cls.name || '', inviteCode);
   }
 
-  async previewClassByInvite(inviteCode: string) {
+  async previewClassByInvite(inviteCode: string, _userId?: string) {
     const cleanCode = String(inviteCode || '').trim().toUpperCase();
     if (!cleanCode) {
       throw new BadRequestException({
@@ -1224,6 +1225,126 @@ export class ClassesService {
   }
 
   /**
+   * Cập nhật hồ sơ học sinh tại chỗ (giữ nguyên student_id) để không làm mồ côi
+   * điểm số, điểm danh, nhận xét hay liên kết phụ huynh.
+   */
+  async updateStudent(
+    classId: string,
+    studentId: string,
+    dto: UpdateStudentInClassDto,
+    teacherId?: string,
+  ) {
+    if (teacherId) {
+      await this.requireHomeroomClass(classId, teacherId);
+    }
+
+    const student: any = await this.dataConnect.getStudentById(studentId);
+    const studentClassId = student?.class_id ?? student?.classId;
+    if (!student || String(studentClassId || '') !== String(classId)) {
+      throw new NotFoundException({
+        error_code: 'STUDENT_NOT_FOUND',
+        message: 'Không tìm thấy học sinh này trong danh sách lớp học',
+      });
+    }
+
+    const normalizeNameKey = (v: any) =>
+      String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const fullName = String(dto.full_name ?? student.full_name ?? student.fullName ?? '').trim();
+    const dob = String(dto.dob ?? student.dob ?? '').trim();
+    const parentPhone = String(
+      dto.parent_phone ?? student.parent_phone ?? student.parentPhone ?? '',
+    ).trim();
+    const studentCode = String(
+      dto.student_code ?? student.student_code ?? student.studentCode ?? '',
+    ).trim();
+
+    const issues: Array<{ field: string; issue: string }> = [];
+    if (!normalizeNameKey(fullName)) {
+      issues.push({ field: 'full_name', issue: 'Họ và tên học sinh bắt buộc phải được cung cấp' });
+    }
+    if (!dob) {
+      issues.push({
+        field: 'dob',
+        issue: 'Ngày sinh học sinh bắt buộc phải được cung cấp (định dạng YYYY-MM-DD)',
+      });
+    }
+    if (!parentPhone) {
+      issues.push({ field: 'parent_phone', issue: 'SĐT phụ huynh bắt buộc phải được cung cấp' });
+    }
+    if (dob && !isValidCalendarDate(dob)) {
+      issues.push({
+        field: 'dob',
+        issue: `Giá trị '${dob}' không phải là ngày hợp lệ trong lịch thực tế`,
+      });
+    }
+    if (issues.length > 0) {
+      throw new BadRequestException({
+        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
+        error_code: ErrorCode.COMMON_VALIDATION_ERROR,
+        details: issues,
+      });
+    }
+
+    // Loại chính học sinh đang sửa khỏi danh sách đối chiếu trùng
+    const otherStudents = (await this.getClassStudents(classId)).filter(
+      (st: any) => !st.is_deleted && !st.isDeleted && String(st.id) !== String(studentId),
+    );
+    const isDuplicateNameDob = otherStudents.some(
+      (st: any) =>
+        normalizeNameKey(st.full_name || st.fullName) === normalizeNameKey(fullName) &&
+        String(st.dob || '').trim() === dob,
+    );
+    if (isDuplicateNameDob) {
+      throw new ConflictException({
+        error_code: 'CLASS_STUDENT_DUPLICATE',
+        message: `Học sinh ${fullName} đã tồn tại trong danh sách lớp (trùng họ tên và ngày sinh)`,
+        details: [
+          {
+            field: 'full_name',
+            issue: 'Học sinh trùng họ tên và ngày sinh đã có trong lớp học này',
+          },
+        ],
+      });
+    }
+    if (studentCode) {
+      const isDuplicateCode = otherStudents.some(
+        (st: any) =>
+          String(st.student_code || st.studentCode || '').trim().toLowerCase() ===
+          studentCode.toLowerCase(),
+      );
+      if (isDuplicateCode) {
+        throw new ConflictException({
+          error_code: 'CLASS_STUDENT_CODE_EXISTS',
+          message: `Mã học sinh ${studentCode} đã tồn tại trong danh sách lớp`,
+          details: [
+            {
+              field: 'student_code',
+              issue: `Mã học sinh ${studentCode} bị trùng lặp trong lớp học này`,
+            },
+          ],
+        });
+      }
+    }
+
+    const updated = await this.dataConnect.updateStudent(studentId, {
+      student_code: studentCode || undefined,
+      full_name: fullName,
+      dob,
+      gender: dto.gender ?? student.gender ?? 'MALE',
+      parent_phone: parentPhone,
+      parent_name: dto.parent_name ?? student.parent_name ?? student.parentName ?? null,
+      parent_relationship:
+        dto.parent_relationship ??
+        student.parent_relationship ??
+        student.parentRelationship ??
+        null,
+    });
+
+    await this.cacheManager.del(`class_${classId}`);
+    return updated;
+  }
+
+  /**
    * Cập nhật phân công GVBM cho lớp học
    */
   async updateSubjectTeachers(classId: string, teacherId: string, dto: UpdateSubjectTeachersDto) {
@@ -1247,22 +1368,16 @@ export class ClassesService {
       });
     }
 
-    if (!dto.subject_teachers || dto.subject_teachers.length === 0) {
-      throw new BadRequestException({
-        message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
-        error_code: ErrorCode.COMMON_VALIDATION_ERROR,
-        details: [
-          {
-            field: 'subject_teachers',
-            issue: 'Danh sách phân công GVBM không được để trống',
-          },
-        ],
-      });
-    }
+    const subjectTeachers = (Array.isArray(dto.subject_teachers) ? dto.subject_teachers : []).map(
+      (st) => ({
+        teacher_id: String(st?.teacher_id ?? '').trim(),
+        subject_code: String(st?.subject_code ?? '').trim().toUpperCase(),
+      }),
+    );
 
-    for (let i = 0; i < dto.subject_teachers.length; i++) {
-      const st = dto.subject_teachers[i];
-      if (!st.teacher_id || st.teacher_id.trim() === '') {
+    for (let i = 0; i < subjectTeachers.length; i++) {
+      const st = subjectTeachers[i];
+      if (!st.teacher_id) {
         throw new BadRequestException({
           message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
           error_code: ErrorCode.COMMON_VALIDATION_ERROR,
@@ -1274,7 +1389,7 @@ export class ClassesService {
           ],
         });
       }
-      if (!st.subject_code || st.subject_code.trim() === '') {
+      if (!st.subject_code) {
         throw new BadRequestException({
           message: 'Dữ liệu gửi lên vi phạm quy tắc ràng buộc hoặc sai định dạng',
           error_code: ErrorCode.COMMON_VALIDATION_ERROR,
@@ -1288,15 +1403,40 @@ export class ClassesService {
       }
     }
 
+    const homeroomId = String(cls.homeroom_teacher_id || cls.homeroomTeacherId || '');
+    const previousAssignments = (Array.isArray(cls.subject_teachers) ? cls.subject_teachers : [])
+      .map((st: any) => ({
+        teacher_id: String(st?.teacher_id || st?.teacherId || '').trim(),
+        subject_code: String(st?.subject_code || st?.subjectCode || '').trim().toUpperCase(),
+      }))
+      .filter((st: any) => st.teacher_id && st.subject_code);
+    const nextTeacherIds = new Set<string>(subjectTeachers.map((st) => st.teacher_id));
+    const removedTeacherIds = Array.from(
+      new Set<string>(previousAssignments.map((st: any) => String(st.teacher_id))),
+    ).filter((id) => id && id !== homeroomId && !nextTeacherIds.has(id));
+
     if (typeof (this.dataConnect as any).updateClassSubjectTeachers === 'function') {
-      await (this.dataConnect as any).updateClassSubjectTeachers(classId, dto.subject_teachers);
+      await (this.dataConnect as any).updateClassSubjectTeachers(classId, subjectTeachers);
     }
+
+    // Gỡ hẳn lớp khỏi hồ sơ giáo viên bị xóa phân công: nếu chỉ sửa
+    // classes.subject_teachers, GVBM vẫn còn joined_class_ids nên vẫn vào được lớp.
+    for (const removedId of removedTeacherIds) {
+      try {
+        if (typeof (this.dataConnect as any).removeUserClassAssignment === 'function') {
+          await (this.dataConnect as any).removeUserClassAssignment(removedId, classId);
+        }
+      } catch (e) {}
+      await this.cacheManager.del(`classes_teacher_${removedId}`);
+      await this.cacheManager.del(`user_profile_${removedId}`);
+    }
+
     await this.cacheManager.del(`class_${classId}`);
     await this.cacheManager.del(`class_detail_${classId}`);
 
     return {
       class_id: classId,
-      updated_count: dto.subject_teachers.length,
+      updated_count: subjectTeachers.length,
       message: 'Cập nhật phân công GVBM thành công',
     };
   }

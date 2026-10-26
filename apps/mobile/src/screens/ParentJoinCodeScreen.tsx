@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,13 +10,16 @@ import {
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
 } from 'react-native';
 import { Svg, Path, Circle, Rect } from 'react-native-svg';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import {
   parentService,
   PreviewClassData,
   JoinClassChildPayload,
 } from '../services/parent.service';
+import { extractInviteCode } from '../utils/inviteCode';
 
 interface ParentJoinCodeScreenProps {
   onBack?: () => void;
@@ -42,9 +45,15 @@ export const ParentJoinCodeScreen: React.FC<ParentJoinCodeScreenProps> = ({
   const [relationship, setRelationship] = useState<'Bố' | 'Mẹ' | 'Người giám hộ'>('Bố');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Quét QR thật bằng camera thiết bị
+  const [showScanner, setShowScanner] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const scanHandledRef = useRef(false);
+
   // Xử lý kiểm tra mã mời lớp (Step 1 -> Step 2)
-  const handleCheckInviteCode = async () => {
-    const cleanCode = inviteCode.trim().toUpperCase();
+  const handleCheckInviteCode = async (codeOverride?: string) => {
+    const cleanCode = (codeOverride ?? inviteCode).trim().toUpperCase();
+    setInviteCode(cleanCode);
     if (!cleanCode) {
       Alert.alert('Thông báo', 'Vui lòng nhập mã mời do giáo viên chủ nhiệm cung cấp');
       return;
@@ -63,6 +72,45 @@ export const ParentJoinCodeScreen: React.FC<ParentJoinCodeScreenProps> = ({
     } finally {
       setIsCheckingCode(false);
     }
+  };
+
+  const openScanner = async () => {
+    try {
+      if (!cameraPermission?.granted) {
+        const result = await requestCameraPermission();
+        if (!result?.granted) {
+          Alert.alert(
+            'Cần quyền camera',
+            'Vui lòng cấp quyền camera để quét mã QR trên giấy mời, hoặc nhập mã mời thủ công.',
+          );
+          return;
+        }
+      }
+      scanHandledRef.current = false;
+      setShowScanner(true);
+    } catch (e) {
+      Alert.alert(
+        'Không mở được camera',
+        'Thiết bị không hỗ trợ quét mã QR. Vui lòng nhập mã mời thủ công.',
+      );
+    }
+  };
+
+  const handleBarcodeScanned = ({ data }: { data: string }) => {
+    if (scanHandledRef.current) return;
+    const code = extractInviteCode(data);
+    if (!code) {
+      scanHandledRef.current = true;
+      Alert.alert(
+        'Mã QR không hợp lệ',
+        'Vui lòng quét đúng mã QR mời lớp học do giáo viên cung cấp.',
+        [{ text: 'Quét lại', onPress: () => { scanHandledRef.current = false; } }],
+      );
+      return;
+    }
+    scanHandledRef.current = true;
+    setShowScanner(false);
+    handleCheckInviteCode(code);
   };
 
   // Xử lý xác nhận tham gia lớp & liên kết con (Step 2)
@@ -214,7 +262,8 @@ export const ParentJoinCodeScreen: React.FC<ParentJoinCodeScreenProps> = ({
             <TouchableOpacity
               style={styles.qrBtn}
               activeOpacity={0.85}
-              onPress={() => Alert.alert('Quét mã QR', 'Tính năng mở máy ảnh quét mã QR trên giấy mời của giáo viên.')}
+              onPress={openScanner}
+              accessibilityLabel="Quét mã QR lớp học"
             >
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2}>
                 <Rect x="3" y="3" width="7" height="7" rx="1" />
@@ -380,7 +429,7 @@ export const ParentJoinCodeScreen: React.FC<ParentJoinCodeScreenProps> = ({
           <TouchableOpacity
             style={styles.submitBtn}
             activeOpacity={0.9}
-            onPress={handleCheckInviteCode}
+            onPress={() => handleCheckInviteCode()}
             disabled={isCheckingCode}
           >
             {isCheckingCode ? (
@@ -425,6 +474,42 @@ export const ParentJoinCodeScreen: React.FC<ParentJoinCodeScreenProps> = ({
         )}
         <View style={styles.homeIndicator} />
       </View>
+
+      <Modal
+        visible={showScanner}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowScanner(false)}
+      >
+        <View style={styles.scannerOverlay}>
+          <View style={styles.scannerCard}>
+            <Text style={styles.scannerTitle}>Quét Mã QR Lớp Học</Text>
+            <Text style={styles.scannerHint}>Đưa mã QR trên giấy mời vào khung hình</Text>
+
+            <View style={styles.scannerFrame}>
+              {cameraPermission?.granted ? (
+                <CameraView
+                  style={StyleSheet.absoluteFill}
+                  facing="back"
+                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                  onBarcodeScanned={showScanner ? handleBarcodeScanned : undefined}
+                />
+              ) : (
+                <Text style={styles.scannerDeniedText}>Chưa có quyền camera</Text>
+              )}
+              <View pointerEvents="none" style={styles.scannerTarget} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.scannerCloseBtn}
+              activeOpacity={0.85}
+              onPress={() => setShowScanner(false)}
+            >
+              <Text style={styles.scannerCloseText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -817,5 +902,68 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: 'rgba(30, 27, 46, 0.2)',
     marginTop: 12,
+  },
+  scannerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 27, 46, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  scannerCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    alignItems: 'center',
+  },
+  scannerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1E1B2E',
+    marginBottom: 6,
+  },
+  scannerHint: {
+    fontSize: 13,
+    color: '#6B6880',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  scannerFrame: {
+    width: 260,
+    height: 260,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#1E1B2E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scannerDeniedText: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  scannerTarget: {
+    position: 'absolute',
+    width: 190,
+    height: 190,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: '#F58F4C',
+  },
+  scannerCloseBtn: {
+    marginTop: 18,
+    width: '100%',
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F58F4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scannerCloseText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

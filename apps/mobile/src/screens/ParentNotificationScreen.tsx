@@ -12,11 +12,16 @@ import {
 import { Svg, Path, Rect, Line } from 'react-native-svg';
 import { notificationService, fcmService } from '../services/notification.service';
 
+export type ParentNotificationTarget =
+  | { screen: 'parent_fees' }
+  | { screen: 'parent_academic'; tab: 'GRADES' | 'REMARKS' | 'ATTENDANCE' };
+
 interface ParentNotificationScreenProps {
   onBack?: () => void;
+  onOpenLinkedScreen?: (target: ParentNotificationTarget) => void;
 }
 
-type FilterType = 'ALL' | 'ATTENDANCE' | 'GRADES' | 'EXAMS' | 'FEES';
+type FilterType = 'ALL' | 'ATTENDANCE' | 'GRADES' | 'REMARKS' | 'EXAMS' | 'FEES';
 
 interface NotificationItem {
   id: string;
@@ -32,12 +37,31 @@ const CATEGORY_LABELS: Record<FilterType, string> = {
   ALL: 'Thông báo chung',
   ATTENDANCE: 'Điểm danh',
   GRADES: 'Điểm số',
+  REMARKS: 'Nhận xét',
   EXAMS: 'Kiểm tra',
   FEES: 'Học phí',
 };
 
+const getLinkedTarget = (item: NotificationItem): ParentNotificationTarget | null => {
+  switch (item.category) {
+    case 'FEES':
+      return { screen: 'parent_fees' };
+    case 'GRADES':
+      return { screen: 'parent_academic', tab: 'GRADES' };
+    case 'REMARKS':
+      return { screen: 'parent_academic', tab: 'REMARKS' };
+    case 'ATTENDANCE':
+      return { screen: 'parent_academic', tab: 'ATTENDANCE' };
+    case 'EXAMS':
+      return { screen: 'parent_academic', tab: 'REMARKS' };
+    default:
+      return null;
+  }
+};
+
 export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> = ({
   onBack,
+  onOpenLinkedScreen,
 }) => {
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -65,6 +89,9 @@ export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> =
           if (typeStr.includes('ATTENDANCE')) {
             category = 'ATTENDANCE';
             icon_type = 'calendar';
+          } else if (typeStr.includes('REMARK')) {
+            category = 'REMARKS';
+            icon_type = 'chat';
           } else if (typeStr.includes('GRADE') || typeStr.includes('SCORE')) {
             category = 'GRADES';
             icon_type = 'book';
@@ -159,6 +186,20 @@ export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> =
     return item.category === filter;
   });
 
+  const selectedTarget = selected ? getLinkedTarget(selected) : null;
+  const linkedButtonLabel =
+    selected?.category === 'FEES'
+      ? 'Xem học phí'
+      : selected?.category === 'GRADES'
+      ? 'Xem bảng điểm'
+      : selected?.category === 'ATTENDANCE'
+      ? 'Xem chuyên cần'
+      : selected?.category === 'REMARKS'
+      ? 'Xem nhận xét'
+      : selected?.category === 'EXAMS'
+      ? 'Xem lịch kiểm tra'
+      : '';
+
   return (
     <View style={styles.container}>
       {/* Background Decor Stars */}
@@ -225,6 +266,14 @@ export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> =
             activeOpacity={0.85}
           >
             <Text style={[styles.chipText, filter === 'GRADES' && styles.chipTextActive]}>Điểm số</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.chip, filter === 'REMARKS' && styles.chipActive]}
+            onPress={() => setFilter('REMARKS')}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.chipText, filter === 'REMARKS' && styles.chipTextActive]}>Nhận xét</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -326,6 +375,20 @@ export const ParentNotificationScreen: React.FC<ParentNotificationScreenProps> =
                   {selected.body || 'Thông báo này không có nội dung chi tiết.'}
                 </Text>
               </ScrollView>
+
+              {!!selectedTarget && !!onOpenLinkedScreen && (
+                <TouchableOpacity
+                  style={styles.detailLinkBtn}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    const target = selectedTarget;
+                    setSelected(null);
+                    onOpenLinkedScreen(target);
+                  }}
+                >
+                  <Text style={styles.detailLinkText}>{linkedButtonLabel}</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={styles.detailCloseBtn}
@@ -584,8 +647,22 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#4A4659',
   },
-  detailCloseBtn: {
+  detailLinkBtn: {
     marginTop: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFF1E6',
+    borderWidth: 1,
+    borderColor: '#F58F4C',
+    alignItems: 'center',
+  },
+  detailLinkText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F58F4C',
+  },
+  detailCloseBtn: {
+    marginTop: 10,
     paddingVertical: 12,
     borderRadius: 14,
     backgroundColor: '#F58F4C',

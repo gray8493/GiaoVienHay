@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   StyleSheet,
@@ -12,9 +12,10 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
-  Dimensions,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as XLSX from 'xlsx';
 import Svg, {
   Path,
   Circle,
@@ -31,6 +32,8 @@ import Svg, {
 } from 'react-native-svg';
 import { gradesService } from '../services/grades.service';
 import { classService, SUBJECT_LABELS, SCHOOL_SUBJECTS } from '../services/class.service';
+import { authService } from '../services/auth.service';
+import { formatPaidDate } from '../utils/format';
 import { Crown3D, Trophy3D } from '../components/Podium3DAssets';
 
 const buildSubjectOptions = (codes: string[]) => {
@@ -45,10 +48,6 @@ const getCurrentAcademicWeek = (date: Date = new Date()) => {
   const days = Math.floor((date.getTime() - academicYearStart.getTime()) / 86400000);
   return Math.max(1, Math.floor(days / 7) + 1);
 };
-
-// Bề rộng ô điểm: tính sao cho cả 5 cột (Miệng/15p/1 Tiết/Thi GK/Thi CK) khít 1 hàng
-// 56 = padding màn hình + padding card, 32 = 4 gap giữa 5 ô
-const SCORE_BOX_W = (Dimensions.get('window').width - 56 - 32) / 5;
 
 // 5 cột điểm chuẩn backend (key FE field + score_type API + nhãn hiển thị)
 const SCORE_COLUMNS = [
@@ -94,6 +93,12 @@ const classifyStudent = (s: StudentGrade): 'good' | 'fair' | 'avg' => {
   return 'avg';
 };
 
+interface ScoreAudit {
+  byId: string;
+  byName: string;
+  at: string | null;
+}
+
 interface StudentGrade {
   id: string;
   rank: number;
@@ -103,6 +108,8 @@ interface StudentGrade {
   test1p: number | null;
   midTerm: number | null;
   final?: number | null;
+  /** Ai nhập/sửa từng ô gần nhất — cần khi GVBM bị thay giữa học kỳ */
+  audit?: Partial<Record<ScoreColKey, ScoreAudit>>;
 }
 
 interface GradebookScreenProps {
@@ -131,49 +138,91 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
   const [selectedSemester, setSelectedSemester] = useState<number>(1);
   const [pickerView, setPickerView] = useState<'subject' | 'semester' | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
+  // Chỉ bật sau khi đã chốt môn cho lớp và tải xong bảng điểm của đúng môn đó
+  const [subjectReady, setSubjectReady] = useState<boolean>(false);
+  // Môn mặc định chỉ chốt một lần cho mỗi lớp, không đè lên lựa chọn GV vừa bấm
+  const subjectBootstrappedForClass = useRef<string>('');
+
+  const emptyRole = {
+    isHomeroom: false,
+    myAssignedCodes: [],
+    allAssignedCodes: [],
+    apiSubjectCodes: [],
+    profileSubjectCodes: [],
+  };
+
+  // Đổi lớp phải chốt lại môn từ đầu — tránh dùng nhầm môn của lớp trước
+  useEffect(() => {
+    subjectBootstrappedForClass.current = '';
+    setSubjectReady(false);
+  }, [currentClassId]);
 
   useEffect(() => {
     loadGradebookData();
   }, [currentClassId, selectedSubject, selectedSemester]);
 
-  // Ghi nhớ môn Sổ điểm đang mở theo lớp — Vòng quay chấm miệng sẽ dùng đúng môn này
-  useEffect(() => {
-    if (currentClassId && currentClassId !== 'cls_empty') {
-      AsyncStorage.setItem(`gvh_gb_subject_${currentClassId}`, selectedSubject).catch(() => null);
-    }
-  }, [currentClassId, selectedSubject]);
-
   const loadGradebookData = async () => {
     setIsLoading(true);
     try {
-      const [gradesRes, lbRes, classDetail] = await Promise.all([
+      const classDetail = await classService.getClassDetail(currentClassId).catch(() => null);
+
+      // Chốt môn TRƯỚC khi tải điểm: Sổ điểm phải mở đúng môn vừa chấm ở Vòng
+      // quay / môn được phân công, và không cho bấm Gửi khi còn đang hiển thị
+      // nhầm môn mặc định.
+      if (subjectBootstrappedForClass.current !== currentClassId) {
+        const role = await classService
+          .getMyRoleInClass(currentClassId, classDetail)
+          .catch(() => emptyRole);
+        setIsClassHomeroom(role.isHomeroom);
+        const ownCodes =
+          role.myAssignedCodes.length > 0
+            ? role.myAssignedCodes
+            : role.apiSubjectCodes.length > 0
+            ? role.apiSubjectCodes
+            : role.profileSubjectCodes;
+        let optionCodes = role.isHomeroom
+          ? Array.from(new Set([...ownCodes, ...role.allAssignedCodes, ...SCHOOL_SUBJECTS]))
+          : ownCodes;
+        if (optionCodes.length === 0) optionCodes = [...SCHOOL_SUBJECTS];
+        setSubjectOptions(buildSubjectOptions(optionCodes));
+
+        const storageKey = `gvh_gb_subject_v2_${currentClassId}`;
+        const stored = await AsyncStorage.getItem(storageKey).catch(() => null);
+        const nextSubject =
+          stored && (optionCodes.includes(stored) || !!SUBJECT_LABELS[stored])
+            ? stored
+            : ownCodes[0] && optionCodes.includes(ownCodes[0])
+            ? ownCodes[0]
+            : optionCodes[0] || 'MATH';
+        subjectBootstrappedForClass.current = currentClassId;
+        AsyncStorage.setItem(storageKey, nextSubject).catch(() => null);
+        if (nextSubject !== selectedSubject) {
+          setSelectedSubject(nextSubject);
+          return;
+        }
+      }
+
+      const [gradesRes, lbRes] = await Promise.all([
         gradesService.getClassGrades(currentClassId, selectedSubject, selectedSemester).catch(() => null),
         gradesService.getLeaderboard(currentClassId, selectedSubject, selectedSemester).catch(() => null),
-        classService.getClassDetail(currentClassId).catch(() => null),
       ]);
 
-      // Xác định GVCN + danh sách môn theo quyền: GVCN xem đủ môn của trường,
-      // GVBM chỉ đúng môn được phân công (chuỗi dữ liệu thật: phân công lớp → my-subject → hồ sơ)
+      // Vẫn làm mới danh sách môn theo phân quyền khi đổi môn/học kỳ
       const role = await classService
         .getMyRoleInClass(currentClassId, classDetail)
-        .catch(() => ({
-          isHomeroom: false,
-          myAssignedCodes: [],
-          allAssignedCodes: [],
-          apiSubjectCodes: [],
-          profileSubjectCodes: [],
-        }));
+        .catch(() => emptyRole);
       setIsClassHomeroom(role.isHomeroom);
-      if (role.isHomeroom) {
-        setSubjectOptions(buildSubjectOptions([...role.allAssignedCodes, ...SCHOOL_SUBJECTS]));
-      } else {
-        const mine = role.myAssignedCodes.length > 0
+      const ownCodes =
+        role.myAssignedCodes.length > 0
           ? role.myAssignedCodes
           : role.apiSubjectCodes.length > 0
           ? role.apiSubjectCodes
           : role.profileSubjectCodes;
-        setSubjectOptions(buildSubjectOptions(mine));
-      }
+      let optionCodes = role.isHomeroom
+        ? Array.from(new Set([...ownCodes, ...role.allAssignedCodes, ...SCHOOL_SUBJECTS]))
+        : ownCodes;
+      if (optionCodes.length === 0) optionCodes = [...SCHOOL_SUBJECTS];
+      setSubjectOptions(buildSubjectOptions(optionCodes));
 
       if (lbRes && lbRes.top_students && lbRes.top_students.length > 0) {
         setLeaderboard(lbRes.top_students);
@@ -192,7 +241,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
           if (!scoresByStudent.has(sid)) scoresByStudent.set(sid, []);
           scoresByStudent.get(sid)!.push(row);
         }
-        const pickValue = (rows: any[], scoreType: string): number | null => {
+        const pickRow = (rows: any[], scoreType: string): any | null => {
           let latest: any = null;
           for (const sc of rows) {
             const type = String(sc.scoreType ?? sc.score_type ?? '');
@@ -206,8 +255,11 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
               latest = sc;
             }
           }
-          if (!latest) return null;
-          const raw = latest.scoreValue ?? latest.score_value;
+          return latest;
+        };
+        const readScoreValue = (row: any | null): number | null => {
+          if (!row) return null;
+          const raw = row.scoreValue ?? row.score_value;
           const num = Number(raw);
           if (raw === null || raw === undefined || isNaN(num)) return null;
           return num;
@@ -217,27 +269,42 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
           const studentScores = (scoresByStudent.get(s.id) || []).filter(
             (r: any) => !r.term || Number(r.term) === selectedSemester,
           );
-          const oral = pickValue(studentScores, 'ORAL_TEST');
-          const test15p = pickValue(studentScores, 'TEST_15P');
-          const test1p = pickValue(studentScores, 'TEST_1P');
-          const midTerm = pickValue(studentScores, 'MID_TERM');
-          const finalScore = pickValue(studentScores, 'FINAL');
+          const rowByKey: Record<ScoreColKey, any> = {
+            oral: pickRow(studentScores, 'ORAL_TEST'),
+            test15p: pickRow(studentScores, 'TEST_15P'),
+            test1p: pickRow(studentScores, 'TEST_1P'),
+            midTerm: pickRow(studentScores, 'MID_TERM'),
+            final: pickRow(studentScores, 'FINAL'),
+          };
+
+          const audit: Partial<Record<ScoreColKey, ScoreAudit>> = {};
+          (Object.keys(rowByKey) as ScoreColKey[]).forEach((key) => {
+            const row = rowByKey[key];
+            if (!row) return;
+            const byId = String(row.updatedByTeacherId ?? row.updated_by_teacher_id ?? '');
+            const byName = String(row.updated_by_teacher_name ?? '');
+            const at = row.updatedAt ?? row.updated_at ?? null;
+            if (byId || byName) audit[key] = { byId, byName, at: at ? String(at) : null };
+          });
 
           return {
             id: s.id,
             rank: idx + 1,
             name: s.full_name || s.name || `Học sinh ${idx + 1}`,
-            oral,
-            test15p,
-            test1p,
-            midTerm,
-            final: finalScore,
+            oral: readScoreValue(rowByKey.oral),
+            test15p: readScoreValue(rowByKey.test15p),
+            test1p: readScoreValue(rowByKey.test1p),
+            midTerm: readScoreValue(rowByKey.midTerm),
+            final: readScoreValue(rowByKey.final),
+            audit,
           };
         });
         setStudents(mapped);
       } else {
         setStudents([]);
       }
+      // Chỉ mở khóa nút Gửi khi bảng điểm đã là của đúng môn đã chốt
+      setSubjectReady(true);
     } catch (e) {
       setStudents([]);
       setLeaderboard([]);
@@ -271,6 +338,101 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
     return SUBJECT_LABELS[selectedSubject] || selectedSubject;
   };
 
+  // Xuất bảng điểm thật ra file Excel (.xlsx) từ dữ liệu API đang hiển thị
+  const [isExporting, setIsExporting] = useState(false);
+  const handleExportExcel = async () => {
+    if (isExporting) return;
+    if (students.length === 0) {
+      Alert.alert('Chưa có dữ liệu', 'Chưa có học sinh hoặc điểm để xuất cho môn này.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const subjectLabel = getSubjectDisplayName();
+      const rows: (string | number)[][] = [
+        [`Sổ điểm môn ${subjectLabel} - ${className || 'Lớp học'} - Học kỳ ${selectedSemester}`],
+        [],
+        [
+          'STT',
+          'Họ và tên',
+          'Điểm miệng',
+          'Điểm 15 phút',
+          'Điểm 1 tiết',
+          'Điểm thi giữa kỳ',
+          'Điểm thi cuối kỳ',
+          'Điểm trung bình',
+        ],
+        ...students.map((s, idx) => {
+          const avg = computeStudentAverage(s);
+          return [
+            idx + 1,
+            s.name,
+            s.oral ?? '',
+            s.test15p ?? '',
+            s.test1p ?? '',
+            s.midTerm ?? '',
+            s.final ?? '',
+            avg !== null ? Number(avg.toFixed(2)) : '',
+          ];
+        }),
+      ];
+      const worksheet = XLSX.utils.aoa_to_sheet(rows);
+      worksheet['!cols'] = [
+        { wch: 6 },
+        { wch: 28 },
+        { wch: 10 },
+        { wch: 13 },
+        { wch: 12 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 14 },
+      ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, `HK${selectedSemester}`);
+      const base64 = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
+
+      const safeName = (value: string) => value.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
+      const fileName = `BangDiem_${safeName(className || 'Lop')}_${safeName(subjectLabel)}_HK${selectedSemester}.xlsx`;
+
+      if (Platform.OS === 'web') {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      } else {
+        const FileSystem = await import('expo-file-system');
+        const Sharing = await import('expo-sharing');
+        const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+        await FileSystem.writeAsStringAsync(fileUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'Xuất bảng điểm',
+            UTI: 'org.openxmlformats.spreadsheetml.sheet',
+          });
+        } else {
+          Alert.alert('Đã lưu bảng điểm', fileUri);
+        }
+      }
+    } catch (e: any) {
+      Alert.alert('Xuất file thất bại', e?.message || 'Không thể tạo file Excel.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Đổi học kỳ
   const handlePickSemester = (semester: number) => {
     setSelectedSemester(semester);
@@ -280,6 +442,20 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
   // Định dạng điểm hiển thị trên pill cột điểm
   const formatScorePill = (v: number | null | undefined) =>
     v !== null && v !== undefined ? v.toFixed(1) : '--';
+
+  // Ô điểm do ai nhập/sửa lần cuối (GVBM bị thay giữa kỳ thì cô sau ghi đè cùng ô)
+  const myTeacherId = authService.getUser()?.id || '';
+  const formatAuditNote = (audit?: ScoreAudit): string => {
+    if (!audit) return '';
+    const who = audit.byId && audit.byId === myTeacherId ? 'Bạn' : audit.byName || 'Giáo viên';
+    const datePart = audit.at ? formatPaidDate(audit.at) : '';
+    const parsed = audit.at ? new Date(audit.at) : null;
+    const timePart =
+      parsed && !isNaN(parsed.getTime())
+        ? ` ${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`
+        : '';
+    return `Nhập/sửa gần nhất: ${who}${datePart ? ` • ${datePart}${timePart}` : ''}`;
+  };
 
   // Giá trị hiển thị trên pill: ưu tiên bản nháp đang gõ, sau đó mới đến điểm đã lưu
   const getPillScoreText = (colKey: ScoreColKey) => {
@@ -376,6 +552,9 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
           subject_code: selectedSubject,
           score_type: col.type,
           semester: selectedSemester,
+          // Chấm lại/dò bài là hành động chủ ý của GV — vẫn ghi đè được cột
+          // đã công bố, backend sẽ gửi thông báo Đính chính ở lần gửi kế tiếp
+          is_correction: true,
           scores: [
             {
               student_id: selectedStudent.id,
@@ -645,9 +824,10 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
 
               {/* Nút Xuất file */}
               <TouchableOpacity
-                style={styles.exportFileBtn}
+                style={[styles.exportFileBtn, isExporting && { opacity: 0.6 }]}
                 activeOpacity={0.8}
-                onPress={() => alert('Đang xuất bảng điểm Excel...')}
+                onPress={handleExportExcel}
+                disabled={isExporting}
                 accessibilityLabel="Xuất file báo cáo"
               >
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#984704" strokeWidth={2.5}>
@@ -656,7 +836,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                   <Line x1="12" y1="15" x2="17" y2="10" />
                   <Line x1="12" y1="15" x2="12" y2="3" />
                 </Svg>
-                <Text style={styles.exportFileBtnText}>Xuất file</Text>
+                <Text style={styles.exportFileBtnText}>{isExporting ? 'Đang xuất...' : 'Xuất file'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -676,7 +856,9 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
               activeOpacity={0.85}
               onPress={() => setPickerView('subject')}
             >
-              <Text style={styles.dropdownChipText}>{getSubjectDisplayName()}</Text>
+              <Text style={styles.dropdownChipText}>
+                {subjectReady ? getSubjectDisplayName() : 'Đang tải...'}
+              </Text>
               <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#6B6880" strokeWidth={2}>
                 <Path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
@@ -930,20 +1112,15 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                   </View>
                 </View>
 
-                {/* Score Columns: 5 cột khít 1 hàng (ScrollView ngang dự phòng cho máy hẹp) */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  nestedScrollEnabled
-                  contentContainerStyle={styles.scoreColsRow}
-                >
+                {/* Score Columns: 5 cột chia đều theo bề rộng card (không phụ thuộc cửa sổ) */}
+                <View style={styles.scoreColsRow}>
                   {/* Miệng */}
                   <TouchableOpacity
                     style={styles.scoreBox}
                     onPress={() => handleOpenScoreModal(student, 'oral')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.scoreTypeLabel}>Miệng</Text>
+                    <Text style={styles.scoreTypeLabel} numberOfLines={1}>Miệng</Text>
                     <Text style={styles.scoreValueBig}>{student.oral !== null ? student.oral.toFixed(1) : '--'}</Text>
                   </TouchableOpacity>
 
@@ -953,7 +1130,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                     onPress={() => handleOpenScoreModal(student, 'test15p')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.scoreTypeLabel}>15 phút</Text>
+                    <Text style={styles.scoreTypeLabel} numberOfLines={1}>15 phút</Text>
                     <Text style={styles.scoreValueBig}>{student.test15p !== null ? student.test15p.toFixed(1) : '--'}</Text>
                   </TouchableOpacity>
 
@@ -964,12 +1141,12 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                       onPress={() => handleOpenScoreModal(student, 'test1p')}
                       activeOpacity={isReadOnly ? 1 : 0.7}
                     >
-                      <Text style={styles.scoreTypeLabel}>1 Tiết</Text>
+                      <Text style={styles.scoreTypeLabel} numberOfLines={1}>1 Tiết</Text>
                       <Text style={styles.scoreValueBig}>{student.test1p.toFixed(1)}</Text>
                     </TouchableOpacity>
                   ) : isReadOnly ? (
                     <View style={styles.scoreBox}>
-                      <Text style={styles.scoreTypeLabel}>1 Tiết</Text>
+                      <Text style={styles.scoreTypeLabel} numberOfLines={1}>1 Tiết</Text>
                       <Text style={styles.scoreValuePlaceholder}>--</Text>
                     </View>
                   ) : (
@@ -978,7 +1155,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                       onPress={() => handleOpenScoreModal(student, 'test1p')}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.scoreTypeLabelDashed}>1 Tiết</Text>
+                      <Text style={styles.scoreTypeLabelDashed} numberOfLines={1}>1 Tiết</Text>
                       <Text style={styles.scoreInputPrompt}>+ Nhập</Text>
                     </TouchableOpacity>
                   )}
@@ -989,7 +1166,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                     onPress={() => handleOpenScoreModal(student, 'midTerm')}
                     activeOpacity={isReadOnly ? 1 : 0.7}
                   >
-                    <Text style={styles.scoreTypeLabel}>Thi GK</Text>
+                    <Text style={styles.scoreTypeLabel} numberOfLines={1}>Thi GK</Text>
                     <Text style={student.midTerm !== null ? styles.scoreValueBig : styles.scoreValuePlaceholder}>
                       {student.midTerm !== null ? student.midTerm.toFixed(1) : '--'}
                     </Text>
@@ -1001,12 +1178,12 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                     onPress={() => handleOpenScoreModal(student, 'final')}
                     activeOpacity={isReadOnly ? 1 : 0.7}
                   >
-                    <Text style={styles.scoreTypeLabel}>Thi CK</Text>
+                    <Text style={styles.scoreTypeLabel} numberOfLines={1}>Thi CK</Text>
                     <Text style={student.final !== null && student.final !== undefined ? styles.scoreValueBig : styles.scoreValuePlaceholder}>
                       {student.final !== null && student.final !== undefined ? student.final.toFixed(1) : '--'}
                     </Text>
                   </TouchableOpacity>
-                </ScrollView>
+                </View>
 
                 {/* Footer: Nút Vào điểm (ẩn nút Vào điểm khi ở chế độ Read-only) */}
                 <View style={styles.cardFooterRow}>
@@ -1032,7 +1209,7 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
         </ScrollView>
 
         {/* Floating CTA Deck: Gửi Sổ Liên Lạc (Chỉ hiển thị khi có quyền chỉnh sửa/công bố) */}
-        {!isReadOnly && (
+        {!isReadOnly && subjectReady && !isLoading && students.length > 0 && (
           <View style={styles.floatingCtaDeck}>
             <TouchableOpacity
               style={styles.btnGuiSoLienLac}
@@ -1158,7 +1335,15 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                         key={opt.code}
                         style={[styles.pickerOptionRow, isActive && styles.pickerOptionRowActive]}
                         onPress={() => {
+                          // Khóa nút Gửi trong lúc tải bảng điểm của môn mới
+                          setSubjectReady(false);
                           setSelectedSubject(opt.code);
+                          // Chỉ lưu khi GV chủ động chọn — Vòng quay sẽ mở đúng
+                          // môn này để điểm chấm miệng rơi cùng cột với sổ điểm.
+                          AsyncStorage.setItem(
+                            `gvh_gb_subject_v2_${currentClassId}`,
+                            opt.code,
+                          ).catch(() => null);
                           setPickerView(null);
                         }}
                         activeOpacity={0.7}
@@ -1273,6 +1458,12 @@ export const GradebookScreen: React.FC<GradebookScreenProps> = ({
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
+
+              {selectedStudent?.audit?.[activeScoreType] ? (
+                <Text style={styles.scoreAuditNote}>
+                  {formatAuditNote(selectedStudent.audit?.[activeScoreType])}
+                </Text>
+              ) : null}
 
               {/* Big Score Display */}
               <View style={styles.bigScoreCard}>
@@ -1949,21 +2140,25 @@ const styles = StyleSheet.create({
   },
   scoreColsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   scoreBox: {
-    width: SCORE_BOX_W,
+    flex: 1,
+    minWidth: 0,
     backgroundColor: '#FFF1E6',
     borderRadius: 12,
     paddingVertical: 6,
+    paddingHorizontal: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scoreBoxDashed: {
-    width: SCORE_BOX_W,
+    flex: 1,
+    minWidth: 0,
     backgroundColor: '#FFF1E6',
     borderRadius: 12,
     paddingVertical: 6,
+    paddingHorizontal: 2,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -1971,33 +2166,35 @@ const styles = StyleSheet.create({
     borderColor: '#F58F4C',
   },
   scoreTypeLabel: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: '500',
     color: '#6B6880',
+    textAlign: 'center',
   },
   scoreTypeLabelDashed: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: '700',
     color: '#F58F4C',
+    textAlign: 'center',
   },
   scoreValueBig: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 19,
     fontWeight: '800',
     color: '#1E1B2E',
     marginTop: 2,
   },
   scoreValuePlaceholder: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 19,
     fontWeight: '700',
     color: '#6B6880',
     marginTop: 2,
   },
   scoreInputPrompt: {
-    fontSize: 12,
+    fontSize: 11,
     lineHeight: 15,
     fontWeight: '800',
     color: '#F58F4C',
@@ -2215,6 +2412,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  scoreAuditNote: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#6B6880',
+    marginTop: 8,
   },
 
   scoreTypePillsRow: {

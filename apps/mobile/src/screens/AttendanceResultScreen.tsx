@@ -53,6 +53,16 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
   const time = savedData?.lessonTime ?? propTime ?? '--:--';
 
   const absentStudents = savedData?.absentStudents ?? [];
+  const notifiedParentsQueued = savedData?.notifiedParentsQueued ?? 0;
+  const notifiedMessage =
+    absent > 0
+      ? notifiedParentsQueued > 0
+        ? `Đã gửi thông báo đến ${notifiedParentsQueued} phụ huynh`
+        : 'Không có thay đổi — không gửi lại thông báo'
+      : notifiedParentsQueued > 0
+        ? `Đã cập nhật ${notifiedParentsQueued} phụ huynh về việc đi học lại`
+        : 'Cả lớp có mặt đầy đủ (100%)';
+  const hasQueuedNotification = notifiedParentsQueued > 0;
 
   return (
     <View style={styles.container}>
@@ -245,14 +255,18 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
             {/* Centered Notification Sent Pill matching TEA-02b HTML */}
             <View style={styles.sentPillContainer}>
               <View style={styles.sentPillBox}>
-                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
-                  <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                </Svg>
-                <Text style={styles.sentPillText}>
-                  {absent > 0
-                    ? `Đã gửi thông báo đến ${absent} phụ huynh`
-                    : 'Cả lớp có mặt đầy đủ (100%)'}
-                </Text>
+                {hasQueuedNotification || absent === 0 ? (
+                  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
+                    <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                ) : (
+                  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#F58F4C" strokeWidth={2.2}>
+                    <Circle cx={12} cy={12} r={10} />
+                    <Line x1={12} y1={8} x2={12} y2={12} strokeLinecap="round" />
+                    <Line x1={12} y1={16} x2={12.01} y2={16} strokeLinecap="round" />
+                  </Svg>
+                )}
+                <Text style={styles.sentPillText}>{notifiedMessage}</Text>
               </View>
             </View>
 
@@ -260,12 +274,14 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
             {absent > 0 && absentStudents.length > 0 && (
               <View style={styles.notiCard}>
                 <View style={styles.notiCardHeader}>
-                  <Text style={styles.notiCardTitle}>Thông báo đã gửi phụ huynh</Text>
+                  <Text style={styles.notiCardTitle}>Học sinh vắng mặt</Text>
                   <View style={styles.sentPillBadge}>
                     <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
                       <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                     </Svg>
-                    <Text style={styles.sentPillBadgeText}>{absent} đã gửi</Text>
+                    <Text style={styles.sentPillBadgeText}>
+                      {hasQueuedNotification ? `${notifiedParentsQueued} đã gửi` : 'Không gửi mới'}
+                    </Text>
                   </View>
                 </View>
 
@@ -290,14 +306,6 @@ export const AttendanceResultScreen: React.FC<AttendanceResultScreenProps> = ({
                             {st.code} • {st.reason || (st.excused ? 'Có phép' : 'Chưa có phép')}
                           </Text>
                         </View>
-                      </View>
-
-                      {/* Sent Status Badge */}
-                      <View style={styles.sentStatusBadge}>
-                        <Svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={2.5}>
-                          <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                        </Svg>
-                        <Text style={styles.sentStatusText}>Đã gửi</Text>
                       </View>
                     </View>
                   </React.Fragment>
@@ -636,22 +644,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#6B6880',
     marginTop: 2,
-  },
-  sentStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#E6F9F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    flexShrink: 0,
-  },
-  sentStatusText: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '600',
-    color: '#10B981',
   },
   rowDivider: {
     height: 1,

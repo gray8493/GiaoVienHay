@@ -41,8 +41,8 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   const [selectedStudent, setSelectedStudent] = useState<StudentFeeRecord | null>(null);
   const [editFeeType, setEditFeeType] = useState<FeeType>('INSURANCE');
   const [editIsPaid, setEditIsPaid] = useState(true);
-  const [editPaidDate, setEditPaidDate] = useState('05/10/2026');
-  const [editNote, setEditNote] = useState('Nộp tiền mặt tại lớp');
+  const [editPaidDate, setEditPaidDate] = useState('');
+  const [editNote, setEditNote] = useState('');
 
   // Modal TEA-07.3 Nhắc phụ huynh state
   const [showRemindModal, setShowRemindModal] = useState(false);
@@ -103,7 +103,7 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
   };
 
   const formatPaidDateDisplay = (rawDate?: string | null): string => {
-    if (!rawDate) return getTodayDateLabel();
+    if (!rawDate) return '';
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) return rawDate;
     const matchIso = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (matchIso) {
@@ -606,7 +606,9 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                           <Circle cx={12} cy={12} r={10} fill="#10B981" />
                           <Path d="M7 12l3 3 7-7" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
                         </Svg>
-                        <Text style={styles.paidBadgeText}>{formatShortPaidDate(item.insurance.paid_date) || '18/09'}</Text>
+                        <Text style={styles.paidBadgeText}>
+                          {formatShortPaidDate(item.insurance.paid_date) || 'Đã nộp'}
+                        </Text>
                       </View>
                     ) : (
                       <View style={styles.unpaidBadge}>
@@ -631,7 +633,9 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                           <Circle cx={12} cy={12} r={10} fill="#10B981" />
                           <Path d="M7 12l3 3 7-7" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
                         </Svg>
-                        <Text style={styles.paidBadgeText}>{formatShortPaidDate(item.tuition.paid_date) || '20/09'}</Text>
+                        <Text style={styles.paidBadgeText}>
+                          {formatShortPaidDate(item.tuition.paid_date) || 'Đã nộp'}
+                        </Text>
                       </View>
                     ) : (
                       <View style={styles.unpaidBadge}>
@@ -906,13 +910,15 @@ export const FeesInsuranceScreen: React.FC<FeesInsuranceScreenProps> = ({
                 </View>
                 <View>
                   <Text style={styles.editStudentName}>
-                    {selectedStudent?.student_name || 'Trần Bảo Nam'}
+                    {selectedStudent?.student_name || ''}
                   </Text>
-                  <View style={styles.editCodeBadge}>
-                    <Text style={styles.editCodeBadgeText}>
-                      {selectedStudent?.student_code || 'HS240102'}
-                    </Text>
-                  </View>
+                  {!!selectedStudent?.student_code && (
+                    <View style={styles.editCodeBadge}>
+                      <Text style={styles.editCodeBadgeText}>
+                        {selectedStudent.student_code}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
 

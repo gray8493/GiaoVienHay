@@ -1,6 +1,6 @@
-# TÀI LIỆU KỊCH BẢN KIỂM THỬ NGHIỆM THU NGƯỜI DÙNG TOÀN DIỆN (USER ACCEPTANCE TESTING SPECIFICATION)
+# TÀI LIỆU KỊCH BẢN KIỂM THỬ NGHIỆM THU NGƯỜI DÙNG TOÀN DIỆN (USER ACCEPTANCE TESTING - UAT SPECIFICATION)
 
-# MÃ KỊCH BẢN NGHIỆM THU: UAT_GVH_SUITE - BỘ KỊCH BẢN NGHIỆM THU HỆ THỐNG GIAOVIENHAY
+# MÃ TÀI LIỆU: UAT_GVH_ACCEPTANCE_SUITE - BỘ KỊCH BẢN NGHIỆM THU CHUẨN NỀN TẢNG GIAOVIENHAY
 
 # CẤP ĐỘ KIỂM THỬ: KIỂM THỬ CHẤP NHẬN NGƯỜI DÙNG (USER ACCEPTANCE TESTING - UAT)
 
@@ -8,131 +8,180 @@
 
 ## 1. THÔNG TIN CHUNG
 
-- **HỆ THỐNG PHẦN MỀM:** Nền tảng Quản lý Học vụ & Sổ liên lạc Điện tử Thông minh **GiaoVienHay** (Quản lý Học sinh Cấp 1 & Cấp 2).
-- **ĐỐI TƯỢNG THAM GIA NGHIỆM THU (PERSONAS):**
-  - **Giáo viên chủ nhiệm (GVCN):** Kiểm tra tính tiện lợi, thiết lập hồ sơ chọn môn dạy, tạo lớp tổng, thao tác điểm danh 1-chạm nhanh chóng đầu giờ học, đôn đốc nộp BHYT/học phí (cờ boolean, không cổng online), gửi nhận xét text ngắn gọn tới gia đình.
-  - **Giáo viên bộ môn (GVBM):** Kiểm tra tính năng tải giáo án Word/PDF để AI Gemini tự động sinh đề bài cũ, trình chiếu Vòng quay may mắn (có nút Bỏ qua - Skip khi vắng), tổ chức Mini-game lớp học (Rung chuông vàng, Đua xe, Hộp quà), nhập điểm đa cột thành phần trực tiếp và trình chiếu Bảng xếp hạng (Leaderboard) môn học.
-  - **Phụ huynh học sinh (PHHS):** Kiểm tra tính kịp thời của thông báo đẩy (FCM), sự minh bạch trong sổ liên lạc điện tử (điểm số từng môn, chuyên cần, trạng thái BHYT kèm ngày nộp) và nhận lời nhắc lịch kiểm tra sắp tới để đôn đốc con ôn bài.
-  - **Ban Giám Hiệu / Quản trị viên Nền tảng (Platform Admin):** Kiểm tra cấu hình hạn mức tài nguyên (hạn ngạch gọi AI Gemini, giới hạn sĩ số lớp học, dung lượng tải tài liệu) và khả năng khóa/mở khóa tài khoản (Ban/Unban) tức thời.
+- **HỆ THỐNG PHẦN MỀM:** Nền tảng Quản lý Học vụ & Sổ liên lạc Điện tử Thông minh **GiaoVienHay** (Phục vụ Giáo viên, Học sinh và Phụ huynh Cấp 1 & Cấp 2).
+- **MỤC ĐÍCH TÀI LIỆU:** Cung cấp bộ kịch bản kiểm thử nghiệm thu người dùng (UAT) hoàn chỉnh, bám sát 100% kiến trúc vận hành thực tế của hệ thống hiện tại. Tài liệu được thiết kế trực quan, có sẵn tài khoản mẫu, dữ liệu lớp học và các bước thao tác chi tiết để người dùng cuối (Giáo viên, Phụ huynh, Ban Giám Hiệu, QA/QC) có thể cầm thiết bị và thực hiện kiểm thử nghiệm thu ngay lập tức.
+- **MÔI TRƯỜNG CÔNG NGHỆ THỰC TẾ:**
+  - **Cơ sở dữ liệu (Database):** Supabase PostgreSQL Cloud (Lưu trữ quan hệ: `users`, `classes`, `students`, `attendances`, `scores`, `quizzes`, `remarks`, `exam_reminders`, `notifications`, `system_limits`).
+  - **Máy chủ Backend:** NestJS REST API v10, kiến trúc hướng sự kiện `EventEmitter2`, bộ nhớ đệm In-Memory Caching (Redis/RAM), phân quyền nghiêm ngặt theo vai trò (RBAC).
+  - **Ứng dụng Di động (Mobile App):** React Native (Expo SDK), hỗ trợ đa nền tảng iOS & Android, giao diện tối ưu theo ngôn ngữ thiết kế sư phạm hiện đại.
+- **DANH SÁCH TÀI KHOẢN THỬ NGHIỆM THỰC TẾ (SẴN SÀNG TEST NGAY):**
+  - **Tài khoản Giáo viên chủ nhiệm (GVCN):** SĐT `0912345678` | Mật khẩu: `MatKhau123@` (Cô Nguyễn Thị Lan - GVCN Lớp 1A).
+  - **Tài khoản Giáo viên bộ môn (GVBM):** SĐT `0912345679` | Mật khẩu: `MatKhau123@` (Thầy Lê Hoàng Nam - GVBM Toán/Tin học).
+  - **Tài khoản Phụ huynh học sinh (PHHS):** SĐT `0977112233` | Mật khẩu: `MatKhau123@` (Bác Trần Văn Hùng - Bố em Trần Bảo Nam, Lớp 1A).
+  - **Tài khoản Quản trị viên (Admin):** SĐT `0988001122` | Mật khẩu: `MatKhau123@` (Thầy Trần Văn Bình - Ban Giám Hiệu / Quản trị hệ thống).
 - **TIÊU CHÍ NGHIỆM THU TỔNG QUAN (ACCEPTANCE CRITERIA):**
-  - Giao diện tiếng Việt 100%, từ ngữ sư phạm chuẩn mực, gần gũi với giáo viên, học sinh và phụ huynh Việt Nam.
-  - Tốc độ phản hồi tức thì: thao tác chạm/lưu trên màn hình dưới 1 giây, nhận thông báo đẩy FCM tới điện thoại dưới 3 giây.
-  - Tối ưu trình chiếu lớp học: giao diện Vòng quay may mắn, Mini-game và Leaderboard hiển thị rực rỡ, hỗ trợ Fullscreen trên máy chiếu/TV bục giảng.
-  - Độ ổn định cao: Không xuất hiện lỗi sập ứng dụng (Crash), không bị treo màn hình (Freeze) hoặc lỗi hiển thị trắng (White screen).
-- **NGƯỜI THỰC HIỆN ĐÁNH GIÁ:** Đội ngũ Đảm bảo Chất lượng Phần mềm (QA/QC), Đại diện Giáo viên Tiểu học & THCS, Đại diện Hội Phụ huynh Học sinh.
-- **THIẾT BỊ SỬ DỤNG THỰC TẾ:**
-  - Điện thoại thông minh iOS (iPhone 13, iPhone 15 Pro).
-  - Điện thoại thông minh Android (Samsung Galaxy A54, Xiaomi Redmi Note 13).
-  - Laptop / Tablet kết nối trực tiếp Máy chiếu (Projector) và Màn hình Tivi tương tác thông minh tại phòng học.
+  - Giao diện tiếng Việt 100%, từ ngữ sư phạm chuẩn mực, phù hợp môi trường giáo dục Việt Nam.
+  - Tốc độ phản hồi tức thì: Các thao tác lưu dữ liệu trên app dưới 1 giây, truy xuất cache danh sách dưới 5ms.
+  - Xử lý bất đồng bộ (Non-blocking UI): Điểm danh vắng học phát thông báo đẩy FCM ngầm dưới 2.5 giây mà không làm gián đoạn hay đơ màn hình giáo viên.
+  - Bảo toàn dữ liệu lịch sử: Xóa học sinh áp dụng cơ chế Soft Delete (`is_deleted = true`), bảo toàn 100% điểm số và chuyên cần quá khứ.
+  - Độ ổn định cao: Không xuất hiện hiện tượng sập ứng dụng (Crash), treo màn hình (Freeze) hay màn hình trắng (White screen).
 
 ---
 
-## 2. BẢNG TỔNG HỢP KỊCH BẢN NGHIỆM THU (UAT SUITE)
+## 2. BẢNG TỔNG HỢP CÁC KỊCH BẢN NGHIỆM THU (UAT SUITE MATRIX)
 
 | Mã UAT | Nhóm Người Dùng | Tính Năng Nghiệm Thu | Kịch Bản Thử Nghiệm Thực Tế | Tiêu Chí Chấp Nhận (Acceptance Criteria) | Đánh Giá |
 | :--- | :--- | :--- | :--- | :--- | :---: |
-| **UAT01_GVCN_01** | Giáo viên chủ nhiệm | Thiết lập môn dạy, tạo lớp tổng & chia sẻ QR | GVCN chọn môn Toán trong hồ sơ, tạo lớp 6A2, nạp Excel 35 học sinh, phân công GVBM Văn, Anh và lấy mã QR gửi Zalo phụ huynh | Lớp tạo hoàn tất < 3s, danh sách học sinh chuẩn xác, tự động gán môn GVCN, mã QR chia sẻ sắc nét |           |
-| **UAT02_GVCN_02** | Giáo viên chủ nhiệm | Điểm danh nhanh 1-chạm đầu giờ học | GVCN cầm điện thoại tại cửa lớp, chạm chuyển trạng thái 2 bạn vắng trong 35 em, lưu điểm danh trong 30 giây | Thao tác mượt mà, lưu điểm danh tức thì, phụ huynh của 2 em vắng nhận được Push FCM cảnh báo trong 2 giây |           |
-| **UAT03_GVCN_03** | Giáo viên chủ nhiệm | Quản lý thu nộp BHYT & phát thông báo đôn đốc | GVCN tích chọn cờ BHYT cho học sinh nộp tiền mặt tại lớp, lọc 5 em chưa nộp và bấm gửi thông báo nhắc nhở | Ghi nhận cờ nộp kèm ngày thực tế, không cần cổng online rườm rà, thông báo FCM gửi tức thì đến đúng 5 phụ huynh |           |
-| **UAT04_GVCN_04** | Giáo viên chủ nhiệm | Nhập nhận xét text ngắn gửi phụ huynh | GVCN nhập lời khen ngắn gọn cho học sinh tiến bộ gửi về gia đình và theo dõi phản hồi phụ huynh | Text ngắn gọn, không thẻ tag rườm rà, phụ huynh nhận thông báo FCM tức thì và bấm nút "Đã đọc" thành công |           |
-| **UAT05_GVBM_01** | Giáo viên bộ môn | Tải giáo án để AI Gemini sinh đề trắc nghiệm | GVBM tải file Word giáo án `TeBao.docx`, chọn 5 câu hỏi độ khó Vừa, AI phân tích và trả về bộ đề | AI sinh đúng 5 câu trắc nghiệm chuẩn sư phạm trong < 12 giây, đáp án và lời giải chính xác, xem trước và chỉnh sửa dễ dàng |           |
-| **UAT06_GVBM_02** | Giáo viên bộ môn | Vòng quay may mắn có nút Bỏ qua (Skip) & Vào điểm | GVBM chiếu Vòng quay gọi bài cũ, bấm nút "Skip" khi quay trúng bạn vắng mặt, chấm điểm 9 và lưu sổ điểm | Vòng quay đồ họa âm thanh mượt mà, nút Skip quay tiếp ngay không đơ, điểm miệng đồng bộ thẳng vào sổ điểm môn học |           |
-| **UAT07_GVBM_03** | Giáo viên bộ môn | Trình chiếu Mini-game lớp học (Rung Chuông Vàng) | GVBM chuyển bộ câu hỏi AI thành game Rung Chuông Vàng toàn màn hình, học sinh giơ bảng trả lời | Giao diện full-screen kịch tính, đồng hồ đếm ngược 30s chính xác, hiệu ứng công bố đáp án reo hò sôi nổi |           |
-| **UAT08_GVBM_04** | Giáo viên bộ môn | Nhập điểm thành phần & Chiếu Leaderboard môn học | GVBM nhập điểm 15 phút cho 35 học sinh, chiếu Bảng xếp hạng môn học vinh danh Top 3 và công bố điểm | Nhập số nhanh nhạy, không tự động tính GPA, Leaderboard vinh danh môn học đẹp mắt, thông báo FCM điểm mới gửi tới cả lớp |           |
-| **UAT09_GVBM_05** | Giáo viên bộ môn | Tạo lời nhắc lịch kiểm tra gửi phụ huynh đôn đốc | GVBM tạo thông báo lịch kiểm tra 1 tiết Lịch sử kèm dặn dò trọng tâm ôn thi gửi toàn bộ phụ huynh trong lớp | Thông báo lưu vào hệ thống, FCM multicast phát tức thì tới 100% phụ huynh của lớp để kịp thời kèm con học |           |
-| **UAT10_PHHS_01** | Phụ huynh học sinh | Tham gia lớp bằng Link mời / QR và kết nối con | Phụ huynh quét mã QR nhận từ Zalo lớp, đăng nhập OTP số điện thoại, tìm đúng tên con và xác nhận kết nối | Thao tác đơn giản < 1 phút, nhận diện đúng học sinh, chuyển hướng ngay vào Sổ liên lạc điện tử của con |           |
-| **UAT11_PHHS_02** | Phụ huynh học sinh | Nhận cảnh báo vắng học & Xem chuyên cần | Phụ huynh đang đi làm nhận được tiếng chuông báo con vắng học đầu giờ, mở app xem lịch sử điểm danh | Thông báo đẩy tức thì < 2 giây, nội dung rõ ràng kèm ngày/tiết, xem được thống kê chuyên cần tháng của con |           |
-| **UAT12_PHHS_03** | Phụ huynh học sinh | Tra cứu Bảng điểm đa môn & Xác nhận nhận xét | Phụ huynh mở app xem điểm kiểm tra 15 phút vừa công bố, đọc nhận xét của cô giáo và bấm nút "Xác nhận đã đọc" | Bảng điểm rõ từng môn và cột thành phần, đọc lời khen của cô, nút "Đã đọc" phản hồi mượt mà không độ trễ |           |
-| **UAT13_PHHS_04** | Phụ huynh học sinh | Tra cứu tình trạng nộp BHYT & Lời nhắc kiểm tra | Phụ huynh xem xác nhận đóng BHYT kèm ngày nộp và đọc dặn dò chuẩn bị bài thi ngày mai của giáo viên | Minh bạch khoản thu BHYT có ngày nộp cụ thể, lời dặn dò kiểm tra chi tiết giúp gia đình đôn đốc con kịp thời |           |
-| **UAT14_ADMIN_01** | Quản trị viên hệ thống | Cấu hình hạn mức tài nguyên (Limits / Quotas) | Admin cấu hình hạn ngạch gọi AI Gemini 20 lượt/ngày, sĩ số tối đa 50 HS/lớp và dung lượng upload 10MB | Lưu cấu hình an toàn, middleware áp dụng chặn tức thì khi người dùng vượt ngưỡng, bảo vệ tài nguyên máy chủ |           |
-| **UAT15_ADMIN_02** | Quản trị viên hệ thống | Khóa tài khoản vi phạm (Ban) & Thu hồi phiên tức thì | Admin khóa tài khoản có hành vi bất thường, kiểm tra thiết bị người dùng bị đăng xuất ngay và mở khóa lại (Unban) | Cập nhật `is_active=false`, Firebase Auth bị disabled ngay lập tức, chặn mã HTTP 403, mở khóa lại toàn vẹn |           |
+| **UAT01_AUTH_01** | Toàn bộ người dùng | Đăng nhập đa vai trò & Đổi mật khẩu | Đăng nhập bằng SĐT + Mật khẩu (Quick Login 1 chạm), kiểm tra chuyển hướng theo vai trò (GVCN/GVBM/PH/Admin) và đổi mật khẩu an toàn. | Đăng nhập < 1s, hiển thị đúng vai trò và giao diện tương ứng, đổi mật khẩu thành công và cập nhật session. |           |
+| **UAT02_GVCN_01** | Giáo viên chủ nhiệm | Phân lớp RBAC, Thêm & Xóa mềm HS | GVCN quản lý Lớp 1A, xem danh sách HS & liên hệ phụ huynh (gọi điện/SMS), thêm HS mới và xóa mềm 1 HS chuyển trường. | Thao tác mượt mà, HS bị xóa ẩn khỏi app nhưng điểm số và chuyên cần quá khứ trong CSDL PostgreSQL được bảo toàn nguyên vẹn. |           |
+| **UAT03_GVCN_02** | Giáo viên chủ nhiệm | Điểm danh 1-chạm & Đồng bộ Cache | GVCN điểm danh đầu giờ, chạm chuyển trạng thái có mặt/vắng, bấm Lưu và quan sát thông báo đẩy FCM tới phụ huynh con vắng. | Lưu tức thì không đơ máy, phụ huynh nhận Push Notification < 2.5s, tự động nạp In-Memory Cache (< 5ms) cho vòng quay bài cũ. |           |
+| **UAT04_GVCN_03** | Giáo viên chủ nhiệm | Thu phí BHYT, VietQR & Nhắc nộp | GVCN tích chọn cờ BHYT kèm ngày nộp thực tế, tạo mã VietQR chuyển khoản Napas247 và phát thông báo nhắc nhở 5 phụ huynh chưa nộp. | Ghi nhận cờ nộp kèm ngày thực tế, VietQR tự động sinh số tiền và nội dung, thông báo đẩy tới đúng phụ huynh chưa nộp. |           |
+| **UAT05_GVCN_04** | Giáo viên chủ nhiệm | Nhận xét HS & Theo dõi "Đã đọc" | GVCN gửi lời khen ngắn gọn cho học sinh tiến bộ về Sổ liên lạc của phụ huynh, theo dõi biểu tượng mắt đọc khi phụ huynh bấm xác nhận. | Văn bản tự nhiên không tag rườm rà, phụ huynh nhận tin tức thì, trạng thái "Đã đọc" phản hồi 2 chiều minh bạch. |           |
+| **UAT06_GVBM_01** | Giáo viên bộ môn | Trợ lý AI sinh đề trắc nghiệm | GVBM nạp giáo án, chọn môn, khối, số lượng và độ khó; AI đọc hiểu và trả về bộ 5 câu hỏi trắc nghiệm kèm đáp án và lời giải. | AI sinh câu hỏi < 12 giây, nội dung chuẩn xác sư phạm, cho phép xem trước, chỉnh sửa câu hỏi và lưu vào kho đề. |           |
+| **UAT07_GVBM_02** | Giáo viên bộ môn | Vòng quay 3D tên HS & Chấm điểm | GVBM chiếu Vòng quay 3D hiển thị tên học sinh trực tiếp trên nan quạt, tự động lọc HS có mặt, bấm "Skip" khi vắng và chấm điểm miệng. | Đồ họa 3D xoay mượt mà, hiển thị rõ tên học sinh, nút Skip quay tiếp ngay không đơ máy, điểm miệng đồng bộ thẳng vào Sổ điểm. |           |
+| **UAT08_GVBM_03** | Giáo viên bộ môn | Chuyển đổi Mini-Game lớp học | GVBM biến bộ câu hỏi thành game Rung Chuông Vàng toàn màn hình, học sinh giơ bảng trả lời, đếm ngược 30s và pháo hoa khen thưởng. | Chuyển đổi 1-chạm tức thì, đồng hồ đếm ngược chuẩn xác, hiệu ứng âm thanh và pháo hoa giấy reo hò sôi nổi. |           |
+| **UAT09_GVBM_04** | Giáo viên bộ môn | Sổ điểm đa cột & Chiếu Leaderboard | GVBM nhập điểm 15 phút, bảo lưu điểm gốc không tự tính GPA ảo, chiếu Bảng xếp hạng vinh danh Top 3 và công bố điểm gửi FCM tới cả lớp. | Nhập điểm nhanh nhạy hỗ trợ phím điều hướng, Leaderboard vinh danh cúp vàng đẹp mắt, thông báo điểm mới phát tới phụ huynh cả lớp. |           |
+| **UAT10_GVBM_05** | Giáo viên bộ môn | Lời nhắc Lịch kiểm tra định kỳ | GVBM tạo thông báo lịch kiểm tra 1 tiết kèm dặn dò trọng tâm ôn thi gửi broadcast tới toàn bộ phụ huynh trong lớp. | Thông báo lưu vào hệ thống, FCM multicast phát tới 100% phụ huynh học sinh để gia đình đôn đốc con ôn bài. |           |
+| **UAT11_PHHS_01** | Phụ huynh học sinh | Đăng nhập & Liên kết Sổ liên lạc | Phụ huynh đăng nhập tài khoản, tra cứu và liên kết con em mình vào ứng dụng Sổ liên lạc điện tử qua Mã học sinh / Mã mời lớp. | Đăng nhập nhanh bằng SĐT, giao diện thân thiện, hiển thị chính xác hồ sơ học sinh và lớp học của con. |           |
+| **UAT12_PHHS_02** | Phụ huynh học sinh | Nhận cảnh báo vắng học & Chuyên cần | Phụ huynh nhận tiếng chuông thông báo đẩy khi con vắng học đầu giờ, chạm vào mở thẳng màn hình Lịch sử chuyên cần tháng của con. | Nhận thông báo < 2.5s, Deep link mở đúng trang chuyên cần, giao diện chấm tròn màu sắc minh bạch có/vắng. |           |
+| **UAT13_PHHS_03** | Phụ huynh học sinh | Xem Bảng điểm & Xác nhận "Đã đọc" | Phụ huynh mở app xem điểm kiểm tra 15 phút vừa công bố, đọc nhận xét của cô giáo và bấm nút "Xác nhận đã đọc". | Điểm số hiển thị chi tiết theo từng môn, đọc trọn vẹn lời khen, nút "Xác nhận đã đọc" phản hồi tức thì < 1s. |           |
+| **UAT14_PHHS_04** | Phụ huynh học sinh | Tra cứu BHYT, Quét VietQR & Nhắc thi | Phụ huynh xem xác nhận đóng BHYT kèm ngày nộp, mở mã VietQR thanh toán học phí tiện lợi và đọc lời dặn dò kiểm tra ngày mai. | Minh bạch tài chính có ngày nộp cụ thể, mã VietQR chuẩn ngân hàng quét chuyển khoản nhanh, lịch thi chi tiết. |           |
+| **UAT15_PHHS_05** | Phụ huynh học sinh | Sửa Hồ sơ PH (Live 3D Avatar Preview) | Phụ huynh mở màn hình Cá nhân, mở Bottom Sheet sửa họ tên và email với 3D avatar preview tự động, số điện thoại khóa cố định. | Giao diện hiện đại UI/UX Pro Max, avatar đổi chữ cái trực tiếp khi gõ tên, lưu thành công cập nhật ngay vào CSDL PostgreSQL. |           |
+| **UAT16_ADMIN_01** | Quản trị hệ thống | Cấu hình Hạn mức Tài nguyên Hệ thống | Admin cấu hình hạn ngạch gọi AI, sĩ số tối đa/lớp và dung lượng upload tài liệu, kiểm tra hệ thống áp dụng chặn ngay lập tức. | Endpoint `/system-limits` lưu tức thì, middleware áp dụng chặn an toàn khi vượt ngưỡng, bảo vệ máy chủ. |           |
+| **UAT17_ADMIN_02** | Quản trị hệ thống | Khóa tài khoản (Ban) & Mở khóa an toàn | Admin khóa tài khoản vi phạm quy tắc học đường, kiểm tra người dùng bị thu hồi phiên tức thì và mở khóa (Unban) phục hồi dữ liệu. | Đặt `is_active = false`, từ chối API với mã HTTP 403, app tự đăng xuất ra màn hình Login, mở khóa lại toàn vẹn 100%. |           |
 
 ---
 
-## 3. CHI TIẾT CÁC KỊCH BẢN NGHIỆM THU CHI TIẾT
+## 3. CHI TIẾT TỪNG KỊCH BẢN NGHIỆM THU
 
 ---
 
-### UAT01_GVCN_01 : NGHIỆM THU THIẾT LẬP HỒ SƠ MÔN DẠY, KHỞI TẠO LỚP HỌC TỔNG, THÊM DANH SÁCH HỌC SINH TỪ EXCEL, PHÂN CÔNG GVBM VÀ SINH MÃ MỜI / MÃ QR
+### UAT01_AUTH_01 : NGHIỆM THU ĐĂNG NHẬP ĐA VAI TRÒ BẰNG SỐ ĐIỆN THOẠI, QUICK LOGIN 1-CHẠM VÀ THAO TÁC ĐỔI MẬT KHẨU BẢO MẬT
 
-- **VAI TRÒ NGHIỆM THU:** Giáo viên chủ nhiệm (GVCN) THCS / Tiểu học.
-- **MÔI TRƯỜNG THỰC TẾ:** Trình duyệt Web Google Chrome trên Laptop cá nhân của giáo viên kết nối mạng Wi-Fi trường học.
+- **VAI TRÒ NGHIỆM THU:** Giáo viên chủ nhiệm (GVCN), Giáo viên bộ môn (GVBM), Phụ huynh học sinh (PHHS) và Quản trị viên (Admin).
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay Mobile App trên thiết bị Android hoặc iOS kết nối mạng 4G/Wi-Fi.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Bước vào năm học mới 2026-2027, thầy giáo Nguyễn Văn An được phân công làm giáo viên chủ nhiệm lớp `6A2` đồng thời trực tiếp giảng dạy môn `Toán học`. Thầy An cần đăng nhập vào hệ thống GiaoVienHay, cấu hình hồ sơ môn dạy của mình, tạo lớp học tổng `6A2`, nạp danh sách 35 học sinh từ file Excel của nhà trường, phân công cô Hằng dạy môn Ngữ văn, thầy Bình dạy môn Tiếng Anh và lấy mã QR lớp học gửi vào nhóm phụ huynh Zalo.
+  Người dùng mở ứng dụng lần đầu hoặc sau khi đăng xuất. Người dùng cần đăng nhập nhanh chóng bằng Số điện thoại và Mật khẩu cá nhân, hệ thống tự động nhận diện vai trò và điều hướng vào đúng không gian làm việc. Đồng thời, người dùng có thể thực hiện đổi mật khẩu định kỳ để nâng cao tính bảo mật.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Tài khoản GVCN: `thayan.gvcn@giaovienhay.edu.vn`.
-  - Tệp danh sách học sinh: `Danh_sach_lop_6A2.xlsx` (Gồm 35 học sinh đầy đủ Căn cước/Mã học sinh, Họ và tên, Ngày sinh, Giới tính, Tên phụ huynh, SĐT phụ huynh).
-  - Thông tin lớp: Lớp `6A2`, Khối `6`, Niên khóa `2026-2027`.
-  - Phân công bộ môn: Môn Toán (Thầy An - GVCN tự dạy), Môn Ngữ văn (Cô Hằng), Môn Tiếng Anh (Thầy Bình).
+  - Tài khoản GVCN: `0912345678` / `MatKhau123@` (Cô Nguyễn Thị Lan).
+  - Tài khoản PHHS: `0977112233` / `MatKhau123@` (Bác Trần Văn Hùng).
+  - Tài khoản GVBM: `0912345679` / `MatKhau123@` (Thầy Lê Hoàng Nam).
+  - Nút bấm Quick Login có sẵn trên màn hình `LoginScreen`.
 
-- **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
-  1. **Bước 1 (Thiết lập hồ sơ môn giảng dạy):**
-     - Thầy An đăng nhập vào hệ thống GiaoVienHay trên Web.
-     - Vào mục **"Hồ sơ cá nhân / Thiết lập chuyên môn"**.
-     - Tại danh sách môn học, thầy tích chọn môn **"Toán học"** trong danh mục `teaching_subjects` và bấm **"Lưu hồ sơ"**.
-  2. **Bước 2 (Khởi tạo thông tin lớp học tổng):**
-     - Chuyển sang mục **"Quản lý lớp học"**, bấm nút **"Tạo lớp học mới"**.
-     - Nhập Tên lớp: `6A2`, chọn Khối: `Khối 6`, chọn Niên khóa: `2026-2027`.
-     - Hệ thống tự động nhận diện và tích chọn sẵn môn **"Toán học"** do thầy An trực tiếp đảm nhiệm.
-  3. **Bước 3 (Tải danh sách học sinh từ file Excel):**
-     - Tại bước "Danh sách học sinh", bấm nút **"Tải lên file Excel"**.
-     - Chọn file `Danh_sach_lop_6A2.xlsx` từ máy tính.
-     - Quan sát màn hình xem trước dữ liệu: Kiểm tra đủ 35 học sinh, thông tin cột được map chuẩn xác (Mã HS, Họ tên, Ngày sinh, SĐT).
-  4. **Bước 4 (Phân công Giáo viên bộ môn):**
-     - Tại bảng phân công chuyên môn, chọn môn Ngữ văn $\rightarrow$ chọn tài khoản `Cô Lê Thị Hằng`.
-     - Chọn môn Tiếng Anh $\rightarrow$ chọn tài khoản `Thầy Trần Thanh Bình`.
-     - Bấm nút **"Hoàn tất khởi tạo lớp học"**.
-  5. **Bước 5 (Kiểm tra mã mời & Chia sẻ mã QR):**
-     - Màn hình lớp học hiển thị thông báo thành công.
-     - Kiểm tra phần thông tin lớp: Xuất hiện Mã mời (Invite Code, ví dụ: `LH6A2X`) và nút **"Tải mã QR lớp học"**.
-     - Bấm nút sao chép đường dẫn mời và tải hình ảnh mã QR về máy tính để gửi vào nhóm phụ huynh Zalo.
+- **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA NGƯỜI DÙNG:**
+  1. **Bước 1 (Thử nghiệm tính năng Quick Login):**
+     - Mở ứng dụng GiaoVienHay. Tại màn hình Đăng nhập, quan sát vùng phím tắt Quick Login:
+     - Chạm nút **"👩‍🏫 Cô Lan (GV)"**: Trường Số điện thoại và Mật khẩu tự động được điền `0912345678` và `MatKhau123@`.
+     - Bấm nút màu cam **"Đăng Nhập"**.
+     - Quan sát: Ứng dụng phản hồi dưới 1 giây, chuyển hướng thẳng vào **TeacherHomeScreen** của giáo viên với lời chào *"Xin chào, Cô Nguyễn Thị Lan"*.
+  2. **Bước 2 (Đăng xuất tài khoản):**
+     - Vào tab **"Cá nhân"** (ở thanh điều hướng dưới đáy).
+     - Cuộn xuống chân trang, bấm nút màu đỏ **"Đăng xuất"**.
+     - Hộp thoại xác nhận xuất hiện: Bấm **"Đồng ý"**. Màn hình quay trở lại `LoginScreen`.
+  3. **Bước 3 (Đăng nhập tài khoản Phụ huynh):**
+     - Tại `LoginScreen`, chạm nút **"👨‍👩‍👧 Trần Văn Hùng (PH)"** hoặc gõ SĐT `0977112233`, mật khẩu `MatKhau123@`.
+     - Bấm **"Đăng Nhập"**.
+     - Quan sát: Chuyển hướng vào **ParentHomeScreen** với thẻ học sinh *"Trần Bảo Nam - Lớp 1A"*.
+  4. **Bước 4 (Thử nghiệm Đổi mật khẩu):**
+     - Vào tab **"Cá nhân"** của phụ huynh, bấm vào mục **"Đổi mật khẩu"**.
+     - Modal đổi mật khẩu mở ra: Nhập Mật khẩu hiện tại `MatKhau123@`, nhập Mật khẩu mới `MatKhauMoi456@` và Nhập lại mật khẩu mới.
+     - Bấm **"Cập Nhật"**: Hệ thống báo *"Đổi mật khẩu thành công!"*.
+     - Đổi lại mật khẩu cũ `MatKhau123@` để phục vụ các bài test tiếp theo.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Tự động liên kết môn dạy:** Hệ thống tự động gán môn Toán cho Thầy An theo đúng cấu hình hồ sơ, không cần chọn lại thủ công.
-  - [ ] **Tốc độ đọc file Excel:** Nhận diện và hiển thị bản xem trước 35 học sinh trong vòng **dưới 2 giây**, không phát sinh lỗi lệch cột tiếng Việt có dấu.
-  - [ ] **Khởi tạo dữ liệu ngầm tự động:** Khởi tạo document lớp học trong `/classes`, 35 document học sinh trong `/students` và 35 bản ghi theo dõi thu nộp BHYT/học phí trong `/fees_and_insurance` với trạng thái ban đầu `false`.
-  - [ ] **Mã mời & Mã QR trực quan:** Đường dẫn mời (`invite_link`) có định dạng chuẩn, mã QR hiển thị rõ nét, quét thử bằng camera điện thoại nhận diện đường link tức thì.
+  - [ ] **Tốc độ xác thực:** Đăng nhập thành công và nạp token JWT trong vòng **dưới 1 giây**.
+  - [ ] **Nhận diện đúng vai trò (Role Routing):** Tài khoản Giáo viên mở `TeacherHomeScreen`, tài khoản Phụ huynh mở `ParentHomeScreen`.
+  - [ ] **Nút Quick Login tiện ích:** Phím tắt điền dữ liệu chuẩn xác, tiết kiệm thời gian gõ cho tester.
+  - [ ] **Bảo mật đổi mật khẩu:** Xác thực đúng mật khẩu cũ, kiểm tra khớp mật khẩu mới, cập nhật mã băm an toàn trong CSDL PostgreSQL.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
 - **XÁC NHẬN NGHIỆM THU:**
-  - Đại diện Giáo viên Chủ nhiệm: 
+  - Đại diện Người dùng: 
   - Đại diện Nhóm Phát Triển: 
 
 ---
 
-### UAT02_GVCN_02 : NGHIỆM THU TÍNH NĂNG ĐIỂM DANH CHUYÊN CẦN 1-CHẠM ĐẦU GIỜ HỌC VÀ TỰ ĐỘNG PHÁT THÔNG BÁO ĐẨY TỨC THỜI TỚI PHỤ HUYNH
+### UAT02_GVCN_01 : NGHIỆM THU QUẢN LÝ LỚP HỌC (RBAC), DANH SÁCH HỌC SINH, LIÊN HỆ PHỤ HUYNH, THÊM MỚI VÀ XÓA MỀM (SOFT DELETE) BẢO TOÀN DỮ LIỆU
 
 - **VAI TRÒ NGHIỆM THU:** Giáo viên chủ nhiệm (GVCN).
-- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay Mobile App (React Native) chạy trên điện thoại iPhone 13 của giáo viên tại cửa lớp học qua mạng 4G/Wi-Fi.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay Mobile App trên điện thoại Android/iOS.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Vào lúc 7h15 sáng đầu giờ học, cô giáo chủ nhiệm bước vào lớp `6A2` để điểm danh sĩ số 35 học sinh. Mặc định hệ thống đã tích chọn sẵn trạng thái "Có mặt" cho toàn bộ danh sách. Cô giáo chỉ cần quan sát nhanh các chỗ ngồi trống, chạm 1-chạm để chuyển trạng thái cho 2 bạn vắng mặt (em Nguyễn Hoàng Long vắng có phép do phụ huynh đã nhắn xin nghỉ ốm, em Trần Đức Anh vắng chưa rõ lý do). Sau đó cô bấm nút lưu điểm danh trong chưa đầy 30 giây.
+  Cô giáo chủ nhiệm quản lý sĩ số lớp `1A`. Cô cần tra cứu nhanh thông tin liên lạc của phụ huynh để gọi điện/nhắn tin trao đổi, thêm học sinh mới nhập học vào lớp và thực hiện xóa 1 học sinh chuyển trường ra khỏi danh sách lớp mà vẫn bảo toàn 100% dữ liệu điểm số, chuyên cần cũ trong học bạ của nhà trường.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Danh sách lớp `6A2`: 35 học sinh.
-  - Học sinh vắng 1: Em Nguyễn Hoàng Long (`stu_long_01`) $\rightarrow$ Trạng thái: `Vắng có phép (ABSENT_EXCUSED)`.
-  - Học sinh vắng 2: Em Trần Đức Anh (`stu_anh_02`) $\rightarrow$ Trạng thái: `Vắng không phép (ABSENT_UNEXCUSED)`.
-  - Điện thoại phụ huynh em Trần Đức Anh đã cài đặt App GiaoVienHay và đăng nhập tài khoản.
+  - Tài khoản GVCN: `0912345678` (Cô Nguyễn Thị Lan).
+  - Lớp chủ nhiệm: `Lớp 1A` (Trường Tiểu Học Chu Văn An).
+  - Danh sách học sinh: Em Lê Minh Khôi, Nguyễn Hoàng My, Nguyễn Văn An, Phạm Quỳnh Anh, Trần Bảo Nam...
+
+- **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
+  1. **Bước 1 (Mở màn hình Quản lý Lớp học):**
+     - Đăng nhập tài khoản Cô Lan, tại Trang chủ bấm vào lối tắt **"Lớp học của tôi"** hoặc **"Quản lý lớp"**.
+     - Danh sách lớp hiển thị: Mục **"Lớp Chủ Nhiệm"** hiển thị nổi bật thẻ `Lớp 1A` với sĩ số và tên GVCN.
+     - Chạm vào thẻ `Lớp 1A` để vào màn hình **ClassManagementScreen**.
+  2. **Bước 2 (Tra cứu thông tin liên hệ Phụ huynh):**
+     - Tại tab **"Học Sinh"**, quan sát danh sách học sinh kèm thông tin phụ huynh bên dưới (Họ tên bố/mẹ, SĐT).
+     - Tìm học sinh `Lê Minh Khôi`, quan sát ô phụ huynh: *"Lê Văn Minh (Bố) - 0933 445 566"*.
+     - Bấm nút **"Gọi điện"**: Thiết bị tự động mở trình quay số gọi đến `0933445566`.
+     - Bấm nút **"Nhắn tin"**: Thiết bị mở ứng dụng tin nhắn SMS với số điện thoại phụ huynh.
+  3. **Bước 3 (Kiểm tra Tab Phân công Giáo viên Bộ môn):**
+     - Chuyển sang tab **"Giáo Viên Bộ Môn"**:
+     - Hiển thị danh sách các môn được phân công: Môn Tiếng Anh (Cô Phạm Quỳnh Chi), Môn Tin học (Thầy Trần Văn Nam), Môn Âm nhạc (Cô Lê Hồng Mai)...
+  4. **Bước 4 (Thử nghiệm Xóa mềm học sinh - Soft Delete):**
+     - Trở lại tab **"Học Sinh"**, bấm vào biểu tượng ba chấm `...` bên cạnh học sinh cần xóa (hoặc vuốt để mở tùy chọn).
+     - Chọn **"Xóa học sinh khỏi lớp"**.
+     - Hộp thoại cảnh báo sư phạm xuất hiện: *"Học sinh sẽ được ẩn khỏi danh sách lớp hiện tại. Điểm số và lịch sử chuyên cần quá khứ sẽ được bảo toàn nguyên vẹn trong hệ thống. Bạn có chắc chắn muốn thực hiện?"*.
+     - Bấm **"Xác nhận xóa"**.
+     - Quan sát giao diện: Học sinh lập tức biến mất khỏi danh sách lớp, sĩ số giảm đi 1.
+  5. **Bước 5 (Đối soát bảo toàn dữ liệu trong CSDL PostgreSQL):**
+     - Kiểm tra trực tiếp bảng `students`: Bản ghi học sinh được cập nhật `is_deleted = true` và `deleted_at`, không bị xóa cứng (No hard delete).
+     - Toàn bộ điểm số cũ trong bảng `scores` và lịch sử điểm danh trong `attendances` vẫn còn nguyên 100%.
+
+- **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
+  - [ ] **Phân quyền chuẩn RBAC:** GVCN có toàn quyền quản lý học sinh và xem GVBM trong lớp của mình.
+  - [ ] **Thao tác liên lạc 1-chạm:** Bấm gọi điện/nhắn tin kết nối chuẩn xác với ứng dụng hệ thống trên máy.
+  - [ ] **Cơ chế Soft Delete an toàn:** Học sinh được ẩn tức thì khỏi app nhưng toàn bộ dữ liệu học bạ được lưu trữ an toàn trong PostgreSQL Supabase.
+
+- **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
+- **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
+- **XÁC NHẬN NGHIỆM THU:**
+  - Đại diện Giáo viên: 
+  - Đại diện Nhóm Phát Triển: 
+
+---
+
+### UAT03_GVCN_02 : NGHIỆM THU TÍNH NĂNG ĐIỂM DANH CHUYÊN CẦN 1-CHẠM BẤT ĐỒNG BỘ, PHÁT THÔNG BÁO ĐẨY FCM VẮNG HỌC VÀ ĐỒNG BỘ IN-MEMORY CACHE
+
+- **VAI TRÒ NGHIỆM THU:** Giáo viên chủ nhiệm (GVCN).
+- **MÔI TRƯỜNG THỰC TẾ:** Điện thoại di động của GVCN chạy app GiaoVienHay tại cửa lớp học qua mạng 4G/Wi-Fi.
+- **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
+  Đầu giờ học buổi sáng (7h15), cô giáo chủ nhiệm mở ứng dụng để điểm danh nhanh lớp `1A`. Toàn bộ học sinh mặc định được đánh dấu "Có mặt" màu xanh. Cô chỉ mất 20 giây để quan sát chỗ ngồi trống, chạm 1-lần để chuyển trạng thái cho 1 bạn vắng có phép và 1 bạn vắng không phép, sau đó bấm nút "Lưu kết quả điểm danh". Hệ thống lưu dữ liệu tức thì không đơ máy, phát cảnh báo ngầm tới điện thoại phụ huynh con vắng và nạp In-Memory Cache cho Vòng quay bài cũ của các tiết sau.
+- **DỮ LIỆU CHUẨN BỊ:**
+  - Lớp: `Lớp 1A`.
+  - Học sinh vắng có phép: Em Nguyễn Hoàng My (`ABSENT_EXCUSED`).
+  - Học sinh vắng không phép: Em Trần Bảo Nam (`ABSENT_UNEXCUSED`).
+  - Điện thoại phụ huynh em Trần Bảo Nam (SĐT `0977112233`) đang để ở chế độ chờ.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
   1. **Bước 1 (Mở màn hình Điểm danh):**
-     - Cô giáo mở ứng dụng GiaoVienHay trên iPhone, chọn lớp `6A2`, bấm vào mục **"Điểm danh đầu giờ"**.
-     - Màn hình hiển thị danh sách 35 học sinh với trạng thái mặc định tất cả đều là huy hiệu màu xanh **"Có mặt"** (`PRESENT`).
-  2. **Bước 2 (Chạm 1-chạm đổi trạng thái học sinh vắng):**
-     - Cuộn đến tên em Nguyễn Hoàng Long, chạm 1 lần vào biểu tượng trạng thái để chuyển sang màu vàng **"Vắng có phép"**.
-     - Cuộn đến tên em Trần Đức Anh, chạm 2 lần để chuyển sang màu đỏ **"Vắng không phép"**.
-  3. **Bước 3 (Lưu và phát cảnh báo vắng):**
-     - Quan sát bảng tóm tắt sĩ số trên đỉnh màn hình: `Tổng số: 35 | Có mặt: 33 | Vắng: 2 (1 có phép, 1 không phép)`.
-     - Bấm nút lớn **"Lưu kết quả điểm danh"**.
-  4. **Bước 4 (Quan sát phản hồi trên thiết bị phụ huynh):**
-     - Cầm điện thoại của phụ huynh em Trần Đức Anh đang để màn hình khóa.
-     - Đếm thời gian nhận được thông báo đẩy (Push Notification).
+     - Đăng nhập tài khoản Cô Lan, tại Trang chủ bấm vào mục **"Điểm danh"** (hoặc chọn Lớp 1A $\rightarrow$ Điểm danh).
+     - Màn hình **AttendanceScreen** mở ra: Danh sách học sinh hiển thị sẵn với trạng thái màu xanh lá cây **"Có mặt"** (`PRESENT`).
+  2. **Bước 2 (Chạm 1-chạm chuyển trạng thái học sinh vắng):**
+     - Chạm vào dòng tên em `Nguyễn Hoàng My`: Trạng thái chuyển sang huy hiệu màu vàng **"Vắng có phép"**.
+     - Chạm 2 lần vào dòng tên em `Trần Bảo Nam`: Trạng thái chuyển sang huy hiệu màu đỏ **"Vắng không phép"**.
+     - Thanh thống kê sĩ số trên đỉnh tự động cập nhật: `Có mặt: 5 | Vắng: 2 (1 có phép, 1 không phép)`.
+  3. **Bước 3 (Bấm lưu kết quả điểm danh):**
+     - Cô giáo bấm nút màu cam **"Lưu điểm danh"**.
+     - Ứng dụng thông báo *"Lưu điểm danh thành công"* ngay lập tức (< 1 giây), không có biểu tượng xoay chờ mạng lâu làm đơ màn hình.
+  4. **Bước 4 (Đối soát thiết bị Phụ huynh & Cache ngầm):**
+     - Cầm điện thoại phụ huynh em Trần Bảo Nam: Quan sát nhận thông báo đẩy FCM trong vòng 2.5 giây với nội dung: *"Thông báo chuyên cần: Em Trần Bảo Nam vắng mặt không phép buổi học sáng nay..."*.
+     - Phụ huynh của các em có mặt không bị nhận thông báo làm phiền.
+     - Dữ liệu chuyên cần được ghi vào bảng `attendances` trong CSDL và nạp vào In-Memory Cache sẵn sàng cho Vòng quay gọi bài cũ.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Tốc độ thao tác 1-chạm:** Việc chuyển đổi trạng thái giữa Có mặt $\rightarrow$ Vắng có phép $\rightarrow$ Vắng không phép diễn ra tức thì, giao diện mượt mà không có độ trễ giật lag.
-  - [ ] **Thời gian lưu dữ liệu:** Bấm Lưu và nhận thông báo thành công trong vòng **dưới 1 giây**.
-  - [ ] **Tốc độ thông báo đẩy FCM:** Điện thoại phụ huynh em Đức Anh nhận được thông báo đẩy trong vòng **dưới 2.5 giây** với nội dung: *"Thông báo chuyên cần: Em Trần Đức Anh vắng mặt không phép tiết học sáng ngày 05/10/2026. Kính đề nghị phụ huynh kiểm tra và liên hệ với GVCN."*
-  - [ ] **Bảo vệ phụ huynh khác:** Phụ huynh của 33 học sinh có mặt không nhận thông báo spam làm phiền.
-  - [ ] **Chặn trùng lặp:** Nếu cô giáo bấm Lưu điểm danh thêm lần nữa trong cùng buổi, hệ thống thông báo dữ liệu buổi này đã tồn tại và cho phép cập nhật, không tạo bản ghi rác trùng lặp.
+  - [ ] **Thao tác 1-chạm mượt mà:** Chuyển đổi trạng thái nhạy bén giữa Có mặt ➔ Vắng có phép ➔ Vắng không phép ➔ Trễ.
+  - [ ] **Kiến trúc bất đồng bộ (Non-blocking):** Giao diện app phản hồi lưu thành công tức thì; backend phát sự kiện ngầm gửi FCM không làm treo app giáo viên.
+  - [ ] **Tốc độ Push Notification:** Phụ huynh em vắng nhận được thông báo đẩy trên thanh trạng thái điện thoại trong vòng **dưới 2.5 giây**.
+  - [ ] **Đồng bộ In-Memory Cache:** Tự động nạp danh sách học sinh có mặt vào RAM cache phục vụ Vòng quay bài cũ với độ trễ < 5ms.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -142,39 +191,41 @@
 
 ---
 
-### UAT03_GVCN_03 : NGHIỆM THU QUẢN LÝ THEO DÕI THU NỘP BHYT & HỌC PHÍ (TÍCH CHỌN 1-CHẠM KÈM NGÀY NỘP) VÀ PHÁT THÔNG BÁO ĐÔN ĐỐC PHỤ HUYNH
+### UAT04_GVCN_03 : NGHIỆM THU QUẢN LÝ THU PHÍ & BẢO HIỂM Y TẾ (TÍCH CHỌN NGÀY NỘP THỰC TẾ), TẠO MÃ VIETQR CHUẨN NAPAS247 VÀ GỬI THÔNG BÁO NHẮC NỘP PHÍ
 
 - **VAI TRÒ NGHIỆM THU:** Giáo viên chủ nhiệm (GVCN).
-- **MÔI TRƯỜNG THỰC TẾ:** Trình duyệt Web trên Laptop hoặc Tablet của GVCN.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay Mobile App trên điện thoại hoặc máy tính bảng của GVCN.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Nhà trường thông báo thời hạn hoàn thành nộp tiền Bảo hiểm Y tế (BHYT) học sinh đợt 1. Phụ huynh nộp tiền mặt hoặc chuyển khoản trực tiếp cho GVCN tại trường (hệ thống không tích hợp cổng thanh toán trực tuyến). GVCN mở bảng theo dõi trên phần mềm, tích chọn xác nhận đã nộp cho các học sinh vừa hoàn thành (hệ thống tự động ghi nhận ngày nộp hôm nay), sau đó lọc danh sách 5 học sinh còn lại chưa nộp để bấm nút phát thông báo đôn đốc nhắc nhở phụ huynh.
+  Nhà trường triển khai thu Bảo hiểm Y tế (BHYT) và Quỹ bán trú đợt 1. Phụ huynh nộp tiền mặt hoặc chuyển khoản trực tiếp cho GVCN. GVCN mở màn hình Thu phí & BHYT, tích chọn hoàn thành cho học sinh đã nộp (hệ thống lưu ngày nộp thực tế), mở mã VietQR chuyển khoản chuẩn ngân hàng để phụ huynh quét mã tiện lợi, sau đó lọc danh sách học sinh chưa nộp để bấm nút gửi thông báo nhắc nhở tức thì.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Danh sách theo dõi thu phí lớp `6A2` trong collection `/fees_and_insurance`.
-  - Học sinh hoàn thành: Em Phạm Mai Chi nộp tiền mặt 850.000 VNĐ.
-  - 5 học sinh còn lại chưa nộp BHYT (trong đó có phụ huynh em Lê Minh Khang).
+  - Lớp: `Lớp 1A`.
+  - Khoản thu: Bảo hiểm Y tế (BHYT) số tiền `850.000 VNĐ`.
+  - Học sinh đã nộp: Em Lê Minh Khôi.
+  - Học sinh chưa nộp: Em Vũ Đức Trọng, Nguyễn Văn An...
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
-  1. **Bước 1 (Mở giao diện Thu phí & BHYT):**
-     - GVCN truy cập vào lớp `6A2`, mở tab **"Quản lý Thu phí & BHYT"**.
-     - Bảng danh sách học sinh hiển thị trực quan với 2 cột checkbox: `Học phí` và `Bảo hiểm Y tế`.
-  2. **Bước 2 (Tích chọn xác nhận nộp BHYT):**
-     - Tìm học sinh `Phạm Mai Chi`.
-     - Tích chọn vào ô checkbox tại cột **Bảo hiểm Y tế**.
-     - Quan sát hệ thống: Ô checkbox chuyển thành màu xanh lá cây kèm nhãn hiển thị ngày nộp tự động `05/10/2026`.
-     - GVCN thử nhấp vào ngày nộp để điều chỉnh lùi lại ngày thực tế nếu phụ huynh đã nộp hôm qua $\rightarrow$ Lưu thành công.
-  3. **Bước 3 (Lọc danh sách chưa hoàn thành):**
-     - Bấm vào bộ lọc nhanh phía trên bảng: Chọn **"Chưa nộp BHYT"**.
-     - Danh sách thu gọn lại chỉ còn đúng 5 học sinh chưa hoàn thành nộp phí.
-  4. **Bước 4 (Phát thông báo nhắc nhở qua FCM):**
-     - Bấm nút **"Gửi nhắc nhở BHYT tới Phụ huynh"**.
-     - Một pop-up xác nhận xuất hiện: *"Bạn có chắc chắn muốn gửi thông báo nhắc nộp BHYT tới 5 phụ huynh chưa hoàn thành?"*.
-     - Bấm **"Xác nhận gửi"**.
+  1. **Bước 1 (Mở màn hình Thu phí & BHYT):**
+     - Đăng nhập tài khoản Cô Lan, chọn mục **"Thu phí & BHYT"** từ màn hình chính.
+     - Màn hình **FeesInsuranceScreen** mở ra hiển thị danh sách học sinh kèm trạng thái các khoản thu: `Bảo hiểm Y tế`, `Học phí / Bán trú`.
+  2. **Bước 2 (Tích chọn xác nhận nộp phí kèm ngày nộp):**
+     - Tìm học sinh `Lê Minh Khôi`, chạm vào ô chuyển trạng thái nộp BHYT.
+     - Ô trạng thái chuyển sang màu xanh lá cây kèm nhãn ngày nộp hôm nay (ví dụ: `25/10/2026`).
+     - Thử chọn điều chỉnh ngày nộp về ngày thực tế phụ huynh đã đóng $\rightarrow$ Lưu thành công.
+  3. **Bước 3 (Xem mã VietQR chuyển khoản ngân hàng):**
+     - Bấm vào nút **"Mã VietQR Chuyển Khoản"** trên màn hình.
+     - Modal hiển thị mã QR chuẩn Napas247 của nhà trường / lớp học kèm thông tin: Tên ngân hàng, Số tài khoản, Tên người thụ hưởng, Số tiền chuẩn và Cú pháp nội dung chuyển khoản tự động.
+     - Bấm nút **"Chia sẻ mã QR"** để gửi vào nhóm Zalo phụ huynh của lớp.
+  4. **Bước 4 (Lọc danh sách chưa nộp & Gửi thông báo nhắc nhở):**
+     - Sử dụng bộ lọc nhanh: Chọn tab **"Chưa hoàn thành"**.
+     - Danh sách thu gọn lại hiển thị các học sinh còn thiếu phí.
+     - Bấm nút **"Gửi nhắc nhở tới Phụ huynh"**.
+     - Pop-up xác nhận xuất hiện: Bấm **"Xác nhận gửi"**.
+     - Hệ thống phát thông báo FCM tới đúng các phụ huynh có con chưa đóng phí.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Thao tác đơn giản 1-chạm:** Tích chọn checkbox cập nhật ngay trạng thái `is_paid_insurance = true` và `insurance_paid_date` trong Firestore mà không cần nhấn thêm nút lưu rườm rà.
-  - [ ] **Minh bạch thông tin ngày nộp:** Hiển thị rõ ràng ngày nộp cụ thể giúp giáo viên đối soát sổ sách kế toán dễ dàng.
-  - [ ] **Gửi đúng đối tượng:** Thông báo FCM chỉ phát tới phụ huynh của 5 học sinh chưa nộp, phụ huynh của học sinh Mai Chi và các em đã nộp không bị nhận tin nhắc nhở.
-  - [ ] **Tốc độ gửi thông báo:** Toàn bộ 5 phụ huynh nhận được thông báo đẩy trên điện thoại trong vòng **dưới 3 giây**.
+  - [ ] **Minh bạch tài chính:** Trạng thái lưu cờ boolean kèm ngày nộp cụ thể, hỗ trợ đối soát sổ sách kế toán thuận tiện.
+  - [ ] **Tiện ích VietQR chuẩn Napas247:** Mã QR hiển thị rõ nét, quét thử qua ứng dụng ngân hàng tự động điền đúng số tiền và nội dung.
+  - [ ] **Gửi đúng đối tượng:** Thông báo nhắc nhở chỉ phát tới phụ huynh chưa nộp phí, không làm phiền phụ huynh đã hoàn thành.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -184,37 +235,37 @@
 
 ---
 
-### UAT04_GVCN_04 : NGHIỆM THU TÍNH NĂNG NHẬP LỜI NHẬN XÉT HỌC SINH NGẮN GỌN (TEXT THUẦN TÚY) GỬI TỨC THỜI TỚI SỔ LIÊN LẠC VÀ THEO DÕI XÁC NHẬN ĐÃ ĐỌC
+### UAT05_GVCN_04 : NGHIỆM THU NHẬP LỜI NHẬN XÉT HỌC SINH (TEXT THUẦN TÚY) GỬI VỀ SỔ LIÊN LẠC VÀ THEO DÕI XÁC NHẬN "ĐÃ ĐỌC" 2 CHIỀU
 
 - **VAI TRÒ NGHIỆM THU:** Giáo viên chủ nhiệm (GVCN) hoặc Giáo viên bộ môn (GVBM).
-- **MÔI TRƯỜNG THỰC TẾ:** Mobile App React Native trên điện thoại Android của giáo viên và iPhone của phụ huynh.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay Mobile App trên điện thoại giáo viên và phụ huynh.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Trong tiết học, em Lê Minh Triết có tiến bộ vượt bậc, hăng hái xung phong phát biểu giải bài toán khó và hỗ trợ bạn cùng bàn. Giáo viên muốn gửi ngay một lời nhận xét ngắn gọn, chân tình về ứng dụng sổ liên lạc của bố mẹ em để gia đình cùng chung vui, động viên con. Giáo viên không muốn sử dụng các thẻ nhãn (tags) gò bó mà muốn gõ đoạn văn bản tự nhiên.
+  Trong buổi học, em Trần Bảo Nam có tiến bộ vượt bậc, hăng hái xung phong phát biểu và viết chữ rất sạch đẹp. Cô giáo muốn gửi ngay lời khen ngợi chân thành bằng câu chữ tự nhiên về Sổ liên lạc của bố mẹ em để gia đình chung vui, khích lệ con. Khi phụ huynh mở app đọc xong và bấm nút "Xác nhận đã đọc", cô giáo có thể theo dõi được ngay trên màn hình quản lý.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Học sinh: Lê Minh Triết (`stu_triet_03`).
-  - Nội dung nhận xét: *"Hôm nay Minh Triết rất tích cực giơ tay xây dựng bài Toán và giúp đỡ bạn cùng bàn. Cô khen ngợi tinh thần học tập của con!"* (Độ dài: 112 ký tự).
-  - Tài khoản phụ huynh em Triết trên điện thoại iPhone.
+  - Học sinh: Trần Bảo Nam (`std_01`), Lớp 1A.
+  - Nội dung nhận xét: *"Hôm nay Bảo Nam rất hăng hái giơ tay xây dựng bài Toán, viết chữ ngay ngắn sạch đẹp. Cô khen ngợi con!"*.
+  - Điện thoại phụ huynh Bác Trần Văn Hùng (`0977112233`).
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN & PHỤ HUYNH:**
-  1. **Bước 1 (Giáo viên nhập nhận xét trên App):**
-     - Giáo viên mở app, vào lớp `6A2`, chọn học sinh Lê Minh Triết.
-     - Chọn mục **"Nhận xét học sinh"** $\rightarrow$ bấm **"Viết nhận xét mới"**.
-     - Nhập nội dung văn bản ngắn vào khung soạn thảo.
-     - Bấm nút **"Gửi nhận xét tới Phụ huynh"**.
-  2. **Bước 2 (Kiểm tra phía Phụ huynh nhận thông báo):**
-     - Điện thoại phụ huynh em Triết nhận được Push Notification kèm âm thanh thông báo.
-     - Phụ huynh chạm vào thông báo: Ứng dụng mở thẳng vào mục Sổ liên lạc $\rightarrow$ Tab "Nhận xét của giáo viên".
-     - Đọc trọn vẹn đoạn văn bản nhận xét của cô giáo hiển thị kèm mốc thời gian gửi rõ ràng.
+  1. **Bước 1 (Giáo viên soạn nhận xét trên App):**
+     - Đăng nhập tài khoản Cô Lan, mở màn hình **RemarksExamScreen** (hoặc vào Lớp 1A $\rightarrow$ Nhận xét học sinh).
+     - Chọn học sinh `Trần Bảo Nam`, bấm **"Thêm nhận xét mới"**.
+     - Nhập nội dung văn bản thuần túy vào khung soạn thảo (không cần gắn thẻ tags cứng nhắc).
+     - Bấm nút màu cam **"Gửi nhận xét tới Phụ huynh"**.
+  2. **Bước 2 (Kiểm tra phía Phụ huynh tiếp nhận):**
+     - Điện thoại phụ huynh Bác Trần Văn Hùng nhận được thông báo đẩy kèm chuông báo.
+     - Chạm vào thông báo: Mở thẳng vào màn hình Sổ liên lạc của em Bảo Nam $\rightarrow$ Mục **"Nhận xét của cô"**.
+     - Bác Hùng đọc trọn vẹn đoạn văn bản nhận xét kèm mốc thời gian gửi của cô giáo.
   3. **Bước 3 (Phụ huynh bấm xác nhận đã đọc):**
-     - Dưới chân lời nhận xét có nút **"Xác nhận đã đọc"**. Phụ huynh bấm vào nút này.
-     - Nút chuyển thành trạng thái **"Đã xem lúc [Giờ:Phút]"** kèm dấu tích xanh.
-  4. **Bước 4 (Giáo viên kiểm tra trạng thái phản hồi):**
-     - Giáo viên tải lại màn hình nhận xét trên điện thoại: Nhìn thấy biểu tượng mắt đọc màu xanh hiển thị *"Phụ huynh đã đọc"*.
+     - Dưới nhận xét có nút **"Xác nhận đã đọc"**. Phụ huynh bấm vào nút này.
+     - Nút chuyển sang trạng thái tích xanh: *"Đã đọc lúc [Thời gian]"*.
+  4. **Bước 4 (Giáo viên kiểm tra phản hồi):**
+     - Cô giáo tải lại màn hình nhận xét của em Nam: Thấy biểu tượng mắt đọc màu xanh hiển thị *"Phụ huynh đã đọc"*.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Trực quan & Thuần túy Text:** Soạn thảo văn bản tự do, hỗ trợ đầy đủ tiếng Việt có dấu, không sử dụng hệ thống tags rườm rà.
-  - [ ] **Thời gian nhận thông báo:** Điện thoại phụ huynh nhận thông báo đẩy trong vòng **dưới 2 giây**.
-  - [ ] **Xác nhận 2 chiều:** Cơ chế xác nhận "Đã đọc" hoạt động tức thì, cập nhật cờ `is_acknowledged = true` vào document `/remarks` trong Firestore.
+  - [ ] **Văn bản tự nhiên chuẩn sư phạm:** Hỗ trợ tiếng Việt có dấu đầy đủ, câu chữ tự nhiên không bị gò bó bởi nhãn tag.
+  - [ ] **Tốc độ thông báo:** Phụ huynh nhận thông báo đẩy trong vòng **dưới 2 giây**.
+  - [ ] **Phản hồi 2 chiều minh bạch:** Cơ chế "Đã đọc" cập nhật trạng thái tức thì giữa hai bên, lưu an toàn vào bảng `remarks` trong PostgreSQL.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -225,42 +276,38 @@
 
 ---
 
-### UAT05_GVBM_01 : NGHIỆM THU TÍNH NĂNG TẢI LÊN GIÁO ÁN (DOCX/PDF) ĐỂ TRỢ GIẢNG AI GEMINI TỰ ĐỘNG SINH CÂU HỎI TRẮC NGHIỆM KIỂM TRA BÀI CŨ THEO ĐỘ KHÓ VÀ SỐ LƯỢNG TÙY CHỌN
+### UAT06_GVBM_01 : NGHIỆM THU TRỢ GIẢNG AI SINH CÂU HỎI TRẮC NGHIỆM BÀI CŨ THEO MÔN, KHỐI VÀ ĐỘ KHÓ TÙY CHỌN
 
-- **VAI TRÒ NGHIỆM THU:** Giáo viên bộ môn (GVBM) Khoa học tự nhiên / Toán học.
-- **MÔI TRƯỜNG THỰC TẾ:** Laptop của giáo viên kết nối mạng Internet trường học, mở trình duyệt Web Next.js.
+- **VAI TRÒ NGHIỆM THU:** Giáo viên bộ môn (GVBM) hoặc Giáo viên chủ nhiệm (GVCN).
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động hoặc Web của giáo viên kết nối mạng Internet.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Để chuẩn bị 5 phút khởi động kiểm tra bài cũ đầu tiết học môn Khoa học tự nhiên 6, cô giáo không muốn mất thời gian tự ngồi gõ từng câu hỏi trắc nghiệm. Cô giáo tải tệp giáo án bài giảng Word (`.docx`) đã soạn sẵn lên hệ thống GiaoVienHay, chọn yêu cầu sinh 5 câu hỏi trắc nghiệm với độ khó "Vừa". Trợ giảng AI tích hợp Google Gemini API sẽ tự động đọc hiểu giáo án và sinh ra bộ 5 câu hỏi trắc nghiệm kèm 4 phương án A, B, C, D, đáp án đúng và phần giải thích quy tắc sư phạm để cô giáo duyệt.
+  Để khởi động tiết học 5 phút kiểm tra bài cũ, thầy giáo mở tính năng Trợ lý AI trên app để tự động sinh 5 câu hỏi trắc nghiệm bám sát nội dung bài học. Thầy chọn môn học, khối lớp, độ khó và chủ đề bài giảng, AI (Google Gemini / NVIDIA API) đọc hiểu và sinh ra bộ câu hỏi chuẩn sư phạm kèm đáp án A, B, C, D và lời giải chi tiết.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Tệp giáo án: `Bai17_TeBao_DonViCoBan.docx` (Dung lượng 1.8MB, nội dung về cấu tạo tế bào nhân sơ và nhân thực).
-  - Cấu hình tùy chọn:
-    - Số lượng câu hỏi: `5 câu`.
-    - Độ khó: `Vừa (MEDIUM)`.
-    - Loại câu hỏi: Trắc nghiệm 4 lựa chọn (A, B, C, D).
+  - Môn học: `Toán học` (hoặc `Khoa học tự nhiên`).
+  - Khối: `Khối 6` (hoặc `Khối 1`).
+  - Chủ đề: `Phép cộng và trừ phân số`.
+  - Cấu hình: `5 câu hỏi`, Độ khó: `Vừa (MEDIUM)`.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
-  1. **Bước 1 (Tải giáo án lên hệ thống):**
-     - Đăng nhập tài khoản GVBM, mở lớp `6A2`, vào mục **"Trợ giảng AI / Tạo bài kiểm tra bài cũ"**.
-     - Kéo thả tệp `Bai17_TeBao_DonViCoBan.docx` vào vùng tải lên tài liệu.
-     - Thanh tiến trình tải file đạt 100%, hệ thống xác nhận tệp hợp lệ.
-  2. **Bước 2 (Cấu hình thông số tạo đề):**
-     - Tại mục "Số lượng câu hỏi", chọn `5 câu`.
-     - Tại mục "Độ khó", chọn `Vừa (MEDIUM)`.
-     - Bấm nút **"Bắt đầu sinh câu hỏi bằng AI"**.
-  3. **Bước 3 (Quan sát tiến trình AI xử lý):**
-     - Màn hình hiển thị animation xử lý: *"AI Gemini đang đọc hiểu giáo án và soạn câu hỏi..."*.
-     - Bấm đồng hồ bấm giờ đếm thời gian từ lúc ấn nút đến khi kết quả xuất hiện.
-  4. **Bước 4 (Duyệt và kiểm tra chất lượng câu hỏi):**
-     - Màn hình hiển thị danh sách 5 câu hỏi trắc nghiệm vừa được tạo.
-     - Giáo viên đọc kiểm tra: Câu hỏi có đúng nội dung bài 17 hay không? 4 đáp án A, B, C, D có hợp lý không? Đáp án đúng có bị sai lệch không?
-     - Giáo viên thử bấm vào nút "Chỉnh sửa" tại câu số 3 để sửa lại 1 từ trong phương án B $\rightarrow$ Bấm "Lưu chỉnh sửa".
-     - Bấm nút **"Lưu bộ câu hỏi vào kho đề"**.
+  1. **Bước 1 (Mở màn hình Trợ giảng AI Soạn đề):**
+     - Đăng nhập tài khoản Thầy Nam (GVBM), mở mục **"Trợ giảng AI / Soạn bài cũ"** (`QuizGenScreen`).
+     - Chọn Môn học: `Toán học`.
+     - Chọn Số lượng câu: `5 câu`.
+     - Chọn Độ khó: `Vừa`.
+     - Nhập chủ đề hoặc tải tệp tài liệu tóm tắt bài giảng.
+  2. **Bước 2 (Kích hoạt sinh câu hỏi bằng AI):**
+     - Bấm nút màu cam **"Bắt đầu sinh câu hỏi bằng AI"**.
+     - Màn hình hiển thị animation tiến trình sinh câu hỏi thông minh.
+     - Bấm đồng hồ bấm giờ: Thời gian xử lý hoàn tất trong vòng dưới 12 giây.
+  3. **Bước 3 (Xem trước, duyệt và chỉnh sửa câu hỏi):**
+     - Danh sách 5 câu hỏi hiển thị rõ ràng với 4 phương án A, B, C, D, đáp án đúng được tô nổi bật kèm giải thích ngắn gọn.
+     - Thầy giáo thử bấm vào câu số 2 để sửa lại một từ trong phương án A $\rightarrow$ Lưu chỉnh sửa thành công.
+     - Bấm nút **"Lưu bộ câu hỏi vào kho đề"** (lưu an toàn vào bảng `quizzes` trong CSDL).
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Thời gian xử lý của AI:** Google Gemini API trích xuất và sinh hoàn chỉnh 5 câu hỏi trắc nghiệm trong vòng **dưới 11 giây**.
-  - [ ] **Chất lượng kiến thức sư phạm:** Nội dung câu hỏi bám sát 100% giáo án bài học môn KHTN lớp 6, câu từ trong sáng chuẩn mực, không có hiện tượng ảo giác (hallucination).
-  - [ ] **Độ chính xác đáp án:** Mỗi câu hỏi có duy nhất 1 đáp án đúng rõ ràng kèm phần giải thích ngắn gọn, xúc tích.
-  - [ ] **Khả năng biên tập linh hoạt:** Cho phép giáo viên chỉnh sửa câu chữ, thay đổi đáp án đúng và lưu cập nhật tức thời vào Firestore.
+  - [ ] **Tốc độ xử lý của AI:** Đọc hiểu và sinh hoàn chỉnh 5 câu hỏi trong vòng **dưới 12 giây**.
+  - [ ] **Chuẩn kiến thức sư phạm:** Câu hỏi bám sát chủ đề bài học, ngôn ngữ sư phạm chuẩn mực, không bị ảo giác (hallucination).
+  - [ ] **Linh hoạt biên tập:** Cho phép giáo viên chỉnh sửa câu chữ, đổi đáp án và lưu lại ngay lập tức.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -270,40 +317,42 @@
 
 ---
 
-### UAT06_GVBM_02 : NGHIỆM THU GIAO DIỆN VÒNG QUAY MAY MẮN (LUCKY WHEEL) TỰ ĐỘNG LỌC HỌC SINH CÓ MẶT, NÚT BỎ QUA (SKIP) KHI VẮNG VÀ CHẤM ĐIỂM MIỆNG TRỰC TIẾP VÀO SỔ ĐIỂM
+### UAT07_GVBM_02 : NGHIỆM THU VÒNG QUAY MAY MẮN 3D (HIỂN THỊ TÊN HỌC SINH LÊN VÒNG QUAY), NÚT BỎ QUA (SKIP) VÀ CHẤM ĐIỂM MIỆNG TRỰC TIẾP VÀO SỔ ĐIỂM
 
 - **VAI TRÒ NGHIỆM THU:** Giáo viên bộ môn (GVBM) hoặc Giáo viên chủ nhiệm (GVCN).
-- **MÔI TRƯỜNG THỰC TẾ:** Trình duyệt Web của giáo viên kết nối trực tiếp với Máy chiếu / Màn hình TV lớn trên bục giảng lớp học.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay trên máy tính bảng hoặc điện thoại kết nối Máy chiếu / Tivi bục giảng lớp học.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Đầu tiết học Toán, thầy giáo mở Vòng quay may mắn chiếu lên màn hình lớn trước lớp để bốc ngẫu nhiên học sinh lên bảng kiểm tra bài cũ. Hệ thống phải tự động loại trừ học sinh đã được điểm danh vắng mặt đầu ngày. Trong trường hợp vòng quay trúng một bạn đột xuất xin xuống phòng y tế (vắng mặt tại chỗ), thầy giáo bấm nút "Bỏ qua (Skip)" để vòng quay lập tức quay tiếp chọn bạn khác mà không bị đứng hình. Học sinh được chọn lên bảng trả lời đúng câu hỏi số 1, thầy chấm điểm 9 và điểm lập tức ghi nhận vào sổ điểm môn Toán.
+  Đầu tiết học, thầy giáo mở Vòng quay may mắn (`WheelScreen`) chiếu lên màn hình TV lớp học để gọi ngẫu nhiên học sinh lên bảng kiểm tra bài cũ. Giao diện 3D rực rỡ chuẩn UI/UX Pro Max, tên học sinh được hiển thị trực tiếp và rõ ràng trên từng nan quạt của vòng quay. Vòng quay tự động loại trừ học sinh đã được điểm danh vắng mặt sáng nay. Khi quay trúng một bạn đột xuất xin ra ngoài phòng y tế, thầy giáo bấm nút "Bỏ qua (Skip)" để vòng quay lập tức quay tiếp mà không bị đứng hình. Học sinh trả lời đúng, thầy chấm điểm 10 và điểm được lưu thẳng vào Sổ điểm môn học.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Sĩ số lớp 35 học sinh, trong đó 2 học sinh vắng đã được GVCN điểm danh sáng nay.
-  - Vòng quay may mắn nạp danh sách 33 học sinh có mặt hôm nay.
-  - Câu hỏi bài cũ số 1 từ bộ đề vừa tạo.
-  - Điểm số chấm: 9.0 điểm vào cột Điểm miệng (`ORAL_TEST`).
+  - Lớp: `Lớp 1A`.
+  - Danh sách học sinh có mặt nạp từ In-Memory Cache (loại trừ các học sinh vắng đã điểm danh ở UAT03).
+  - Điểm chấm: `10.0` điểm vào cột Kiểm tra miệng.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
-  1. **Bước 1 (Khởi chạy Vòng quay may mắn):**
-     - Mở bộ câu hỏi bài cũ, chọn chế độ **"Vòng quay may mắn (Lucky Wheel)"**.
-     - Bấm nút chuyển sang **"Toàn màn hình (Full-screen)"** để hiển thị trọn vẹn trên máy chiếu.
-     - Kiểm tra danh sách học sinh trên nan quạt vòng quay: Đảm bảo không có tên của 2 học sinh đã nghỉ học sáng nay.
-  2. **Bước 2 (Quay số chọn học sinh lượt 1):**
-     - Thầy giáo bấm nút **"Quay số"**. Vòng quay chuyển động tít với hiệu ứng âm thanh tạch-tạch hồi hộp, kim chỉ dừng lại ở tên em `Đỗ Tuấn Hưng`.
-  3. **Bước 3 (Thao tác nút Bỏ qua - Skip):**
-     - Giả định em Hưng xin phép xuống phòng y tế lúc đầu giờ nên không thể lên bảng.
+  1. **Bước 1 (Khởi chạy Vòng quay may mắn 3D):**
+     - Đăng nhập tài khoản Thầy Nam (hoặc Cô Lan), chọn Lớp 1A, mở mục **"Dò bài cũ / Vòng quay may mắn"** (`WheelScreen`).
+     - Quan sát đồ họa Vòng quay 3D:
+       - Tên của các học sinh có mặt được khắc chữ sắc nét trực tiếp lên từng nan quạt màu sắc của vòng quay.
+       - Tên học sinh vắng sáng nay (Trần Bảo Nam, Nguyễn Hoàng My) hoàn toàn không xuất hiện trên vòng quay.
+  2. **Bước 2 (Thực hiện quay số lượt 1):**
+     - Thầy giáo chạm nút **"Quay số"**.
+     - Vòng quay chuyển động xoay 3D tít và mượt mà kèm âm thanh hồi hộp. Kim chỉ dừng lại ở tên em `Lê Minh Khôi`.
+  3. **Bước 3 (Thử nghiệm nút Bỏ qua - Skip):**
+     - Giả định em Khôi vừa xin phép ra ngoài phòng y tế.
      - Thầy giáo bấm ngay nút **"Bỏ qua (Skip)"**.
-     - Quan sát phản hồi: Hệ thống bỏ qua em Hưng và tự động kích hoạt vòng quay mới ngay lập tức mà không cần bấm thêm nút nào khác.
+     - Quan sát phản hồi: Hệ thống bỏ qua em Khôi và tự động kích hoạt lượt quay mới ngay lập tức mà không bị đơ, không bị treo app.
   4. **Bước 4 (Chấm điểm trực tiếp tại lớp):**
-     - Vòng quay dừng lại ở tên em `Nguyễn Thùy Linh`. Thùy Linh lên bảng trả lời câu hỏi trắc nghiệm số 1 và giải thích chính xác.
-     - Thầy giáo nhập điểm `9.0` vào pop-up chấm điểm nhanh và bấm **"Lưu điểm"**.
+     - Vòng quay dừng lại ở tên em `Phạm Quỳnh Anh`. Quỳnh Anh lên bảng trả lời xuất sắc câu hỏi bài cũ.
+     - Thầy giáo nhập điểm `10.0` trên bảng chấm điểm nhanh (giao diện đã được dọn sạch các ô điểm số thừa 6, 7, 8, 9 theo đúng chuẩn tối giản).
+     - Bấm nút **"Lưu điểm vào sổ"**.
   5. **Bước 5 (Kiểm tra đồng bộ Sổ điểm):**
-     - Mở tab Sổ điểm môn Toán của lớp `6A2`: Kiểm tra cột "Điểm miệng" của em Thùy Linh xem đã xuất hiện điểm 9.0 chưa.
+     - Mở màn hình Sổ điểm môn học: Điểm 10.0 của em Phạm Quỳnh Anh đã xuất hiện ngay tại cột Điểm miệng (`ORAL`) mà thầy giáo không cần phải mở sổ ghi chép lại thủ công.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Lọc danh sách chuyên cần chuẩn:** Tự động lấy danh sách học sinh trạng thái `PRESENT` từ `/attendances` của ngày hôm nay, tuyệt đối không đưa học sinh vắng mặt vào vòng quay.
-  - [ ] **Hiệu ứng đồ họa & Âm thanh:** Vòng quay quay mượt mà ở tần số 60 FPS, âm thanh sống động, kim chỉ dừng dứt khoát tạo không khí hào hứng cho học sinh.
-  - [ ] **Nút Bỏ qua (Skip) nhạy bén:** Bấm "Skip" là vòng quay chuyển động tiếp ngay lập tức, không bị đơ, treo hay crash ứng dụng.
-  - [ ] **Đồng bộ Sổ điểm tức thì:** Điểm số 9.0 được lưu đồng thời vào `/quiz_results` và ghi nhận thẳng vào cột điểm miệng trong `/scores` của môn học mà thầy giáo không cần phải mở sổ điểm gõ lại.
+  - [ ] **Đồ họa 3D hiển thị tên học sinh:** Tên học sinh hiển thị trực tiếp lên từng nan quạt của vòng quay, thẩm mỹ cao chuẩn UI/UX Pro Max.
+  - [ ] **Lọc danh sách chuyên cần:** Tự động lấy danh sách học sinh có mặt từ In-Memory Cache, không đưa học sinh vắng mặt vào vòng quay.
+  - [ ] **Nút Bỏ qua (Skip) nhạy bén:** Bấm Skip là vòng quay xoay tiếp lượt mới ngay tức thì, không giật lag hay treo màn hình.
+  - [ ] **Đồng bộ Sổ điểm trực tiếp:** Điểm số được lưu thẳng vào bảng `scores` trong CSDL PostgreSQL Supabase.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -313,83 +362,82 @@
 
 ---
 
-### UAT07_GVBM_03 : NGHIỆM THU TÍNH NĂNG CHUYỂN ĐỔI BỘ CÂU HỎI AI THÀNH MINI-GAME LỚP HỌC (RUNG CHUÔNG VÀNG / ĐUA XE / HỘP QUÀ) TRÌNH CHIẾU TƯƠNG TÁC TOÀN MÀN HÌNH
+### UAT08_GVBM_03 : NGHIỆM THU TÍNH NĂNG CHUYỂN ĐỔI BỘ CÂU HỎI THÀNH MINI-GAME LỚP HỌC (RUNG CHUÔNG VÀNG / HỘP QUÀ / ĐUA XE) TRÌNH CHIẾU FULLSCREEN
 
 - **VAI TRÒ NGHIỆM THU:** Giáo viên bộ môn (GVBM) hoặc Giáo viên chủ nhiệm (GVCN).
-- **MÔI TRƯỜNG THỰC TẾ:** Máy tính giáo viên kết nối Màn hình tương tác thông minh / Máy chiếu lớp học.
+- **MÔI TRƯỜNG THỰC TẾ:** Tablet hoặc Laptop kết nối Máy chiếu / Tivi tương tác thông minh tại lớp học.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Vào tiết học buổi chiều khi học sinh có biểu hiện uể oải, giáo viên không muốn chiếu slide câu hỏi thông thường. Giáo viên bấm nút "Biến thành Trò chơi (Gamify)" để nạp 5 câu hỏi AI vào chế độ **Rung Chuông Vàng**. Giáo viên bật chế độ toàn màn hình để học sinh toàn lớp cùng tham gia giơ bảng chọn đáp án A, B, C hoặc D. Khi hết giờ đếm ngược, giáo viên mở đáp án, hệ thống phát hiệu ứng pháo hoa và âm thanh reo hò rộn rã.
+  Vào tiết học buổi chiều, giáo viên muốn tạo không khí học tập sôi nổi cho cả lớp bằng cách bấm nút "Biến thành Trò chơi (Gamify)" để nạp bộ câu hỏi vào chế độ **Rung Chuông Vàng**. Giáo viên bật chế độ trình chiếu toàn màn hình để toàn thể học sinh cùng tham gia giơ bảng chọn đáp án A, B, C, D. Khi hết giờ đếm ngược 30 giây, giáo viên mở đáp án, hệ thống kích hoạt hiệu ứng pháo hoa và âm thanh reo hò rộn rã.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Bộ 5 câu hỏi trắc nghiệm kiểm tra bài cũ đã được duyệt.
-  - Chế độ game lựa chọn: **Rung chuông vàng (GOLDEN_BELL)**.
-  - Thời gian đếm ngược quy định: 30 giây/câu.
+  - Bộ 5 câu hỏi trắc nghiệm đã tạo từ Trợ lý AI.
+  - Chế độ lựa chọn: **Rung Chuông Vàng** (`GOLDEN_BELL`).
+  - Thời gian đếm ngược: 30 giây/câu.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
   1. **Bước 1 (Chọn chế độ Mini-Game):**
-     - Tại màn hình bộ câu hỏi, bấm nút nổi bật **"Biến thành Trò chơi (Gamify)"**.
-     - Xuất hiện màn hình chọn 3 chế độ game: `Rung Chuông Vàng`, `Đua Xe Vượt Chướng Ngại Vật`, `Mở Hộp Quà Bí Mật`.
-     - Giáo viên nhấp chọn biểu tượng **"Rung Chuông Vàng"** và bấm **"Bắt đầu trò chơi"**.
+     - Tại màn hình bộ câu hỏi, bấm nút nổi bật **"Biến thành Trò chơi (Gamify)"** (`GameSelectScreen`).
+     - Chọn biểu tượng **"Rung Chuông Vàng"** (hoặc Mở Hộp Quà Bí Mật, Đua Xe).
+     - Bấm nút **"Bắt đầu trò chơi"**.
   2. **Bước 2 (Trình chiếu toàn màn hình):**
-     - Giao diện chuyển sang màn hình chờ của trò chơi với nhạc nền sôi động.
-     - Giáo viên bấm nút biểu tượng Fullscreen để mở rộng toàn bộ màn hình chiếu.
-     - Bấm nút **"Bắt đầu Câu 1"**.
-  3. **Bước 3 (Vận hành câu hỏi & Đếm ngược thời gian):**
+     - Bấm nút Fullscreen: Màn hình mở rộng tối đa không viền đen.
+     - Nhạc nền mở màn sôi động vang lên kích thích sự hào hứng của học sinh.
+     - Bấm **"Bắt đầu Câu 1"**.
+  3. **Bước 3 (Vận hành câu hỏi & Đếm ngược 30s):**
      - Nội dung câu hỏi và 4 ô đáp án A, B, C, D hiển thị to rõ trên bảng lớp.
-     - Đồng hồ cát đếm ngược 30 giây bắt đầu chạy kèm tiếng tích-tắc dồn dập.
-     - Học sinh dưới lớp suy nghĩ và đồng loạt giơ bảng con ghi đáp án.
+     - Đồng hồ đếm ngược 30 giây bắt đầu chạy kèm tiếng tích-tắc dồn dập.
+     - Học sinh dưới lớp suy nghĩ và giơ bảng con ghi đáp án.
   4. **Bước 4 (Công bố đáp án đúng & Hiệu ứng khen thưởng):**
      - Hết 30 giây, tiếng chuông "Keng keng keng" vang lên báo hiệu hết giờ giơ bảng.
-     - Giáo viên chạm vào màn hình hoặc bấm phím cách (Space) để mở đáp án đúng.
-     - Ô đáp án đúng (ví dụ: Đáp án B) phát sáng viền vàng rực rỡ, kèm hiệu ứng pháo hoa giấy (confetti) bắn tung tóe trên màn hình và âm thanh vỗ tay tán thưởng vang dội.
-     - Bấm nút mũi tên chuyển sang câu tiếp theo.
+     - Giáo viên chạm mở đáp án: Ô đáp án đúng phát sáng viền vàng rực rỡ, hiệu ứng pháo hoa giấy (confetti) bắn tung tóe kèm âm thanh vỗ tay tán thưởng vang dội.
+     - Bấm chuyển sang câu tiếp theo.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Chuyển đổi 1-chạm:** Biến bộ câu hỏi thành game hoàn tất ngay lập tức trong **dưới 1 giây** mà không cần cấu hình phức tạp.
-  - [ ] **Đồ họa bắt mắt:** Giao diện thiết kế theo phong cách hiện đại, màu sắc tươi sáng, chữ to rõ ràng học sinh ngồi cuối lớp vẫn nhìn thấy rõ.
-  - [ ] **Đồng hồ đếm ngược chuẩn xác:** Đồng hồ chạy chính xác từng giây, phát âm thanh cảnh báo khi còn 5 giây cuối cùng.
-  - [ ] **Hiệu ứng kích thích học tập:** Hiệu ứng pháo hoa và âm thanh reo hò sống động, tạo bầu không khí học tập vô cùng hào hứng, giúp học sinh tiếp thu kiến thức một cách tự nhiên.
+  - [ ] **Chuyển đổi 1-chạm:** Biến bộ câu hỏi thành game hoàn tất trong vòng **dưới 1 giây**.
+  - [ ] **Giao diện trực quan lớp học:** Chữ to rõ ràng, học sinh ngồi cuối lớp vẫn nhìn thấy rõ nét.
+  - [ ] **Đồng hồ đếm ngược chuẩn xác:** Đếm chuẩn từng giây, có âm thanh cảnh báo ở 5 giây cuối.
+  - [ ] **Hiệu ứng khen thưởng sống động:** Pháo hoa confetti và âm thanh reo hò tạo không khí học tập phấn khởi, hào hứng.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
 - **XÁC NHẬN NGHIỆM THU:**
-  - Đại diện Giáo viên Bộ môn: 
+  - Đại diện Giáo viên: 
   - Đại diện Nhóm Phát Triển: 
 
 ---
 
-### UAT08_GVBM_04 : NGHIỆM THU TÍNH NĂNG NHẬP SỔ ĐIỂM ĐA CỘT THÀNH PHẦN MÔN HỌC (KHÔNG TÍNH GPA), TRÌNH CHIẾU BẢNG XẾP HẠNG (LEADERBOARD) VINH DANH ĐIỂM CAO VÀ CÔNG BỐ ĐIỂM GỬI FCM TỚI PHỤ HUYNH
+### UAT09_GVBM_04 : NGHIỆM THU SỔ ĐIỂM ĐIỆN TỬ ĐA CỘT THÀNH PHẦN (KHÔNG TỰ TÍNH GPA), TRÌNH CHIẾU BẢNG XẾP HẠNG (LEADERBOARD) VÀ CÔNG BỐ ĐIỂM GỬI FCM
 
-- **VAI TRÒ NGHIỆM THU:** Giáo viên bộ môn (GVBM).
-- **MÔI TRƯỜNG THỰC TẾ:** Trình duyệt Web Next.js trên máy tính của giáo viên kết nối máy chiếu lớp học.
+- **VAI TRÒ NGHIỆM THU:** Giáo viên bộ môn (GVBM) hoặc Giáo viên chủ nhiệm (GVCN).
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động hoặc Web của giáo viên kết nối máy chiếu lớp học.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Sau khi chấm xong bài kiểm tra 15 phút môn Toán học kỳ 1 của lớp `6A2`, thầy giáo mở Sổ điểm điện tử để nhập điểm cho 35 học sinh theo thang điểm 10 (bước nhảy 0.1). Hệ thống lưu trữ trung thực các cột điểm thành phần và không tự ý tính điểm trung bình (GPA). Sau khi nhập xong, thầy bật chức năng "Trình chiếu Bảng Xếp Hạng Điểm Môn Học" lên màn hình lớp để vinh danh Top 3 bạn điểm 10 với huy hiệu hoa điểm mười. Cuối cùng, thầy bấm nút "Công bố điểm môn học" để gửi thông báo tức thì đến ứng dụng phụ huynh của cả lớp.
+  Sau khi chấm xong bài kiểm tra 15 phút môn Toán của lớp `1A`, thầy giáo mở Sổ điểm điện tử (`GradebookScreen`) để nhập điểm cho học sinh theo thang điểm 10 (bước nhảy 0.1). Hệ thống lưu trữ trung thực các cột điểm thành phần và không tự ý tính điểm trung bình (GPA). Sau đó, thầy bật tính năng "Trình chiếu Bảng Xếp Hạng" lên màn hình lớp để vinh danh các bạn đạt điểm 10 với hoa điểm mười. Cuối cùng, thầy bấm nút "Công bố điểm" để phát thông báo tới điện thoại của toàn thể phụ huynh trong lớp.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Lớp: `6A2`, Môn học: `Toán học`, Học kỳ: `Học kỳ 1`.
-  - Cột điểm thành phần: `Kiểm tra 15 phút (TEST_15P)`.
-  - Bảng điểm 35 học sinh (trong đó có 3 em đạt điểm 10.0: Em An, Em Bình, Em Chi).
+  - Lớp: `Lớp 1A`, Môn: `Toán học`.
+  - Cột điểm thành phần: `Kiểm tra 15 phút` (`TEST_15P`).
+  - Điểm số nhập thử nghiệm: Em Lê Minh Khôi: 10.0, Em Phạm Quỳnh Anh: 9.5, Em Nguyễn Văn An: 8.5...
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
   1. **Bước 1 (Mở Sổ điểm & Nhập điểm thành phần):**
-     - Mở mục **"Sổ điểm điện tử"**, chọn Lớp `6A2`, Môn `Toán học`, Học kỳ `1`.
-     - Chọn cột điểm **"Kiểm tra 15 phút (TEST_15P)"**.
-     - Bảng danh sách học sinh hiện ra: Thầy giáo sử dụng phím `Enter` hoặc mũi tên xuống để nhập nhanh điểm số cho từng em (ví dụ: 10, 9.5, 8.0, 7.5...).
-     - Bấm nút **"Lưu bảng điểm"**.
-  2. **Bước 2 (Trình chiếu Bảng xếp hạng - Leaderboard môn học):**
+     - Đăng nhập tài khoản Thầy Nam, mở mục **"Sổ điểm điện tử"** (`GradebookScreen`).
+     - Chọn Lớp `1A`, Môn `Toán học`, chọn cột điểm **"Kiểm tra 15 phút"**.
+     - Nhập nhanh điểm số cho từng học sinh theo danh sách.
+     - Bấm nút màu cam **"Lưu bảng điểm"**.
+  2. **Bước 2 (Trình chiếu Bảng xếp hạng - Leaderboard):**
      - Nhấn nút **"Trình chiếu Bảng Xếp Hạng Môn Học"**.
-     - Màn hình Next.js chuyển sang chế độ Fullscreen hiển thị giao diện **Leaderboard Điểm Môn Toán**:
-       - Vị trí bục vinh danh hiển thị Top 1, Top 2, Top 3 kèm hiệu ứng cúp vàng, vương miện và vòng hoa điểm mười cho 3 bạn đạt điểm 10.
-       - Biểu đồ phổ điểm hiển thị trực quan tỷ lệ Giỏi, Khá, Trung bình của cả lớp.
-  3. **Bước 3 (Công bố điểm gửi phụ huynh):**
-     - Thầy giáo thoát chế độ chiếu, bấm nút **"Công bố điểm kiểm tra 15 phút"**.
-     - Xuất hiện cảnh báo xác nhận gửi thông báo cho phụ huynh. Thầy bấm **"Xác nhận công bố"**.
-  4. **Bước 4 (Kiểm tra thông báo phía phụ huynh):**
-     - Kiểm tra điện thoại phụ huynh: Xuất hiện thông báo đẩy FCM *"Điểm mới môn Toán: Em Nguyễn Hoàng Long đạt 9.5 điểm trong bài kiểm tra 15 phút ngày 05/10/2026."*
+     - Màn hình chuyển sang chế độ Fullscreen hiển thị giao diện **Leaderboard**:
+       - Bục vinh danh hiển thị Top 1, Top 2, Top 3 kèm cúp vàng và hoa điểm 10 rực rỡ.
+       - Biểu đồ phổ điểm trực quan phân bố tỷ lệ Giỏi, Khá, Trung bình của lớp.
+  3. **Bước 3 (Công bố điểm gửi Phụ huynh):**
+     - Thầy giáo bấm nút **"Công bố điểm kiểm tra 15 phút"**.
+     - Cảnh báo xác nhận xuất hiện: Bấm **"Xác nhận công bố"**.
+  4. **Bước 4 (Kiểm tra thông báo phía Phụ huynh):**
+     - Cầm điện thoại phụ huynh: Xuất hiện thông báo đẩy FCM *"Điểm mới môn Toán: Em Lê Minh Khôi đạt 10.0 điểm trong bài kiểm tra 15 phút..."*.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Thao tác nhập điểm siêu tốc:** Hỗ trợ phím tắt điều hướng nhanh nhẹn, kiểm tra tính hợp lệ dữ liệu (từ 0.0 đến 10.0, bước nhảy 0.1), báo đỏ nếu nhập sai ngoài khoảng.
-  - [ ] **Không tự ý tính GPA:** Hệ thống lưu đúng các đầu điểm thành phần vào `/scores`, tuyệt đối không tự động sinh cột GPA môn làm sai lệch quy định học bạ.
-  - [ ] **Giao diện Leaderboard tôn vinh học tập:** Thiết kế bảng vinh danh trang trọng, hiệu ứng chúc mừng hoa điểm mười truyền cảm hứng thi đua học tốt.
-  - [ ] **Công bố điểm có kiểm soát:** Chỉ khi giáo viên ấn "Công bố điểm" thì phụ huynh mới nhận được thông báo và xem được điểm trên app, tránh việc lộ điểm khi đang nhập dở dang.
+  - [ ] **Nhập điểm nhanh nhạy:** Hỗ trợ kiểm tra hợp lệ thang điểm từ 0.0 đến 10.0, báo đỏ nếu nhập quá 10.
+  - [ ] **Không tự ý tính GPA:** Hệ thống lưu đúng các đầu điểm thành phần vào bảng `scores`, không tự ý tính GPA sai quy chế Bộ GD&ĐT.
+  - [ ] **Leaderboard tôn vinh học tập:** Bục vinh danh hoa điểm 10 trang trọng, truyền cảm hứng thi đua học tốt.
+  - [ ] **Công bố điểm có kiểm soát:** Chỉ khi giáo viên bấm "Công bố điểm" thì phụ huynh mới nhận được thông báo và xem được trên app.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -400,38 +448,38 @@
 
 ---
 
-### UAT09_GVBM_05 : NGHIỆM THU TÍNH NĂNG TẠO LỜI NHẮC LỊCH KIỂM TRA SẮP TỚI KÈM DẶN DÒ ÔN TẬP GỬI THÔNG BÁO ĐẨY ĐỒNG LOẠT (BROADCAST) TỚI TOÀN BỘ PHỤ HUYNH TRONG LỚP
+### UAT10_GVBM_05 : NGHIỆM THU TÍNH NĂNG TẠO LỜI NHẮC LỊCH KIỂM TRA ĐỊNH KỲ PHÁT THÔNG BÁO ĐẨY BROADCAST TỚI TOÀN THỂ PHỤ HUYNH
 
 - **VAI TRÒ NGHIỆM THU:** Giáo viên bộ môn (GVBM) hoặc Giáo viên chủ nhiệm (GVCN).
-- **MÔI TRƯỜNG THỰC TẾ:** Web Next.js hoặc Mobile App của giáo viên.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay trên điện thoại giáo viên.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Còn 2 ngày nữa là đến bài kiểm tra định kỳ 1 tiết môn Lịch sử - Địa lý. Để học sinh không bị quên bài và phụ huynh có thể chủ động sắp xếp thời gian đôn đốc con ôn luyện tại nhà, cô giáo tạo một thông báo lời nhắc lịch kiểm tra trên hệ thống, nêu rõ môn học, ngày kiểm tra và những nội dung trọng tâm cần học thuộc. Toàn thể phụ huynh lớp `6A2` sẽ nhận được thông báo đẩy trên điện thoại.
+  Còn 2 ngày nữa là đến bài kiểm tra định kỳ môn Tiếng Anh. Để học sinh không bị quên bài và phụ huynh có thể chủ động sắp xếp thời gian kèm con ôn luyện tại nhà, cô giáo tạo một thông báo lời nhắc lịch kiểm tra trên hệ thống, nêu rõ môn thi, ngày thi và những nội dung trọng tâm cần học thuộc. Toàn thể phụ huynh lớp `1A` sẽ nhận được thông báo đẩy trên điện thoại.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Lớp: `6A2`.
-  - Môn học: `Lịch sử & Địa lý`.
-  - Loại bài kiểm tra: `Kiểm tra 1 tiết định kỳ (TEST_1P)`.
-  - Ngày diễn ra kiểm tra: `08/10/2026`.
-  - Lời dặn dò trọng tâm: *"Thứ Năm ngày 08/10 lớp có bài kiểm tra 1 tiết Lịch sử. Các con nhớ ôn kỹ phần lược đồ tự nhiên châu Á và các mốc thời gian bài 4, chuẩn bị bút chì và thước kẻ."*
+  - Lớp: `Lớp 1A`.
+  - Môn học: `Tiếng Anh`.
+  - Loại bài kiểm tra: `Kiểm tra 1 tiết định kỳ`.
+  - Ngày kiểm tra: `28/10/2026`.
+  - Lời dặn dò trọng tâm: *"Thứ Tư ngày 28/10 lớp có bài kiểm tra định kỳ Tiếng Anh. Bố mẹ nhắc con ôn kỹ từ vựng Unit 1, 2 và chuẩn bị bút chì."*.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA GIÁO VIÊN:**
   1. **Bước 1 (Mở chức năng Tạo lời nhắc kiểm tra):**
-     - Đăng nhập vào hệ thống, chọn lớp `6A2`, vào mục **"Lời nhắc lịch kiểm tra"**.
+     - Mở mục **"Lời nhắc lịch kiểm tra"** trong `RemarksExamScreen`.
      - Bấm nút **"Tạo lời nhắc mới"**.
   2. **Bước 2 (Thiết lập thông tin bài kiểm tra):**
-     - Chọn Môn học: `Lịch sử & Địa lý`.
+     - Chọn Môn học: `Tiếng Anh`.
      - Chọn Loại kiểm tra: `Kiểm tra 1 tiết (45 phút)`.
-     - Chọn Ngày kiểm tra: `08/10/2026`.
+     - Chọn Ngày kiểm tra: `28/10/2026`.
      - Nhập nội dung dặn dò ôn thi vào khung văn bản.
   3. **Bước 3 (Gửi phát thông báo):**
-     - Kiểm tra lại nội dung, bấm nút **"Gửi lời nhắc tới toàn thể Phụ huynh"**.
-     - Hệ thống thông báo gửi thành công và hiển thị bản ghi trong lịch sử lời nhắc.
-  4. **Bước 4 (Kiểm tra tiếp nhận của phụ huynh):**
-     - Quan sát điện thoại của phụ huynh: Thông báo FCM hiển thị trên thanh trạng thái với tiêu đề *"Lịch kiểm tra sắp tới: Môn Lịch sử & Địa lý"*.
+     - Bấm nút **"Gửi lời nhắc tới toàn thể Phụ huynh"**.
+     - Hệ thống thông báo gửi thành công và hiển thị bản ghi trong lịch sử lời nhắc (bảng `exam_reminders` trong CSDL).
+  4. **Bước 4 (Kiểm tra tiếp nhận của Phụ huynh):**
+     - Quan sát điện thoại của phụ huynh: Thông báo đẩy FCM hiển thị trên thanh trạng thái với tiêu đề *"Lịch kiểm tra sắp tới: Môn Tiếng Anh"*.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Lưu trữ dữ liệu chuẩn:** Bản ghi được tạo trong collection `/exam_reminders` với đầy đủ thông tin môn, ngày thi và dặn dò.
-  - [ ] **Gửi broadcast đồng loạt:** Kích hoạt FCM multicast phát thành công đến 100% thiết bị phụ huynh của lớp có tài khoản liên kết trong **dưới 3 giây**.
-  - [ ] **Nội dung rõ ràng:** Phụ huynh chạm vào thông báo mở app xem được chi tiết trọn vẹn lời dặn dò của cô giáo để tối về nhắc con học bài.
+  - [ ] **Lưu trữ dữ liệu chuẩn:** Bản ghi được tạo trong bảng `exam_reminders` với đầy đủ môn, ngày thi và lời dặn dò.
+  - [ ] **Gửi Broadcast đồng loạt:** Kích hoạt FCM multicast phát thành công đến 100% thiết bị phụ huynh trong lớp trong **dưới 3 giây**.
+  - [ ] **Nội dung rõ ràng:** Phụ huynh chạm vào thông báo mở app xem được chi tiết trọn vẹn lời dặn dò của cô giáo.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -442,37 +490,33 @@
 
 ---
 
-### UAT10_PHHS_01 : NGHIỆM THU QUY TRÌNH PHỤ HUYNH THAM GIA LỚP HỌC QUA LINK MỜI / MÃ QR VÀ XÁC NHẬN LIÊN KẾT CON EM MÌNH
+### UAT11_PHHS_01 : NGHIỆM THU PHỤ HUYNH ĐĂNG NHẬP, LIÊN KẾT CON VÀO SỔ LIÊN LẠC ĐIỆN TỬ QUA MÃ MỜI / MÃ HỌC SINH
 
 - **VAI TRÒ NGHIỆM THU:** Phụ huynh học sinh (Parent).
-- **MÔI TRƯỜNG THỰC TẾ:** Điện thoại thông minh iPhone hoặc Android của phụ huynh kết nối 4G/Wi-Fi.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay Mobile App trên điện thoại Android/iOS của phụ huynh.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Chị Lê Thị Mai là phụ huynh của em Nguyễn Hoàng Long lớp `6A2`. Chị Mai nhận được link mời và hình ảnh mã QR do thầy chủ nhiệm gửi vào nhóm Zalo lớp. Chị nhấp vào liên kết trên Zalo, tiến hành đăng nhập ứng dụng bằng số điện thoại qua mã OTP gửi về máy, sau đó tìm đúng tên con trai mình trong danh sách lớp và bấm xác nhận để kết nối vào sổ liên lạc điện tử.
+  Bác Trần Văn Hùng là phụ huynh của em Trần Bảo Nam lớp `1A`. Bác tải ứng dụng GiaoVienHay về máy, đăng nhập bằng số điện thoại, sau đó nhập mã mời của lớp do cô giáo gửi vào nhóm Zalo để kết nối vào Sổ liên lạc điện tử của con trai mình.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Đường dẫn mời: `https://giaovienhay.edu.vn/join?code=LH6A2X` (kèm mã QR).
-  - Số điện thoại phụ huynh: `0987xxxxxx` nhận mã SMS OTP.
-  - Học sinh liên kết: Nguyễn Hoàng Long (`stu_long_01`), lớp `6A2`.
+  - Số điện thoại phụ huynh: `0977112233` | Mật khẩu: `MatKhau123@`.
+  - Học sinh liên kết: Trần Bảo Nam (`std_01`), Lớp 1A.
+  - Mã mời lớp học: `1A2026` (hoặc mã mời sinh ra từ ClassManagementScreen).
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA PHỤ HUYNH:**
-  1. **Bước 1 (Nhấp link mời hoặc quét mã QR):**
-     - Chị Mai mở Zalo trên điện thoại, bấm vào đường dẫn mời tham gia lớp học.
-     - Ứng dụng GiaoVienHay mở ra với màn hình chào mừng: *"Tham gia lớp 6A2 - GVCN: Thầy Nguyễn Văn An"*.
-  2. **Bước 2 (Đăng nhập xác thực bằng OTP):**
-     - Nhập Số điện thoại của chị Mai, bấm **"Nhận mã xác thực"**.
-     - Nhận mã OTP 6 chữ số qua tin nhắn SMS trong vòng 5 giây, nhập mã vào ứng dụng.
-  3. **Bước 3 (Tìm và chọn con em mình):**
-     - Màn hình hiển thị danh sách học sinh của lớp `6A2` xếp theo thứ tự bảng chữ cái.
-     - Chị Mai gõ tên `Hoàng Long` vào thanh tìm kiếm.
-     - Kết quả hiển thị em **Nguyễn Hoàng Long (Ngày sinh: 15/04/2014)**.
-     - Chị Mai tích chọn vào tên con và bấm **"Xác nhận kết nối con em"**.
-  4. **Bước 4 (Truy cập Sổ liên lạc):**
-     - Ứng dụng hiển thị thông báo: *"Kết nối thành công! Chào mừng phụ huynh em Nguyễn Hoàng Long."*
-     - Màn hình tự động chuyển vào trang chủ Sổ liên lạc điện tử của con.
+  1. **Bước 1 (Đăng nhập ứng dụng Phụ huynh):**
+     - Mở app GiaoVienHay, chọn Quick Login **"👨‍👩‍👧 Trần Văn Hùng (PH)"** (hoặc gõ SĐT `0977112233`, mật khẩu `MatKhau123@`).
+     - Bấm **"Đăng Nhập"**.
+  2. **Bước 2 (Liên kết học sinh qua Mã mời / Mã học sinh):**
+     - Tại Trang chủ phụ huynh, bấm vào nút **"Liên kết thêm học sinh"** (`ParentJoinCodeScreen`).
+     - Nhập mã mời lớp học hoặc mã định danh của học sinh.
+     - Bấm **"Xác nhận liên kết"**.
+  3. **Bước 3 (Kiểm tra hiển thị Sổ liên lạc của con):**
+     - Hệ thống thông báo: *"Liên kết thành công! Chào mừng phụ huynh em Trần Bảo Nam."*.
+     - Màn hình chính tự động hiển thị thẻ hồ sơ của em Trần Bảo Nam, kèm thông tin Lớp 1A, GVCN Cô Nguyễn Thị Lan và các lối tắt tra cứu.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Quy trình đơn giản, bảo mật:** Đăng nhập OTP trơn tru, không bắt phụ huynh phải nhớ mật khẩu phức tạp.
-  - [ ] **Tìm kiếm học sinh nhanh:** Tìm kiếm tức thì trong danh sách 35 học sinh, hiển thị rõ ràng ngày sinh để tránh nhầm lẫn học sinh trùng tên.
-  - [ ] **Cập nhật liên kết chính xác:** Ghi nhận UID của phụ huynh vào mảng `parent_uids` của học sinh trong `/students` và gán `class_id` vào thông tin tài khoản phụ huynh trong `/users`.
+  - [ ] **Đăng nhập mượt mà:** Xác thực nhanh, không phát sinh lỗi phiên làm việc.
+  - [ ] **Liên kết chính xác:** Dữ liệu học sinh được liên kết chuẩn xác vào tài khoản phụ huynh trong CSDL PostgreSQL.
+  - [ ] **Giao diện thân thiện:** Phụ huynh lớn tuổi vẫn dễ dàng thao tác theo hướng dẫn tiếng Việt rõ ràng.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -482,34 +526,34 @@
 
 ---
 
-### UAT11_PHHS_02 : NGHIỆM THU TÍNH KỊP THỜI CỦA THÔNG BÁO ĐẨY CẢNH BÁO VẮNG HỌC VÀ TRA CỨU LỊCH SỬ CHUYÊN CẦN TRÊN APP PHỤ HUYNH
+### UAT12_PHHS_02 : NGHIỆM THU TÍNH KỊP THỜI CỦA THÔNG BÁO ĐẨY CẢNH BÁO VẮNG HỌC VÀ TRA CỨU LỊCH SỬ CHUYÊN CẦN CỦA CON
 
 - **VAI TRÒ NGHIỆM THU:** Phụ huynh học sinh.
-- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng Mobile App GiaoVienHay trên điện thoại Samsung Galaxy của phụ huynh khi đang ở nơi làm việc.
+- **MÔI TRƯỜNG THỰC TẾ:** Điện thoại di động của phụ huynh khi đang ở nơi làm việc (kết nối mạng 4G/Wi-Fi).
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Sáng sớm phụ huynh thấy con tự đạp xe đi học. Đến 7h20 sáng, phụ huynh đang ngồi làm việc tại cơ quan thì chuông điện thoại vang lên kèm thông báo khẩn cấp từ ứng dụng GiaoVienHay báo con bị vắng mặt không phép đầu giờ. Phụ huynh lập tức mở ứng dụng kiểm tra chi tiết, gọi điện cho người nhà và cô giáo để xử lý kịp thời trường hợp con bị hỏng xe trên đường.
+  Sáng sớm phụ huynh thấy con tự đi học. Đến 7h20 sáng, phụ huynh đang ngồi làm việc tại cơ quan thì chuông điện thoại vang lên kèm thông báo đẩy khẩn cấp từ app GiaoVienHay báo con bị vắng mặt không phép đầu giờ. Phụ huynh chạm ngay vào thông báo, ứng dụng mở thẳng vào màn hình Lịch sử chuyên cần để phụ huynh nắm bắt chi tiết và liên hệ kịp thời với cô giáo chủ nhiệm.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Tài khoản phụ huynh em Trần Đức Anh (`stu_anh_02`).
-  - Sự kiện điểm danh: Tiết 1 sáng ngày 05/10/2026, trạng thái `Vắng không phép`.
+  - Tài khoản phụ huynh em Trần Bảo Nam (`0977112233`).
+  - Sự kiện điểm danh vắng không phép đã thực hiện ở kịch bản UAT03.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA PHỤ HUYNH:**
   1. **Bước 1 (Tiếp nhận thông báo đẩy FCM):**
      - Điện thoại phụ huynh rung và phát âm báo thông báo.
-     - Thanh trạng thái hiển thị tiêu đề màu đỏ: *"CẢNH BÁO CHUYÊN CẦN: Học sinh Trần Đức Anh vắng mặt không phép tiết 1 ngày 05/10/2026"*.
-  2. **Bước 2 (Chạm mở ứng dụng):**
+     - Thanh trạng thái hiển thị tiêu đề màu đỏ: *"CẢNH BÁO CHUYÊN CẦN: Em Trần Bảo Nam vắng mặt không phép buổi học sáng nay..."*.
+  2. **Bước 2 (Chạm mở ứng dụng qua Deep Link):**
      - Phụ huynh chạm trực tiếp vào thông báo.
-     - Ứng dụng tự động mở ra và chuyển hướng thẳng vào màn hình **"Lịch sử Chuyên cần"** của con.
+     - Ứng dụng tự động mở ra và chuyển hướng thẳng vào màn hình **Chuyên cần của con**.
   3. **Bước 3 (Tra cứu chi tiết chuyên cần):**
      - Màn hình hiển thị lịch tháng với các chấm tròn màu sắc:
        - Màu xanh: Đi học đúng giờ.
        - Màu vàng: Vắng có phép.
-       - Màu đỏ: Vắng không phép (ngày hôm nay 05/10/2026 hiển thị màu đỏ kèm ghi chú "Tiết 1 - Đầu giờ").
-     - Xem tổng kết tháng: `Có mặt: 22 ngày | Vắng có phép: 0 | Vắng không phép: 1`.
+       - Màu đỏ: Vắng không phép (ngày hôm nay hiển thị chấm đỏ kèm ghi chú "Tiết 1 - Đầu giờ").
+     - Thống kê tháng hiển thị minh bạch số buổi có mặt và số buổi vắng.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Thời gian nhận cảnh báo:** Nhận thông báo đẩy trong vòng **dưới 2.5 giây** sau khi giáo viên ấn lưu điểm danh trên lớp.
-  - [ ] **Điều hướng sâu (Deep Linking):** Chạm vào thông báo dẫn thẳng tới đúng màn hình chuyên cần của con, không bắt phụ huynh phải bấm tìm qua nhiều menu.
-  - [ ] **Minh bạch và dễ hiểu:** Giao diện lịch biểu trực quan, phân định rõ ràng giữa vắng có phép và vắng không phép.
+  - [ ] **Tốc độ cảnh báo khẩn:** Nhận thông báo đẩy trong vòng **dưới 2.5 giây** sau khi cô giáo lưu điểm danh tại lớp.
+  - [ ] **Điều hướng sâu (Deep Linking):** Chạm vào thông báo dẫn thẳng tới đúng màn hình chuyên cần của con.
+  - [ ] **Minh bạch và dễ hiểu:** Giao diện lịch biểu trực quan, phân định rõ ràng giữa vắng có phép và không phép.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -519,78 +563,124 @@
 
 ---
 
-### UAT12_PHHS_03 : NGHIỆM THU TRA CỨU SỔ ĐIỂM ĐIỆN TỬ ĐA MÔN HỌC, ĐỌC NHẬN XÉT CỦA GIÁO VIÊN VÀ BẤM NÚT XÁC NHẬN ĐÃ ĐỌC
+### UAT13_PHHS_03 : NGHIỆM THU TRA CỨU SỔ ĐIỂM ĐIỆN TỬ ĐA MÔN HỌC, ĐỌC NHẬN XÉT CỦA GIÁO VIÊN VÀ BẤM NÚT "XÁC NHẬN ĐÃ ĐỌC"
 
 - **VAI TRÒ NGHIỆM THU:** Phụ huynh học sinh.
-- **MÔI TRƯỜNG THỰC TẾ:** Mobile App GiaoVienHay trên iPhone của phụ huynh.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay Mobile App trên điện thoại phụ huynh.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Buổi tối sau khi ăn cơm cùng gia đình, phụ huynh mở ứng dụng GiaoVienHay để kiểm tra kết quả học tập của con trong tuần. Phụ huynh xem bảng điểm các môn học (Toán, Tiếng Việt/Ngữ văn, Tiếng Anh, Khoa học...), xem chi tiết các cột điểm miệng, 15 phút, 1 tiết và đọc lời nhận xét của giáo viên chủ nhiệm khen ngợi tinh thần học tập của con, sau đó bấm nút "Đã đọc" để phản hồi cho giáo viên.
+  Buổi tối sau khi ăn cơm cùng gia đình, phụ huynh mở ứng dụng GiaoVienHay để kiểm tra kết quả học tập của con trong tuần. Phụ huynh xem bảng điểm chi tiết các môn học (Toán, Tiếng Việt, Tiếng Anh...), xem các cột điểm thành phần và đọc lời nhận xét của cô giáo khen ngợi tinh thần học tập của con, sau đó bấm nút "Xác nhận đã đọc" để gửi phản hồi cho cô giáo.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Học sinh: Nguyễn Hoàng Long.
-  - Điểm mới công bố: Môn Toán (Điểm 15 phút: 9.5; Điểm miệng: 9.0).
-  - Lời nhận xét text của GVCN: *"Con có ý thức học bài rất tốt, chữ viết sạch đẹp. Cần tiếp tục phát huy."*
+  - Học sinh: Trần Bảo Nam.
+  - Điểm mới công bố: Môn Toán (Điểm 15 phút: 9.5; Điểm miệng: 10.0).
+  - Nhận xét của cô giáo đã gửi ở kịch bản UAT05.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA PHỤ HUYNH:**
-  1. **Bước 1 (Mở mục Bảng điểm điện tử):**
-     - Đăng nhập app, tại màn hình chính chọn mục **"Sổ điểm của con"**.
-     - Danh sách các môn học hiển thị rõ ràng: Toán học, Ngữ văn, Tiếng Anh, Lịch sử & Địa lý, KHTN...
+  1. **Bước 1 (Mở mục Bảng điểm của con):**
+     - Đăng nhập app phụ huynh, tại màn hình chính chọn mục **"Kết quả học tập"** (`ParentAcademicScreen`).
+     - Danh sách các môn học hiển thị rõ ràng: Toán học, Tiếng Việt, Tiếng Anh, Tự nhiên & Xã hội...
   2. **Bước 2 (Xem chi tiết từng cột điểm thành phần):**
-     - Nhấp vào môn **"Toán học"**.
+     - Chạm vào môn **"Toán học"**.
      - Bảng điểm chi tiết mở ra hiển thị các cột điểm thành phần:
-       - Điểm miệng: `9.0` (Ngày 02/10/2026).
-       - Kiểm tra 15 phút: `9.5` (Ngày 05/10/2026).
+       - Điểm miệng: `10.0`.
+       - Kiểm tra 15 phút: `9.5`.
        - Kiểm tra 1 tiết, Giữa kỳ, Cuối kỳ: Hiển thị dấu gạch ngang `-` (chưa có điểm).
-  3. **Bước 3 (Xem lời nhận xét của giáo viên):**
+  3. **Bước 3 (Xem lời nhận xét của cô giáo):**
      - Chuyển sang tab **"Nhận xét của thầy cô"**.
-     - Đọc trọn vẹn lời dặn dò, khen ngợi từ GVCN Thầy Nguyễn Văn An.
+     - Đọc trọn vẹn lời khen ngợi từ Cô Nguyễn Thị Lan.
   4. **Bước 4 (Bấm nút Xác nhận đã đọc):**
-     - Dưới nhận xét có nút bấm **"Xác nhận đã đọc"**.
+     - Dưới nhận xét có nút **"Xác nhận đã đọc"**.
      - Phụ huynh chạm vào nút này: Nút chuyển sang trạng thái màu xanh lá cây *"Đã xác nhận lúc [Thời gian]"*.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Hiển thị điểm minh bạch:** Các cột điểm thành phần hiển thị trung thực theo đúng dữ liệu giáo viên nhập, không có cột điểm trung bình ảo.
-  - [ ] **Bảo mật dữ liệu (Chống IDOR):** Phụ huynh chỉ nhìn thấy duy nhất điểm số và nhận xét của con em mình, tuyệt đối không xem được điểm của học sinh khác trong lớp.
-  - [ ] **Nút xác nhận phản hồi nhanh:** Chạm "Xác nhận đã đọc" cập nhật trạng thái phản hồi lập tức trong **dưới 1 giây**.
+  - [ ] **Hiển thị điểm minh bạch:** Các cột điểm thành phần hiển thị trung thực theo đúng dữ liệu giáo viên đã công bố.
+  - [ ] **Bảo mật dữ liệu (Chống IDOR):** Phụ huynh chỉ nhìn thấy duy nhất điểm số của con em mình, không xem được điểm của học sinh khác trong lớp.
+  - [ ] **Phản hồi tức thì:** Bấm "Xác nhận đã đọc" cập nhật trạng thái phản hồi ngay lập tức trong **dưới 1 giây**.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
 - **XÁC NHẬN NGHIỆM THU:**
-  - Đại diện Phụ huynh Học sinh: 
+  - Đại diện Phụ huynh: 
   - Đại diện Nhóm Phát Triển: 
 
 ---
 
-### UAT13_PHHS_04 : NGHIỆM THU TRA CỨU TÌNH TRẠNG NỘP HỌC PHÍ & BHYT (KÈM NGÀY NỘP CỤ THỂ) VÀ XEM LỜI NHẮC LỊCH KIỂM TRA ĐỂ ĐÔN ĐỐC CON ÔN TẬP
+### UAT14_PHHS_04 : NGHIỆM THU TRA CỨU TÌNH TRẠNG NỘP HỌC PHÍ & BHYT (KÈM NGÀY NỘP), QUÉT MÃ VIETQR VÀ XEM LỜI NHẮC LỊCH KIỂM TRA
 
 - **VAI TRÒ NGHIỆM THU:** Phụ huynh học sinh.
-- **MÔI TRƯỜNG THỰC TẾ:** Mobile App GiaoVienHay trên điện thoại của phụ huynh.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay trên điện thoại phụ huynh.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Phụ huynh muốn kiểm tra xem số tiền Bảo hiểm Y tế mình gửi giáo viên chủ nhiệm tuần trước đã được nhà trường ghi nhận vào hệ thống hay chưa, đồng thời mở xem mục Lời nhắc kiểm tra để biết ngày mai con có bài thi môn nào nhằm nhắc nhở con chuẩn bị sách vở và ôn bài buổi tối.
+  Phụ huynh muốn kiểm tra xem số tiền Bảo hiểm Y tế mình gửi cô giáo tuần trước đã được ghi nhận vào hệ thống hay chưa, mở mã VietQR để thanh toán nốt tiền quỹ bán trú tiện lợi, đồng thời mở xem mục Lời nhắc kiểm tra để biết ngày mai con có bài thi môn nào nhằm nhắc nhở con chuẩn bị sách vở và ôn bài buổi tối.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Học sinh: Nguyễn Hoàng Long.
-  - Trạng thái nộp BHYT: Đã hoàn thành (ngày nộp: `02/10/2026`).
-  - Trạng thái học phí: Đã hoàn thành (ngày nộp: `01/10/2026`).
-  - Lời nhắc kiểm tra: Môn Lịch sử & Địa lý, kiểm tra 1 tiết ngày `08/10/2026`.
+  - Học sinh: Trần Bảo Nam.
+  - Trạng thái BHYT: Đã hoàn thành (ngày nộp: `25/10/2026`).
+  - Lời nhắc kiểm tra: Môn Tiếng Anh ngày `28/10/2026`.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA PHỤ HUYNH:**
-  1. **Bước 1 (Mở mục Học phí & BHYT):**
-     - Đăng nhập app, chọn mục **"Học phí & Bảo hiểm Y tế"**.
+  1. **Bước 1 (Mở mục Thu phí & BHYT):**
+     - Đăng nhập app phụ huynh, chọn mục **"Học phí & BHYT"** (`ParentFeesScreen`).
      - Màn hình hiển thị danh mục các khoản thu:
-       - **Học phí:** Huy hiệu màu xanh *"Đã hoàn thành"* - Ghi nhận ngày: `01/10/2026`.
-       - **Bảo hiểm Y tế (BHYT):** Huy hiệu màu xanh *"Đã hoàn thành"* - Ghi nhận ngày: `02/10/2026`.
-  2. **Bước 2 (Kiểm tra tính minh bạch):**
-     - Quan sát thông tin: Hiển thị rõ ràng ngày giáo viên tích nhận tiền, không có yêu cầu thanh toán trực tuyến qua cổng thẻ.
-  3. **Bước 3 (Mở mục Lời nhắc kiểm tra):**
-     - Chuyển sang tab **"Lịch kiểm tra sắp tới"**.
-     - Nhìn thấy thẻ thông báo nổi bật màu xanh dương:
-       - Môn: `Lịch sử & Địa lý`.
-       - Loại bài: `Kiểm tra 1 tiết (45 phút)`.
-       - Ngày kiểm tra: `Thứ Năm, 08/10/2026` (Đếm ngược: Còn 2 ngày).
-       - Lời dặn dò của cô: *"Các con nhớ ôn kỹ phần lược đồ tự nhiên châu Á và các mốc thời gian bài 4, chuẩn bị bút chì và thước kẻ."*
+       - **Bảo hiểm Y tế (BHYT):** Huy hiệu màu xanh *"Đã hoàn thành"* - Ghi nhận ngày: `25/10/2026`.
+       - **Quỹ lớp / Bán trú:** Huy hiệu màu cam *"Chưa hoàn thành"*.
+  2. **Bước 2 (Mở mã VietQR thanh toán):**
+     - Chạm vào khoản thu chưa hoàn thành: Bấm nút **"Thanh toán qua VietQR"**.
+     - Mã VietQR chuẩn Napas247 hiển thị sắc nét kèm số tiền và nội dung chuyển khoản tự động (ví dụ: `GVH CLS1A STD01 BANTU`).
+     - Phụ huynh có thể chụp màn hình hoặc lưu ảnh QR về máy để mở app ngân hàng quét thanh toán tiện lợi.
+  3. **Bước 3 (Xem lời nhắc lịch kiểm tra sắp tới):**
+     - Chuyển sang tab **"Lịch kiểm tra sắp tới"** (hoặc mở từ trang chủ).
+     - Nhìn thấy thẻ thông báo nổi bật màu xanh:
+       - Môn: `Tiếng Anh`.
+       - Ngày kiểm tra: `28/10/2026`.
+       - Lời dặn dò của cô: *"Bố mẹ nhắc con ôn kỹ từ vựng Unit 1, 2 và chuẩn bị bút chì."*.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Minh bạch tài chính:** Thể hiện rõ ràng trạng thái Đã nộp kèm ngày tháng cụ thể, mang lại sự tin cậy và an tâm cho phụ huynh.
-  - [ ] **Thông tin nhắc thi chi tiết:** Hiển thị rõ ràng môn thi, thời gian và lời dặn dò cụ thể giúp phụ huynh có căn cứ đôn đốc con học bài chu đáo.
+  - [ ] **Minh bạch tài chính:** Thể hiện rõ ràng trạng thái Đã nộp kèm ngày tháng cụ thể, mang lại sự an tâm tuyệt đối cho phụ huynh.
+  - [ ] **Mã VietQR chuẩn xác:** Sinh mã Napas247 tương thích 100% với các ứng dụng ngân hàng tại Việt Nam.
+  - [ ] **Lời nhắc thi chi tiết:** Hiển thị rõ ràng môn thi, thời gian và dặn dò cụ thể giúp phụ huynh đôn đốc con học bài chu đáo.
+
+- **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
+- **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
+- **XÁC NHẬN NGHIỆM THU:**
+  - Đại diện Phụ huynh: 
+  - Đại diện Nhóm Phát Triển: 
+
+---
+
+### UAT15_PHHS_05 : NGHIỆM THU TÍNH NĂNG CHỈNH SỬA HỒ SƠ PHỤ HUYNH (LIVE 3D AVATAR PREVIEW, SĐT CỐ ĐỊNH) VÀ ĐỒNG BỘ CƠ SỞ DỮ LIỆU POSTGRESQL TỨC THÌ
+
+- **VAI TRÒ NGHIỆM THU:** Phụ huynh học sinh.
+- **MÔI TRƯỜNG THỰC TẾ:** Ứng dụng di động GiaoVienHay trên điện thoại Android/iOS.
+- **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
+  Phụ huynh muốn cập nhật lại thông tin cá nhân của mình (họ và tên đầy đủ, email nhận thông báo điện tử). Phụ huynh mở màn hình Cá nhân (`ParentProfileScreen`), bấm vào nút Chỉnh sửa hồ sơ. Modal Bottom Sheet chuẩn phong cách **UI/UX Pro Max** xuất hiện với Live 3D Avatar Preview tự động thay đổi chữ cái viết tắt theo tên đang gõ, số điện thoại đăng nhập được khóa an toàn (badge "Cố định"), sau khi bấm Lưu thì giao diện thẻ hồ sơ cập nhật ngay lập tức và dữ liệu được ghi đè trực tiếp vào CSDL Supabase PostgreSQL.
+- **DỮ LIỆU CHUẨN BỊ:**
+  - Tài khoản phụ huynh: SĐT `0977112233` / Mật khẩu `MatKhau123@`.
+  - Thông tin mới cần đổi:
+    - Họ và tên: `Trần Văn Hùng (Bố Bảo Nam)`.
+    - Email liên hệ: `hung.tran.profile@gmail.com`.
+
+- **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA PHỤ HUYNH:**
+  1. **Bước 1 (Mở màn hình Hồ sơ Phụ huynh):**
+     - Đăng nhập tài khoản Bác Hùng, chạm vào tab **"Cá nhân"** ở góc phải thanh điều hướng dưới đáy.
+     - Màn hình **ParentProfileScreen** mở ra: Thẻ thông tin cá nhân hiển thị Họ tên, Số điện thoại và Email.
+  2. **Bước 2 (Mở Modal Bottom Sheet Chỉnh sửa Hồ sơ):**
+     - Chạm vào biểu tượng cây bút chì màu cam ở góc trên bên phải thẻ hồ sơ.
+     - Modal Bottom Sheet **"Sửa Hồ Sơ Phụ Huynh"** trượt mượt mà từ dưới lên với thanh kéo `drag handle`.
+  3. **Bước 3 (Thao tác nhập liệu & Trải nghiệm Live 3D Avatar):**
+     - Quan sát khu vực Avatar 3D Preview:
+     - Gõ thay đổi Họ và tên thành `Trần Văn Hùng`: Vòng tròn Avatar 3D tự động cập nhật ngay chữ cái viết tắt `TH` theo thời gian thực.
+     - Nhập Email liên hệ: `hung.tran.profile@gmail.com`.
+     - Quan sát ô Số điện thoại: Ô hiển thị `0977112233` ở trạng thái chỉ đọc (disabled) kèm huy hiệu màu xám **"Cố định"** để đảm bảo an toàn định danh tài khoản.
+  4. **Bước 4 (Bấm Lưu thay đổi & Kiểm tra phản hồi):**
+     - Bấm nút gradient cam **"Lưu Thay Đổi"**.
+     - Nút hiển thị spinner xoay nhẹ `ActivityIndicator` và thông báo popup: *"Thông tin cá nhân phụ huynh đã được cập nhật thành công!"*.
+     - Modal tự động đóng lại: Thẻ hồ sơ bên ngoài hiển thị ngay Họ tên và Email mới mà không cần phải tải lại trang.
+  5. **Bước 5 (Đối soát trực tiếp trong CSDL Supabase PostgreSQL):**
+     - Truy vấn bảng `users` với `phone = '0977112233'`:
+     - Bản ghi trả về chính xác: `full_name: 'Trần Văn Hùng'`, `email: 'hung.tran.profile@gmail.com'`, `updated_at` ghi nhận mốc thời gian vừa cập nhật.
+
+- **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
+  - [ ] **Giao diện đẳng cấp UI/UX Pro Max:** Live 3D Avatar Preview đổi chữ cái tức thì theo tên gõ, hiệu ứng thị giác hiện đại, sinh động.
+  - [ ] **Bảo vệ số điện thoại đăng nhập:** Số điện thoại được khóa cố định, chống việc người dùng vô tình sửa làm mất quyền đăng nhập.
+  - [ ] **Đồng bộ CSDL tức thì:** Backend gọi `PATCH /api/v1/users/profile`, xóa cache và lưu trực tiếp vào bảng `users` trong Supabase PostgreSQL, không có độ trễ stale cache.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -600,40 +690,39 @@
 
 ---
 
-### UAT14_ADMIN_01 : NGHIỆM THU TÍNH NĂNG CẤU HÌNH HẠN MỨC TÀI NGUYÊN HỆ THỐNG (LIMITS / QUOTAS) VÀ KIỂM TRA ÁP DỤNG CHẶN TỨC THÌ TRÊN TOÀN NỀN TẢNG
+### UAT16_ADMIN_01 : NGHIỆM THU TÍNH NĂNG CẤU HÌNH HẠN MỨC TÀI NGUYÊN HỆ THỐNG (LIMITS / QUOTAS) VÀ ÁP DỤNG CHẶN TỨC THÌ
 
 - **VAI TRÒ NGHIỆM THU:** Quản trị viên Nền tảng (Platform Admin).
-- **MÔI TRƯỜNG THỰC TẾ:** Web Quản trị Admin trên máy tính để bàn.
+- **MÔI TRƯỜNG THỰC TẾ:** Trình duyệt Web hoặc API Client dành cho Quản trị viên.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Để kiểm soát chi phí gọi API Google Gemini và chống việc tải tệp tài liệu quá tải làm chậm máy chủ, Admin mở màn hình Cấu hình Hạn mức Hệ thống để thiết lập: Mỗi giáo viên được gọi tối đa 20 lượt AI/ngày, sĩ số tối đa 50 học sinh/lớp và dung lượng tối đa mỗi tệp giáo án tải lên là 10MB. Admin lưu cấu hình và kiểm tra hệ thống có áp dụng chặn ngay lập tức hay không.
+  Để kiểm soát chi phí sử dụng API Google Gemini và chống việc tải tài liệu quá tải làm chậm máy chủ, Admin mở màn hình Cấu hình Hạn mức Hệ thống để thiết lập: Mỗi giáo viên được gọi tối đa 20 lượt AI/ngày, sĩ số tối đa 50 học sinh/lớp và dung lượng tối đa mỗi tệp giáo án tải lên là 10MB. Admin lưu cấu hình và kiểm tra hệ thống áp dụng hạn mức ngay lập tức.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Tài khoản Admin: `admin@giaovienhay.edu.vn`.
-  - Thông số cấu hình hạn mức:
-    - Hạn ngạch gọi AI Gemini: `ai_daily_quota = 20` lượt/ngày/giáo viên.
-    - Sĩ số tối đa 1 lớp: `max_students_per_class = 50` học sinh.
-    - Dung lượng tệp giáo án tối đa: `max_upload_size_mb = 10` MB.
-    - Số lớp học tối đa mỗi GV: `max_classes_per_teacher = 5` lớp.
+  - Tài khoản Admin: SĐT `0988001122` | Mật khẩu: `MatKhau123@` (Thầy Trần Văn Bình).
+  - Thông số cấu hình:
+    - Hạn ngạch gọi AI: `ai_daily_quota = 20` lượt/ngày.
+    - Sĩ số tối đa: `max_students_per_class = 50` học sinh.
+    - Dung lượng upload tối đa: `max_upload_size_mb = 10` MB.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA ADMIN:**
-  1. **Bước 1 (Đăng nhập Web Quản trị):**
-     - Đăng nhập tài khoản Admin vào trang quản trị nền tảng GiaoVienHay.
-     - Vào menu **"Cấu hình Hệ thống"** $\rightarrow$ **"Hạn mức Tài nguyên (Limits & Quotas)"**.
-  2. **Bước 2 (Chỉnh sửa các thông số hạn mức):**
+  1. **Bước 1 (Đăng nhập tài khoản Admin):**
+     - Đăng nhập tài khoản Thầy Bình với vai trò `ADMIN`.
+     - Vào menu **"Cấu hình Hệ thống"** $\rightarrow$ **"Hạn mức Tài nguyên (Limits & Quotas)"** (`/system-limits`).
+  2. **Bước 2 (Chỉnh sửa và lưu thông số hạn mức):**
      - Nhập số lượt gọi AI tối đa: `20`.
      - Nhập sĩ số tối đa: `50`.
      - Nhập dung lượng tải lên tối đa: `10`.
-     - Nhập số lớp tối đa: `5`.
      - Bấm nút **"Lưu cấu hình hệ thống"**.
-  3. **Bước 3 (Kiểm tra cập nhật dữ liệu):**
-     - Mở Firestore console kiểm tra document `/system_configs/limits`: Các giá trị mới đã được cập nhật chính xác.
-  4. **Bước 4 (Thử nghiệm tính năng bảo vệ hạn mức):**
-     - Thử dùng tài khoản giáo viên tải lên 1 tệp giáo án dung lượng 12MB (> 10MB).
-     - Hệ thống báo lỗi ngay tại giao diện: *"Tệp tài liệu vượt quá dung lượng tối đa cho phép (10MB). Vui lòng chọn tệp nhỏ hơn."*
+     - Hệ thống phản hồi HTTP `200 OK` kèm thông báo thành công.
+  3. **Bước 3 (Kiểm tra cập nhật dữ liệu CSDL):**
+     - Kiểm tra bảng `system_limits` trong Supabase PostgreSQL: Bản ghi được lưu chính xác các giá trị mới.
+  4. **Bước 4 (Thử nghiệm tính năng chặn hạn mức):**
+     - Dùng tài khoản giáo viên tải lên 1 tệp giáo án dung lượng 12MB (> 10MB).
+     - Hệ thống báo lỗi ngay tại giao diện: *"Tệp tài liệu vượt quá dung lượng tối đa cho phép (10MB). Vui lòng chọn tệp nhỏ hơn."*.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Cập nhật an toàn:** Dữ liệu cấu hình lưu chính xác vào collection `/system_configs/limits`.
-  - [ ] **Áp dụng tức thì (Real-time enforcement):** Middleware và Guards của NestJS áp dụng hạn mức mới ngay lập tức mà không cần phải khởi động lại máy chủ (No restart required).
-  - [ ] **Thông báo lỗi thân thiện:** Khi người dùng chạm ngưỡng giới hạn, giao diện hiển thị thông báo tiếng Việt giải thích rõ ràng lý do, không báo lỗi kỹ thuật khó hiểu.
+  - [ ] **Lưu cấu hình an toàn:** Dữ liệu lưu chuẩn xác vào bảng `system_limits` trong PostgreSQL.
+  - [ ] **Áp dụng tức thì (Real-time enforcement):** Middleware NestJS áp dụng hạn mức mới ngay lập tức mà không cần phải khởi động lại máy chủ (No restart required).
+  - [ ] **Thông báo lỗi thân thiện:** Giao diện hiển thị thông điệp tiếng Việt giải thích rõ lý do, không báo mã lỗi kỹ thuật khó hiểu.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
@@ -643,43 +732,88 @@
 
 ---
 
-### UAT15_ADMIN_02 : NGHIỆM THU TÍNH NĂNG KHÓA TÀI KHOẢN VI PHẠM (BAN USER), THU HỒI PHIÊN ĐĂNG NHẬP TỨC THÌ VÀ MỞ KHÓA TÀI KHOẢN (UNBAN)
+### UAT17_ADMIN_02 : NGHIỆM THU TÍNH NĂNG KHÓA TÀI KHOẢN VI PHẠM (BAN USER), THU HỒI PHIÊN TỨC THÌ VÀ MỞ KHÓA (UNBAN) AN TOÀN
 
 - **VAI TRÒ NGHIỆM THU:** Quản trị viên Nền tảng (Platform Admin).
-- **MÔI TRƯỜNG THỰC TẾ:** Web Quản trị Admin trên máy tính và ứng dụng trên điện thoại của tài khoản bị khóa.
+- **MÔI TRƯỜNG THỰC TẾ:** Trình duyệt Web Quản trị Admin và ứng dụng trên điện thoại của tài khoản bị khóa.
 - **BỐI CẢNH NGHIỆP VỤ THỰC TẾ:**
-  Hệ thống phát hiện một tài khoản người dùng có hành vi vi phạm điều khoản quy tắc ứng xử học đường (spam nội dung hoặc quấy rối). Admin mở hồ sơ người dùng này trên cổng quản trị, thực hiện thao tác Khóa tài khoản (`Ban User`). Toàn bộ phiên làm việc của tài khoản này trên thiết bị di động phải bị thu hồi ngay lập tức, người dùng bị văng ra màn hình đăng nhập và không thể gọi bất kỳ API nào. Khi có giải trình hợp lệ, Admin có thể thực hiện Mở khóa (`Unban User`) để phục hồi tài khoản nguyên vẹn.
+  Hệ thống phát hiện một tài khoản có hành vi vi phạm quy tắc ứng xử học đường (spam nội dung hoặc quấy rối). Admin mở hồ sơ tài khoản này, thực hiện thao tác Khóa tài khoản (`Ban User`). Toàn bộ phiên làm việc của tài khoản này trên ứng dụng di động phải bị thu hồi ngay lập tức, người dùng bị văng ra màn hình đăng nhập và không thể gọi bất kỳ API nào. Khi có giải trình hợp lệ, Admin thực hiện Mở khóa (`Unban User`) để phục hồi tài khoản nguyên vẹn.
 - **DỮ LIỆU CHUẨN BỊ:**
-  - Tài khoản vi phạm: `nguoidung.vipham@gmail.com` (UID: `usr_violate_99`).
+  - Tài khoản Admin: `0988001122` (Thầy Trần Văn Bình).
+  - Tài khoản vi phạm thử nghiệm: `0911000999` (ID: `usr_locked_teacher_01`).
   - Lý do khóa: *"Vi phạm quy tắc ứng xử học đường và điều khoản sử dụng nền tảng"*.
 
 - **CÁC BƯỚC THAO TÁC THỰC HIỆN CỦA ADMIN:**
   1. **Bước 1 (Tìm kiếm tài khoản vi phạm):**
-     - Trên Web Admin, vào mục **"Quản lý Tài khoản Người dùng"**.
-     - Nhập email `nguoidung.vipham@gmail.com` vào ô tìm kiếm.
+     - Đăng nhập tài khoản Admin, vào mục **"Quản lý Tài khoản Người dùng"**.
+     - Nhập số điện thoại `0911000999` vào ô tìm kiếm.
      - Bấm xem chi tiết hồ sơ tài khoản.
   2. **Bước 2 (Thực hiện Khóa tài khoản - Ban User):**
-     - Bấm nút màu đỏ **"Khóa tài khoản (Ban User)"**.
-     - Một hộp thoại xác nhận hiện ra: Nhập lý do khóa *"Vi phạm quy tắc ứng xử học đường"*.
-     - Bấm **"Xác nhận khóa tài khoản"**.
+     - Bấm nút màu đỏ **"Khóa tài khoản"**.
+     - Nhập lý do khóa: *"Vi phạm quy tắc ứng xử học đường"*.
+     - Bấm **"Xác nhận khóa"** (gọi `PATCH /api/v1/admin/users/:id/status` với `{ is_active: false }`).
   3. **Bước 3 (Kiểm tra phía người dùng bị khóa):**
-     - Quan sát điện thoại đang đăng nhập tài khoản vi phạm:
-     - Ứng dụng lập tức hiển thị thông báo: *"Tài khoản của bạn đã bị khóa do: Vi phạm quy tắc ứng xử học đường. Vui lòng liên hệ ban quản trị để được hỗ trợ."*
+     - Quan sát điện thoại đang đăng nhập tài khoản `0911000999`:
+     - Ứng dụng lập tức hiển thị thông báo: *"Tài khoản của bạn đã bị khóa do vi phạm quy định. Vui lòng liên hệ ban quản trị để được hỗ trợ."*.
      - Ứng dụng tự động đăng xuất và đưa người dùng trở về màn hình Đăng nhập.
-     - Thử đăng nhập lại: Hệ thống từ chối xác thực và báo lỗi tài khoản đã bị vô hiệu hóa.
+     - Thử bấm đăng nhập lại: Hệ thống từ chối xác thực với mã HTTP 403 Forbidden.
   4. **Bước 4 (Thực hiện Mở khóa - Unban User):**
-     - Trên Web Admin, hồ sơ người dùng hiển thị trạng thái màu đỏ: `ĐÃ BỊ KHÓA`.
-     - Admin bấm nút **"Mở khóa tài khoản (Unban User)"**.
-     - Trạng thái chuyển lại màu xanh: `ĐANG HOẠT ĐỘNG`.
-     - Người dùng thực hiện đăng nhập lại trên điện thoại thành công, toàn bộ dữ liệu lớp học trước đó vẫn được bảo toàn nguyên vẹn.
+     - Trên màn hình Admin, bấm nút **"Mở khóa tài khoản (Unban User)"**.
+     - Trạng thái tài khoản chuyển lại màu xanh: `ĐANG HOẠT ĐỘNG`.
+     - Người dùng thực hiện đăng nhập lại trên điện thoại thành công, toàn bộ dữ liệu lớp học trước đó vẫn được bảo toàn nguyên vẹn 100%.
 
 - **TIÊU CHÍ CHẤP NHẬN ĐẠT CHUẨN (ACCEPTANCE CRITERIA):**
-  - [ ] **Thu hồi phiên tức thì:** Vô hiệu hóa tài khoản trên Firebase Authentication (`disabled = true`) và đặt `is_active = false` trong Firestore; mọi yêu cầu API với token cũ bị từ chối với mã lỗi HTTP 403 Forbidden.
-  - [ ] **Hiển thị lý do minh bạch:** Người dùng biết chính xác lý do tài khoản của mình bị khóa.
-  - [ ] **Mở khóa an toàn & Bảo toàn dữ liệu:** Thao tác Unban khôi phục quyền truy cập bình thường mà không làm mất hay gián đoạn dữ liệu lớp học, điểm số hay sổ liên lạc của người dùng.
+  - [ ] **Thu hồi phiên tức thì:** Đặt `is_active = false` trong CSDL Supabase PostgreSQL và dọn sạch cache profile; mọi yêu cầu API với token cũ bị từ chối với mã lỗi HTTP 403 Forbidden.
+  - [ ] **Hiển thị lý do minh bạch:** Người dùng biết chính xác lý do tài khoản bị tạm dừng hoạt động.
+  - [ ] **Mở khóa an toàn & Bảo toàn dữ liệu:** Thao tác Unban khôi phục quyền truy cập bình thường mà không làm mất hay gián đoạn bất kỳ dữ liệu lớp học, điểm số hay sổ liên lạc nào.
 
 - **KẾT QUẢ ĐÁNH GIÁ CUỐI CÙNG:** 
 - **GHI CHÚ / GÓP Ý CẢI TIẾN THÊM TỪ NGƯỜI DÙNG:**
 - **XÁC NHẬN NGHIỆM THU:**
   - Đại diện Quản trị viên: 
   - Đại diện Nhóm Phát Triển: 
+
+---
+
+## 4. QUY TRÌNH ĐÁNH GIÁ & BIÊN BẢN BÀN GIAO NGHIỆM THU (UAT SIGN-OFF)
+
+### 4.1. Quy trình đánh giá nghiệm thu chuẩn:
+1. Mỗi kịch bản UAT được thực hiện bởi đại diện người dùng thực tế trên thiết bị mục tiêu (iOS / Android / Web).
+2. Nếu toàn bộ các tiêu chí trong mục **Tiêu chí chấp nhận đạt chuẩn (Acceptance Criteria)** đều được tích chọn `[x]`, kịch bản được đánh giá là **ĐẠT (ACCEPTED)**.
+3. Nếu có tiêu chí không thỏa mãn (ví dụ: giật lag quá 3 giây, mất dữ liệu, sai lệch hiển thị), kịch bản được đánh giá là **CẦN ĐIỀU CHỈNH (REWORK)** kèm mô tả lỗi chi tiết trong phần Ghi chú.
+
+---
+
+### 4.2. Mẫu biên bản xác nhận nghiệm thu bàn giao:
+
+```text
+CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+Độc lập - Tự do - Hạnh phúc
+----------------------------
+
+BIÊN BẢN NGHIỆM THU CHẤP NHẬN NGƯỜI DÙNG (UAT SIGN-OFF)
+Dự án: Nền tảng Quản lý Học vụ & Sổ liên lạc Thông minh GiaoVienHay
+Phiên bản: v1.0.0 (Release Candidate)
+
+Hôm nay, ngày ... tháng ... năm 2026, các bên gồm có:
+
+1. ĐẠI DIỆN BÊN TIẾP NHẬN NGHIỆM THU (GIÁO VIÊN / BAN GIÁM HIỆU / PHỤ HUYNH):
+   - Ông/Bà: .................................................... Chức vụ: ....................................................
+   - Đơn vị công tác: .........................................................................................................
+
+2. ĐẠI DIỆN ĐỘI NGŨ PHÁT TRIỂN & ĐẢM BẢO CHẤT LƯỢNG (DEV & QA):
+   - Ông/Bà: .................................................... Chức vụ: ....................................................
+   - Đơn vị: Nhóm Phát triển Nền tảng GiaoVienHay
+
+Sau khi tiến hành kiểm thử thực tế theo 17 kịch bản nghiệm thu trong tài liệu UAT_GVH_ACCEPTANCE_SUITE, hai bên thống nhất kết quả đánh giá:
+- Tổng số kịch bản thực hiện: 17 kịch bản.
+- Số kịch bản ĐẠT: ........... kịch bản.
+- Số kịch bản CẦN ĐIỀU CHỈNH: ........... kịch bản.
+
+KẾT LUẬN CHUNG:
+[  ] ĐỒNG Ý NGHIỆM THU VÀ ĐỦ ĐIỀU KIỆN PHÁT HÀNH CHÍNH THỨC (GO-LIVE).
+[  ] YÊU CẦU HOÀN THIỆN CÁC ĐIỂM TỒN TẠI TRƯỚC KHI TỔ CHỨC NGHIỆM THU LẠI.
+
+ĐẠI DIỆN NGƯỜI DÙNG                                            ĐẠI DIỆN NHÓM PHÁT TRIỂN
+(Ký và ghi rõ họ tên)                                           (Ký và ghi rõ họ tên)
+```

@@ -24,7 +24,7 @@ describe('RemarksService (Unit Tests UT08 - All 16 Cases)', () => {
         if (!id || id === 'stu_nonexistent_9999') return null;
         return { id, class_id: 'cls_1a_2026', full_name: 'Trần Bảo Nam', parent_uids: ['usr_parent_01'] };
       }),
-      getClassRemarks: jest.fn().mockImplementation(async (classId: string) => {
+      getRemarksByClass: jest.fn().mockImplementation(async (classId: string) => {
         if (classId === 'cls_new_2026') return [];
         return [
           {

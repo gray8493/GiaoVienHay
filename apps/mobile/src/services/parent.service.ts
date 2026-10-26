@@ -1,5 +1,6 @@
 import { api, apiFetch } from './http';
 import { authService } from './auth.service';
+import { formatPaidDate } from '../utils/format';
 import {
   EXAM_TYPE_LABELS,
   SUBJECT_LABELS,
@@ -92,6 +93,13 @@ const parseExamDate = (value: any): Date | null => {
   if (!raw) return null;
   const date = new Date(`${raw}T00:00:00`);
   return isNaN(date.getTime()) ? null : date;
+};
+
+const formatRemarkDate = (value: any): string => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '';
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 };
 
 const deriveExamTypeLabel = (examType: any, title: any): string => {
@@ -347,13 +355,20 @@ export const parentService = {
         : [];
 
       if (remarkRows.length > 0) {
-        const latestRmk = remarkRows[remarkRows.length - 1];
-        dashboardData.latest_remark = {
-          count_label: `${remarkRows.length} lời mới`,
-          status_label: 'Đã nhận',
-          teacher_name: latestRmk.teacher_name || 'Giáo viên bộ môn',
-          content: latestRmk.content || 'Đã gửi nhận xét rèn luyện',
-        };
+        const validRemarks = remarkRows.filter((r: any) => !!r?.content);
+        if (validRemarks.length > 0) {
+          const latestRmk = [...validRemarks].sort((a: any, b: any) =>
+            String(b.created_at ?? b.createdAt ?? '').localeCompare(
+              String(a.created_at ?? a.createdAt ?? ''),
+            ),
+          )[0];
+          dashboardData.latest_remark = {
+            count_label: `${validRemarks.length} lời mới`,
+            status_label: 'Đã nhận',
+            teacher_name: latestRmk.teacher_name || latestRmk.teacherName || '',
+            content: latestRmk.content,
+          };
+        }
       }
 
       if (fees?.insurance) {
@@ -549,13 +564,25 @@ export const parentService = {
         : [];
 
       if (remarkRows.length > 0) {
-        remarksList = remarkRows.map((r: any) => ({
-          id: r.remark_id || r.id,
-          teacher_title: `${r.teacher_name || 'Giáo viên'} • ${r.subject_name || r.subject || 'Rèn luyện'}`,
-          date_str: r.created_at ? r.created_at.substring(5, 10).replace('-', '/') : 'Gần đây',
-          content: r.content,
-          is_read: r.parent_acknowledged === true,
-        }));
+        remarksList = remarkRows
+          .filter((r: any) => !!r?.content)
+          .map((r: any) => {
+            const subject = getSubjectDisplay(
+              r.subject_name || r.subjectName || r.subject_code || r.subjectCode || r.subject,
+            );
+            const teacherName = r.teacher_name || r.teacherName || '';
+            return {
+              id: r.remark_id || r.id || '',
+              teacher_name: teacherName,
+              subject_code: r.subject_code || r.subjectCode || '',
+              subject_name: subject.name,
+              teacher_title: [teacherName, subject.name].filter(Boolean).join(' • ') || 'Giáo viên',
+              date_str: formatRemarkDate(r.created_at || r.createdAt),
+              content: r.content,
+            };
+          });
+      } else {
+        remarksList = [];
       }
 
       const examRows: any[] = Array.isArray(examsData)
@@ -689,31 +716,44 @@ export const parentService = {
 
       const ins = data.insurance || {};
       const tui = data.tuition || {};
-      const insPaid = !!ins.is_paid;
-      const tuiPaid = !!tui.is_paid;
+      const insExists = ins.has_record !== false;
+      const tuiExists = tui.has_record !== false;
+      const trackedCount = (insExists ? 1 : 0) + (tuiExists ? 1 : 0);
+      if (trackedCount === 0) return null;
+
+      const insPaid = insExists && !!ins.is_paid;
+      const tuiPaid = tuiExists && !!tui.is_paid;
       const paidCount = (insPaid ? 1 : 0) + (tuiPaid ? 1 : 0);
-      const remCount = 2 - paidCount;
+      const remCount = trackedCount - paidCount;
 
       return {
         student_id: studentId,
-        completed_ratio: `${paidCount}/2`,
+        completed_ratio: `${paidCount}/${trackedCount}`,
+        completion_percent: Math.round((paidCount / trackedCount) * 100),
         remaining_count: remCount === 0 ? 'Đã hoàn tất' : `Còn ${remCount} khoản`,
         // Không bịa mặc định ('Học kỳ 1', 'Đã đóng online'...) — chỉ hiện
         // những gì backend thực sự có, UI tự ẩn khi trống
         term_label: data.term_name || undefined,
         insurance: {
           type: 'BHYT',
-          status: insPaid ? 'PAID' : 'UNPAID',
-          status_label: insPaid ? 'Đã nộp' : 'Chưa nộp',
-          deadline: ins.deadline ? `Hạn nộp: ${ins.deadline}` : undefined,
-          paid_date: ins.paid_date || undefined,
+          has_record: insExists,
+          title: ins.title || undefined,
+          amount: typeof ins.amount === 'number' ? ins.amount : undefined,
+          status: insExists ? (insPaid ? 'PAID' : 'UNPAID') : 'NONE',
+          status_label: !insExists ? 'Chưa có' : insPaid ? 'Đã nộp' : 'Chưa nộp',
+          deadline: ins.deadline ? `Hạn nộp: ${formatPaidDate(ins.deadline)}` : undefined,
+          paid_date: formatPaidDate(ins.paid_date) || undefined,
           payment_method: ins.payment_method || undefined,
         },
         tuition: {
           type: 'Học phí',
-          status: tuiPaid ? 'PAID' : 'UNPAID',
-          status_label: tuiPaid ? 'Đã nộp' : 'Chưa nộp',
-          paid_date: tui.paid_date || undefined,
+          has_record: tuiExists,
+          title: tui.title || undefined,
+          amount: typeof tui.amount === 'number' ? tui.amount : undefined,
+          status: tuiExists ? (tuiPaid ? 'PAID' : 'UNPAID') : 'NONE',
+          status_label: !tuiExists ? 'Chưa có' : tuiPaid ? 'Đã nộp' : 'Chưa nộp',
+          deadline: tui.due_date ? `Hạn nộp: ${formatPaidDate(tui.due_date)}` : undefined,
+          paid_date: formatPaidDate(tui.paid_date) || undefined,
           payment_method: tui.payment_method || undefined,
         },
       };
