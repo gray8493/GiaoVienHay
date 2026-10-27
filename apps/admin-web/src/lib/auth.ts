@@ -39,7 +39,7 @@ const COOKIE_TOKEN_NAME = 'gvh_admin_token';
 const COOKIE_REFRESH_NAME = 'gvh_admin_refresh_token';
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+  process.env.NEXT_PUBLIC_API_URL || 'https://giaovienhay.onrender.com/api/v1';
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 

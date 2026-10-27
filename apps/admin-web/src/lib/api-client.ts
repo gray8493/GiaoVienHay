@@ -5,7 +5,7 @@
 import { getAuthToken, refreshAuthToken, clearAuthSession } from './auth';
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+  process.env.NEXT_PUBLIC_API_URL || 'https://giaovienhay.onrender.com/api/v1';
 
 export interface RequestOptions extends RequestInit {
   requiresAuth?: boolean;
