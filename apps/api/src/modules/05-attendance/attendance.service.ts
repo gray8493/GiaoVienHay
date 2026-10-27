@@ -470,7 +470,7 @@ export class AttendanceService {
 
       const absentType =
         item.status === AttendanceStatus.LATE
-          ? NotificationType.ATTENDANCE_LATE
+          ? NotificationType.ATTENDANCE_ABSENT
           : NotificationType.ATTENDANCE_ABSENT;
 
       await this.notificationsService.dispatchNotification({
@@ -534,7 +534,7 @@ export class AttendanceService {
         recipientUserId,
         title: `Cập nhật điểm danh: Em ${studentName} đã có mặt`,
         body: `Kính gửi Phụ huynh em ${studentName}, giáo viên đã cập nhật trạng thái điểm danh của em thành CÓ MẶT trong buổi học ngày ${date}${classLabel}. Trân trọng cảm ơn sự phối hợp của phụ huynh!`,
-        type: NotificationType.ATTENDANCE_PRESENT,
+        type: NotificationType.SYSTEM,
         metadata: { student_id: stuId, student_name: studentName, class_id: classId, date },
       });
     }

@@ -1,0 +1,218 @@
+# ============================================================
+# GiaoVienHay - Artillery Performance Test Suite
+# Bộ kiểm thử hiệu năng toàn diện cho 5 nhóm API chính
+# Base URL: http://localhost:3000/api/v1
+# ============================================================
+
+config:
+  target: "http://localhost:3000"
+  plugins:
+    expect: {}
+  processor: "./helpers/auth.js"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+
+  # ---- Môi trường test (override bằng --env) ----
+  environments:
+    # Smoke test: 1 user / 30 giây - kiểm tra API còn sống không
+    smoke:
+      phases:
+        - duration: 30
+          arrivalRate: 1
+          name: "Smoke Test"
+
+    # Load test: tăng dần từ 5 lên 50 VU, giữ 2 phút
+    load:
+      phases:
+        - duration: 60
+          arrivalRate: 5
+          rampTo: 50
+          name: "Ramp Up"
+        - duration: 120
+          arrivalRate: 50
+          name: "Sustained Load"
+        - duration: 30
+          arrivalRate: 50
+          rampTo: 1
+          name: "Ramp Down"
+
+    # Stress test: đẩy cao đến 150 VU để tìm điểm bão hòa
+    stress:
+      phases:
+        - duration: 60
+          arrivalRate: 10
+          rampTo: 80
+          name: "Ramp Up"
+        - duration: 120
+          arrivalRate: 80
+          rampTo: 150
+          name: "Stress Peak"
+        - duration: 60
+          arrivalRate: 150
+          name: "Sustained Stress"
+        - duration: 30
+          arrivalRate: 150
+          rampTo: 1
+          name: "Cool Down"
+
+    # Spike test: đột ngột tăng lên 200 VU trong 30 giây
+    spike:
+      phases:
+        - duration: 30
+          arrivalRate: 5
+          name: "Baseline"
+        - duration: 30
+          arrivalRate: 200
+          name: "Spike"
+        - duration: 60
+          arrivalRate: 5
+          name: "Recovery"
+
+  # ---- Ngưỡng SLA (test sẽ FAIL nếu vi phạm) ----
+  ensure:
+    thresholds:
+      - http.response_time.p95: 2000   # p95 phải dưới 2 giây
+      - http.response_time.p99: 5000   # p99 phải dưới 5 giây
+
+# ---- Scenarios chính ----
+scenarios:
+  # Auth: đăng nhập, refresh token (30% traffic)
+  - name: "Auth Flow"
+    weight: 30
+    flow:
+      - function: "loginAndGetToken"
+      - post:
+          url: "/api/v1/auth/login"
+          json:
+            phone: "{{ phone }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.data.access_token"
+              as: "accessToken"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+      - think: 1
+      - post:
+          url: "/api/v1/auth/refresh-token"
+          json:
+            refresh_token: "dummy_perf_token"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+
+  # Classes: lấy danh sách lớp (20% traffic)
+  - name: "Classes Flow"
+    weight: 20
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/classes"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+      - think: 1
+      - get:
+          url: "/api/v1/classes/my-classes"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+
+  # Attendance: xem lịch sử điểm danh (20% traffic)
+  - name: "Attendance Read Flow"
+    weight: 20
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/attendance/class/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            date: "2026-10-27"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+      - think: 0.5
+      - get:
+          url: "/api/v1/attendance/today/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+
+  # Grades: xem sổ điểm và leaderboard (20% traffic)
+  - name: "Grades Read Flow"
+    weight: 20
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/grades/class/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            subject_code: "MATH"
+            semester: "1"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+      - think: 1
+      - get:
+          url: "/api/v1/grades/leaderboard/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            subject_code: "MATH"
+            semester: "1"
+            limit: "5"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+
+  # Students: tra cứu hồ sơ học sinh (10% traffic)
+  - name: "Students Read Flow"
+    weight: 10
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/students/stu_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+      - think: 0.5
+      - get:
+          url: "/api/v1/students/stu_demo_001/academic"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            semester: "1"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404

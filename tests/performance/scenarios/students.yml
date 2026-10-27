@@ -1,0 +1,211 @@
+# ============================================================
+# GiaoVienHay - Scenario: Students (Parent Portal) API Performance
+# Kiểm thử hiệu năng cổng phụ huynh tra cứu học sinh:
+#   GET /students/:id
+#   GET /students/:id/academic?semester=
+#   GET /students/:id/attendance?month=
+#   GET /students/:id/fees-insurance
+#   GET /students/:id/remarks?semester=
+#   GET /students/:id/exam-reminders
+# ============================================================
+
+config:
+  target: "http://localhost:3000"
+  plugins:
+    expect: {}
+  processor: "../helpers/auth.js"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+
+  environments:
+    smoke:
+      phases:
+        - duration: 30
+          arrivalRate: 1
+          name: "Smoke - Students"
+
+    load:
+      phases:
+        - duration: 60
+          arrivalRate: 5
+          rampTo: 40
+          name: "Ramp Up - Students"
+        - duration: 120
+          arrivalRate: 40
+          name: "Sustained - Students"
+
+    stress:
+      phases:
+        - duration: 60
+          arrivalRate: 10
+          rampTo: 100
+          name: "Stress - Students"
+        - duration: 120
+          arrivalRate: 100
+          name: "Peak - Students"
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 2000
+      - http.response_time.p99: 5000
+
+scenarios:
+  # TC-STU-01: Phụ huynh xem hồ sơ học sinh
+  - name: "PT-STU-01: Get Student Profile"
+    weight: 20
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/students/stu_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+
+  # TC-STU-02: Phụ huynh xem bảng điểm đa môn (Academic Record)
+  - name: "PT-STU-02: Get Academic Record"
+    weight: 25
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/students/stu_demo_001/academic"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            semester: "1"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+      - think: 0.5
+      # Học kỳ 2
+      - get:
+          url: "/api/v1/students/stu_demo_001/academic"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            semester: "2"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+
+  # TC-STU-03: Phụ huynh xem lịch sử chuyên cần
+  - name: "PT-STU-03: Get Attendance History"
+    weight: 20
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/students/stu_demo_001/attendance"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            month: "2026-10"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+
+  # TC-STU-04: Phụ huynh xem tình trạng học phí & bảo hiểm
+  - name: "PT-STU-04: Get Fees & Insurance Status"
+    weight: 15
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/students/stu_demo_001/fees-insurance"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+
+  # TC-STU-05: Phụ huynh xem nhận xét của giáo viên
+  - name: "PT-STU-05: Get Remarks"
+    weight: 10
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/students/stu_demo_001/remarks"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            semester: "1"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+
+  # TC-STU-06: Phụ huynh xem lịch kiểm tra sắp tới
+  - name: "PT-STU-06: Get Exam Reminders"
+    weight: 10
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/students/stu_demo_001/exam-reminders"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+
+  # TC-STU-07: Full Parent Journey - xem tuần tự như phụ huynh thực sự
+  - name: "PT-STU-07: Full Parent Journey"
+    weight: 0
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/students/stu_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+      - think: 2
+      - get:
+          url: "/api/v1/students/stu_demo_001/academic"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            semester: "1"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+      - think: 1
+      - get:
+          url: "/api/v1/students/stu_demo_001/attendance"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            month: "2026-10"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+      - think: 1
+      - get:
+          url: "/api/v1/students/stu_demo_001/fees-insurance"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404

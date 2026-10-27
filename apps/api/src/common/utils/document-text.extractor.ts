@@ -1,7 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import * as path from 'path';
-import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
+
 
 const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.txt'];
 const MAX_EXTRACTED_CHARS = 30000;
@@ -47,10 +46,14 @@ export async function extractDocumentText(
 
   try {
     if (extension === '.pdf') {
-      const parsed = await pdfParse(file.buffer);
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParseLib = require('pdf-parse');
+      const parsed = await pdfParseLib(file.buffer);
       rawText = parsed?.text || '';
     } else if (extension === '.docx') {
-      const parsed = await mammoth.extractRawText({ buffer: file.buffer });
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mammothLib = require('mammoth');
+      const parsed = await mammothLib.extractRawText({ buffer: file.buffer });
       rawText = parsed?.value || '';
     } else {
       rawText = file.buffer.toString('utf8');

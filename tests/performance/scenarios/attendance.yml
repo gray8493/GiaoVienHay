@@ -1,0 +1,145 @@
+# ============================================================
+# GiaoVienHay - Scenario: Attendance API Performance
+# Kiểm thử hiệu năng nhóm API điểm danh:
+#   POST  /attendance/submit
+#   PATCH /attendance/:id
+#   GET   /attendance/class/:classId?date=&month=
+#   GET   /attendance/today/:classId
+# ============================================================
+
+config:
+  target: "http://localhost:3000"
+  plugins:
+    expect: {}
+  processor: "../helpers/auth.js"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+
+  environments:
+    smoke:
+      phases:
+        - duration: 30
+          arrivalRate: 1
+          name: "Smoke - Attendance"
+
+    load:
+      phases:
+        - duration: 60
+          arrivalRate: 5
+          rampTo: 30
+          name: "Ramp Up - Attendance"
+        - duration: 120
+          arrivalRate: 30
+          name: "Sustained - Attendance"
+
+    stress:
+      phases:
+        - duration: 60
+          arrivalRate: 10
+          rampTo: 80
+          name: "Stress - Attendance"
+        - duration: 120
+          arrivalRate: 80
+          name: "Peak - Attendance"
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 2000
+      - http.response_time.p99: 5000
+
+scenarios:
+  # TC-ATT-01: Xem lịch sử điểm danh theo ngày (read-heavy)
+  - name: "PT-ATT-01: Get Class Attendance By Date"
+    weight: 35
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/attendance/class/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            date: "2026-10-27"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+
+  # TC-ATT-02: Xem lịch sử điểm danh theo tháng
+  - name: "PT-ATT-02: Get Class Attendance By Month"
+    weight: 20
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/attendance/history/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            month: "2026-10"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+
+  # TC-ATT-03: Lấy học sinh có mặt hôm nay (dùng cho vòng quay may mắn)
+  - name: "PT-ATT-03: Get Today Present Students"
+    weight: 25
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/attendance/today/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+
+  # TC-ATT-04: Nộp điểm danh cả lớp (write operation - nặng nhất)
+  - name: "PT-ATT-04: Submit Attendance (Write)"
+    weight: 15
+    flow:
+      - function: "setAuthHeader"
+      - function: "generateAttendancePayload"
+      - post:
+          url: "/api/v1/attendance/submit"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            class_id: "cls_demo_001"
+            date: "{{ attendanceDate }}"
+            records: "{{ attendanceRecords }}"
+          expect:
+            - statusCode:
+                - 201
+                - 400
+                - 401
+                - 403
+                - 409
+
+  # TC-ATT-05: Cập nhật 1 bản ghi điểm danh (đến muộn, xin phép)
+  - name: "PT-ATT-05: Update Attendance Record"
+    weight: 5
+    flow:
+      - function: "setAuthHeader"
+      - patch:
+          url: "/api/v1/attendance/att_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            status: "LATE"
+            note: "Đến muộn 10 phút"
+          expect:
+            - statusCode:
+                - 200
+                - 400
+                - 401
+                - 403
+                - 404

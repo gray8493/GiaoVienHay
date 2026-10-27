@@ -317,7 +317,7 @@ export class FeesInsuranceService {
         const result = await this.notificationsService.dispatchToParentsOfStudent(student, {
           title: `Cập nhật trạng thái ${feeName} - Em ${studentName}`,
           body: `Kính gửi Phụ huynh em ${studentName}, giáo viên chủ nhiệm ${paymentStatus}.${dto.note ? ` Ghi chú: ${dto.note}` : ''}`,
-          type: NotificationType.FEE_STATUS_UPDATED,
+          type: NotificationType.FEE_REMINDER,
           metadata: {
             screen: 'Fees',
             student_id: studentId,

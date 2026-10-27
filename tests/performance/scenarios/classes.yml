@@ -1,0 +1,175 @@
+# ============================================================
+# GiaoVienHay - Scenario: Classes API Performance
+# Kiểm thử hiệu năng nhóm API lớp học:
+#   GET  /classes
+#   GET  /classes/my-classes
+#   GET  /classes/:id
+#   POST /classes
+#   GET  /classes/:id/invite
+#   POST /classes/:id/invite
+#   POST /classes/join
+#   POST /classes/:id/students
+#   PUT  /classes/:id/students/:studentId
+#   DELETE /classes/:id/students/:studentId
+# ============================================================
+
+config:
+  target: "http://localhost:3000"
+  plugins:
+    expect: {}
+  processor: "../helpers/auth.js"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+
+  environments:
+    smoke:
+      phases:
+        - duration: 30
+          arrivalRate: 1
+          name: "Smoke - Classes"
+
+    load:
+      phases:
+        - duration: 60
+          arrivalRate: 5
+          rampTo: 40
+          name: "Ramp Up - Classes"
+        - duration: 120
+          arrivalRate: 40
+          name: "Sustained - Classes"
+
+    stress:
+      phases:
+        - duration: 60
+          arrivalRate: 10
+          rampTo: 120
+          name: "Stress - Classes"
+        - duration: 120
+          arrivalRate: 120
+          name: "Peak - Classes"
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 1500
+      - http.response_time.p99: 3000
+
+scenarios:
+  # TC-CLS-01: Lấy danh sách lớp học (read-heavy, trọng số cao nhất)
+  - name: "PT-CLS-01: Get My Classes List"
+    weight: 40
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/classes"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+      - think: 0.5
+      - get:
+          url: "/api/v1/classes/my-classes"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+
+  # TC-CLS-02: Xem chi tiết 1 lớp học
+  - name: "PT-CLS-02: Get Class Detail"
+    weight: 25
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/classes/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 404
+      - think: 1
+      - get:
+          url: "/api/v1/classes/cls_demo_001/my-subject"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+
+  # TC-CLS-03: Lấy mã mời lớp học
+  - name: "PT-CLS-03: Get Invite Code"
+    weight: 15
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/classes/cls_demo_001/invite"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+      - think: 0.5
+      # Tạo mã mời mới (write operation)
+      - post:
+          url: "/api/v1/classes/cls_demo_001/invite"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode:
+                - 200
+                - 201
+                - 401
+                - 403
+                - 404
+
+  # TC-CLS-04: Tham gia lớp bằng mã mời
+  - name: "PT-CLS-04: Join Class By Invite"
+    weight: 10
+    flow:
+      - function: "setAuthHeader"
+      - post:
+          url: "/api/v1/classes/join"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            invite_code: "PERF_INVITE_001"
+          expect:
+            - statusCode:
+                - 200
+                - 201
+                - 400
+                - 401
+                - 404
+
+  # TC-CLS-05: Tạo lớp mới (write operation - thấp nhất)
+  - name: "PT-CLS-05: Create Class"
+    weight: 10
+    flow:
+      - function: "setAuthHeader"
+      - post:
+          url: "/api/v1/classes"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            name: "Lớp Perf Test {{ $randomString() }}"
+            grade: 1
+            academic_year: "2026-2027"
+            school_year: "2026"
+          expect:
+            - statusCode:
+                - 201
+                - 400
+                - 401
+                - 403

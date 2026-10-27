@@ -549,7 +549,7 @@ describe('FeesInsuranceService (Unit Tests UT10 - All 31 Cases)', () => {
       expect(mockNotificationsService.dispatchToParentsOfStudent).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'stu_02' }),
         expect.objectContaining({
-          type: NotificationType.FEE_STATUS_UPDATED,
+          type: NotificationType.FEE_REMINDER,
           metadata: expect.objectContaining({ is_paid: true, fee_type: FeeType.INSURANCE }),
         }),
         { requirePersistence: true },

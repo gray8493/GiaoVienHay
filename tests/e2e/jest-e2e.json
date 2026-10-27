@@ -1,0 +1,21 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../../",
+  "testMatch": ["<rootDir>/tests/e2e/**/*.e2e-spec.ts"],
+  "transform": {
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/apps/api/tsconfig.json"
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^jwks-rsa$": "<rootDir>/tests/fixtures/jwks-rsa-stub.js",
+    "^jwks-rsa/(.*)$": "<rootDir>/tests/fixtures/jwks-rsa-stub.js",
+    "^@nestjs/cache-manager$": "<rootDir>/tests/fixtures/cache-manager-mock.js"
+  },
+  "setupFiles": ["<rootDir>/tests/e2e/setup.ts"],
+  "testEnvironment": "node",
+  "testTimeout": 60000
+}

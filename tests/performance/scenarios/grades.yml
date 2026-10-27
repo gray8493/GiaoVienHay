@@ -1,0 +1,191 @@
+# ============================================================
+# GiaoVienHay - Scenario: Grades API Performance
+# Kiểm thử hiệu năng nhóm API sổ điểm:
+#   GET  /grades/class/:classId?subject_code=&semester=
+#   GET  /grades/leaderboard/:classId?subject_code=&semester=&limit=
+#   GET  /grades/parent/lookup?student_id=&subject_code=&semester=
+#   POST /grades/batch
+#   POST /grades/publish
+#   PUT  /grades/scores/:scoreId
+# ============================================================
+
+config:
+  target: "http://localhost:3000"
+  plugins:
+    expect: {}
+  processor: "../helpers/auth.js"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+
+  environments:
+    smoke:
+      phases:
+        - duration: 30
+          arrivalRate: 1
+          name: "Smoke - Grades"
+
+    load:
+      phases:
+        - duration: 60
+          arrivalRate: 5
+          rampTo: 40
+          name: "Ramp Up - Grades"
+        - duration: 120
+          arrivalRate: 40
+          name: "Sustained - Grades"
+
+    stress:
+      phases:
+        - duration: 60
+          arrivalRate: 10
+          rampTo: 100
+          name: "Stress - Grades"
+        - duration: 120
+          arrivalRate: 100
+          name: "Peak - Grades"
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 2000
+      - http.response_time.p99: 5000
+
+scenarios:
+  # TC-GRD-01: Xem sổ điểm môn học theo lớp (read-heavy, chiếm nhiều traffic nhất)
+  - name: "PT-GRD-01: Get Class Grades By Subject"
+    weight: 30
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/grades/class/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            subject_code: "MATH"
+            semester: "1"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+      - think: 0.5
+      # Xem tiếp môn Văn cùng lớp
+      - get:
+          url: "/api/v1/grades/class/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            subject_code: "LITERATURE"
+            semester: "1"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+
+  # TC-GRD-02: Xem bảng vinh danh (Leaderboard)
+  - name: "PT-GRD-02: Get Leaderboard"
+    weight: 25
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/grades/leaderboard/cls_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            subject_code: "MATH"
+            semester: "1"
+            limit: "10"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+      - think: 1
+
+  # TC-GRD-03: Phụ huynh tra cứu điểm học sinh
+  - name: "PT-GRD-03: Parent Lookup Score"
+    weight: 20
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v1/grades/parent/lookup"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          qs:
+            student_id: "stu_demo_001"
+            subject_code: "MATH"
+            semester: "1"
+            score_type: "FINAL"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+                - 404
+
+  # TC-GRD-04: Nhập điểm batch cả lớp (write - nặng nhất)
+  - name: "PT-GRD-04: Batch Input Scores (Write)"
+    weight: 15
+    flow:
+      - function: "setAuthHeader"
+      - function: "generateGradesPayload"
+      - post:
+          url: "/api/v1/grades/batch"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json: "{{ gradesBatchPayload }}"
+          expect:
+            - statusCode:
+                - 200
+                - 400
+                - 401
+                - 403
+                - 404
+
+  # TC-GRD-05: Công bố điểm cho phụ huynh (trigger FCM)
+  - name: "PT-GRD-05: Publish Scores"
+    weight: 7
+    flow:
+      - function: "setAuthHeader"
+      - post:
+          url: "/api/v1/grades/publish"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            class_id: "cls_demo_001"
+            subject_code: "MATH"
+            semester: 1
+            score_types:
+              - "FINAL"
+          expect:
+            - statusCode:
+                - 200
+                - 400
+                - 401
+                - 403
+                - 404
+
+  # TC-GRD-06: Đính chính điểm của 1 học sinh
+  - name: "PT-GRD-06: Update Single Score"
+    weight: 3
+    flow:
+      - function: "setAuthHeader"
+      - put:
+          url: "/api/v1/grades/scores/sc_demo_001"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            score_value: 9.5
+            note: "Đính chính sau kiểm tra"
+          expect:
+            - statusCode:
+                - 200
+                - 400
+                - 401
+                - 403
+                - 404

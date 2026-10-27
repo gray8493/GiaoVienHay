@@ -12,10 +12,15 @@ concurrency:
 
 jobs:
   # -----------------------------------------------------------
-  # 1. BUILD & TYPECHECK VERIFICATION (Chạy cho cả PR và Push)
+  # 1. BUILD & AUTOMATED TEST SUITE (Chạy cho cả PR và Push)
+  # Bao gồm toàn bộ test trong thư mục tests/:
+  # - Unit Tests: 12 phân hệ & fixtures (tests/unit)
+  # - Acceptance Tests: 15 kịch bản UAT (tests/acceptance)
+  # - E2E Tests: 10 kịch bản tích hợp hệ thống (tests/e2e)
+  # - Performance Tests: Smoke test tải & SLA (tests/performance)
   # -----------------------------------------------------------
-  build-and-validate:
-    name: Build & Typecheck Monorepo
+  build-and-test:
+    name: Build & Run Full Test Suite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source Code
@@ -40,15 +45,46 @@ jobs:
       - name: Build Monorepo (Shared Types, API, Web Admin, Mobile)
         run: pnpm build
 
-      - name: Run Automated Unit Tests (All 12 Modules)
+      # 1. Unit & Acceptance Tests (443 test cases: 12 Modules & UAT Scenarios)
+      - name: Run Unit & Acceptance Tests
         run: pnpm --filter @giaovienhay/api test
+
+      # 2. End-to-End Integration Tests (109 test cases: 10 E2E Suites)
+      - name: Run E2E Integration Tests
+        run: pnpm --filter @giaovienhay/api test:e2e
+
+      # 3. Khởi động Backend API Server ngầm để đo hiệu năng
+      - name: Start API Server for Performance Testing
+        run: |
+          pnpm --filter @giaovienhay/api start:prod &
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:3000/api/v1/health | grep -q "UP"; then
+              echo "Backend API Server is UP and healthy!"
+              break
+            fi
+            echo "Waiting for API server to become ready ($i/30)..."
+            sleep 1
+          done
+
+      # 4. Chạy Smoke Performance Test (Artillery) kiểm tra ngưỡng phản hồi & SLA
+      - name: Run Performance Smoke Tests (Artillery)
+        run: node tests/performance/run-perf.js smoke
+
+      # 5. Đính kèm báo cáo hiệu năng (Artifact Reports: JSON & HTML)
+      - name: Upload Performance Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-reports
+          path: tests/performance/reports/
+          retention-days: 7
 
   # -----------------------------------------------------------
   # 2. AUTOMATIC DEPLOY TO RENDER (Chỉ chạy khi MERGE vào MAIN)
   # -----------------------------------------------------------
   deploy-production:
     name: Deploy to Production (Render)
-    needs: build-and-validate
+    needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

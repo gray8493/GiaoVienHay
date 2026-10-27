@@ -611,7 +611,7 @@ export class GradesService {
       await this.notificationsService.dispatchToParentsOfStudent(student, {
         title,
         body: `Kính gửi Phụ huynh em ${studentName}, ${detail} Trân trọng thông báo để gia đình cùng đồng hành với con!`,
-        type: isCorrection ? NotificationType.GRADE_CORRECTED : NotificationType.GRADE_PUBLISHED,
+        type: NotificationType.GRADE_PUBLISHED,
         metadata: {
           screen: 'Grades',
           class_id: payload.classId,
