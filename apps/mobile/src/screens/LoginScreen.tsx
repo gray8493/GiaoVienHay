@@ -166,45 +166,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Quick Fill Test Accounts */}
-              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 12 }}>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.75)',
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: '#F58F4C',
-                  }}
-                  onPress={() => {
-                    setPhone('0912345678');
-                    setPassword('MatKhau123@');
-                    setErrorMessage('');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 12, color: '#984704', fontWeight: '600' }}>👩‍🏫 Cô Lan (GV)</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.75)',
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: '#5B8DEF',
-                  }}
-                  onPress={() => {
-                    setPhone('0977112233');
-                    setPassword('MatKhau123@');
-                    setErrorMessage('');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 12, color: '#1E40AF', fontWeight: '600' }}>👨‍👩‍👧 Trần Văn Hùng (PH)</Text>
-                </TouchableOpacity>
-              </View>
             </View>
 
             {/* Exactly ONE Solid Orange Button */}
