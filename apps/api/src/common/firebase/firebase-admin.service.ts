@@ -42,8 +42,49 @@ export class FirebaseAdminService implements OnModuleInit {
       return;
     }
 
+    // 1. Kiểm tra cấu hình qua biến môi trường JSON trực tiếp (tiện nhất cho Render/Vercel)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+        this.app = initializeApp({
+          credential: cert(serviceAccount),
+          projectId: serviceAccount.project_id || process.env.FIREBASE_PROJECT_ID || 'giaovienhay-fcm',
+        });
+        this.messaging = getMessaging(this.app);
+        this.auth = getAuth(this.app);
+        this.isAvailable = true;
+        this.logger.log(`✅ Khởi tạo Firebase Admin SDK thành công từ FIREBASE_SERVICE_ACCOUNT_JSON: ${serviceAccount.project_id}`);
+        return;
+      } catch (err: any) {
+        this.logger.error(`Lỗi khi parse FIREBASE_SERVICE_ACCOUNT_JSON: ${err.message}`, err.stack);
+      }
+    }
+
+    // 2. Kiểm tra cấu hình qua FIREBASE_CLIENT_EMAIL và FIREBASE_PRIVATE_KEY
+    if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      try {
+        this.app = initializeApp({
+          credential: cert({
+            projectId: process.env.FIREBASE_PROJECT_ID || 'giaovienhay-fcm',
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          }),
+          projectId: process.env.FIREBASE_PROJECT_ID || 'giaovienhay-fcm',
+        });
+        this.messaging = getMessaging(this.app);
+        this.auth = getAuth(this.app);
+        this.isAvailable = true;
+        this.logger.log(`✅ Khởi tạo Firebase Admin SDK thành công từ ENV credentials`);
+        return;
+      } catch (err: any) {
+        this.logger.error(`Lỗi khi khởi tạo Firebase Admin SDK từ Client Email & Key: ${err.message}`, err.stack);
+      }
+    }
+
+    // 3. Tìm qua file vật lý (bao gồm Render Secret File mặc định: /etc/secrets/serviceAccountKey.json)
     const searchPaths = [
       process.env.FIREBASE_CREDENTIAL_PATH,
+      '/etc/secrets/serviceAccountKey.json',
       path.resolve(process.cwd(), 'serviceAccountKey.json'),
       path.resolve(process.cwd(), 'apps/api/serviceAccountKey.json'),
       path.resolve(__dirname, '../../../serviceAccountKey.json'),
