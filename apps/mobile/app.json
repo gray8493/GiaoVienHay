@@ -6,12 +6,26 @@
     "entryPoint": "./index.js",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.scholaro.app"
     },
     "android": {
-      "package": "com.scholaro.app"
+      "package": "com.scholaro.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro"
@@ -23,6 +37,12 @@
           "cameraPermission": "Cho phép Scholaro dùng camera để quét mã QR mời lớp học."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b68ae2d3-9008-4786-9a9a-f2534806f30e"
+      }
+    },
+    "owner": "anhthi06012005"
   }
 }
