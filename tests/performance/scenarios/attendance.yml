@@ -76,7 +76,7 @@ scenarios:
       - get:
           url: "/api/v1/attendance/history/cls_demo_001"
           headers:
-            Authorization: "Bearer {{ authToken }}"
+Authorization: "Bearer {{ authTok de``en }}"
           qs:
             month: "2026-10"
           expect:

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../../lib/api-client';
-import { formatNumber } from '../../lib/format';
+import { formatNumber, extractAssignedInfoText } from '../../lib/format';
 import Toast, { type ToastVariant } from '../../components/Toast';
 import PaginationWithIconDemo from '../../components/shadcn-studio/pagination/pagination-02';
 
@@ -267,7 +267,10 @@ export default function UsersInteractiveExplorerPage() {
                 code: assignedTeacher.code || 'GV',
                 phone: assignedTeacher.phone || 'Chưa có SĐT',
                 email: assignedTeacher.email || 'Chưa có email',
-                assignedInfo: assignedTeacher.assignedInfo || assignedTeacher.assigned_info || 'Giáo viên chủ nhiệm',
+                assignedInfo: extractAssignedInfoText(
+                  assignedTeacher.assignedInfo || assignedTeacher.assigned_info,
+                  'Giáo viên chủ nhiệm',
+                ),
                 role: assignedTeacher.role,
                 isActive: assignedTeacher.is_active ?? assignedTeacher.isActive,
                 aiDailyQuota: assignedTeacher.ai_daily_quota ?? assignedTeacher.aiDailyQuota,
@@ -283,7 +286,10 @@ export default function UsersInteractiveExplorerPage() {
             code: st.code || 'GV',
             phone: st.phone || 'Chưa có SĐT',
             email: st.email || 'Chưa có email',
-            assignedInfo: st.assignedInfo || st.assigned_info || 'Giáo viên bộ môn',
+            assignedInfo: extractAssignedInfoText(
+              st.assignedInfo || st.assigned_info,
+              'Giáo viên bộ môn',
+            ),
             role: st.role,
             isActive: st.is_active ?? st.isActive,
             aiDailyQuota: st.ai_daily_quota ?? st.aiDailyQuota,
@@ -294,7 +300,7 @@ export default function UsersInteractiveExplorerPage() {
           // Danh sách phụ huynh thực tế từ DB
           const parentsList = parentUsers.map((p) => {
             const rawInfo = p.assignedInfo || p.assigned_info || '';
-            const studentName = rawInfo.replace(/Phụ huynh em\s*/i, '').trim() || 'Học sinh';
+            const studentName = extractAssignedInfoText(rawInfo, 'Học sinh');
 
             return {
               id: p.id,

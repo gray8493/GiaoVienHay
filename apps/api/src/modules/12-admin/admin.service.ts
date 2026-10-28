@@ -32,7 +32,7 @@ export class AdminService {
         total: users.length,
         page: query.page || 1,
         limit: query.limit || 20,
-        items: users,
+        items: users.map((user) => this.sanitizeUserForAdmin(user)),
       };
     } catch (e) {
       return {
@@ -42,6 +42,24 @@ export class AdminService {
         items: [],
       };
     }
+  }
+
+  // assigned_info lưu password_hash để phục vụ đăng nhập; không được trả ra API quản trị
+  private sanitizeUserForAdmin(user: any) {
+    const { password_hash, passwordHash, ...safe } = user || {};
+    const raw = safe.assigned_info ?? safe.assignedInfo;
+    if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          delete parsed.password_hash;
+          const sanitized = JSON.stringify(parsed);
+          safe.assigned_info = sanitized;
+          safe.assignedInfo = sanitized;
+        }
+      } catch {}
+    }
+    return safe;
   }
 
   async createUser(dto: AdminCreateUserDto) {

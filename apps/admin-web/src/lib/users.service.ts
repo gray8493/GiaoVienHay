@@ -5,6 +5,7 @@
  */
 
 import { apiFetch } from './api-client';
+import { extractAssignedInfoText } from './format';
 import { UserRole } from '@giaovienhay/shared-types';
 import { TeacherUser, ParentUser } from './users-data';
 
@@ -79,8 +80,11 @@ export async function getTeachersList(params?: {
             | 'TEACHER_HOMEROOM'
             | 'TEACHER_SUBJECT',
           school_name: u.school_name || 'Chưa phân trường',
-          subject: u.assigned_info || 'Bộ môn',
-          assigned_class: u.assigned_info || (u.role === 'TEACHER_HOMEROOM' ? 'Chủ nhiệm' : 'Bộ môn'),
+          subject: extractAssignedInfoText(u.assigned_info, 'Bộ môn'),
+          assigned_class: extractAssignedInfoText(
+            u.assigned_info,
+            u.role === 'TEACHER_HOMEROOM' ? 'Chủ nhiệm' : 'Bộ môn',
+          ),
           is_active: u.is_active,
           status_reason: u.status_reason,
           created_at: u.created_at || new Date().toISOString(),
