@@ -133,8 +133,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   placeholder="Số điện thoại"
                   placeholderTextColor="#6B6880"
                   keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="tel"
                   value={phone}
-                  onChangeText={setPhone}
+                  onChangeText={(text) => {
+                    setPhone(text);
+                    setErrorMessage('');
+                  }}
                 />
               </View>
 
@@ -148,8 +154,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   placeholder="Mật khẩu"
                   placeholderTextColor="#6B6880"
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="current-password"
+                  textContentType="password"
+                  spellCheck={false}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setErrorMessage('');
+                  }}
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}

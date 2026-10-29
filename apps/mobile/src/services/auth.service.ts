@@ -268,7 +268,8 @@ export const authService = {
         },
         body: JSON.stringify({
           phone: stripInvisible(payload.phone).trim().replace(/\s+/g, ''),
-          password: stripInvisible(payload.password),
+          // Autofill/bàn phím di động hay chèn khoảng trắng đầu/cuối vào mật khẩu
+          password: stripInvisible(payload.password).trim(),
         }),
       });
     } catch (netErr: any) {
