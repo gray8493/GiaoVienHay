@@ -43,3 +43,7 @@ Bảng tổng hợp toàn bộ liên kết truy cập hệ thống (Backend, Fro
 - **Render Dashboard (Server Hosting)**: [https://dashboard.render.com](https://dashboard.render.com)
 - **UptimeRobot (Ping 24/24 Free)**: [https://uptimerobot.com](https://uptimerobot.com)
   - URL cần ping: `https://giaovienhay.onrender.com/api/v1/health`
+
+---
+
+> *Tài liệu cập nhật và đồng bộ theo trạng thái mới nhất của hệ thống GiaoVienHay.*
