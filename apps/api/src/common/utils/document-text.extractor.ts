@@ -22,6 +22,29 @@ function normalizeText(raw: string): string {
     .trim();
 }
 
+/**
+ * Chuyển HTML do mammoth sinh ra thành text thẳng hàng, giữ lại bảng
+ * (mỗi ô ngăn bằng " | ", mỗi dòng bảng xuống dòng) — thứ tự nội dung vẫn
+ * đúng như trong file Word, giúp AI đọc trọn đúng giáo án.
+ */
+function htmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)\s*>/gi, '\n')
+    .replace(/<\/t[dh]\s*>/gi, ' | ')
+    .replace(/<\/tr\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]*\n[ \t]*\|[ \t]*/g, ' | ')
+    .replace(/[ \t]*\|[ \t]*(?=\n)/g, '')
+    .replace(/[ \t]{2,}/g, ' ');
+}
+
 export async function extractDocumentText(
   file: Express.Multer.File,
 ): Promise<ExtractedDocument> {
@@ -53,8 +76,9 @@ export async function extractDocumentText(
     } else if (extension === '.docx') {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mammothLib = require('mammoth');
-      const parsed = await mammothLib.extractRawText({ buffer: file.buffer });
-      rawText = parsed?.value || '';
+      // Dùng convertToHtml thay vì extractRawText để giữ bảng và thứ tự đoạn (đọc giáo án chuẩn hơn)
+      const parsed = await mammothLib.convertToHtml({ buffer: file.buffer });
+      rawText = htmlToText(parsed?.value || '');
     } else {
       rawText = file.buffer.toString('utf8');
     }

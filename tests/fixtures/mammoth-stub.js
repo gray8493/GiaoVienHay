@@ -2,6 +2,7 @@
 // (unit test của QuizzesService không extract nội dung tệp thật)
 const mammothStub = {
   extractRawText: async () => ({ value: '', messages: [] }),
+  convertToHtml: async () => ({ value: '', messages: [] }),
 };
 
 module.exports = mammothStub;

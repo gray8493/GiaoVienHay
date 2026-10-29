@@ -9,7 +9,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { FirebaseDataConnectService } from '../../common/supabase/supabase.service';
-import { NvidiaService } from '../../common/nvidia/nvidia.service';
+import { NvidiaService, NvidiaGenerationError } from '../../common/nvidia/nvidia.service';
 import { AttendanceService } from '../05-attendance/attendance.service';
 import { AdminService } from '../12-admin/admin.service';
 import { extractDocumentText } from '../../common/utils/document-text.extractor';
@@ -96,17 +96,14 @@ export class QuizzesService {
     }
 
     let questions;
-    let aiSource = 'nvidia_ai';
     try {
-      const result: any = await this.nvidiaService.generateQuestionsFromLesson(
+      const result = await this.nvidiaService.generateQuestionsFromLesson(
         lessonContent,
         dto.subject_code,
         numQuestions,
         difficulty,
       );
-      // Tương thích 2 shape: service trả { questions, source }, mock/test trả mảng
-      questions = Array.isArray(result) ? result : result.questions;
-      aiSource = Array.isArray(result) ? 'nvidia_ai' : result.source || 'nvidia_ai';
+      questions = result.questions;
     } catch (error) {
       await this.adminService?.recordActivity({
         category: 'AI_QUIZ',
@@ -118,7 +115,7 @@ export class QuizzesService {
         statusLabel: 'Thất bại',
         metadata: { teacher_id: teacherId, class_id: dto.class_id },
       });
-      throw error;
+      throw this.mapAiErrorToHttpException(error);
     }
 
     await this.adminService?.recordActivity({
@@ -154,7 +151,7 @@ export class QuizzesService {
         GameMode.MYSTERY_BOX,
       ],
       questions,
-      ai_source: aiSource,
+      ai_source: 'nvidia_ai',
       created_by: teacherId,
       is_deleted: false,
       deleted_at: null,
@@ -169,6 +166,36 @@ export class QuizzesService {
     }
 
     return quizData;
+  }
+
+  /**
+   * Quản lý lỗi AI: mọi thất bại tạo câu hỏi đều trả về HTTP 502 có
+   * error_code/message rõ ràng thay vì câu hỏi bịa tuỳ tiện hoặc lỗi 500 khó hiểu.
+   */
+  private mapAiErrorToHttpException(error: unknown): HttpException {
+    const reason = error instanceof NvidiaGenerationError ? error.reason : '';
+    let message: string;
+    switch (reason) {
+      case 'API_KEY_MISSING':
+        message = error instanceof NvidiaGenerationError ? error.message : 'Máy chủ chưa cấu hình khóa AI.';
+        break;
+      case 'TIMEOUT':
+        message = 'AI phản hồi quá thời gian xử lý. Vui lòng thử lại sau ít phút.';
+        break;
+      case 'EMPTY_RESPONSE':
+      case 'INVALID_FORMAT':
+        message = 'AI trả về kết quả không hợp lệ. Vui lòng thử lại hoặc giảm số lượng câu hỏi.';
+        break;
+      default:
+        message =
+          error instanceof Error
+            ? `AI tạo câu hỏi thất bại: ${error.message}`
+            : 'AI tạo câu hỏi thất bại. Vui lòng thử lại.';
+    }
+    return new HttpException(
+      { error_code: 'QUIZ_AI_GENERATION_FAILED', message },
+      HttpStatus.BAD_GATEWAY,
+    );
   }
 
   /**
@@ -320,13 +347,18 @@ export class QuizzesService {
       : `Bài học môn ${quiz.subject_code}: ${quiz.title}`;
     const difficulty = data?.difficulty_level || DifficultyLevel.MEDIUM;
 
-    const result: any = await this.nvidiaService.generateQuestionsFromLesson(
-      lessonContent,
-      quiz.subject_code,
-      1,
-      difficulty,
-    );
-    const generated = Array.isArray(result) ? result : result.questions;
+    let generated;
+    try {
+      const result = await this.nvidiaService.generateQuestionsFromLesson(
+        lessonContent,
+        quiz.subject_code,
+        1,
+        difficulty,
+      );
+      generated = result.questions;
+    } catch (error) {
+      throw this.mapAiErrorToHttpException(error);
+    }
     if (!generated || generated.length === 0) {
       throw new HttpException(
         {

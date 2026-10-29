@@ -11,6 +11,35 @@ export interface GeneratedQuestion {
   time_limit_seconds: number;
 }
 
+/**
+ * Lý do tạo câu hỏi thất bại — được quizzes.service map về HTTP 502 với message rõ ràng.
+ */
+export type NvidiaFailureReason =
+  | 'API_KEY_MISSING'
+  | 'API_ERROR'
+  | 'TIMEOUT'
+  | 'EMPTY_RESPONSE'
+  | 'INVALID_FORMAT';
+
+export class NvidiaGenerationError extends Error {
+  constructor(
+    readonly reason: NvidiaFailureReason,
+    message: string,
+    readonly detail?: string,
+  ) {
+    super(message);
+    this.name = 'NvidiaGenerationError';
+  }
+}
+
+const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
+const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
+  [DifficultyLevel.EASY]: 'dễ',
+  [DifficultyLevel.MEDIUM]: 'vừa',
+  [DifficultyLevel.HARD]: 'khó',
+  [DifficultyLevel.MIXED]: 'từ dễ đến khó',
+};
+
 @Injectable()
 export class NvidiaService {
   private readonly logger = new Logger(NvidiaService.name);
@@ -36,7 +65,7 @@ export class NvidiaService {
         `NVIDIA AI Service initialized. Model: ${this.model} · Shared-key limit: ${this.rpm} req/phút`,
       );
     } else {
-      this.logger.warn('NVIDIA_API_KEY not configured. Falling back to intelligent mock generator.');
+      this.logger.warn('NVIDIA_API_KEY not configured. AI question generation will fail until configured.');
     }
   }
 
@@ -70,45 +99,81 @@ export class NvidiaService {
     }
   }
 
+  /**
+   * Sinh câu hỏi trắc nghiệm từ nội dung giáo án.
+   * KHÔNG còn fallback câu hỏi hardcode: mọi lỗi (API/timeout/format) đều
+   * throw NvidiaGenerationError để caller báo lại người dùng.
+   */
   async generateQuestionsFromLesson(
     lessonContent: string,
     subjectCode: string,
     numQuestions: number = 5,
     difficulty: DifficultyLevel = DifficultyLevel.MIXED,
-  ): Promise<{ questions: GeneratedQuestion[]; source: 'nvidia_ai' | 'pedagogical_fallback' }> {
-    if (this.apiKey) {
-      try {
-        const prompt = `Bạn là chuyên gia sư phạm Việt Nam. Hãy đọc nội dung giáo án bài học môn ${subjectCode} sau đây và tạo chính xác ${numQuestions} câu hỏi trắc nghiệm kiểm tra bài cũ với độ khó ${difficulty}:
+  ): Promise<{ questions: GeneratedQuestion[]; source: 'nvidia_ai' }> {
+    if (!this.apiKey) {
+      throw new NvidiaGenerationError(
+        'API_KEY_MISSING',
+        'Máy chủ chưa cấu hình khóa NVIDIA_API_KEY nên không thể tạo câu hỏi bằng AI. Vui lòng liên hệ quản trị viên.',
+      );
+    }
+
+    const targetCount = Math.min(Math.max(Number(numQuestions) || 5, 1), 20);
+    const prompt = this.buildLessonPrompt(lessonContent, subjectCode, targetCount, difficulty);
+
+    let text: string;
+    try {
+      text = await this.chatCompletion(prompt);
+    } catch (err) {
+      if (err instanceof NvidiaGenerationError) throw err;
+      throw new NvidiaGenerationError(
+        'API_ERROR',
+        `Không gọi được NVIDIA API: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    const parsed = this.parseQuestions(text, targetCount);
+    if (!parsed) {
+      this.logger.warn(`AI response was not parseable as questions JSON. First 300 chars: ${text.slice(0, 300)}`);
+      throw new NvidiaGenerationError(
+        'INVALID_FORMAT',
+        'AI trả về kết quả không đúng định dạng. Vui lòng thử lại hoặc giảm số lượng câu hỏi.',
+        text.slice(0, 400),
+      );
+    }
+    if (parsed.length < targetCount) {
+      this.logger.warn(
+        `AI only returned ${parsed.length}/${targetCount} valid questions; accepting the valid ones.`,
+      );
+    }
+    return { questions: parsed, source: 'nvidia_ai' };
+  }
+
+  private buildLessonPrompt(
+    lessonContent: string,
+    subjectCode: string,
+    numQuestions: number,
+    difficulty: DifficultyLevel,
+  ): string {
+    const diffLabel = DIFFICULTY_LABELS[difficulty] || 'vừa';
+    return `Bạn là chuyên gia sư phạm tiểu học của Việt Nam. Hãy đọc nội dung bài học môn ${subjectCode} sau đây và tạo đúng ${numQuestions} câu hỏi trắc nghiệm "kiểm tra bài cũ" với độ khó ${diffLabel}.
+
 Nội dung bài học:
 """
 ${lessonContent}
 """
 
-Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy (không kèm markdown \`\`\`json), mỗi phần tử gồm:
-- question_index: số thứ tự (1, 2, ...)
-- content: nội dung câu hỏi ngắn gọn, sư phạm
-- options: mảng 4 phương án trắc nghiệm ["phương án A", "phương án B", "phương án C", "phương án D"]
-- correct_answer: chữ cái đáp án đúng ("A", "B", "C", hoặc "D")
-- explanation: giải thích ngắn gọn vì sao đáp án đúng
-- time_limit_seconds: thời gian trả lời gợi ý (30)`;
+Quy tắc bắt buộc về nội dung:
+- Câu hỏi, đáp án đúng và lời giải phải bám sát nội dung bài học trong dấu """ ở trên; tuyệt đối không bịa dữ kiện, số liệu hoặc kiến thức không có liên quan đến nội dung đó.
+- Phương án nhiễu phải là lỗi sai thường gặp về cùng kiến thức đã nêu, phân biệt rõ ràng.
+- Không sinh câu hỏi về chủ đề không xuất hiện trong nội dung bài học.
 
-        const text = await this.chatCompletion(prompt);
-        const parsed = this.parseQuestions(text);
-        if (parsed) {
-          return { questions: parsed, source: 'nvidia_ai' };
-        }
-        this.logger.warn('NVIDIA API returned an unparseable payload. Using pedagogical fallback.');
-      } catch (err: any) {
-        this.logger.error(
-          `Error calling NVIDIA API: ${err?.message || err}. Using high-quality pedagogical fallback.`,
-        );
-      }
-    }
-
-    return {
-      questions: this.generateMockPedagogicalQuestions(subjectCode, numQuestions, difficulty),
-      source: 'pedagogical_fallback',
-    };
+Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy (không kèm chữ nào khác, không bọc trong \`\`\`json), mỗi phần tử gồm:
+- question_index: số thứ tự (1, 2, ... tới ${numQuestions})
+- content: nội dung câu hỏi
+- options: mảng đúng 4 phương án trắc nghiệm ["phương án A", "phương án B", "phương án C", "phương án D"]
+- correct_answer: chữ cái đáp án đúng, chỉ nhận "A", "B", "C" hoặc "D"
+- explanation: giải thích ngắn gọn vì sao đáp án đúng (trích nguyên nhân từ nội dung bài học)
+- time_limit_seconds: 30`;
   }
 
   private async chatCompletion(prompt: string): Promise<string> {
@@ -116,28 +181,43 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       await this.acquireSlot();
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 1,
-          top_p: 0.95,
-          max_tokens: 8192,
-          // gpt-oss là reasoning model: full reasoning có thể chạy 1-2 phút và
-          // nuốt sạch max_tokens khiến content=null. Giảm effort để trả lời nhanh.
-          reasoning_effort: 'low',
-        }),
-        signal: controller.signal,
-      });
+      let response: Response;
+      try {
+        response = await fetch(`${this.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 1,
+            top_p: 0.95,
+            max_tokens: 8192,
+            // gpt-oss là reasoning model: full reasoning có thể chạy 1-2 phút và
+            // nuốt sạch max_tokens khiến content=null. Giảm effort để trả lời nhanh.
+            reasoning_effort: 'low',
+          }),
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          throw new NvidiaGenerationError(
+            'TIMEOUT',
+            `NVIDIA API quá ${Math.round(this.timeoutMs / 1000)}s không phản hồi. Vui lòng thử lại sau ít phút.`,
+          );
+        }
+        throw new NvidiaGenerationError('API_ERROR', `Không kết nối được NVIDIA API: ${err?.message || err}`);
+      }
 
       if (!response.ok) {
         const body = await response.text();
-        throw new Error(`HTTP ${response.status}: ${body.slice(0, 300)}`);
+        throw new NvidiaGenerationError(
+          'API_ERROR',
+          `NVIDIA API trả lỗi HTTP ${response.status}. Vui lòng thử lại sau ít phút.`,
+          body.slice(0, 300),
+        );
       }
 
       const data: any = await response.json();
@@ -148,7 +228,7 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
         content = String(message?.reasoning_content || message?.reasoning || '');
       }
       if (!content.trim()) {
-        throw new Error('Empty response from NVIDIA API');
+        throw new NvidiaGenerationError('EMPTY_RESPONSE', 'NVIDIA API trả về nội dung rỗng. Vui lòng thử lại.');
       }
       return content;
     } finally {
@@ -156,99 +236,119 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
     }
   }
 
-  private parseQuestions(text: string): GeneratedQuestion[] | null {
+  /**
+   * Trích mảng JSON từ phản hồi AI và chuẩn hóa từng câu hỏi.
+   * Trả về null khi không trích được JSON hoặc không còn câu hỏi hợp lệ nào.
+   */
+  private parseQuestions(text: string, limit: number): GeneratedQuestion[] | null {
     const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const start = cleaned.indexOf('[');
     const end = cleaned.lastIndexOf(']');
-    const candidate = start !== -1 && end !== -1 ? cleaned.slice(start, end + 1) : cleaned;
+    if (start === -1 || end <= start) return null;
 
+    let rawList: any[];
     try {
-      const parsed = JSON.parse(candidate);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((q: any, i: number) => ({
-          question_index: Number(q?.question_index) || i + 1,
-          content: String(q?.content ?? ''),
-          options: Array.isArray(q?.options) ? q.options.map((o: any) => String(o)) : [],
-          correct_answer: String(q?.correct_answer ?? 'A'),
-          explanation: String(q?.explanation ?? ''),
-          time_limit_seconds: Number(q?.time_limit_seconds) || 30,
-        }));
-      }
+      rawList = JSON.parse(cleaned.slice(start, end + 1));
     } catch {
-      // ignore parse errors and fall back
+      return null;
+    }
+    if (!Array.isArray(rawList)) return null;
+
+    const questions: GeneratedQuestion[] = [];
+    for (const raw of rawList) {
+      const question = this.normalizeQuestion(raw);
+      if (question) {
+        question.question_index = questions.length + 1;
+        questions.push(question);
+      }
+      if (questions.length >= limit) break;
+    }
+    return questions.length > 0 ? questions : null;
+  }
+
+  /** Chuẩn hóa 1 câu hỏi thô từ AI; trả null nếu câu không đủ chuẩn (thay vì vá mồi). */
+  private normalizeQuestion(raw: any): GeneratedQuestion | null {
+    if (!raw || typeof raw !== 'object') return null;
+
+    const content = typeof raw.content === 'string' ? raw.content.replace(/\s+/g, ' ').trim() : '';
+    if (!content) return null;
+
+    const options = this.normalizeOptions(raw.options);
+    if (!options) return null;
+
+    const correctAnswer = this.normalizeCorrectAnswer(raw.correct_answer, options);
+    if (!correctAnswer) return null;
+
+    const explanation = typeof raw.explanation === 'string' ? raw.explanation.trim() : '';
+    const timeLimit = Number(raw.time_limit_seconds);
+
+    return {
+      question_index: 0,
+      content,
+      options,
+      correct_answer: correctAnswer,
+      explanation,
+      time_limit_seconds: Number.isFinite(timeLimit) && timeLimit > 0 ? Math.round(timeLimit) : 30,
+    };
+  }
+
+  private normalizeOptions(rawOptions: unknown): string[] | null {
+    if (!Array.isArray(rawOptions)) return null;
+    const options: string[] = [];
+    for (const raw of rawOptions) {
+      const text =
+        typeof raw === 'string'
+          ? raw
+          : typeof (raw as any)?.text === 'string'
+            ? (raw as any).text
+            : '';
+      const cleaned = text.replace(/\s+/g, ' ').trim();
+      if (cleaned && options.length < 4) options.push(cleaned);
+    }
+    return options.length === 4 ? options : null;
+  }
+
+  /**
+   * Quy đổi đáp án AI trả về về chữ cái A-D:
+   * 1) chữ cái đơn ("A" / "A." / "đáp án A...")
+   * 2) số 1-4 coi như vị trí phương án
+   * 3) nội dung đáp án trùng với text một phương án
+   * Không khớp → null (bỏ câu, không gán mồi "A").
+   */
+  private normalizeCorrectAnswer(rawAnswer: unknown, options: string[]): string | null {
+    const asText = String(rawAnswer ?? '').trim();
+    if (!asText) return null;
+    const upper = asText.toUpperCase();
+
+    if (typeof rawAnswer === 'number' && Number.isInteger(rawAnswer) && rawAnswer >= 1 && rawAnswer <= 4) {
+      return ANSWER_LETTERS[rawAnswer - 1];
+    }
+    if (/^[1-4]$/.test(upper)) return ANSWER_LETTERS[Number(upper) - 1];
+
+    const onlyLetter = upper.replace(/[^A-D]/g, '');
+    if (onlyLetter.length === 1) return onlyLetter;
+
+    const normalizedTarget = this.matchKey(asText);
+    if (!normalizedTarget) return null;
+    const matchIndex = options.findIndex((o) => this.matchKey(o) === normalizedTarget);
+    if (matchIndex !== -1) return ANSWER_LETTERS[matchIndex];
+
+    if (normalizedTarget.length >= 6) {
+      const loose = options
+        .map((o, i) => ({ i, includes: this.matchKey(o).includes(normalizedTarget) }))
+        .filter((r) => r.includes);
+      if (loose.length === 1) return ANSWER_LETTERS[loose[0].i];
     }
     return null;
   }
 
-  private generateMockPedagogicalQuestions(
-    subjectCode: string,
-    count: number,
-    difficulty: DifficultyLevel,
-  ): GeneratedQuestion[] {
-    const sampleQuestions: Record<string, GeneratedQuestion[]> = {
-      MATH: [
-        {
-          question_index: 1,
-          content: 'Muốn cộng hai phân số cùng mẫu số, ta thực hiện như thế nào?',
-          options: [
-            'Cộng tử số với tử số và giữ nguyên mẫu số',
-            'Cộng cả tử số và mẫu số với nhau',
-            'Nhân tử số với mẫu số',
-            'Giữ nguyên tử số và cộng mẫu số',
-          ],
-          correct_answer: 'A',
-          explanation: 'Theo quy tắc Toán tiểu học: Muốn cộng hai phân số cùng mẫu số, ta cộng hai tử số và giữ nguyên mẫu số.',
-          time_limit_seconds: 30,
-        },
-        {
-          question_index: 2,
-          content: 'Kết quả của phép tính 3/5 + 1/5 là:',
-          options: ['4/10', '4/5', '3/25', '2/5'],
-          correct_answer: 'B',
-          explanation: '3/5 + 1/5 = (3 + 1)/5 = 4/5.',
-          time_limit_seconds: 30,
-        },
-        {
-          question_index: 3,
-          content: 'Muốn rút gọn một phân số, ta làm thế nào?',
-          options: [
-            'Chia cả tử số và mẫu số cho cùng một số tự nhiên lớn hơn 1 mà cả hai cùng chia hết',
-            'Cộng thêm 1 vào cả tử và mẫu',
-            'Trừ bớt tử số đi mẫu số',
-            'Đổi chỗ tử số và mẫu số',
-          ],
-          correct_answer: 'A',
-          explanation: 'Rút gọn phân số nghĩa là chia cả tử và mẫu cho một ước chung lớn hơn 1 để được phân số tối giản.',
-          time_limit_seconds: 30,
-        },
-      ],
-      LITERATURE: [
-        {
-          question_index: 1,
-          content: 'Từ đồng nghĩa là những từ có đặc điểm gì?',
-          options: [
-            'Có nghĩa giống nhau hoặc gần giống nhau',
-            'Có cách phát âm hoàn toàn giống nhau',
-            'Có nghĩa trái ngược nhau hoàn toàn',
-            'Có chữ viết giống nhau nhưng nghĩa khác xa nhau',
-          ],
-          correct_answer: 'A',
-          explanation: 'Từ đồng nghĩa là những từ có nghĩa giống nhau hoặc gần giống nhau.',
-          time_limit_seconds: 30,
-        },
-      ],
-    };
-
-    const pool = sampleQuestions[subjectCode] || sampleQuestions.MATH;
-    const result: GeneratedQuestion[] = [];
-    for (let i = 0; i < count; i++) {
-      const template = pool[i % pool.length];
-      result.push({
-        ...template,
-        question_index: i + 1,
-        content: `[Độ khó: ${difficulty}] Câu ${i + 1}: ${template.content}`,
-      });
-    }
-    return result;
+  /** So sánh nội dung phương án đã bỏ tiền tố "A." / "A)" / "A)" và khoảng trắng dư. */
+  private matchKey(text: string): string {
+    return text
+      .replace(/^\s*[A-D][.:)\-–—]\s*/i, '')
+      .replace(/[.:)\s]+$/, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }

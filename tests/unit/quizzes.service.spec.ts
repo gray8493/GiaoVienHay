@@ -78,19 +78,24 @@ describe('QuizzesService (Unit Tests UT07 - All 28 Cases)', () => {
     };
 
     mockGeminiService = {
-      generateQuestionsFromLesson: jest.fn().mockResolvedValue([
-        {
-          question_number: 1,
-          content: 'Muốn cộng hai phân số cùng mẫu số, ta làm thế nào?',
-          options: [
-            { key: 'A', text: 'Cộng hai tử số với nhau và giữ nguyên mẫu số' },
-            { key: 'B', text: 'Cộng cả tử số và mẫu số với nhau' },
-            { key: 'C', text: 'Nhân hai phân số' },
-            { key: 'D', text: 'Quy đồng mẫu số trước' },
-          ],
-          correct_answer: 'A',
-        },
-      ]),
+      generateQuestionsFromLesson: jest.fn().mockResolvedValue({
+        source: 'nvidia_ai',
+        questions: [
+          {
+            question_index: 1,
+            content: 'Muốn cộng hai phân số cùng mẫu số, ta làm thế nào?',
+            options: [
+              'Cộng hai tử số với nhau và giữ nguyên mẫu số',
+              'Cộng cả tử số và mẫu số với nhau',
+              'Nhân hai phân số',
+              'Quy đồng mẫu số trước',
+            ],
+            correct_answer: 'A',
+            explanation: 'Cộng tử với tử, giữ nguyên mẫu số.',
+            time_limit_seconds: 30,
+          },
+        ],
+      }),
     };
 
     mockAttendanceService = {
