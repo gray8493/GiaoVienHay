@@ -11,6 +11,7 @@ import {
   IsNumber,
   IsBoolean,
   IsArray,
+  MaxLength,
 } from 'class-validator';
 import { DifficultyLevel, GameMode } from '@giaovienhay/shared-types';
 
@@ -59,6 +60,18 @@ export class GenerateQuizAiDto {
   @IsOptional()
   @IsEnum(GameMode)
   preferred_mode?: GameMode;
+
+  @ApiPropertyOptional({ example: 'giao_an_bai12.docx', description: 'Tên tệp phía client — dùng để phát hiện upload thất bại' })
+  @IsOptional()
+  @IsString()
+  file_name?: string;
+
+  @ApiPropertyOptional({ example: 245760, description: 'Kích thước tệp phía client (bytes)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  file_size_bytes?: number;
 }
 
 export class InClassScoreInputDto {
@@ -151,6 +164,14 @@ export class RegenerateQuizQuestionDto {
   @IsOptional()
   @IsString()
   prompt_hint?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nội dung giáo án gốc (BE trả về khi tạo đề) để câu hỏi mới bám đúng bài',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30000)
+  lesson_content?: string;
 }
 
 export class CreateQuizQuestionDto {

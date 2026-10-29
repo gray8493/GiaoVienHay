@@ -66,10 +66,19 @@ export class QuizzesService {
       });
     }
 
-    if (dto.file_name && dto.file_name.endsWith('.xlsx')) {
+    if (dto.file_name && dto.file_name.toLowerCase().endsWith('.xlsx')) {
       throw new BadRequestException({
         error_code: 'QUIZ_FILE_UNSUPPORTED',
         message: 'Định dạng tệp không được hỗ trợ (chỉ chấp nhận .pdf và .docx).',
+      });
+    }
+
+    // Client khai báo có tệp nhưng server không nhận được file (thường do upload
+    // FormData sai trên web). Không được âm thầm tạo đề từ mỗi tiêu đề.
+    if (!file && (dto.file_name || dto.file_size_bytes)) {
+      throw new BadRequestException({
+        error_code: 'QUIZ_FILE_MISSING',
+        message: 'Không nhận được tệp giáo án tải lên. Vui lòng chọn lại tệp và thử tạo đề lần nữa.',
       });
     }
 
@@ -84,9 +93,11 @@ export class QuizzesService {
     const difficulty = dto.difficulty_level || DifficultyLevel.MEDIUM;
 
     let lessonContent = `Bài giảng môn ${dto.subject_code} lớp ${dto.class_id}: ${dto.title}`;
+    let extractedLessonText: string | null = null;
 
     if (file) {
       const extracted = await extractDocumentText(file);
+      extractedLessonText = extracted.text;
       lessonContent = `Giáo án "${dto.title}" môn ${dto.subject_code}, lớp ${dto.class_id} (tệp ${extracted.fileName}):\n\n${extracted.text}`;
       if (extracted.truncated) {
         this.logger.warn(
@@ -165,7 +176,7 @@ export class QuizzesService {
       await (this.dataConnect as any).syncAiUsageToday(teacherId);
     }
 
-    return quizData;
+    return extractedLessonText ? { ...quizData, lesson_content: extractedLessonText } : quizData;
   }
 
   /**
@@ -342,9 +353,14 @@ export class QuizzesService {
       });
     }
 
-    const lessonContent = data?.prompt_hint
-      ? `Bài học môn ${quiz.subject_code}: ${quiz.title}. Yêu cầu riêng: ${data.prompt_hint}`
+    const lessonText = typeof data?.lesson_content === 'string' ? data.lesson_content.trim() : '';
+    const hint = typeof data?.prompt_hint === 'string' ? data.prompt_hint.trim() : '';
+    let lessonContent = lessonText
+      ? `Giáo án gốc môn ${quiz.subject_code}, lớp ${(quiz as any).class_id}:\n\n${lessonText}`
       : `Bài học môn ${quiz.subject_code}: ${quiz.title}`;
+    if (hint) {
+      lessonContent += `\n\nYêu cầu riêng của giáo viên: ${hint}`;
+    }
     const difficulty = data?.difficulty_level || DifficultyLevel.MEDIUM;
 
     let generated;

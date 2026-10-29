@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { api, apiFetch } from './http';
 
 export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD' | 'MIXED';
@@ -34,7 +35,41 @@ export interface QuizDetail {
   difficulty_level: DifficultyLevel;
   total_questions: number;
   questions: QuizQuestion[];
+  /** Text giáo án đã extract — BE trả về khi tạo đề để gửi lại lúc tạo lại câu hỏi */
+  lesson_content?: string;
 }
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  txt: 'text/plain',
+};
+
+const resolveMimeType = (file: QuizUploadFile): string => {
+  if (file.mimeType) return file.mimeType;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  return MIME_BY_EXTENSION[ext] || 'application/octet-stream';
+};
+
+/**
+ * Trên web, FormData chỉ nhận Blob/File thật — append object { uri, name, type }
+ * sẽ bị stringify thành "[object Object]" và server không thấy file.
+ * Trên native, object { uri, name, type } mới là định dạng React Native chấp nhận.
+ */
+const appendLessonFile = async (formData: FormData, file: QuizUploadFile): Promise<void> => {
+  if (Platform.OS === 'web') {
+    const response = await fetch(file.uri);
+    const blob = await response.blob();
+    // RN typings khai báo append(name, value) nên phải cast để truyền filename (web).
+    (formData as any).append('file', blob, file.name);
+    return;
+  }
+  formData.append('file', {
+    uri: file.uri,
+    name: file.name,
+    type: resolveMimeType(file),
+  } as any);
+};
 
 /** Chuỗi options['A','B',...] → mảng QuestionOptionDto của backend */
 const toOptionDto = (options: string[]) =>
@@ -51,14 +86,9 @@ export const quizService = {
         formData.append('title', payload.title);
         formData.append('num_questions', String(payload.num_questions));
         formData.append('difficulty_level', payload.difficulty_level);
-        formData.append(
-          'file',
-          {
-            uri: file.uri,
-            name: file.name,
-            type: file.mimeType || 'application/octet-stream',
-          } as any,
-        );
+        await appendLessonFile(formData, file);
+        formData.append('file_name', file.name);
+        if (file.size) formData.append('file_size_bytes', String(file.size));
         response = await apiFetch('/quizzes/generate-ai', { method: 'POST', body: formData });
       } else {
         response = await apiFetch('/quizzes/generate-ai', {
@@ -125,10 +155,18 @@ export const quizService = {
   },
 
   /** POST /quizzes/:id/questions/:n/regenerate — AI sinh lại một câu hỏi */
-  async regenerateQuestion(quizId: string, questionNumber: number, difficultyLevel?: DifficultyLevel) {
+  async regenerateQuestion(
+    quizId: string,
+    questionNumber: number,
+    difficultyLevel?: DifficultyLevel,
+    lessonContent?: string,
+  ) {
+    const body: Record<string, unknown> = {};
+    if (difficultyLevel) body.difficulty_level = difficultyLevel;
+    if (lessonContent) body.lesson_content = lessonContent;
     return api(`/quizzes/${quizId}/questions/${questionNumber}/regenerate`, {
       method: 'POST',
-      body: difficultyLevel ? { difficulty_level: difficultyLevel } : {},
+      body,
       errorMessage: 'Không thể tạo lại câu hỏi bằng AI',
     });
   },

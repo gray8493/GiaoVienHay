@@ -161,6 +161,8 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
 
   // Danh sách câu hỏi
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  // Text giáo án đã extract — gửi lại khi tạo lại câu hỏi để AI bám đúng bài
+  const [lessonContent, setLessonContent] = useState('');
 
   // Chỉnh sửa câu hỏi trực tiếp (Inline edit)
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -262,7 +264,12 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
 
     setBusyQuestionIndex(index);
     try {
-      const updated: any = await quizService.regenerateQuestion(generatedQuizId, index, difficulty);
+      const updated: any = await quizService.regenerateQuestion(
+        generatedQuizId,
+        index,
+        difficulty,
+        lessonContent || undefined,
+      );
       const data = updated?.data || updated;
       setQuestions((prev) =>
         prev.map((q) =>
@@ -293,6 +300,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
     setSelectedSubjectCode(opt.code);
     setSelectedSubject(opt.label);
     setQuestions([]);
+    setLessonContent('');
     setGeneratedQuizId('');
     setGeneratedQuizMeta(null);
     setSubjectMenuVisible(false);
@@ -333,6 +341,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
         mimeType: asset.mimeType,
       });
       setQuestions([]);
+      setLessonContent('');
       setGeneratedQuizId('');
       setGeneratedQuizMeta(null);
     } catch {
@@ -343,6 +352,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
   const handleRemoveDocument = () => {
     setPickedFile(null);
     setQuestions([]);
+    setLessonContent('');
     setGeneratedQuizId('');
     setGeneratedQuizMeta(null);
   };
@@ -379,6 +389,7 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
           subjectCode: data?.subject_code || selectedSubjectCode,
         });
         setQuestions(data?.questions || []);
+        setLessonContent(typeof data?.lesson_content === 'string' ? data.lesson_content : '');
         setIsGenerating(false);
       }, 1600);
     } catch (e: any) {
