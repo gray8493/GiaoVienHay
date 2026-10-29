@@ -32,28 +32,34 @@ export class QuizzesService {
     file: Express.Multer.File | undefined,
     dto: GenerateQuizAiDto & { file_name?: string; file_size_bytes?: number },
   ) {
-    if (typeof (this.dataConnect as any).getUserById === 'function') {
-      const user = await (this.dataConnect as any).getUserById(teacherId);
-      const role = user?.role || '';
-      if (user && role && !role.includes('TEACHER') && role !== 'ADMIN') {
-        throw new ForbiddenException({
-          error_code: 'AUTH_FORBIDDEN',
-          message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho giáo viên.',
-        });
-      }
+    const supportsUserLookup = typeof (this.dataConnect as any).getUserById === 'function';
+    const supportsQuotaCheck = typeof (this.dataConnect as any).checkDailyAiQuota === 'function';
+    // Hai truy vấn độc lập nhau: chạy song song để bớt một vòng round-trip DB.
+    const [user, withinQuota] = await Promise.all([
+      supportsUserLookup
+        ? (this.dataConnect as any).getUserById(teacherId)
+        : Promise.resolve(null),
+      supportsQuotaCheck
+        ? (this.dataConnect as any).checkDailyAiQuota(teacherId)
+        : Promise.resolve(true),
+    ]);
+
+    const role = user?.role || '';
+    if (user && role && !role.includes('TEACHER') && role !== 'ADMIN') {
+      throw new ForbiddenException({
+        error_code: 'AUTH_FORBIDDEN',
+        message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho giáo viên.',
+      });
     }
 
-    if (typeof (this.dataConnect as any).checkDailyAiQuota === 'function') {
-      const withinQuota = await (this.dataConnect as any).checkDailyAiQuota(teacherId);
-      if (!withinQuota) {
-        throw new HttpException(
-          {
-            error_code: 'QUIZ_DAILY_QUOTA_EXCEEDED',
-            message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI trong ngày. Vui lòng quay lại vào ngày mai hoặc liên hệ quản trị viên để nâng hạn mức.',
-          },
-          HttpStatus.TOO_MANY_REQUESTS,
-        );
-      }
+    if (!withinQuota) {
+      throw new HttpException(
+        {
+          error_code: 'QUIZ_DAILY_QUOTA_EXCEEDED',
+          message: 'Giáo viên đã sử dụng hết hạn ngạch gọi AI trong ngày. Vui lòng quay lại vào ngày mai hoặc liên hệ quản trị viên để nâng hạn mức.',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     if (

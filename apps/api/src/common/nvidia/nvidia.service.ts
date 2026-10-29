@@ -51,12 +51,15 @@ export class NvidiaService {
   private requestTimes: number[] = [];
   private slotLock: Promise<void> = Promise.resolve();
 
+  /** Model nhỏ, không "suy luận" nặng: nhanh gấp ~3 lần gpt-oss-20b trên cùng giáo án. */
+  private static readonly DEFAULT_MODEL = 'nvidia/nemotron-3.5-bolt-e4b';
+
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('NVIDIA_API_KEY');
     this.baseUrl = (
       this.configService.get<string>('NVIDIA_BASE_URL') || 'https://integrate.api.nvidia.com/v1'
     ).replace(/\/+$/, '');
-    this.model = this.configService.get<string>('NVIDIA_MODEL') || 'openai/gpt-oss-20b';
+    this.model = this.configService.get<string>('NVIDIA_MODEL') || NvidiaService.DEFAULT_MODEL;
     this.timeoutMs = Number(this.configService.get<string>('NVIDIA_TIMEOUT_MS')) || 120000;
     this.rpm = Number(this.configService.get<string>('NVIDIA_RPM')) || 40;
 
@@ -119,10 +122,13 @@ export class NvidiaService {
 
     const targetCount = Math.min(Math.max(Number(numQuestions) || 5, 1), 20);
     const prompt = this.buildLessonPrompt(lessonContent, subjectCode, targetCount, difficulty);
+    // Đủ chỗ cho N câu + phần "suy luận" của model, nhưng chặn model lan man tới 8192 token.
+    const maxTokens = Math.min(8192, Math.max(1024, targetCount * 450 + 700));
 
     let text: string;
+    const startedAt = Date.now();
     try {
-      text = await this.chatCompletion(prompt);
+      text = await this.chatCompletion(prompt, maxTokens);
     } catch (err) {
       if (err instanceof NvidiaGenerationError) throw err;
       throw new NvidiaGenerationError(
@@ -130,6 +136,10 @@ export class NvidiaService {
         `Không gọi được NVIDIA API: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+
+    this.logger.log(
+      `AI sinh ${targetCount} câu xong sau ${Date.now() - startedAt}ms (model=${this.model}, max_tokens=${maxTokens})`,
+    );
 
     const parsed = this.parseQuestions(text, targetCount);
     if (!parsed) {
@@ -176,11 +186,14 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
 - time_limit_seconds: 30`;
   }
 
-  private async chatCompletion(prompt: string): Promise<string> {
+  private async chatCompletion(prompt: string, maxTokens: number): Promise<string> {
+    // Chờ slot rate-limit TRƯỚC khi bật đồng hồ timeout: thời gian xếp hàng
+    // không được tính vào thời gian chờ AI trả lời.
+    await this.acquireSlot();
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      await this.acquireSlot();
       let response: Response;
       try {
         response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -194,9 +207,9 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
             messages: [{ role: 'user', content: prompt }],
             temperature: 1,
             top_p: 0.95,
-            max_tokens: 8192,
-            // gpt-oss là reasoning model: full reasoning có thể chạy 1-2 phút và
-            // nuốt sạch max_tokens khiến content=null. Giảm effort để trả lời nhanh.
+            max_tokens: maxTokens,
+            // Với reasoning model, effort thấp giúp trả lời nhanh và không nuốt
+            // sạch max_tokens vào phần suy luận khiến content rỗng.
             reasoning_effort: 'low',
           }),
           signal: controller.signal,

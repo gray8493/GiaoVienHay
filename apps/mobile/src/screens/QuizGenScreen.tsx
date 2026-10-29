@@ -382,16 +382,17 @@ export const QuizGenScreen: React.FC<QuizGenScreenProps> = ({
       );
       const data = resJson?.data || resJson;
 
-      setTimeout(() => {
-        setGeneratedQuizId(data?.quiz_id || '');
-        setGeneratedQuizMeta({
-          title: data?.title || `Kiểm tra ${selectedSubject} - ${selectedClass}`,
-          subjectCode: data?.subject_code || selectedSubjectCode,
-        });
-        setQuestions(data?.questions || []);
-        setLessonContent(typeof data?.lesson_content === 'string' ? data.lesson_content : '');
-        setIsGenerating(false);
-      }, 1600);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      setProgressPercent(100);
+      setGeneratedQuizId(data?.quiz_id || '');
+      setGeneratedQuizMeta({
+        title: data?.title || `Kiểm tra ${selectedSubject} - ${selectedClass}`,
+        subjectCode: data?.subject_code || selectedSubjectCode,
+      });
+      setQuestions(data?.questions || []);
+      setLessonContent(typeof data?.lesson_content === 'string' ? data.lesson_content : '');
+      setIsGenerating(false);
     } catch (e: any) {
       clearTimeout(timer1);
       clearTimeout(timer2);
