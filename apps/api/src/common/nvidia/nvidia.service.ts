@@ -176,6 +176,7 @@ Quy tắc bắt buộc về nội dung:
 - Câu hỏi, đáp án đúng và lời giải phải bám sát nội dung bài học trong dấu """ ở trên; tuyệt đối không bịa dữ kiện, số liệu hoặc kiến thức không có liên quan đến nội dung đó.
 - Phương án nhiễu phải là lỗi sai thường gặp về cùng kiến thức đã nêu, phân biệt rõ ràng.
 - Không sinh câu hỏi về chủ đề không xuất hiện trong nội dung bài học.
+- Không dùng LaTeX hay dấu $; viết ký hiệu toán trực tiếp (≥, ≤, ×, :, 1/2).
 
 Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy (không kèm chữ nào khác, không bọc trong \`\`\`json), mỗi phần tử gồm:
 - question_index: số thứ tự (1, 2, ... tới ${numQuestions})
@@ -259,13 +260,8 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
     const end = cleaned.lastIndexOf(']');
     if (start === -1 || end <= start) return null;
 
-    let rawList: any[];
-    try {
-      rawList = JSON.parse(cleaned.slice(start, end + 1));
-    } catch {
-      return null;
-    }
-    if (!Array.isArray(rawList)) return null;
+    const rawList = this.parseJsonList(cleaned.slice(start, end + 1));
+    if (!rawList) return null;
 
     const questions: GeneratedQuestion[] = [];
     for (const raw of rawList) {
@@ -277,6 +273,38 @@ Yêu cầu định dạng: Trả về DUY NHẤT một mảng JSON thuần túy 
       if (questions.length >= limit) break;
     }
     return questions.length > 0 ? questions : null;
+  }
+
+  /**
+   * Parse mảng câu hỏi theo 3 bước, để một câu hỏng không làm mất cả đề:
+   * 1) parse nguyên mảng
+   * 2) vá escape sai do LaTeX (vd "$\ge 10$": \g không hợp lệ trong JSON)
+   * 3) parse riêng từng câu, bỏ câu vẫn hỏng (vd thiếu dấu " đóng chuỗi)
+   */
+  private parseJsonList(json: string): any[] | null {
+    const tryParse = (candidate: string): any => {
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        return undefined;
+      }
+    };
+
+    const repaired = json.replace(/\\([\s\S])/g, (match, next: string) =>
+      '"\\/bfnrtu'.includes(next) ? match : `\\\\${next}`,
+    );
+    const whole = tryParse(json) ?? tryParse(repaired);
+    if (whole !== undefined) return Array.isArray(whole) ? whole : null;
+
+    const items: any[] = [];
+    for (const chunk of repaired.split(/(?=\{\s*"question_index")/).slice(1)) {
+      const item = tryParse(chunk.slice(0, chunk.lastIndexOf('}') + 1));
+      if (item !== undefined) items.push(item);
+    }
+    if (items.length > 0) {
+      this.logger.warn(`AI trả JSON hỏng; đã cứu được ${items.length} câu hỏi parse riêng từng câu.`);
+    }
+    return items.length > 0 ? items : null;
   }
 
   /** Chuẩn hóa 1 câu hỏi thô từ AI; trả null nếu câu không đủ chuẩn (thay vì vá mồi). */

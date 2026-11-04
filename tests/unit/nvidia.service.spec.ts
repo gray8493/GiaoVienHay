@@ -161,6 +161,31 @@ describe('NvidiaService — đọc nội dung giáo án & sinh câu hỏi (KHÔN
     ).rejects.toMatchObject({ reason: 'INVALID_FORMAT' });
   });
 
+  it('Một câu thiếu dấu " đóng chuỗi → bỏ câu đó, vẫn giữ các câu còn lại', async () => {
+    const good = (n: number) =>
+      `{"question_index": ${n}, "content": "Câu ${n}", "options": ["a", "b", "c", "d"], "correct_answer": "B", "explanation": "Vì sao", "time_limit_seconds": 30}`;
+    const broken =
+      '{"question_index": 2, "content": "Câu 2", "options": ["a", "b", "c", "d"], "correct_answer": "B", "explanation": "Thiếu dấu đóng.*\n "time_limit_seconds": 30}';
+    global.fetch = okFetch(`[${good(1)}, ${broken}, ${good(3)}]`) as any;
+
+    const res = await buildService().generateQuestionsFromLesson('Giáo án Toán', 'MATH', 3);
+
+    expect(res.questions.map((q) => q.content)).toEqual(['Câu 1', 'Câu 3']);
+    expect(res.questions.map((q) => q.question_index)).toEqual([1, 2]);
+  });
+
+  it('Escape LaTeX không hợp lệ ($\\ge 10$) → vá được, không mất câu hỏi', async () => {
+    const raw =
+      '[{"question_index": 1, "content": "Khi tổng $\\ge 10$ thì sao?", "options": ["a", "b", "c", "d"], "correct_answer": "A", "explanation": "Nhớ 1", "time_limit_seconds": 30}]';
+    expect(() => JSON.parse(raw)).toThrow();
+    global.fetch = okFetch(raw) as any;
+
+    const res = await buildService().generateQuestionsFromLesson('Giáo án Toán', 'MATH', 1);
+
+    expect(res.questions).toHaveLength(1);
+    expect(res.questions[0].content).toContain('10');
+  });
+
   it('AI trả mảng JSON nhưng rỗng/không câu hợp lệ → throw', async () => {
     global.fetch = okFetch(aiJson([])) as any;
 
